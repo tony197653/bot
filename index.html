@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>靜態頁面</title>
+<style>
+  :root {
+    --paper: #F2F4F1;
+    --ink: #1D2B36;
+    --accent: #0E6E6C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+    font-size: 17px;
+    line-height: 1.7;
+  }
+  main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 48px 20px 64px;
+  }
+  h1 {
+    margin: 0 0 8px;
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+  p {
+    margin: 0 0 28px;
+    color: #5E6B73;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-top: 1px solid #C9D1D3;
+  }
+  li {
+    border-bottom: 1px solid #C9D1D3;
+  }
+  a {
+    display: block;
+    padding: 14px 0;
+    color: var(--accent);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  a:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 4px;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>靜態頁面</h1>
+  <p>本站以資料夾分頁，每頁各自獨立。</p>
+  <ul>
+    <li><a href="jev-quiz/">JEV 判斷模型小測驗</a></li>
+  </ul>
+</main>
+</body>
+</html>

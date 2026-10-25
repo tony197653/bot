@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>JEV 判斷模型小測驗</title>
+<style>
+:root{--paper:#F2F4F1;--sheet:#FFFFFF;--ink:#1D2B36;--muted:#5E6B73;--rule:#C9D1D3;--pick:#0E6E6C;--ok:#2F7D3A;--bad:#B3362B;--mark:#FFE27A}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC",sans-serif;font-size:17px;line-height:1.7}
+main{max-width:680px;margin:0 auto;padding:40px 20px 60px}
+header{border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:22px}
+h1{font-size:1.75rem;margin:0;font-weight:800;letter-spacing:.02em}
+.byline{color:var(--muted);font-size:.95rem;margin:2px 0 0}
+/* answer-sheet strip: one bubble per question */
+.strip{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 26px}
+.strip span{width:22px;height:22px;border:1.5px solid var(--rule);border-radius:50%;font-size:.68rem;display:grid;place-items:center;color:var(--muted);background:var(--sheet)}
+.strip .now{border-color:var(--ink);color:var(--ink);font-weight:700}
+.strip .y{background:var(--ok);border-color:var(--ok);color:#fff}
+.strip .n{background:var(--bad);border-color:var(--bad);color:#fff}
+.sheet{background:var(--sheet);border:1px solid var(--rule);border-radius:6px;padding:28px 28px 24px}
+.qno{font-size:.95rem;color:var(--muted);margin:0 0 4px}
+.q{font-size:1.3rem;font-weight:700;margin:0 0 20px;line-height:1.55}
+.opts{list-style:none;margin:0;padding:0}
+.opt{display:flex;align-items:center;gap:14px;width:100%;padding:11px 12px;margin:0;border:0;border-top:1px solid #E4E8E8;background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.opts li:last-child .opt{border-bottom:1px solid #E4E8E8}
+.bub{flex:none;width:30px;height:30px;border:2px solid var(--ink);border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.9rem;transition:background .15s,color .15s}
+.opt.sel{background:#E6F1F0}
+.opt.sel .bub{border-color:var(--pick);color:var(--pick)}
+.opt:focus-visible{outline:3px solid var(--pick);outline-offset:-3px}
+.opt.ok .bub{background:var(--ok);border-color:var(--ok);color:#fff}
+.opt.bad .bub{background:var(--bad);border-color:var(--bad);color:#fff}
+.opt.ok .txt{background:linear-gradient(transparent 55%,var(--mark) 55%)}
+.opt:disabled{cursor:default}
+.note{margin:16px 0 0;padding:12px 16px;border-left:4px solid var(--ink);background:var(--paper);min-height:6.2em;visibility:hidden}
+.note.on{visibility:visible}
+.q{min-height:3.1em}
+.act{min-height:50px}
+html{scrollbar-gutter:stable;overflow-y:scroll}
+main{padding-top:24px}
+.note b.y{color:var(--ok)}.note b.n{color:var(--bad)}
+.act{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+.btn{font:inherit;font-weight:700;padding:10px 22px;border:2px solid var(--ink);border-radius:4px;background:var(--ink);color:#fff;cursor:pointer}
+.btn.alt{background:var(--sheet);color:var(--ink)}
+.btn.sel,.btn:focus-visible{outline:3px solid var(--pick);outline-offset:3px}
+.keys{color:var(--muted);font-size:.88rem;margin-top:18px}
+kbd{font:inherit;font-size:.82rem;border:1px solid var(--rule);border-bottom-width:2px;border-radius:3px;padding:0 6px;background:var(--sheet);color:var(--ink)}
+.big{font-size:4.2rem;font-weight:800;line-height:1;margin:0}
+.big small{font-size:1.4rem;color:var(--muted);font-weight:700}
+.review{margin-top:28px;border-top:2px solid var(--ink);padding-top:8px}
+.review h2{font-size:1.1rem;margin:8px 0}
+.review article{padding:12px 0;border-bottom:1px solid #E4E8E8}
+.review p{margin:2px 0}
+.chk{display:inline-flex;gap:8px;align-items:center;cursor:pointer;margin-top:6px}
+.chk input{width:18px;height:18px;accent-color:var(--pick)}
+@media (max-width:520px){.sheet{padding:20px 16px}.q{font-size:1.15rem}}
+main{padding:16px 16px 20px}
+header{padding-bottom:8px;margin-bottom:12px}
+.strip{margin:0 0 14px}
+.sheet{padding:20px 22px 18px}
+.q{margin:0 0 12px}
+.opt{padding:8px 10px}
+.note{margin:10px 0 0;padding:8px 12px;min-height:5.4em}
+.act{margin-top:12px;min-height:46px}
+.keys{margin-top:10px}
+html.embed header{display:none}
+html.embed main{padding-top:8px}
+@media (hover:none),(pointer:coarse){.keys{display:none}}
+@media (max-width:520px){body{font-size:15px;line-height:1.55}main{padding:6px 8px 10px}.sheet{padding:14px 12px 12px}.q{font-size:1.05rem;min-height:2.9em;margin-bottom:8px}.qno{font-size:.82rem;margin-bottom:2px}.opt{padding:7px 6px;gap:10px}.bub{width:26px;height:26px;font-size:.8rem}.strip{gap:3px;margin-bottom:8px}.strip span{width:15px;height:15px;font-size:.5rem;border-width:1px}.note{font-size:.9rem;min-height:5.6em;padding:6px 10px}.act{margin-top:8px;min-height:42px}.btn{padding:7px 18px}h1{font-size:1.3rem}.byline{font-size:.82rem}.big{font-size:3rem}}
+html,body{overflow-x:hidden;-webkit-text-size-adjust:100%}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+main{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));padding-bottom:max(20px,env(safe-area-inset-bottom))}
+h1{text-wrap:balance}
+.opt{min-height:44px}.btn{min-height:44px}
+@media (max-width:520px){main{min-height:100vh;min-height:100dvh;padding:10px max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}header{margin-bottom:8px;padding-bottom:6px}h1{font-size:1.15rem}.byline{display:none}.opt{min-height:44px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body><main>
+<header><h1>JEV 判斷模型小測驗</h1><p class="byline">共 20 題選擇題，每題作答後馬上看到解說</p></header>
+<div class="strip" id="strip" aria-hidden="true"></div>
+<section class="sheet" id="app" aria-live="polite"></section>
+<p class="keys" id="keys"></p>
+</main>
+<script>
+if(window.self!==window.top)document.documentElement.classList.add("embed");
+const DATA={"title": "JEV 判斷模型小測驗", "questions": [{"id": 1, "q": "JEV 是哪一家公司的產品？", "options": ["OpenAI", "TypeSafe AI", "Google", "Vercel"], "answer": 1, "explain": "JEV 是 TypeSafe AI 推出的判斷模型，官網是 typesafe.ai。"}, {"id": 2, "q": "JEV 被稱為哪一類模型？", "options": ["圖像生成模型", "System One 判斷模型", "語音辨識模型", "翻譯模型"], "answer": 1, "explain": "JEV 是 TypeSafe 第一個 System One 模型，專門做快速判斷，不寫長文章。"}, {"id": 3, "q": "下列哪一個「不是」JEV 的題型？", "options": ["choice", "score", "noul", "essay"], "answer": 3, "explain": "JEV 只有三種題型：choice（選一個）、score（分等級）、noul（是非機率）。"}, {"id": 4, "q": "noul 題型回傳的數字代表什麼？", "options": ["回答的字數", "答案是「是」的機率（0～1）", "花費的金額", "題目的編號"], "answer": 1, "explain": "noul 回傳 0～1 之間的機率，例如 0.98 代表很可能是「是」。"}, {"id": 5, "q": "choice 題型除了選出的類別，還會給什麼？", "options": ["信心值 confidence", "圖片", "翻譯", "錯字修正"], "answer": 0, "explain": "choice 會回傳 choice 和 confidence，信心值可以拿來決定要不要轉人工。"}, {"id": 6, "q": "呼叫 JEV 官方 API 時，必填的三個欄位是？", "options": ["name、age、email", "model、state、questions", "url、key、id", "text、lang、size"], "answer": 1, "explain": "state 是要判斷的內容，questions 是要問的問題，model 是用哪個模型。"}, {"id": 7, "q": "TypeSafe 官方 API 的網址是？", "options": ["https://api.typesafe.ai/v1/systemone", "https://typesafe.ai/chat", "https://api.openai.com/v1/chat", "https://jev.com/api"], "answer": 0, "explain": "官方端點是 POST https://api.typesafe.ai/v1/systemone。"}, {"id": 8, "q": "在官方 API 中，模型名稱 jev-latest 代表？", "options": ["測試版", "指向目前最新穩定版的別名", "免費版", "舊版"], "answer": 1, "explain": "jev-latest 是別名，回應裡會顯示實際版本，例如 jev-1.13.0。"}, {"id": 9, "q": "透過 Vercel AI Gateway 使用時，模型名稱要寫？", "options": ["jev-latest", "typesafe-ai/jev", "gpt-jev", "vercel/jev"], "answer": 1, "explain": "Vercel 上的模型名稱是 typesafe-ai/jev，網址是 https://ai-gateway.vercel.sh/typesafe。"}, {"id": 10, "q": "API 金鑰要放在哪個 HTTP 標頭？", "options": ["Cookie", "Authorization: Bearer 金鑰", "User-Agent", "Accept"], "answer": 1, "explain": "兩家都用 Authorization: Bearer <金鑰>。"}, {"id": 11, "q": "用 TypeSafe 主控台的金鑰去呼叫 Vercel 網址，最可能出現什麼錯誤？", "options": ["200", "404", "401 驗證失敗", "500"], "answer": 2, "explain": "金鑰和網址要同一家，不然會回 401 Authentication failed。"}, {"id": 12, "q": "JEV 的計價方式是？", "options": ["每月固定 20 美元", "每 100 萬輸入 token 0.042 美元，輸出免費", "每次呼叫 1 美元", "完全免費"], "answer": 1, "explain": "只算輸入 token，每百萬 0.042 美元，輸出不收費，非常便宜。"}, {"id": 13, "q": "下列哪件事「不適合」交給 JEV？", "options": ["判斷問題屬於哪一類", "判斷客戶是否很急", "計算 30 箱出 12 箱還剩幾箱", "判斷信件語氣是否生氣"], "answer": 2, "explain": "官方提醒 JEV 不擅長數數、算術和比較日期，這些交給 Excel 或程式。"}, {"id": 14, "q": "設計 choice 的選項時，官方建議一定要加上？", "options": ["「其他」選項", "表情符號", "英文翻譯", "價格"], "answer": 0, "explain": "加上 other（以上皆非）可以避免模型被迫選一個不對的類別。"}, {"id": 15, "q": "在「倉庫問題分流器」中，信心值太低的題目應該？", "options": ["直接丟掉", "轉給人工處理", "一律交給大模型", "重新再問十次"], "answer": 1, "explain": "低信心代表模型不確定，轉人工最保險；實測建議門檻 0.85～0.9。"}, {"id": 16, "q": "JEV 搭配大模型的主要好處是？", "options": ["畫面比較漂亮", "先判斷再決定要不要叫大模型，省 token 又快", "可以離線使用", "不需要網路"], "answer": 1, "explain": "簡單的事 JEV 判斷完就處理掉，只有真的需要寫長文時才叫大模型。"}, {"id": 17, "q": "score 題型的 criteria 是什麼形式？", "options": ["由低到高排列的等級清單", "一個數字", "一張圖片", "一段網址"], "answer": 0, "explain": "score 給一串等級描述，例如「冷靜、有點不滿、非常生氣」，模型判斷落在哪一級。"}, {"id": 18, "q": "在 Excel VBA 呼叫 JEV，常用哪個物件送 HTTP 請求？", "options": ["Scripting.FileSystemObject", "MSXML2.ServerXMLHTTP.6.0", "ADODB.Connection", "Shell.Application"], "answer": 1, "explain": "用 MSXML2.ServerXMLHTTP.6.0 送 POST，body 是 JSON 字串。"}, {"id": 19, "q": "金鑰最好存在哪裡？", "options": ["寫死在 VBA 程式碼", "Windows 環境變數", "貼在聊天室", "Excel 儲存格"], "answer": 1, "explain": "放環境變數，程式用 Environ(\"名稱\") 讀取，檔案傳給別人也不會外流。"}, {"id": 20, "q": "VBA 裡 Environ(\"AI_GATEWAY_API_KEY\") 括號裡要放？", "options": ["金鑰本身", "環境變數的名稱", "網址", "模型名稱"], "answer": 1, "explain": "括號裡放變數名稱，VBA 會去讀出對應的值；放金鑰本身會讀到空白。"}]};
+const L='ABCDEF',$=id=>document.getElementById(id),app=$('app');
+let qs=[],i=0,score=0,wrong=[],res=[],sel=0,answered=false,mode='home';
+function shuffle(a){a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a}
+function keys(t){$('keys').innerHTML=t}
+function strip(){$('strip').innerHTML=(qs.length?qs:DATA.questions).map((_,n)=>`<span class="${res[n]===true?'y':res[n]===false?'n':n===i&&mode==='quiz'?'now':''}">${n+1}</span>`).join('')}
+function home(){mode='home';res=[];i=0;qs=[];strip();
+app.innerHTML=`<p style="margin-top:0">跟寫會考答案卡一樣，選一個答案就好。做完會算分數，答錯的題目可以再練一次。</p>
+<label class="chk"><input type="checkbox" id="sh"> 打亂題目順序</label>
+<div class="act"><button class="btn sel" onclick="start()">開始作答</button></div>`;
+keys('按 <kbd>Enter</kbd> 或 <kbd>空白鍵</kbd> 開始，按 <kbd>R</kbd> 打亂題目順序')}
+function start(list){const r=$('sh')&&$('sh').checked;qs=list||(r?shuffle(DATA.questions):DATA.questions.slice());i=0;score=0;wrong=[];res=[];show()}
+function show(){mode='quiz';answered=false;const q=qs[i];strip();
+app.innerHTML=`<p class="qno">第 ${i+1} 題，共 ${qs.length} 題</p><p class="q">${q.q}</p>
+<ul class="opts">${q.options.map((o,k)=>`<li><button class="opt" onclick="pick(${k})" onmouseenter="hl(${k})"><span class="bub">${L[k]}</span><span class="txt">${o}</span></button></li>`).join('')}</ul>
+<div class="note" id="note">&nbsp;</div><div class="act" id="act"><button class="btn" style="visibility:hidden" tabindex="-1">下一題</button></div>`;hl(0);
+keys('<kbd>↑</kbd> <kbd>↓</kbd> 選答案，<kbd>Enter</kbd> 或 <kbd>空白鍵</kbd> 確認，也可以按 <kbd>1</kbd> 到 <kbd>4</kbd> 直接作答')}
+function hl(k){if(answered)return;sel=k;document.querySelectorAll('.opt').forEach((b,n)=>b.classList.toggle('sel',n===k))}
+function pick(k){if(answered)return;answered=true;const q=qs[i],b=document.querySelectorAll('.opt'),right=k===q.answer;
+b.forEach(x=>{x.disabled=true;x.classList.remove('sel')});b[q.answer].classList.add('ok');
+if(right)score++;else{b[k].classList.add('bad');wrong.push({q,k})}
+res[i]=right;strip();
+const n=$('note');n.classList.add('on');n.innerHTML=(right?'<b class="y">答對。</b>':`<b class="n">答錯，正確答案是 ${L[q.answer]}。</b>`)+' '+q.explain;
+$('act').innerHTML=`<button class="btn sel" onclick="next()">${i<qs.length-1?'下一題':'看成績'}</button>`;
+keys('按 <kbd>Enter</kbd> 或 <kbd>空白鍵</kbd> '+(i<qs.length-1?'到下一題':'看成績'))}
+function next(){i++;i<qs.length?show():end()}
+function end(){mode='end';window.scrollTo(0,0);strip();const p=Math.round(score/qs.length*100);
+const msg=p===100?'全部答對。':p>=80?'觀念很清楚，錯的幾題看一下解說就好。':p>=60?'及格了，把錯題再練一次會更穩。':'先看下面的解說，再練一次錯題。';
+app.innerHTML=`<p class="big">${score}<small> / ${qs.length}</small></p><p>正確率 ${p}%。${msg}</p>
+<div class="act" id="endb">${wrong.length?'<button class="btn" onclick="start(wrong.map(w=>w.q))">再練錯的 '+wrong.length+' 題</button>':''}<button class="btn alt" onclick="home()">從頭再做一次</button></div>
+${wrong.length?'<div class="review"><h2>答錯的題目</h2>'+wrong.map(w=>`<article><p><b>${w.q.q}</b></p><p>你選：${w.q.options[w.k]}</p><p>正確：${w.q.options[w.q.answer]}</p><p style="color:var(--muted)">${w.q.explain}</p></article>`).join('')+'</div>':''}`;
+endhl(0);keys('<kbd>←</kbd> <kbd>→</kbd> 選按鈕，<kbd>Enter</kbd> 或 <kbd>空白鍵</kbd> 確認')}
+function endhl(k){const bs=document.querySelectorAll('#endb .btn');sel=(k+bs.length)%bs.length;bs.forEach((b,n)=>b.classList.toggle('sel',n===sel))}
+document.addEventListener('keydown',e=>{const key=e.key,ok=key==='Enter'||key===' ';
+if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Enter'].includes(key))e.preventDefault();
+if(mode==='home'){if(ok)start();else if(key==='r'||key==='R'){const c=$('sh');c.checked=!c.checked}}
+else if(mode==='quiz'){const n=qs[i].options.length;
+ if(!answered){if(key==='ArrowDown'||key==='ArrowRight')hl((sel+1)%n);else if(key==='ArrowUp'||key==='ArrowLeft')hl((sel-1+n)%n);else if(ok)pick(sel);else if(/^[1-9]$/.test(key)&&+key<=n)pick(+key-1)}
+ else if(ok)next()}
+else if(mode==='end'){if(['ArrowDown','ArrowRight'].includes(key))endhl(sel+1);else if(['ArrowUp','ArrowLeft'].includes(key))endhl(sel-1);else if(ok)document.querySelectorAll('#endb .btn')[sel].click()}});
+document.addEventListener('mouseup',e=>{const b=e.target.closest('button');if(b)b.blur()});
+home();
+</script></body></html>
