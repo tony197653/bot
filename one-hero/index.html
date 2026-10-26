@@ -16,8 +16,6 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600&display=swap&text=ABEITVcelx%E4%B8%80%E4%B8%8B%E4%BA%8B%E4%BA%AC%E4%BA%BA%E4%BB%B6%E5%80%8B%E5%85%89%E5%8D%97%E5%8F%B0%E5%9B%9B%E5%9C%A8%E5%A0%82%E5%A4%A9%E5%AD%B8%E5%AE%97%E5%AF%BA%E5%B8%B8%E5%BC%B5%E5%BD%B1%E6%85%A2%E6%8A%8A%E6%8B%8D%E6%94%9D%E6%97%A5%E6%98%8E%E6%9C%80%E6%A3%8B%E6%B0%B8%E7%95%99%E7%9A%84%E7%9C%8B%E7%A6%AA%E7%A7%8B%E7%B7%B4%E7%BF%92%E8%88%87%E8%89%AF%E8%A7%80%E8%AC%9D%E8%B1%A1%E8%BF%91%E9%83%BD%E9%AB%98%EF%BC%8C%EF%BD%9C" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400&display=swap&text=012345ABCDEIMTVWacdeiklmnoprsux%C2%A9%E3%80%81%E3%80%82%E4%B8%80%E4%B8%8B%E4%B8%AD%E4%BA%86%E4%BA%8B%E4%BA%A4%E4%BA%AC%E4%BA%BA%E4%BB%B6%E4%BD%9C%E4%BE%86%E5%80%8B%E5%81%9A%E5%83%8F%E5%85%88%E5%85%89%E5%85%B7%E5%88%B0%E5%89%9B%E5%8B%95%E5%8D%97%E5%8E%BB%E5%8F%B0%E5%92%8C%E5%93%81%E5%96%9C%E5%9B%9B%E5%9B%9E%E5%9C%A8%E5%A0%82%E5%A0%B1%E5%A4%A9%E5%A5%BD%E5%AD%B8%E5%AE%89%E5%AE%97%E5%AF%AB%E5%AF%BA%E5%B0%B1%E5%B1%80%E5%B7%A5%E5%B7%A8%E5%B8%B6%E5%B8%B8%E5%BB%9F%E5%BC%B5%E5%BD%B1%E5%BE%88%E5%BE%8C%E6%83%B3%E6%84%8F%E6%85%8B%E6%85%A2%E6%88%90%E6%88%91%E6%88%96%E6%89%BE%E6%8A%8A%E6%8B%8D%E6%94%9D%E6%94%AF%E6%95%B4%E6%96%B0%E6%97%A5%E6%98%8E%E6%98%AF%E6%9C%80%E6%9C%AB%E6%A1%86%E6%A3%8B%E6%AA%94%E6%AD%A1%E6%AE%98%E6%AF%8F%E6%B0%B8%E6%B1%A0%E6%B5%81%E7%85%A7%E7%87%88%E7%89%87%E7%90%86%E7%94%A8%E7%95%99%E7%99%BD%E7%9A%84%E7%9B%A4%E7%9C%8B%E7%9F%B3%E7%A4%BA%E7%A6%AA%E7%A7%8B%E7%A9%BA%E7%AB%99%E7%AD%86%E7%AE%97%E7%B1%A0%E7%B4%85%E7%B5%A1%E7%B5%A6%E7%B6%93%E7%B6%B2%E7%B7%B4%E7%BF%92%E8%81%8A%E8%81%AF%E8%88%87%E8%89%AF%E8%89%B2%E8%90%BD%E8%91%89%E8%91%97%E8%99%95%E8%A1%97%E8%A1%A8%E8%A3%9D%E8%A4%87%E8%A6%86%E8%A7%80%E8%A7%92%E8%A8%88%E8%A8%98%E8%A8%AD%E8%AA%8D%E8%AA%B0%E8%AC%9D%E8%AD%98%E8%B1%A1%E8%BC%B8%E8%BF%8E%E8%BF%91%E9%80%86%E9%80%B1%E9%83%BD%E9%87%8D%E9%96%80%E9%96%8B%E9%96%93%E9%9B%86%E9%9B%A8%E9%9D%9C%E9%9D%A2%E9%A0%81%E9%A0%AD%E9%A1%8C%E9%AB%98%E9%BB%9E%EF%BC%8C%EF%BC%9A%EF%BD%9C" media="print" onload="this.media='all'">
 <style>
-@property --d{syntax:'<number>';inherits:true;initial-value:40}
-@property --o{syntax:'<number>';inherits:true;initial-value:1}
 :root{
   --bg:#EFE9E1;--card:#FAF7F2;--ink:#3B322B;--main:#7E654F;--accent:#C9A27E;--grey:#6F645B;--line:#DDD3C6;--ac-ink:#A67C55;
   --serif:"Noto Serif TC","Songti TC","PMingLiU",serif;
@@ -55,17 +53,19 @@ html.sd .progress{animation:grow linear both;animation-timeline:scroll(root)}
 .ul:hover,.ul:focus-visible{background-size:100% 1px;color:var(--ink)}
 .txt-link{background-position:0 100%;padding:2px 0}
 
-/* the protagonist */
+/* the protagonist: stacked layers, only transform/opacity move.
+   .pose is laid out at its largest size (x1.32) and only ever scales down, so it stays sharp. */
 .stage{position:fixed;inset:0;display:grid;place-items:center;overflow:hidden;pointer-events:none;z-index:0}
-.pose{width:var(--W);max-width:560px;aspect-ratio:1;transform:translate3d(4vw,-17vh,0) scale(.92);will-change:transform}
-.lens{width:100%;height:100%;display:block;overflow:visible}
-.spin{transform-box:view-box;transform-origin:0 0;animation:spin 60s linear infinite}
+.pose{position:relative;width:calc(var(--W)*1.32);max-width:739px;aspect-ratio:1;transform:translate3d(4vw,-17vh,0) scale(.697);transform-origin:50% 50%;backface-visibility:hidden}
+.L{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
+.ring{animation:spin 60s linear infinite;will-change:transform}
 @keyframes spin{to{transform:rotate(360deg)}}
-.iris{transform-box:view-box;transform-origin:0 0;transform:rotate(calc(var(--d)*.35deg));animation:irisIn .9s var(--e-in) .1s both}
-@keyframes irisIn{from{--o:.25}to{--o:1}}
-.blade{transform-box:view-box;transform-origin:0 0;transform:rotate(calc(var(--i)*60deg)) translateY(calc(var(--d)*var(--o)*-1px))}
-html.sd .pose{animation:lensPose linear both;animation-timeline:scroll(root)}
-html.sd .lens{animation:lensIris linear both;animation-timeline:scroll(root)}
+.glass{position:absolute;inset:18.5%;border-radius:50%;background:radial-gradient(circle at 38% 34%,#FFFDF9 0,#F3ECE2 41%,#DCCDBB 75%)}
+.hole{position:absolute;inset:19%;border-radius:50%;overflow:hidden;clip-path:circle(50%)}
+/* blade = the SVG blade rect (-40..300, -320..0) in % of the 248-unit hole; pivot at the hole centre */
+.blade{position:absolute;left:33.871%;top:-79.032%;width:137.097%;height:129.032%;background:#4A3D33;border:1px solid rgba(201,162,126,.55);
+  transform-origin:11.765% 100%;transform:rotate(calc(var(--i)*60deg + 3.5deg)) translateY(-3.125%)}
+.stage.mv .pose,.stage.mv .blade{will-change:transform,opacity}
 html.rm .pose{transition:opacity .25s}
 
 /* layout */
@@ -139,7 +139,7 @@ html.io .reveal:not(.in){opacity:0;transform:translateX(16px)}
 }
 @media (min-width:761px){
   :root{--W:min(44vw,540px);--pad:clamp(32px,7.6vw,120px)}
-  .pose{transform:translate3d(22vw,2vh,0) scale(1)}
+  .pose{transform:translate3d(22vw,2vh,0) scale(.758)}
   .nav{padding-top:22px;font-size:14px}
   section{padding-top:120px;padding-bottom:96px}
   .hero{justify-content:center;padding-bottom:96px}
@@ -162,7 +162,7 @@ html.io .reveal:not(.in){opacity:0;transform:translateX(16px)}
 }
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
-  .spin,.iris,.ch,.fade{animation:none}
+  .ring,.ch,.fade{animation:none}
 }
 </style>
 </head>
@@ -179,36 +179,21 @@ html.io .reveal:not(.in){opacity:0;transform:translateX(16px)}
 
 <div class="stage" aria-hidden="true">
  <div class="pose">
-  <svg class="lens" viewBox="-200 -200 400 400" role="img" aria-label="鏡頭光圈">
-   <defs>
-    <radialGradient id="glass" cx="38%" cy="34%" r="75%">
-      <stop offset="0" stop-color="#FFFDF9"/><stop offset=".55" stop-color="#F3ECE2"/><stop offset="1" stop-color="#DCCDBB"/>
-    </radialGradient>
-    <linearGradient id="barrel" x1="0" y1="-1" x2="0" y2="1" gradientUnits="objectBoundingBox">
-      <stop offset="0" stop-color="#5A4A3E"/><stop offset="1" stop-color="#2F2721"/>
-    </linearGradient>
-    <clipPath id="hole"><circle r="124"/></clipPath>
-   </defs>
+  <svg class="L" viewBox="-200 -200 400 400" aria-hidden="true">
+   <defs><linearGradient id="barrel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A4A3E"/><stop offset="1" stop-color="#2F2721"/></linearGradient></defs>
    <circle r="196" fill="url(#barrel)"/>
    <circle r="196" fill="none" stroke="#C9A27E" stroke-opacity=".55" stroke-width="1.5"/>
-   <g class="spin">
-     <circle r="174" fill="none" stroke="#C9A27E" stroke-opacity=".7" stroke-width="9" stroke-dasharray="1.6 16.41"/>
-     <circle r="160" fill="none" stroke="#C9A27E" stroke-opacity=".35" stroke-width="1"/>
-     <path id="tp" d="M -147 0 A 147 147 0 1 1 147 0 A 147 147 0 1 1 -147 0" fill="none"/>
-     <text font-size="11.5" fill="#C9A27E" fill-opacity=".85" letter-spacing="2.2" font-family="Helvetica,Arial,sans-serif"><textPath href="#tp">50mm  1:1.8   ∞  10  5  3  2  1.5  1  0.7m   ·   LIGHT AND EVERYDAY   ·   ø58</textPath></text>
-     <circle r="136" fill="none" stroke="#1F1A16" stroke-width="10"/>
-   </g>
-   <circle r="126" fill="url(#glass)"/>
-   <g clip-path="url(#hole)">
-    <g class="iris" fill="#4A3D33" stroke="#C9A27E" stroke-opacity=".55" stroke-width="1.2">
-      <path class="blade" style="--i:0" d="M-40 0 L300 0 L300 -320 L-40 -320 Z"/>
-      <path class="blade" style="--i:1" d="M-40 0 L300 0 L300 -320 L-40 -320 Z"/>
-      <path class="blade" style="--i:2" d="M-40 0 L300 0 L300 -320 L-40 -320 Z"/>
-      <path class="blade" style="--i:3" d="M-40 0 L300 0 L300 -320 L-40 -320 Z"/>
-      <path class="blade" style="--i:4" d="M-40 0 L300 0 L300 -320 L-40 -320 Z"/>
-      <path class="blade" style="--i:5" d="M-40 0 L300 0 L300 -320 L-40 -320 Z"/>
-    </g>
-   </g>
+   <circle r="136" fill="none" stroke="#1F1A16" stroke-width="10"/>
+  </svg>
+  <svg class="L ring" viewBox="-200 -200 400 400" aria-hidden="true">
+   <circle r="174" fill="none" stroke="#C9A27E" stroke-opacity=".7" stroke-width="9" stroke-dasharray="1.6 16.41"/>
+   <circle r="160" fill="none" stroke="#C9A27E" stroke-opacity=".35" stroke-width="1"/>
+   <path id="tp" d="M -147 0 A 147 147 0 1 1 147 0 A 147 147 0 1 1 -147 0" fill="none"/>
+   <text font-size="11.5" fill="#C9A27E" fill-opacity=".85" letter-spacing="2.2" font-family="Helvetica,Arial,sans-serif"><textPath href="#tp">50mm  1:1.8   ∞  10  5  3  2  1.5  1  0.7m   ·   LIGHT AND EVERYDAY   ·   ø58</textPath></text>
+  </svg>
+  <div class="glass"></div>
+  <div class="hole"><i class="blade" style="--i:0"></i><i class="blade" style="--i:1"></i><i class="blade" style="--i:2"></i><i class="blade" style="--i:3"></i><i class="blade" style="--i:4"></i><i class="blade" style="--i:5"></i></div>
+  <svg class="L" viewBox="-200 -200 400 400" aria-hidden="true">
    <circle r="126" fill="none" stroke="#1F1A16" stroke-width="4"/>
    <path d="M -88 -62 A 108 108 0 0 1 -30 -104" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="5" stroke-linecap="round"/>
   </svg>
@@ -275,47 +260,91 @@ html.io .reveal:not(.in){opacity:0;transform:translateX(16px)}
 
 <script>
 (function(){
-var d=document,root=d.documentElement,pose=d.querySelector('.pose'),lens=d.querySelector('.lens'),bar=d.querySelector('.progress');
+var d=document,root=d.documentElement,stage=d.querySelector('.stage'),pose=d.querySelector('.pose'),bar=d.querySelector('.progress');
+var blades=[].slice.call(d.querySelectorAll('.blade'));
 var secs=[].slice.call(d.querySelectorAll('[data-pose]'));
 var phone=matchMedia('(max-width:760px)'),rm=root.classList.contains('rm'),sd=root.classList.contains('sd');
-/* poses: x(vw), y(vh), scale, rotate(deg), aperture d, opacity */
+var BIG=1.32; /* .pose is laid out at x1.32, so every scale below is divided by it */
+/* poses: x(vw), y(vh), scale, rotate(deg), aperture, opacity */
 var P={desk:[[22,2,1,0,40,1],[-24,0,.82,-80,70,1],[-35,-16,.42,-170,96,1],[26,4,.66,-250,52,1],[0,0,1.32,-360,132,1]],
        phone:[[4,-17,.92,0,40,1],[30,-4,.95,-80,70,.16],[-28,-30,.55,-170,96,.3],[26,8,.85,-250,52,.16],[0,0,1.3,-360,132,1]]};
-var stops=[],style=d.createElement('style');d.head.appendChild(style);
-function T(v){return 'translate3d('+v[0]+'vw,'+v[1]+'vh,0) scale('+v[2]+') rotate('+v[3]+'deg)'}
+/* each move between two sections has its own character:
+   span = share of the scroll gap the move uses, ease = how it travels, w = how fast the lens catches up (spring), z = damping (<1 overshoots a touch) */
+function bz(x1,y1,x2,y2){return function(t){var a=0,b=1,m,x;for(var i=0;i<18;i++){m=(a+b)/2;x=3*x1*m*(1-m)*(1-m)+3*x2*m*m*(1-m)+m*m*m;if(x<t)a=m;else b=m}m=(a+b)/2;return 3*y1*m*(1-m)*(1-m)+3*y2*m*m*(1-m)+m*m*m}}
+var M=[{span:1,  ease:bz(.45,0,.2,1), w:4.8,z:.86},   /* hero -> 我是誰: big, slow, soft landing */
+       {span:.55,ease:bz(.22,1,.36,1),w:11, z:.72},   /* -> 作品: quick shrink, small bounce */
+       {span:.85,ease:bz(.65,0,.35,1),w:7,  z:.82},   /* -> 學習中 */
+       {span:1,  ease:bz(.76,0,.24,1),w:3.8,z:.9}];   /* -> end: slow and grand */
+var holds=[],tops=[],vw=0,vh=0,tab=P.desk,maxY=1;
 function measure(){
-  var vh=innerHeight,max=Math.max(1,root.scrollHeight-vh),tab=phone.matches?P.phone:P.desk;stops=[];
-  secs.forEach(function(s,i){var r=s.getBoundingClientRect(),top=r.top+scrollY,h=r.height;
-    var a=top-vh*.15,b=top+h-vh*.85;if(i==0)a=0;if(b<a){a=b=(a+b)/2}if(i==secs.length-1)b=max;
-    stops.push({p:Math.max(0,Math.min(1,a/max)),v:tab[i]},{p:Math.max(0,Math.min(1,b/max)),v:tab[i]});});
-  for(var i=1;i<stops.length;i++)if(stops[i].p<=stops[i-1].p)stops[i].p=Math.min(1,stops[i-1].p+.0001);
-  stops[0].p=0;stops[stops.length-1].p=1;
-  if(sd){var k1='',k2='';stops.forEach(function(s){var pc=(s.p*100).toFixed(3)+'%';
-      k1+=pc+'{transform:'+T(s.v)+';opacity:'+s.v[5]+';animation-timing-function:cubic-bezier(.65,0,.35,1)}';
-      k2+=pc+'{--d:'+s.v[4]+';animation-timing-function:cubic-bezier(.65,0,.35,1)}';});
-    style.textContent='@keyframes lensPose{'+k1+'}@keyframes lensIris{'+k2+'}';}
-  else frame();
+  vw=innerWidth;vh=innerHeight;maxY=Math.max(1,root.scrollHeight-vh);tab=phone.matches?P.phone:P.desk;holds=[];tops=[];
+  var y0=scrollY;
+  secs.forEach(function(s,i){var r=s.getBoundingClientRect(),top=r.top+y0,h=r.height,a=top-vh*.15,b=top+h-vh*.85;tops.push(top);
+    if(i==0)a=0;if(b<a){a=b=(a+b)/2}if(i==secs.length-1)b=Math.max(b,maxY);holds.push([a,b]);});
+  for(var i=1;i<holds.length;i++)if(holds[i][0]<holds[i-1][1])holds[i][0]=holds[i-1][1];
+  wake();
 }
-function ease(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
-var cur=-1;
-function frame(){
-  ticking=false;var max=Math.max(1,root.scrollHeight-innerHeight),p=Math.min(1,Math.max(0,scrollY/max));
-  bar.style.transform='scaleX('+p+')';
-  if(rm){var best=0,bd=1e9;secs.forEach(function(s,i){var r=s.getBoundingClientRect(),c=Math.abs(r.top+r.height/2-innerHeight/2);if(c<bd){bd=c;best=i}});
-    if(best!==cur){var first=cur<0;cur=best;var v=(phone.matches?P.phone:P.desk)[best];
-      if(first){apply(v)}else{pose.style.opacity=0;setTimeout(function(){apply(v);pose.style.opacity=v[5]},260)}}return;}
-  var i=0;while(i<stops.length-2&&p>stops[i+1].p)i++;
-  var a=stops[i],b=stops[i+1],t=b.p>a.p?Math.min(1,Math.max(0,(p-a.p)/(b.p-a.p))):1,e=ease(t),v=[];
-  for(var k=0;k<6;k++)v[k]=a.v[k]+(b.v[k]-a.v[k])*e;
-  apply(v);pose.style.opacity=v[5];
+/* where the lens should be for a scroll position (no layout reads: holds are cached) */
+var tgt=[0,0,0,0,0,0],seg=0;
+function target(y){
+  var n=holds.length,i=0;
+  for(;i<n;i++){if(y<=holds[i][1])break}
+  if(i>=n){i=n-1}
+  if(i==0||y>=holds[i][0]){seg=Math.max(0,i-1);copy(tab[i]);return}
+  var m=M[i-1],g0=holds[i-1][1],g1=holds[i][0],c=(g0+g1)/2,half=(g1-g0)*m.span/2;
+  var t=half>0?(y-(c-half))/(2*half):1;t=t<0?0:t>1?1:t;var e=m.ease(t),a=tab[i-1],b=tab[i];seg=i-1;
+  for(var k=0;k<6;k++)tgt[k]=a[k]+(b[k]-a[k])*e;
 }
-function apply(v){pose.style.transform=T(v);lens.style.setProperty('--d',v[4]);}
-var ticking=false;function onScroll(){if(!ticking){ticking=true;requestAnimationFrame(frame)}}
-if(!sd)addEventListener('scroll',onScroll,{passive:true});
-var rt;addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){cur=-1;measure()},120)});
-(phone.addEventListener?phone.addEventListener('change',function(){cur=-1;measure()}):0);
-measure();
-if(d.fonts&&d.fonts.ready)d.fonts.ready.then(measure);addEventListener('load',measure);
+function copy(v){for(var k=0;k<6;k++)tgt[k]=v[k]}
+/* rendered state + velocity (springs, frame-rate independent) */
+var cur=null,vel=[0,0,0,0,0,0],intro=0,introT=0,raf=0,last=0,still=0,lastY=-1,moving=false;
+function spring(k,w,z,dt){var x=cur[k],v=vel[k],a=w*w*(tgt[k]-x)-2*z*w*v;v+=a*dt;x+=v*dt;cur[k]=x;vel[k]=v}
+function render(){
+  var o=.25+.75*intro,ap=cur[4]*o;
+  pose.style.transform='translate3d('+(cur[0]*vw/100).toFixed(2)+'px,'+(cur[1]*vh/100).toFixed(2)+'px,0) scale('+(cur[2]/BIG).toFixed(4)+') rotate('+cur[3].toFixed(2)+'deg)';
+  pose.style.opacity=cur[5].toFixed(3);
+  var tw=ap*.35,ty=(-ap/320*100).toFixed(3);
+  for(var i=0;i<6;i++)blades[i].style.transform='rotate('+(i*60+tw).toFixed(2)+'deg) translateY('+ty+'%)';
+}
+function tick(now){
+  raf=0;var dt=last?Math.min(.05,(now-last)/1000):1/60;last=now;
+  var y=scrollY;
+  if(!sd)bar.style.transform='scaleX('+Math.min(1,Math.max(0,y/maxY)).toFixed(4)+')';
+  target(y);
+  if(!cur){cur=tgt.slice()}
+  var m=M[seg]||M[0],steps=Math.ceil(dt/(1/120)),h=dt/steps;
+  for(var s=0;s<steps;s++){
+    spring(0,m.w,m.z,h);spring(1,m.w,m.z,h);spring(2,m.w,m.z,h);
+    spring(3,m.w*.8,Math.min(1,m.z+.06),h);   /* rotation trails the move a little */
+    spring(4,m.w*.85,m.z-.08,h);              /* blades settle with a soft bounce */
+  }
+  cur[5]+=(tgt[5]-cur[5])*(1-Math.exp(-8*dt));
+  if(intro<1){introT+=dt;var t=Math.min(1,Math.max(0,(introT-.1)/.9));intro=1-Math.pow(1-t,4)}
+  render();
+  var err=0;for(var k=0;k<5;k++)err=Math.max(err,Math.abs(tgt[k]-cur[k]),Math.abs(vel[k])*.05);
+  err=Math.max(err,Math.abs(tgt[5]-cur[5]));
+  if(y!==lastY){still=0;lastY=y}else still++;
+  if(err<.02&&still>3&&intro>=1){copy(tgt);render();setMoving(false);last=0;return}
+  setMoving(true);raf=requestAnimationFrame(tick);
+}
+function setMoving(on){if(on!==moving){moving=on;stage.classList.toggle('mv',on)}}
+function wake(){if(!raf&&!rm)raf=requestAnimationFrame(tick)}
+/* reduced motion: one pose per section, swapped with a fade */
+var shown=-1;
+function still_(){
+  var y=scrollY,c=y+vh/2,best=0;if(!sd)bar.style.transform='scaleX('+Math.min(1,y/maxY)+')';
+  for(var i=0;i<tops.length;i++){if(c>=tops[i])best=i}
+  if(best===shown)return;var first=shown<0;shown=best;var v=tab[best];
+  function put(){cur=v.slice();intro=1;render()}
+  if(first)put();else{pose.style.opacity=0;setTimeout(function(){put();pose.style.opacity=v[5]},260)}
+}
+var st=false;
+addEventListener('scroll',rm?function(){if(!st){st=true;requestAnimationFrame(function(){st=false;still_()})}}:wake,{passive:true});
+var rt;function remeasure(){clearTimeout(rt);rt=setTimeout(function(){shown=-1;measure();if(rm)still_()},120)}
+addEventListener('resize',remeasure);
+(phone.addEventListener?phone.addEventListener('change',remeasure):0);
+measure();if(rm)still_();
+if(d.fonts&&d.fonts.ready)d.fonts.ready.then(remeasure);addEventListener('load',remeasure);
 /* reveal fallback */
 if(root.classList.contains('io')&&'IntersectionObserver' in window){
   var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){var el=e.target,idx=[].indexOf.call(el.parentNode.children,el);
