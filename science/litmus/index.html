@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>石蕊試紙的特性</title>
+<style>
+  :root{--bg:#fff;--fg:#0a0a0a;--muted:#f5f5f5;--muted-fg:#737373;--border:#e5e5e5;--primary:#171717;--primary-fg:#fafafa;--ok:#15803d;--ok-bg:#f0fdf4;--red:#dc2626;--blue:#2563eb;--radius:10px}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--muted);color:var(--fg);font:17px/1.7 system-ui,-apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+  main{max-width:720px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:16px}
+  h1{font-size:1.25rem;margin:0}
+  .card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+  .card h2{font-size:1rem;margin:0 0 8px;display:flex;gap:10px;align-items:center}
+  .card p{margin:0 0 8px}
+  .card ul{margin:0;padding-left:1.2em}
+  .num{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--primary);color:var(--primary-fg);font-size:.85rem}
+  .scroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:.95rem;min-width:300px}
+  th,td{border:1px solid var(--border);padding:6px 8px;text-align:center}
+  th{background:var(--muted)}
+  .r{color:var(--red);font-weight:700}
+  .b{color:var(--blue);font-weight:700}
+  .k{color:#db2777;font-weight:700}
+  .tip{color:var(--muted-fg);font-size:.95rem}
+  .answer{border-color:var(--ok);background:var(--ok-bg)}
+  .answer h2{color:var(--ok)}
+  @media (min-width:768px){main{padding-top:40px}h1{font-size:1.5rem}}
+</style>
+</head>
+<body>
+<main>
+  <header><h1>石蕊試紙的特性</h1></header>
+
+  <section class="card">
+    <h2><span class="num">1</span>是什麼</h2>
+    <p>石蕊是從<strong>地衣</strong>萃取的天然色素。濾紙浸過石蕊溶液再晾乾，就是石蕊試紙，分<span class="r">紅色</span>和<span class="b">藍色</span>兩種。</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">2</span>變色規則</h2>
+    <div class="scroll"><table>
+      <tr><th></th><th>酸性</th><th>中性</th><th>鹼性</th></tr>
+      <tr><td class="b">藍色試紙</td><td class="r">變紅</td><td>不變</td><td>不變</td></tr>
+      <tr><td class="r">紅色試紙</td><td>不變</td><td>不變</td><td class="b">變藍</td></tr>
+    </table></div>
+    <p class="tip" style="margin-top:8px">口訣：<strong>酸紅鹼藍</strong></p>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">3</span>為什麼兩種都要用</h2>
+    <ul>
+      <li>只用藍色：不變色可能是中性或鹼性，分不出來。</li>
+      <li>只用紅色：不變色可能是中性或酸性，分不出來。</li>
+      <li>兩張都不變色，就是中性，例如純水、食鹽水。</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">4</span>限制與陷阱</h2>
+    <ul>
+      <li>只能判斷酸或鹼，<strong>測不出 pH 值</strong>，也看不出強弱；要數值得用廣用試紙或 pH 計。</li>
+      <li>變色範圍約 pH 4.5～8.3，接近中性時變化不明顯。</li>
+      <li>測<strong>氣體</strong>要先把試紙<strong>沾濕</strong>：氨氣使濕的紅色試紙<span class="b">變藍</span>，氯化氫使濕的藍色試紙<span class="r">變紅</span>。</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">5</span>常見物質</h2>
+    <ul>
+      <li><span class="r">酸性</span>：醋、檸檬汁、鹽酸、汽水、胃酸</li>
+      <li>中性：純水、食鹽水、糖水</li>
+      <li><span class="b">鹼性</span>：肥皂水、小蘇打水、石灰水、氫氧化鈉、氨水</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">6</span>和其他指示劑比較</h2>
+    <div class="scroll"><table>
+      <tr><th>指示劑</th><th>酸性</th><th>中性</th><th>鹼性</th></tr>
+      <tr><td>石蕊</td><td class="r">紅</td><td>紫</td><td class="b">藍</td></tr>
+      <tr><td>酚酞</td><td>無色</td><td>無色</td><td class="k">粉紅</td></tr>
+      <tr><td>廣用試紙</td><td>紅橙黃</td><td>綠</td><td class="b">藍紫</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card answer">
+    <h2>重點整理</h2>
+    <p><strong>這題的關鍵：</strong>酸紅鹼藍，紅藍兩張都要用才能分出酸、中、鹼；酚酞只對鹼變粉紅，石蕊測不出 pH 值。</p>
+  </section>
+</main>
+</body>
+</html>
