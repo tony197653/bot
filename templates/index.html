@@ -55,6 +55,11 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 .st-h{background:var(--slate-soft);color:var(--slate)}
 .lic.open{background:var(--sage-soft);color:var(--sage)}
 .lic.ref{border:1px solid var(--line);color:var(--mute);line-height:18px}
+.lic.aura{background:var(--sand-soft);color:var(--sand)}
+.lic.pro{border:1px solid var(--rose);color:var(--rose);line-height:18px}
+.ck2{width:auto;padding:0 5px}
+#p-aura .note,#p-aura .lead{text-wrap:pretty;line-break:strict}
+.nw{white-space:nowrap}
 .lic.tool{border:1px solid var(--line);color:var(--sand);line-height:18px}
 .note{margin:0 0 10px;font-size:14px;line-height:1.65;flex:1}
 .links{margin:0;display:flex;gap:18px;font-size:14px}
@@ -73,7 +78,7 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
   .taste li{font-size:12px;padding:1px 8px}
   [role=tablist]{gap:0;justify-content:space-between}
   [role=tab]{padding:11px 4px 9px;font-size:15px;min-width:0}
-  [role=tab] .n{display:none}
+  [role=tab] .n,[role=tab] .t2{display:none}
   main{padding:18px 0 36px}
   .panel>h2{font-size:18px}
   .lead{font-size:13px}
@@ -86,6 +91,7 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
   .note{font-size:13.5px;line-height:1.6;margin-bottom:6px}
   .links a{padding:9px 0 1px}
 }
+@media (max-width:350px){[role=tab]{font-size:14px}}
 @media (prefers-reduced-motion:no-preference){
   [role=tab],.jump a{transition:color .15s,border-color .15s}
   .th img{transition:transform .5s ease}
@@ -96,12 +102,12 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 <body>
 <header class="wrap">
 <h1>我喜歡的網頁模板</h1>
-<p class="intro">先是你最愛的 5 個，再按 11 種網頁類型各挑 3 個，一共 39 個，每個都有編號。以後要做新網頁時，直接說<b>「照 D1 的樣子做」</b>就行。</p>
+<p class="intro">先是你最愛的 5 個，再按 11 種網頁類型各挑 3 個，一共 39 個，每個都有編號。以後要做新網頁時，直接說<b>「照 D1 的樣子做」</b>就行。最後一頁另有 <span style="white-space:nowrap">31 個 Aura 精選。</span></p>
 <ul class="taste" aria-label="我的喜好">
 <li>A 極簡留白</li><li>G 日系清新</li><li>H 資訊密集</li><li>莫蘭迪大地色</li><li>真實照片</li><li>動態輕微</li><li class="no">不要新粗野風</li>
 </ul>
 </header>
-<nav><div class="wrap"><div role="tablist" aria-label="模板分類"><button role="tab" id="t-fav" data-p="fav" aria-controls="p-fav" aria-selected="true">我的最愛<span class="n">6</span></button><button role="tab" id="t-content" data-p="content" aria-controls="p-content" aria-selected="false" tabindex=-1>內容展示<span class="n">12</span></button><button role="tab" id="t-biz" data-p="biz" aria-controls="p-biz" aria-selected="false" tabindex=-1>商業品牌<span class="n">9</span></button><button role="tab" id="t-tool" data-p="tool" aria-controls="p-tool" aria-selected="false" tabindex=-1>工具學習<span class="n">12</span></button></div></div></nav>
+<nav><div class="wrap"><div role="tablist" aria-label="模板分類"><button role="tab" id="t-fav" data-p="fav" aria-controls="p-fav" aria-selected="true">我的最愛<span class="n">6</span></button><button role="tab" id="t-content" data-p="content" aria-controls="p-content" aria-selected="false" tabindex=-1>內容展示<span class="n">12</span></button><button role="tab" id="t-biz" data-p="biz" aria-controls="p-biz" aria-selected="false" tabindex=-1>商業品牌<span class="n">9</span></button><button role="tab" id="t-tool" data-p="tool" aria-controls="p-tool" aria-selected="false" tabindex=-1>工具學習<span class="n">12</span></button><button role="tab" id="t-aura" data-p="aura" aria-controls="p-aura" aria-selected="false" tabindex=-1>Aura<span class="t2"> 精選</span><span class="n">31</span></button></div></div></nav>
 <main class="wrap">
 <section class="panel" id="p-fav" role="tabpanel" aria-labelledby="t-fav"><h2>我的最愛</h2><p class="lead">你最喜歡的 5 個：極簡版面加有質感的真實照片。之後的挑選都以這 5 個為標準。</p><div class="grid"><article class="card" id="m1">
 <a class="th" href="https://astro-nano-demo.vercel.app/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
@@ -263,10 +269,135 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 <div class="body"><div class="row1"><span class="code">S3</span><h3>附推薦語的登入頁</h3></div>
 <p class="src">Dribbble · Dmitry Sergushkin</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
 <p class="note">左邊登入表單，右邊木屋庭園照片和一句使用者推薦語，常見又耐看。</p><p class="links"><a href="https://dribbble.com/shots/25747920-Login-Page-with-Testimonial" target="_blank" rel="noopener">看範例</a></p></div></article></div></section></section>
+<section class="panel" id="p-aura" role="tabpanel" aria-labelledby="t-aura" data-hidden><h2>Aura 精選</h2><p class="lead">從 aura.build 挑的 31 個，每類最多 3 個；「吸睛特區」放深色、3D、發光的搶眼作品。</p><ul class="jump"><li><a href="#c-ap">AP 攝影作品集</a></li><li><a href="#c-ab">AB 部落格／文章</a></li><li><a href="#c-an">AN 新聞／雜誌</a></li><li><a href="#c-at">AT 旅遊／景點介紹</a></li><li><a href="#c-al">AL 產品介紹／登陸頁</a></li><li><a href="#c-ar">AR 餐廳／咖啡店</a></li><li><a href="#c-ac">AC 公司／工作室官網</a></li><li><a href="#c-aq">AQ 測驗／題庫</a></li><li><a href="#c-ae">AE 學習／課程</a></li><li><a href="#c-ad">AD 儀表板／報表</a></li><li><a href="#c-as">AS 登入／會員頁</a></li><li><a href="#c-ax">AX 吸睛特區</a></li></ul><section class="cat" id="c-ap" aria-labelledby="h-ap"><h3 class="cath" id="h-ap"><span class="ck ck2">AP</span>攝影作品集</h3><div class="grid"><article class="card" id="ap1">
+<a class="th" href="https://aura.build/templates/create-a-modern-8" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ap1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AP1</span><h3>雙媒材攝影工作室</h3></div>
+<p class="src">Aura · Photography &amp; Videography Studio Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">米白底配細長襯線字「Two Mediums, One Vision」，幾乎全是留白，照片一出場<span class="nw">就是主角。</span></p><p class="links"><a href="https://aura.build/templates/create-a-modern-8" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ap2">
+<a class="th" href="https://aura.build/templates/aris-photograph" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ap2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AP2</span><h3>鼠尾草綠攝影作品集</h3></div>
+<p class="src">Aura · Photography Portfolio Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic pro">Aura PRO · $19</span></div>
+<p class="note">灰綠底色加大字標題壓在照片上，莫蘭迪感很重，作品排<span class="nw">列也整齊。</span></p><p class="links"><a href="https://aura.build/templates/aris-photograph" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-ab" aria-labelledby="h-ab"><h3 class="cath" id="h-ab"><span class="ck ck2">AB</span>部落格／文章</h3><div class="grid"><article class="card" id="ab1">
+<a class="th" href="https://aura.build/templates/zero-waste-blog-40" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ab1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AB1</span><h3>零浪費生活部落格</h3></div>
+<p class="src">Aura · Zero-Waste Frugality Blog Template</p><div class="tags"><span class="st st-g">G</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">淡綠色系，大圖加數字卡片，生活型部落格少見的<span class="nw">乾淨版面。</span></p><p class="links"><a href="https://aura.build/templates/zero-waste-blog-40" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ab2">
+<a class="th" href="https://aura.build/templates/lumina-creative-44" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ab2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AB2</span><h3>創意札記文章頁</h3></div>
+<p class="src">Aura · Creative Journal Blog Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">左側目錄、右側文章大圖，像 Notion 一樣好讀的<span class="nw">文章版型。</span></p><p class="links"><a href="https://aura.build/templates/lumina-creative-44" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-an" aria-labelledby="h-an"><h3 class="cath" id="h-an"><span class="ck ck2">AN</span>新聞／雜誌</h3><div class="grid"><article class="card" id="an1">
+<a class="th" href="https://aura.build/templates/vintage-newspaper-75" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/an1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AN1</span><h3>復古報紙頭版</h3></div>
+<p class="src">Aura · Vintage Newspaper Landing Page Template</p><div class="tags"><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">真的做成舊報紙的版頭、欄線和黑白照片，第一眼就很<span class="nw">有記憶點。</span></p><p class="links"><a href="https://aura.build/templates/vintage-newspaper-75" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="an2">
+<a class="th" href="https://aura.build/templates/digital-trust-10" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/an2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AN2</span><h3>數位信任期刊</h3></div>
+<p class="src">Aura · Digital Trust Journal Template</p><div class="tags"><span class="st st-a">A</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">淺灰底加大號襯線標題，帶一點藍色斜體強調，很像嚴肅的新<span class="nw">聞專題頁。</span></p><p class="links"><a href="https://aura.build/templates/digital-trust-10" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-at" aria-labelledby="h-at"><h3 class="cath" id="h-at"><span class="ck ck2">AT</span>旅遊／景點介紹</h3><div class="grid"><article class="card" id="at1">
+<a class="th" href="https://aura.build/templates/yunjian-retreat" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/at1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AT1</span><h3>雲間山居</h3></div>
+<p class="src">Aura · Yunjian Mountain Retreat</p><div class="tags"><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">雲霧山景加細字，「Stay above the clouds」，東方水墨<span class="nw">感，很靜。</span></p><p class="links"><a href="https://aura.build/templates/yunjian-retreat" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="at2">
+<a class="th" href="https://aura.build/templates/editorial-stays-92" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/at2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AT2</span><h3>荒野秘境住宿</h3></div>
+<p class="src">Aura · Editorial Stays Booking Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">雜誌式排版的訂房頁，大量留白、一張森林小屋照片就<span class="nw">很有氣氛。</span></p><p class="links"><a href="https://aura.build/templates/editorial-stays-92" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-al" aria-labelledby="h-al"><h3 class="cath" id="h-al"><span class="ck ck2">AL</span>產品介紹／登陸頁</h3><div class="grid"><article class="card" id="al1">
+<a class="th" href="https://aura.build/templates/soluna-yoga-studio-43" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/al1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AL1</span><h3>Soluna 瑜珈教室</h3></div>
+<p class="src">Aura · Soluna Premium Yoga Studio Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">黑白人像配圓形裁切和灰綠點綴，「Move. Breathe. Become You.」節<span class="nw">奏很舒服。</span></p><p class="links"><a href="https://aura.build/templates/soluna-yoga-studio-43" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="al2">
+<a class="th" href="https://aura.build/templates/tma-luxury-wellness-85" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/al2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AL2</span><h3>ÂTMA 養生旅館</h3></div>
+<p class="src">Aura · ÂTMA Luxury Wellness Hotel Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">米色紙感加粗細混排的襯線大字，大地色系，產品介紹<span class="nw">頁也能套。</span></p><p class="links"><a href="https://aura.build/templates/tma-luxury-wellness-85" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-ar" aria-labelledby="h-ar"><h3 class="cath" id="h-ar"><span class="ck ck2">AR</span>餐廳／咖啡店</h3><div class="grid"><article class="card" id="ar1">
+<a class="th" href="https://aura.build/templates/asagiri-38matcha" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ar1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AR1</span><h3>朝霧抹茶</h3></div>
+<p class="src">Aura · Artisanal Matcha E-commerce Landing Page Template</p><div class="tags"><span class="st st-g">G</span><span class="lic pro">Aura PRO</span></div>
+<p class="note">石臼抹茶的俯拍特寫加直排日文，日系清新的<span class="nw">完整範例。</span></p><p class="links"><a href="https://aura.build/templates/asagiri-38matcha" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ar2">
+<a class="th" href="https://aura.build/templates/vietnamese-restaurant-29" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ar2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AR2</span><h3>越南餐廳菜單</h3></div>
+<p class="src">Aura · Vietnamese Restaurant Menu</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">奶油色底、圖文並排的菜單清單，資訊多但不亂，適<span class="nw">合點餐頁。</span></p><p class="links"><a href="https://aura.build/templates/vietnamese-restaurant-29" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-ac" aria-labelledby="h-ac"><h3 class="cath" id="h-ac"><span class="ck ck2">AC</span>公司／工作室官網</h3><div class="grid"><article class="card" id="ac1">
+<a class="th" href="https://aura.build/templates/architectu-project-22" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ac1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AC1</span><h3>建築案例研究頁</h3></div>
+<p class="src">Aura · Architecture Project Case Study Page Template</p><div class="tags"><span class="st st-a">A</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">「We shape timeless spaces」，大字加細線分隔，公司官網的<span class="nw">極簡寫法。</span></p><p class="links"><a href="https://aura.build/templates/architectu-project-22" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ac2">
+<a class="th" href="https://aura.build/templates/vellum-architecture" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ac2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AC2</span><h3>Vellum 建築室內設計</h3></div>
+<p class="src">Aura · Vellum Studio Architecture &amp; Interior Design Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic pro">Aura PRO</span></div>
+<p class="note">深色照片配淡色外框，「Spaces drawn from light」，光影<span class="nw">質感很好。</span></p><p class="links"><a href="https://aura.build/templates/vellum-architecture" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-aq" aria-labelledby="h-aq"><h3 class="cath" id="h-aq"><span class="ck ck2">AQ</span>測驗／題庫</h3><div class="grid"><article class="card" id="aq1">
+<a class="th" href="https://aura.build/templates/longevity-medicine66" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/aq1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AQ1</span><h3>你的身體幾歲？測驗</h3></div>
+<p class="src">Aura · Longevity Medicine Quiz Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">米色底加優雅襯線題目，選項卡片簡單清楚，測驗也能<span class="nw">很有質感。</span></p><p class="links"><a href="https://aura.build/templates/longevity-medicine66" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="aq2">
+<a class="th" href="https://aura.build/templates/personalit-test" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/aq2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AQ2</span><h3>每日一問性格測驗</h3></div>
+<p class="src">Aura · Personality Test Question UI Template</p><div class="tags"><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">一題一頁的大字問答，復古米色調，作答體<span class="nw">驗很專心。</span></p><p class="links"><a href="https://aura.build/templates/personalit-test" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="aq3">
+<a class="th" href="https://aura.build/templates/ai-study-companion-81" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/aq3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AQ3</span><h3>Cherry Note 讀書夥伴</h3></div>
+<p class="src">Aura · Cherry Note AI Study Companion Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">極簡白底的讀書工具介紹頁，排版輕盈，適合做學習 Ap<span class="nw">p 首頁。</span></p><p class="links"><a href="https://aura.build/templates/ai-study-companion-81" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-ae" aria-labelledby="h-ae"><h3 class="cath" id="h-ae"><span class="ck ck2">AE</span>學習／課程</h3><div class="grid"><article class="card" id="ae1">
+<a class="th" href="https://aura.build/templates/mh-learning-platform-35" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ae1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AE1</span><h3>學技能・造未來 學習平台</h3></div>
+<p class="src">Aura · Learning Platform Landing Page Template</p><div class="tags"><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">暖奶油色底配一點橘色，數字和按鈕清楚，溫<span class="nw">暖不幼稚。</span></p><p class="links"><a href="https://aura.build/templates/mh-learning-platform-35" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ae2">
+<a class="th" href="https://aura.build/templates/education-landing-7" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ae2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AE2</span><h3>AI 教育課程首頁</h3></div>
+<p class="src">Aura · AI Education Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">綠色襯線大標「Grow Your Knowledge」，留白多、<span class="nw">配色清爽。</span></p><p class="links"><a href="https://aura.build/templates/education-landing-7" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ae3">
+<a class="th" href="https://aura.build/templates/learn-lumina" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ae3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AE3</span><h3>Lumina 自適應學習平台</h3></div>
+<p class="src">Aura · Adaptive Learning Platform Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">展示課程、App 畫面與學習進度卡，灰白配黑的<span class="nw">俐落組合。</span></p><p class="links"><a href="https://aura.build/templates/learn-lumina" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-ad" aria-labelledby="h-ad"><h3 class="cath" id="h-ad"><span class="ck ck2">AD</span>儀表板／報表</h3><div class="grid"><article class="card" id="ad1">
+<a class="th" href="https://aura.build/templates/fitness-admin-52" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ad1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AD1</span><h3>健身管理儀表板</h3></div>
+<p class="src">Aura · Fitness Admin Dashboard UI Template</p><div class="tags"><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">淺色底、圖表和數字卡排列緊湊，資訊密集<span class="nw">又不壓迫。</span></p><p class="links"><a href="https://aura.build/templates/fitness-admin-52" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ad2">
+<a class="th" href="https://aura.build/templates/sellsdash-admin-91" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ad2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AD2</span><h3>SellsDash 銷售後台</h3></div>
+<p class="src">Aura · SellsDash Admin Dashboard Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">白底細線表格加少量重點色，像 Linear 一樣乾<span class="nw">淨的後台。</span></p><p class="links"><a href="https://aura.build/templates/sellsdash-admin-91" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ad3">
+<a class="th" href="https://aura.build/templates/46mjIY" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ad3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AD3</span><h3>使用者管理後台</h3></div>
+<p class="src">Aura · User Authentication Admin Panel</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">Meng To 做的淺色管理面板，側欄、卡片、表格比例<span class="nw">都很標準。</span></p><p class="links"><a href="https://aura.build/templates/46mjIY" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-as" aria-labelledby="h-as"><h3 class="cath" id="h-as"><span class="ck ck2">AS</span>登入／會員頁</h3><div class="grid"><article class="card" id="as1">
+<a class="th" href="https://aura.build/templates/ZJFzFDg" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/as1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AS1</span><h3>天氣 App 登入頁</h3></div>
+<p class="src">Aura · User Login Interface with Social Options</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">米色底加咖啡色按鈕，莫蘭迪配色的登入表單<span class="nw">，很少見。</span></p><p class="links"><a href="https://aura.build/templates/ZJFzFDg" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="as2">
+<a class="th" href="https://aura.build/templates/JCs8HRL" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/as2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AS2</span><h3>暖杏色登入表單</h3></div>
+<p class="src">Aura · User Authentication Login Form</p><div class="tags"><span class="st st-a">A</span><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">淡杏色背景配橘粉色按鈕，柔和、簡單、看起<span class="nw">來很友善。</span></p><p class="links"><a href="https://aura.build/templates/JCs8HRL" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section><section class="cat" id="c-ax" aria-labelledby="h-ax"><h3 class="cath" id="h-ax"><span class="ck ck2">AX</span>吸睛特區</h3><div class="grid"><article class="card" id="ax1">
+<a class="th" href="https://aura.build/templates/kairo-expedition" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ax1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AX1</span><h3>KAIRO 浮空島探險</h3></div>
+<p class="src">Aura · KAIRO Luxury Travel Expedition Template</p><div class="tags"><span class="lic aura">Aura 免費 Remix</span></div>
+<p class="note">一座漂浮的山島壓在超大字母上，咖啡金色調，震<span class="nw">撼度最高。</span></p><p class="links"><a href="https://aura.build/templates/kairo-expedition" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ax2">
+<a class="th" href="https://aura.build/templates/turun" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ax2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AX2</span><h3>Turun 明信片 3D 世界</h3></div>
+<p class="src">Aura · Turun: A Postcard With a Live 3D World Inside</p><div class="tags"><span class="lic pro">Aura PRO</span></div>
+<p class="note">明信片裡藏著一個會動的 3D 小世界，<span class="nw">很有巧思。</span></p><p class="links"><a href="https://aura.build/templates/turun" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ax3">
+<a class="th" href="https://aura.build/templates/nagare" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ax3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AX3</span><h3>Nagare 夜市 3D 首頁</h3></div>
+<p class="src">Aura · Nagare Night Market 3D Landing Page Template</p><div class="tags"><span class="lic pro">Aura PRO</span></div>
+<p class="note">鳥居倒映水面的 3D 夜市場景，粉橘夕陽<span class="nw">色很夢幻。</span></p><p class="links"><a href="https://aura.build/templates/nagare" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ax4">
+<a class="th" href="https://aura.build/templates/koisei" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ax4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AX4</span><h3>戀生 日本文化之旅</h3></div>
+<p class="src">Aura · Koisei Luxury Cultural Journey Landing Page Template</p><div class="tags"><span class="st st-g">G</span><span class="lic pro">Aura PRO</span></div>
+<p class="note">櫻花、錦鯉和水墨拼貼，日系卻不俗氣，動<span class="nw">態也很輕。</span></p><p class="links"><a href="https://aura.build/templates/koisei" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ax5">
+<a class="th" href="https://aura.build/templates/mugen-immersion" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ax5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AX5</span><h3>MUGEN 沉浸式 3D 神社</h3></div>
+<p class="src">Aura · MUGEN - Immersive 3D Experience Template</p><div class="tags"><span class="lic pro">Aura PRO</span></div>
+<p class="note">紅色鳥居與燈籠的 3D 夜景，可以捲動穿越，很<span class="nw">有遊戲感。</span></p><p class="links"><a href="https://aura.build/templates/mugen-immersion" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="ax6">
+<a class="th" href="https://aura.build/templates/aeon-observatory" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/ax6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">AX6</span><h3>AEON 深時 WebGL 捲動</h3></div>
+<p class="src">Aura · AEON — Deep Time WebGL Scroll Experience</p><div class="tags"><span class="lic pro">Aura PRO</span></div>
+<p class="note">深黑底配微光粒子，邊捲動邊穿越時間，科技感最<span class="nw">強的一個。</span></p><p class="links"><a href="https://aura.build/templates/aeon-observatory" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section></section>
 <footer class="legend">
 <p>A、G、H 是你問卷裡的風格代號。「開源」可以直接拿原始碼來改；「僅參考視覺」是設計稿，只借它的長相；「Webnode 可套用」在 Webnode 裡直接選用。</p>
-<p>編號第一個字母代表類型：P 攝影、B 部落格、N 新聞、T 旅遊、L 產品、R 餐廳、C 公司、Q 測驗、E 課程、D 儀表板、S 登入；M 是你的最愛。</p>
-<p>來源：GitHub、Dribbble、Behance、Webnode。整理於 2026 年 10 月。</p>
+<p>編號第一個字母代表類型：P 攝影、B 部落格、N 新聞、T 旅遊、L 產品、R 餐廳、C 公司、Q 測驗、E 課程、D 儀表板、S 登入；M 是你的最愛。A 開頭是 Aura 精選，第二個字母同樣代表類型，AX 是吸睛特區。「Aura 免費 Remix」可在 Aura 上複製改用（一般要先登入）；「Aura PRO」要付費會員或單買。</p>
+<p>來源：GitHub、Dribbble、Behance、Webnode、Aura（aura.build）。整理於 2026 年 10 月。</p>
 </footer>
 </main>
 <script>
