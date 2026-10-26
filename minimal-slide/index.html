@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>少即是多：把簡報的極簡原則搬到網頁</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E7EAED; --card:#F7F8F9; --ink:#2C333A; --main:#56697B; --soft:#A9B7C3;
+  --serif:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --pad:max(24px,env(safe-area-inset-left));
+}
+*{box-sizing:border-box;margin:0}
+html{scrollbar-gutter:stable;overflow-x:hidden;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:400 17px/1.85 var(--sans);overflow-x:hidden}
+a{color:var(--main)}
+a:focus-visible{outline:2px solid var(--main);outline-offset:3px}
+
+/* 1. 滿版照片＋一句標題 */
+.hero{position:relative;height:100vh;height:100dvh;min-height:560px;overflow:hidden;background:#d9dcdf}
+.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 0%}
+.hero-text{position:relative;padding:clamp(48px,9vh,110px) var(--pad) 0;max-width:1200px;margin:0 auto}
+.hero h1{font:700 clamp(72px,11vw,156px)/1.05 var(--serif);letter-spacing:.02em}
+.hero p{margin-top:22px;text-wrap:balance;font-size:clamp(17px,1.6vw,22px);max-width:22em;color:#3a434c}
+.hero .credit{margin:0;position:absolute;right:max(16px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));font-size:12px;color:#5d6873;background:rgba(247,248,249,.82);padding:2px 8px;border-radius:2px;white-space:nowrap;max-width:none}
+.credit a{color:inherit}
+
+section{padding:clamp(88px,14vw,168px) var(--pad);max-width:1200px;margin:0 auto}
+h2{font:700 clamp(36px,5vw,64px)/1.2 var(--serif);letter-spacing:.02em}
+.lead{margin-top:18px;max-width:48em;text-wrap:pretty;color:#4a545e}
+
+/* 2. 分欄數字 */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:72px}
+.stat b{display:block;font:700 clamp(64px,8vw,112px)/1 var(--sans);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.stat b small{font-size:.34em;font-weight:500;margin-left:.12em;color:var(--main);letter-spacing:0}
+.stat span{display:block;margin-top:14px;color:#4a545e}
+
+/* 3. 一頁一件事 */
+.band{background:var(--card);max-width:none}
+.band>div{max-width:1200px;margin:0 auto}
+.rules{list-style:none;padding:0;margin-top:64px;display:grid;grid-template-columns:repeat(3,1fr);gap:56px 48px;counter-reset:r}
+.rules li{counter-increment:r}
+.rules time{display:block;font:500 15px/1 var(--sans);color:var(--main);font-variant-numeric:tabular-nums}
+.rules h3{font:700 24px/1.4 var(--serif);margin:14px 0 8px}
+.rules p{color:#4a545e;font-size:16px}
+
+/* 4. 用簡單圖形做長條圖 */
+.bars{margin-top:72px;display:grid;grid-template-columns:auto 1fr;gap:20px 24px;align-items:center;max-width:880px}
+.bars dt{text-align:right;font-size:16px;color:#4a545e;white-space:nowrap}
+.bars dd{display:flex;align-items:center;gap:14px;line-height:2}
+.bars i{display:block;height:14px;background:#8193A3;flex:none}
+.bars em{font:700 18px/1 var(--sans);font-style:normal;color:#5d6873;font-variant-numeric:tabular-nums}
+.bars .top i{background:var(--main)}
+.bars .top em{color:var(--main)}
+.note{margin-top:40px;font-size:14px;color:#5d6873}
+
+footer{padding:56px var(--pad) max(56px,env(safe-area-inset-bottom));max-width:1200px;margin:0 auto;border-top:1px solid #cfd5db;font-size:14px;color:#4f5963}
+
+@media (max-width:820px){
+  .stats{grid-template-columns:1fr;gap:48px}
+  .rules{grid-template-columns:1fr 1fr;gap:44px 28px}
+}
+@media (max-width:520px){
+  .lead,.hero p{max-width:none;text-wrap:balance;font-size:15.5px}
+  body{font-size:16px}
+  .hero{min-height:620px}
+  .hero h1{font-size:min(20vw,96px)}
+  .hero img{object-position:72% 80%}
+  .rules{grid-template-columns:1fr}
+  .bars{gap:16px 14px}
+  .bars dt{font-size:14px}
+  .bars em{font-size:15px}
+  .hero .credit{left:max(16px,env(safe-area-inset-left));right:auto;white-space:normal}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+h1,h2,h3{text-wrap:balance}
+p,li{text-wrap:pretty;line-break:strict}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <img src="hero.jpg" alt="白色桌面一角放著色鉛筆筒、筆杯與一本筆記本，上方是大片空白牆面" width="2000" height="1333">
+  <div class="hero-text">
+    <h1>少即是多</h1>
+    <p>把大師級簡報的極簡原則，搬到網頁上。</p>
+  </div>
+  <p class="credit">照片：<a href="https://commons.wikimedia.org/wiki/File:USVI_IMG_5202_-_Minimalist_desk_with_colorful_pencils_in_a_cardboard_holder_a_cup_holding_pens_and_scissors_and_a_notebook_with_botanical_patterns_all_under_soft_light.jpg">Government of the U.S. Virgin Islands</a>，公有領域</p>
+</header>
+
+<main>
+<section>
+  <h2>三個數字就夠了</h2>
+  <p class="lead">簡報只留下重要的數字和事實，其餘交給口述。網頁沒有講者，就把細節放在數字下方的一行小字。</p>
+  <div class="stats">
+    <div class="stat"><b>12:41</b><span>PAPAYA 電腦教室〈大師級簡報是如何煉成的？〉片長</span></div>
+    <div class="stat"><b>148<small>萬</small></b><span>觀看次數，2019 年 11 月發布至今</span></div>
+    <div class="stat"><b>6<small>個</small></b><span>主題：文字、背景、清單、照片、圖表、動畫</span></div>
+  </div>
+</section>
+
+<div class="band"><section>
+  <h2>一頁只講一件事</h2>
+  <p class="lead">影片依序談了六件事。左上角是影片時間點，下面是放到網頁時的做法。</p>
+  <ol class="rules">
+    <li><time>00:37</time><h3>拿走分心的元素</h3><p>每個區塊只回答一個問題，側欄、橫幅和多餘按鈕全部拿掉。</p></li>
+    <li><time>03:30</time><h3>單色背景、粗黑體大標</h3><p>整頁一個底色；標題放大到「有點誇張」，內文顏色不超過兩種。</p></li>
+    <li><time>05:41</time><h3>清單短、少、不加符號</h3><p>三欄並排比由上而下更好讀，項目符號直接拿掉。</p></li>
+    <li><time>07:17</time><h3>照片滿版，不留相框</h3><p>人物或風景直接鋪滿整個畫面，上面只放一句標題；比例用裁切，不拉伸。</p></li>
+    <li><time>09:23</time><h3>用簡單圖形畫圖表</h3><p>比較高低用長條，數字放在長條末端、與長條同色。</p></li>
+    <li><time>11:52</time><h3>動畫越少越好</h3><p>捨棄轉場和文字動畫；真的需要時，只用淡入淡出。</p></li>
+  </ol>
+</section></div>
+
+<section>
+  <h2>影片把時間花在哪</h2>
+  <p class="lead">依逐字稿的段落時間點計算，單位為秒。花最多時間的，是在動手設計之前先把文字刪減。</p>
+  <dl class="bars">
+    <dt>文字整理</dt><dd class="top"><i style="width:calc(173 / 173 * 70%)"></i><em>173</em></dd>
+    <dt>圖表</dt><dd><i style="width:calc(149 / 173 * 70%)"></i><em>149</em></dd>
+    <dt>背景與字型</dt><dd><i style="width:calc(131 / 173 * 70%)"></i><em>131</em></dd>
+    <dt>照片</dt><dd><i style="width:calc(126 / 173 * 70%)"></i><em>126</em></dd>
+    <dt>清單</dt><dd><i style="width:calc(96 / 173 * 70%)"></i><em>96</em></dd>
+    <dt>動畫</dt><dd><i style="width:calc(28 / 173 * 70%)"></i><em>28</em></dd>
+  </dl>
+  <p class="note">開場 37 秒與結尾成果展示未計入。</p>
+</section>
+</main>
+
+<footer>
+  內容整理自 PAPAYA 電腦教室〈<a href="https://www.youtube.com/watch?v=-hWsvuHlKwg">大師級簡報是如何煉成的？ | PowerPoint 教學 #14</a>〉。
+</footer>
+</body>
+</html>
