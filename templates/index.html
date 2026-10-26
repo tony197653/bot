@@ -58,7 +58,7 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 .lic.aura{background:var(--sand-soft);color:var(--sand)}
 .lic.pro{border:1px solid var(--rose);color:var(--rose);line-height:18px}
 .ck2{width:auto;padding:0 5px}
-#p-aura .note,#p-aura .lead{text-wrap:pretty;line-break:strict}
+#p-aura .note,#p-aura .lead,#p-webnode .note,#p-webnode .lead{text-wrap:pretty;line-break:strict}
 .nw{white-space:nowrap}
 .lic.tool{border:1px solid var(--line);color:var(--sand);line-height:18px}
 .note{margin:0 0 10px;font-size:14px;line-height:1.65;flex:1}
@@ -102,12 +102,12 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 <body>
 <header class="wrap">
 <h1>我喜歡的網頁模板</h1>
-<p class="intro">先是你最愛的 5 個，再按 11 種網頁類型各挑 3 個，一共 39 個，每個都有編號。以後要做新網頁時，直接說<b>「照 D1 的樣子做」</b>就行。最後一頁另有 <span style="white-space:nowrap">31 個 Aura 精選。</span></p>
+<p class="intro">先是你最愛的 5 個，再按 11 種網頁類型各挑 3 個，一共 39 個，每個都有編號。以後要做新網頁時，直接說<b>「照 D1 的樣子做」</b>就行。最後兩頁另有 31 個 Aura 精選和 23 個 <span style="white-space:nowrap">Webnode 精選。</span></p>
 <ul class="taste" aria-label="我的喜好">
 <li>A 極簡留白</li><li>G 日系清新</li><li>H 資訊密集</li><li>莫蘭迪大地色</li><li>真實照片</li><li>動態輕微</li><li class="no">不要新粗野風</li>
 </ul>
 </header>
-<nav><div class="wrap"><div role="tablist" aria-label="模板分類"><button role="tab" id="t-fav" data-p="fav" aria-controls="p-fav" aria-selected="true">我的最愛<span class="n">6</span></button><button role="tab" id="t-content" data-p="content" aria-controls="p-content" aria-selected="false" tabindex=-1>內容展示<span class="n">12</span></button><button role="tab" id="t-biz" data-p="biz" aria-controls="p-biz" aria-selected="false" tabindex=-1>商業品牌<span class="n">9</span></button><button role="tab" id="t-tool" data-p="tool" aria-controls="p-tool" aria-selected="false" tabindex=-1>工具學習<span class="n">12</span></button><button role="tab" id="t-aura" data-p="aura" aria-controls="p-aura" aria-selected="false" tabindex=-1>Aura<span class="t2"> 精選</span><span class="n">31</span></button></div></div></nav>
+<nav><div class="wrap"><div role="tablist" aria-label="模板分類"><button role="tab" id="t-fav" data-p="fav" aria-controls="p-fav" aria-selected="true"><span class="t2">我的</span>最愛<span class="n">6</span></button><button role="tab" id="t-content" data-p="content" aria-controls="p-content" aria-selected="false" tabindex=-1>內容<span class="t2">展示</span><span class="n">12</span></button><button role="tab" id="t-biz" data-p="biz" aria-controls="p-biz" aria-selected="false" tabindex=-1>商業<span class="t2">品牌</span><span class="n">9</span></button><button role="tab" id="t-tool" data-p="tool" aria-controls="p-tool" aria-selected="false" tabindex=-1>工具<span class="t2">學習</span><span class="n">12</span></button><button role="tab" id="t-aura" data-p="aura" aria-controls="p-aura" aria-selected="false" tabindex=-1>Aura<span class="t2"> 精選</span><span class="n">31</span></button><button role="tab" id="t-webnode" data-p="webnode" aria-controls="p-webnode" aria-selected="false" tabindex=-1>Webnode<span class="t2"> 精選</span><span class="n">23</span></button></div></div></nav>
 <main class="wrap">
 <section class="panel" id="p-fav" role="tabpanel" aria-labelledby="t-fav"><h2>我的最愛</h2><p class="lead">你最喜歡的 5 個：極簡版面加有質感的真實照片。之後的挑選都以這 5 個為標準。</p><div class="grid"><article class="card" id="m1">
 <a class="th" href="https://astro-nano-demo.vercel.app/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
@@ -394,9 +394,102 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 <div class="body"><div class="row1"><span class="code">AX6</span><h3>AEON 深時 WebGL 捲動</h3></div>
 <p class="src">Aura · AEON — Deep Time WebGL Scroll Experience</p><div class="tags"><span class="lic pro">Aura PRO</span></div>
 <p class="note">深黑底配微光粒子，邊捲動邊穿越時間，科技感最<span class="nw">強的一個。</span></p><p class="links"><a href="https://aura.build/templates/aeon-observatory" target="_blank" rel="noopener">到 Aura 看</a></p></div></article></div></section></section>
+<section class="panel" id="p-webnode" role="tabpanel" aria-labelledby="t-webnode" data-hidden><h2>Webnode 精選</h2><p class="lead">從 Webnode 官方 190 套模板裡挑的 23 個，每類最多 3 個。測驗、儀表板、登入頁 Webnode 沒有這類<span class="nw">模板，所以從缺。</span></p><ul class="jump"><li><a href="#c-wp">WP 攝影作品集</a></li><li><a href="#c-wb">WB 部落格／文章</a></li><li><a href="#c-wn">WN 新聞／雜誌</a></li><li><a href="#c-wt">WT 旅遊／景點介紹</a></li><li><a href="#c-wl">WL 產品介紹／登陸頁</a></li><li><a href="#c-wr">WR 餐廳／咖啡店</a></li><li><a href="#c-wc">WC 公司／工作室官網</a></li><li><a href="#c-we">WE 學習／課程</a></li></ul><section class="cat" id="c-wp" aria-labelledby="h-wp"><h3 class="cath" id="h-wp"><span class="ck ck2">WP</span>攝影作品集</h3><div class="grid"><article class="card" id="wp1">
+<a class="th" href="https://www.webnode.com/zh/template-detail/6xuaj7/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wp1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WP1</span><h3>黑白人像攝影集</h3></div>
+<p class="src">Webnode · 攝影作品模板</p><div class="tags"><span class="st st-a">A</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">整頁黑白大圖，名字小小壓在角落，照片本身就是版面，很有攝影集<span class="nw">的安靜感。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/6xuaj7/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-6xuaj7-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wp2">
+<a class="th" href="https://www.webnode.com/zh/template-detail/6855e8/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wp2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WP2</span><h3>霧色方格攝影師</h3></div>
+<p class="src">Webnode · 攝影師模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">白底三欄方格放低彩度風景照，字很少、留白很多，莫蘭迪色的作<span class="nw">品集範本。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/6855e8/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-6855e8-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wp3">
+<a class="th" href="https://www.webnode.com/zh/template-detail/8pbjec/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wp3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WP3</span><h3>婚禮攝影作品頁</h3></div>
+<p class="src">Webnode · 婚禮攝影師模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">細襯線標題加整齊的照片方格，柔和不甜膩，換成一般人像作<span class="nw">品也適合。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/8pbjec/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-8pbjec-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-wb" aria-labelledby="h-wb"><h3 class="cath" id="h-wb"><span class="ck ck2">WB</span>部落格／文章</h3><div class="grid"><article class="card" id="wb1">
+<a class="th" href="https://www.webnode.com/zh/template-detail/1zufa0/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wb1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WB1</span><h3>家居風尚部落格</h3></div>
+<p class="src">Webnode · 家居風尚部落格模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">灰綠色調的雜誌式拼貼首頁，文章卡片疊得密卻不亂，資訊量和<span class="nw">留白剛好。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/1zufa0/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-1zufa0-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wb2">
+<a class="th" href="https://www.webnode.com/zh/template-detail/9sc3fa/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wb2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WB2</span><h3>當代畫家部落格</h3></div>
+<p class="src">Webnode · 藝術部落格模板</p><div class="tags"><span class="st st-a">A</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">左邊文章、右邊作者介紹的經典雙欄，白底細字，像一本乾淨的<span class="nw">創作筆記。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/9sc3fa/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-9sc3fa-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wb3">
+<a class="th" href="https://www.webnode.com/zh/template-detail/88qzm0/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wb3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WB3</span><h3>健康食譜部落格</h3></div>
+<p class="src">Webnode · 美食部落格模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">木桌俯拍食材的大照片加白底文章列表，清爽好讀，很像日系<span class="nw">料理雜誌。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/88qzm0/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-88qzm0-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-wn" aria-labelledby="h-wn"><h3 class="cath" id="h-wn"><span class="ck ck2">WN</span>新聞／雜誌</h3><div class="grid"><article class="card" id="wn1">
+<a class="th" href="https://www.webnode.com/zh/template-detail/5mco50/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wn1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WN1</span><h3>政治新聞部落格</h3></div>
+<p class="src">Webnode · 政治新聞部落格模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">置中大字報頭、分類選單和新聞照片，結構就是一份簡單的<span class="nw">線上報紙。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/5mco50/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-5mco50-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wn2">
+<a class="th" href="https://www.webnode.com/zh/template-detail/b3eyf1/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wn2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WN2</span><h3>音樂新聞快報</h3></div>
+<p class="src">Webnode · 音樂部落格模板</p><div class="tags"><span class="st st-h">H</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">深色底的新聞列表，每則都有照片、日期和摘要，適合做時<span class="nw">事更新頁。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/b3eyf1/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-b3eyf1-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-wt" aria-labelledby="h-wt"><h3 class="cath" id="h-wt"><span class="ck ck2">WT</span>旅遊／景點介紹</h3><div class="grid"><article class="card" id="wt1">
+<a class="th" href="https://www.webnode.com/zh/template-detail/8yr0vf/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wt1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WT1</span><h3>旅行家湯姆札記</h3></div>
+<p class="src">Webnode · 旅遊札記模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">海景全版大圖疊上細字標題，下面一篇篇遊記，畫面很有旅行<span class="nw">的空氣感。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/8yr0vf/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-8yr0vf-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wt2">
+<a class="th" href="https://www.webnode.com/zh/template-detail/d8jiby/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wt2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WT2</span><h3>山林小木屋住宿</h3></div>
+<p class="src">Webnode · 山居飯店模板</p><div class="tags"><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">峽灣紅屋的大照片加房型、價格、預約頁，民宿或小旅店可<span class="nw">以直接套。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/d8jiby/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-d8jiby-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wt3">
+<a class="th" href="https://www.webnode.com/zh/template-detail/5s82ds/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wt3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WT3</span><h3>查寧頓城小鎮導覽</h3></div>
+<p class="src">Webnode · 城市模板</p><div class="tags"><span class="st st-h">H</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">湖畔小鎮照片加左右分欄的活動、住宿、交通資訊，景點介紹<span class="nw">資訊很齊。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/5s82ds/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-5s82ds-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-wl" aria-labelledby="h-wl"><h3 class="cath" id="h-wl"><span class="ck ck2">WL</span>產品介紹／登陸頁</h3><div class="grid"><article class="card" id="wl1">
+<a class="th" href="https://www.webnode.com/zh/template-detail/7tko47/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wl1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WL1</span><h3>陶瓷專賣店</h3></div>
+<p class="src">Webnode · 陶瓷專賣店模板</p><div class="tags"><span class="st st-a">A</span><span class="lic tool">Webnode 免費套用</span><span class="lic pro">商店功能需付費</span></div>
+<p class="note">白底灰陶的商品方格，幾乎沒有多餘裝飾，極簡選物店的<span class="nw">標準樣子。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/7tko47/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-7tko47-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wl2">
+<a class="th" href="https://www.webnode.com/zh/template-detail/9ml6w6/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wl2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WL2</span><h3>手作木製玩具</h3></div>
+<p class="src">Webnode · 木製玩具模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span><span class="lic pro">商店功能需付費</span></div>
+<p class="note">暖白底配原木玩具照片，配色溫柔，產品介紹和購物車<span class="nw">都已排好。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/9ml6w6/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-9ml6w6-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wl3">
+<a class="th" href="https://www.webnode.com/zh/template-detail/rx4t0s/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wl3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WL3</span><h3>網銀 App 介紹頁</h3></div>
+<p class="src">Webnode · 網路銀行應用程式模板</p><div class="tags"><span class="st st-a">A</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">紫色漸層加手機畫面的 App 登陸頁，功能介紹和下載按鈕一<span class="nw">路往下排。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/rx4t0s/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-rx4t0s-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-wr" aria-labelledby="h-wr"><h3 class="cath" id="h-wr"><span class="ck ck2">WR</span>餐廳／咖啡店</h3><div class="grid"><article class="card" id="wr1">
+<a class="th" href="https://www.webnode.com/zh/template-detail/s8f1d5/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wr1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WR1</span><h3>綠意設計感咖啡廳</h3></div>
+<p class="src">Webnode · 咖啡廳模板</p><div class="tags"><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">淺鼠尾草綠底配明亮店內照，菜單、預約一應俱全，日系清<span class="nw">新感最強。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/s8f1d5/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-s8f1d5-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wr2">
+<a class="th" href="https://www.webnode.com/zh/template-detail/82keaw/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wr2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WR2</span><h3>港埠咖啡</h3></div>
+<p class="src">Webnode · 咖啡廳模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">米白底、原木桌椅的店景照片，字很少，安靜的社區咖<span class="nw">啡店氣氛。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/82keaw/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-82keaw-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wr3">
+<a class="th" href="https://www.webnode.com/zh/template-detail/1e5f8b/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wr3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WR3</span><h3>法式餐廳</h3></div>
+<p class="src">Webnode · 法式餐廳模板</p><div class="tags"><span class="st st-a">A</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">深色桌面上的香料與料理俯拍配細字，高級餐廳的<span class="nw">沉穩質感。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/1e5f8b/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-1e5f8b-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-wc" aria-labelledby="h-wc"><h3 class="cath" id="h-wc"><span class="ck ck2">WC</span>公司／工作室官網</h3><div class="grid"><article class="card" id="wc1">
+<a class="th" href="https://www.webnode.com/zh/template-detail/a74b5c/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wc1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WC1</span><h3>白色建築工作坊</h3></div>
+<p class="src">Webnode · 建築工作坊模板</p><div class="tags"><span class="st st-a">A</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">藍天下的白色現代建築大照片，下面是服務與作品集，極<span class="nw">簡又大器。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/a74b5c/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-a74b5c-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wc2">
+<a class="th" href="https://www.webnode.com/zh/template-detail/04600f/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wc2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WC2</span><h3>室內設計工作室</h3></div>
+<p class="src">Webnode · 室內設計工作室模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">奶油色客廳照片加細字標題，柔和的大地色，很適合設計或<span class="nw">顧問公司。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/04600f/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-04600f-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="wc3">
+<a class="th" href="https://www.webnode.com/zh/template-detail/aka6h9/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/wc3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WC3</span><h3>建築師事務所</h3></div>
+<p class="src">Webnode · 建築師事務所模板</p><div class="tags"><span class="st st-a">A</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">白底大標題配一張住宅實景，建案列表排得整齊，專業<span class="nw">但不冰冷。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/aka6h9/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-aka6h9-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-we" aria-labelledby="h-we"><h3 class="cath" id="h-we"><span class="ck ck2">WE</span>學習／課程</h3><div class="grid"><article class="card" id="we1">
+<a class="th" href="https://www.webnode.com/zh/template-detail/e79jde/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/we1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WE1</span><h3>經典芭蕾學院</h3></div>
+<p class="src">Webnode · 芭蕾學院模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">米白底配舞者照片和優雅襯線字，課程、新聞、預約<span class="nw">分頁清楚。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/e79jde/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-e79jde-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="we2">
+<a class="th" href="https://www.webnode.com/zh/template-detail/8f2d0a/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/we2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WE2</span><h3>居家音樂課程</h3></div>
+<p class="src">Webnode · 音樂學院模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">師生彈吉他的大照片配樂譜底紋，課程和線上預約都有，像才<span class="nw">藝班官網。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/8f2d0a/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-8f2d0a-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="we3">
+<a class="th" href="https://www.webnode.com/zh/template-detail/e6hszl/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/we3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">WE3</span><h3>網球學院課程</h3></div>
+<p class="src">Webnode · 網球學院模板</p><div class="tags"><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
+<p class="note">紅土球場的動態照片，孩童、成人、一對一課程與價格<span class="nw">一目了然。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/e6hszl/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-e6hszl-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section></section>
 <footer class="legend">
 <p>A、G、H 是你問卷裡的風格代號。「開源」可以直接拿原始碼來改；「僅參考視覺」是設計稿，只借它的長相；「Webnode 可套用」在 Webnode 裡直接選用。</p>
-<p>編號第一個字母代表類型：P 攝影、B 部落格、N 新聞、T 旅遊、L 產品、R 餐廳、C 公司、Q 測驗、E 課程、D 儀表板、S 登入；M 是你的最愛。A 開頭是 Aura 精選，第二個字母同樣代表類型，AX 是吸睛特區。「Aura 免費 Remix」可在 Aura 上複製改用（一般要先登入）；「Aura PRO」要付費會員或單買。</p>
+<p>編號第一個字母代表類型：P 攝影、B 部落格、N 新聞、T 旅遊、L 產品、R 餐廳、C 公司、Q 測驗、E 課程、D 儀表板、S 登入；M 是你的最愛。A 開頭是 Aura 精選，第二個字母同樣代表類型，AX 是吸睛特區。「Aura 免費 Remix」可在 Aura 上複製改用（一般要先登入）；「Aura PRO」要付費會員或單買。W 開頭是 Webnode 精選，第二個字母也代表類型；「Webnode 免費套用」在 Webnode 免費方案就能選，「商店功能需付費」是要真的賣東西時得升級網路商店方案。</p>
 <p>來源：GitHub、Dribbble、Behance、Webnode、Aura（aura.build）。整理於 2026 年 10 月。</p>
 </footer>
 </main>
