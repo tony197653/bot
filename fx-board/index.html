@@ -135,6 +135,81 @@ p{text-wrap:pretty;line-break:strict}
 .pbtn.line{background:var(--card);color:var(--main)}
 .pbtn:active,.pbtn.down{transform:scale(.97)}
 
+
+/* X8a–X8d button variants */
+.vbtn{position:relative;overflow:hidden;height:44px;min-width:7em;padding:0 18px;border-radius:4px;font-weight:500;cursor:pointer;border:1px solid var(--main);isolation:isolate}
+.vbtn.pri{background:var(--main);color:#fff}
+.vbtn.sec{background:var(--card);color:var(--main)}
+.btn-note{margin:0;font-size:12px;color:var(--muted);text-align:center}
+/* a: darken + inset line */
+.v8a .vbtn{transition:background-color .15s var(--ease),box-shadow .15s var(--ease)}
+.v8a .vbtn.pri:hover{background:#4E6072}
+.v8a .vbtn.pri:active,.v8a .vbtn.pri.down{background:#3F4E5C;box-shadow:inset 0 1px 0 rgba(0,0,0,.22)}
+.v8a .vbtn.sec:hover{background:#EEF1F3}
+.v8a .vbtn.sec:active,.v8a .vbtn.sec.down{background:#DFE4E8;box-shadow:inset 0 1px 0 rgba(44,51,58,.14)}
+/* b: sink like a key */
+.v8b .btns{padding-bottom:20px}
+.v8b .vbtn{transition:transform .12s var(--ease),box-shadow .12s var(--ease)}
+.v8b .vbtn.pri{box-shadow:0 3px 0 #3F4E5C}
+.v8b .vbtn.sec{box-shadow:0 3px 0 #C3CCD4}
+.v8b .vbtn:active,.v8b .vbtn.down{transform:translateY(2px)}
+.v8b .vbtn.pri:active,.v8b .vbtn.pri.down{box-shadow:0 1px 0 #3F4E5C}
+.v8b .vbtn.sec:active,.v8b .vbtn.sec.down{box-shadow:0 1px 0 #C3CCD4}
+/* c: ripple */
+.rip{position:absolute;border-radius:50%;pointer-events:none;transform:scale(0);opacity:1;z-index:-1;animation:rip .5s var(--ease) forwards}
+.vbtn.pri .rip{background:rgba(255,255,255,.28)}
+.vbtn.sec .rip{background:rgba(86,105,123,.16)}
+@keyframes rip{to{transform:scale(1);opacity:0}}
+/* d: outline fills from the left */
+.v8d .vbtn{background:var(--card);color:var(--main);transition:color .3s var(--ease)}
+.v8d .vbtn::before{content:"";position:absolute;inset:0;background:var(--main);transform:scaleX(0);transform-origin:left;transition:transform .3s var(--ease);z-index:-1}
+.v8d .vbtn.lite::before{background:#DCE2E7}
+.v8d .vbtn:hover,.v8d .vbtn:focus-visible,.v8d .vbtn.down{color:#fff}
+.v8d .vbtn.lite:hover,.v8d .vbtn.lite:focus-visible,.v8d .vbtn.lite.down{color:var(--text)}
+.v8d .vbtn:hover::before,.v8d .vbtn:focus-visible::before,.v8d .vbtn.down::before{transform:scaleX(1)}
+.v8d .vbtn:active{color:#fff}
+.v8d .vbtn:active::before{transform:scaleX(1)}
+
+/* X10a–X10d quiz variants */
+.qv{height:100%;padding:12px 14px;background:var(--card);display:flex;flex-direction:column}
+.qv .q{margin:0 0 8px;font:500 15px/1.5 var(--serif)}
+.qopt{position:relative;height:44px;display:flex;align-items:center;gap:10px;padding:0 12px;background:#fff;border:1px solid var(--line);border-radius:4px;cursor:pointer;text-align:left;width:100%;
+  transition:background-color .25s var(--ease),border-color .25s var(--ease),color .25s var(--ease),opacity .3s var(--ease)}
+.qopt:hover{border-color:var(--accent)}
+.qopt .lt{flex:0 0 22px;height:22px;border-radius:50%;border:1px solid var(--accent);display:grid;place-items:center;font-size:12px;font-weight:500;color:var(--main);line-height:1}
+.qopt .tx{flex:1}
+.qopt .mk{width:18px;font-size:15px;text-align:center;opacity:0;transition:opacity .2s var(--ease)}
+.qopt.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok-ink)}
+.qopt.ok .lt{border-color:var(--ok);color:var(--ok-ink)}
+.qopt.ok .mk{opacity:1}
+.qv .fb{margin:6px 0 0}
+/* a: soft red fill with ✕, correct shown at once */
+.v10a .qopt.ng{background:#F4E6E3;border-color:var(--ng);color:var(--ng-ink)}
+.v10a .qopt.ng .lt{border-color:var(--ng);color:var(--ng-ink)}
+.v10a .qopt.ng .mk{opacity:1}
+/* b: strikethrough and fade */
+.v10b .qopt .tx{text-decoration:line-through;text-decoration-color:transparent;transition:text-decoration-color .3s var(--ease)}
+.v10b .qopt.ng{opacity:.5;border-color:var(--line)}
+.v10b .qopt.ng .tx{text-decoration-color:currentColor}
+.v10b .qopt.ng .mk{opacity:1}
+/* c: explanation strip in reserved space */
+.strip{margin-top:6px;height:36px;border-radius:4px;display:flex;align-items:center;padding:0 12px;font-size:13px;line-height:1.4;
+  border-left:3px solid var(--ng);background:#F4E6E3;color:var(--ng-ink);
+  clip-path:inset(0 0 100% 0);opacity:0;transition:clip-path .3s var(--ease),opacity .3s var(--ease)}
+.strip.okc{border-left-color:var(--ok);background:var(--ok-bg);color:var(--ok-ink)}
+.strip.on{clip-path:inset(0);opacity:1}
+.v10c .qopt.ng{border-color:var(--ng)}
+/* d: letter badge flips */
+.v10d .qopt .lt{position:relative;border:0;perspective:200px}
+.flip{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .4s var(--ease)}
+.flip span{position:absolute;inset:0;border-radius:50%;display:grid;place-items:center;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.flip .fr{border:1px solid var(--accent);color:var(--main)}
+.flip .bk{transform:rotateY(180deg);color:#fff;background:var(--ng)}
+.v10d .qopt.ng .flip,.v10d .qopt.ok .flip{transform:rotateY(180deg)}
+.v10d .qopt.ok .flip .bk{background:var(--ok)}
+.v10d .qopt.ng{border-color:#D9B7B1;color:var(--ng-ink)}
+.v10d .qopt.ok .mk{opacity:0}
+
 /* X9 tabs */
 .tabs-demo{height:100%;background:var(--card);display:flex;flex-direction:column}
 .tablist{position:relative;display:flex;border-bottom:1px solid var(--line);padding:0 8px}
@@ -326,7 +401,7 @@ footer a{color:var(--main)}
 
 <!-- ============ 互動回饋 ============ -->
 <section class="group" aria-labelledby="g2">
-  <div class="ghead"><h2 id="g2">互動回饋</h2><p>滑過、點擊或作答時給的回應</p><span class="range">X6–X12</span></div>
+  <div class="ghead"><h2 id="g2">互動回饋</h2><p>滑過、點擊或作答時給的回應</p><span class="range">X6–X12，含 X8a–d、X10a–d</span></div>
   <div class="grid">
 
   <article class="card" data-fx="X6">
@@ -359,6 +434,45 @@ footer a{color:var(--main)}
     <button class="replay" type="button">重播</button>
   </article>
 
+  <article class="card" data-fx="X8a">
+    <div class="chead"><span class="code">X8a</span><h3>顏色加深</h3><span class="dur">0.15 秒</span></div>
+    <div class="demo v8a"><div class="btns">
+      <div class="row"><button class="vbtn pri" type="button">加入收藏</button><button class="vbtn sec" type="button">分享</button></div>
+      <p class="btn-note">按下時底色變深，上緣多一條細陰影。</p>
+    </div></div>
+    <p class="fit">適合：表單送出、儀表板、會員中心</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X8b">
+    <div class="chead"><span class="code">X8b</span><h3>下沉</h3><span class="dur">0.12 秒</span></div>
+    <div class="demo v8b"><div class="btns">
+      <div class="row"><button class="vbtn pri" type="button">加入收藏</button><button class="vbtn sec" type="button">分享</button></div>
+      <p class="btn-note">像實體按鍵，按下往下沉 2px。</p>
+    </div></div>
+    <p class="fit">適合：測驗作答、課程練習、活動頁</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X8c">
+    <div class="chead"><span class="code">X8c</span><h3>漣漪</h3><span class="dur">0.5 秒</span></div>
+    <div class="demo v8c"><div class="btns">
+      <div class="row"><button class="vbtn pri" type="button">加入收藏</button><button class="vbtn sec" type="button">分享</button></div>
+      <p class="btn-note">從手指點的位置擴散一圈淡色。</p>
+    </div></div>
+    <p class="fit">適合：手機為主的頁面、清單項目</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X8d">
+    <div class="chead"><span class="code">X8d</span><h3>外框填色</h3><span class="dur">0.3 秒</span></div>
+    <div class="demo v8d"><div class="btns">
+      <div class="row"><button class="vbtn " type="button">加入收藏</button><button class="vbtn lite" type="button">分享</button></div>
+      <p class="btn-note">滑過或按下時，底色由左往右填滿。</p>
+    </div></div>
+    <p class="fit">適合：作品集、品牌網站、登陸頁</p>
+    <button class="replay" type="button">重播</button>
+  </article>
   <article class="card" data-fx="X9">
     <div class="chead"><span class="code">X9</span><h3>分頁滑動底線</h3><span class="dur">0.3 秒</span></div>
     <div class="demo"><div class="tabs-demo">
@@ -393,6 +507,49 @@ footer a{color:var(--main)}
     <button class="replay" type="button">重播</button>
   </article>
 
+  <article class="card" data-fx="X10a">
+    <div class="chead"><span class="code">X10a</span><h3>淡紅底＋正解亮綠</h3><span class="dur">0.25 秒</span></div>
+    <div class="demo"><div class="qv v10a" data-v="a">
+      <p class="q">台灣最高的山是哪一座？</p>
+      <div class="opts"><button class="qopt" type="button" data-ok="0"><span class="lt">A</span><span class="tx">雪山</span><span class="mk" aria-hidden="true">✕</span></button><button class="qopt" type="button" data-ok="1"><span class="lt">B</span><span class="tx">玉山</span><span class="mk" aria-hidden="true">✓</span></button><button class="qopt" type="button" data-ok="0"><span class="lt">C</span><span class="tx">合歡山</span><span class="mk" aria-hidden="true">✕</span></button></div>
+      <p class="fb" aria-live="polite">答對了</p>
+    </div></div>
+    <p class="fit">適合：考前練習、一次定答案的測驗</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X10b">
+    <div class="chead"><span class="code">X10b</span><h3>劃線淡出</h3><span class="dur">0.3 秒</span></div>
+    <div class="demo"><div class="qv v10b" data-v="b">
+      <p class="q">日月潭位於哪一個縣？</p>
+      <div class="opts"><button class="qopt" type="button" data-ok="0"><span class="lt">A</span><span class="tx">嘉義縣</span><span class="mk" aria-hidden="true">✕</span></button><button class="qopt" type="button" data-ok="1"><span class="lt">B</span><span class="tx">南投縣</span><span class="mk" aria-hidden="true">✓</span></button><button class="qopt" type="button" data-ok="0"><span class="lt">C</span><span class="tx">花蓮縣</span><span class="mk" aria-hidden="true">✕</span></button></div>
+      <p class="fb" aria-live="polite">答對了</p>
+    </div></div>
+    <p class="fit">適合：可以重答的練習、刪去法題型</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X10c">
+    <div class="chead"><span class="code">X10c</span><h3>下方說明條</h3><span class="dur">0.3 秒</span></div>
+    <div class="demo"><div class="qv v10c" data-v="c">
+      <p class="q">清水寺位於京都的哪一區？</p>
+      <div class="opts"><button class="qopt" type="button" data-ok="0"><span class="lt">A</span><span class="tx">左京區</span><span class="mk" aria-hidden="true">✕</span></button><button class="qopt" type="button" data-ok="1"><span class="lt">B</span><span class="tx">東山區</span><span class="mk" aria-hidden="true">✓</span></button><button class="qopt" type="button" data-ok="0"><span class="lt">C</span><span class="tx">北區</span><span class="mk" aria-hidden="true">✕</span></button></div>
+      <p class="strip" aria-live="polite" data-ok="正確答案是 B，清水寺在東山區。">&nbsp;</p>
+    </div></div>
+    <p class="fit">適合：課程練習、需要解說的題庫</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X10d">
+    <div class="chead"><span class="code">X10d</span><h3>圖示翻轉</h3><span class="dur">0.4 秒</span></div>
+    <div class="demo"><div class="qv v10d" data-v="d">
+      <p class="q">金閣寺的正式名稱是什麼？</p>
+      <div class="opts"><button class="qopt" type="button" data-ok="0"><span class="lt"><span class=flip><span class=fr>A</span><span class=bk aria-hidden=true>✕</span></span></span><span class="tx">慈照寺</span><span class="mk" aria-hidden="true">✕</span></button><button class="qopt" type="button" data-ok="1"><span class="lt"><span class=flip><span class=fr>B</span><span class=bk aria-hidden=true>✓</span></span></span><span class="tx">鹿苑寺</span><span class="mk" aria-hidden="true">✓</span></button><button class="qopt" type="button" data-ok="0"><span class="lt"><span class=flip><span class=fr>C</span><span class=bk aria-hidden=true>✕</span></span></span><span class="tx">清水寺</span><span class="mk" aria-hidden="true">✕</span></button></div>
+      <p class="fb" aria-live="polite">答對了</p>
+    </div></div>
+    <p class="fit">適合：選擇題測驗、圖示簡潔的頁面</p>
+    <button class="replay" type="button">重播</button>
+  </article>
   <article class="card" data-fx="X11">
     <div class="chead"><span class="code">X11</span><h3>展開收合</h3><span class="dur">0.3 秒</span></div>
     <div class="demo"><div class="acc">
@@ -602,6 +759,70 @@ function loadSk(card){
   later(card,()=>sk.classList.add('done'), reduced()?400:1800);
 }
 
+
+/* X8a–X8d */
+function ripple(btn,x,y){
+  const r=btn.getBoundingClientRect(), d=Math.hypot(r.width,r.height)*2;
+  const px=(x==null? r.width/2 : x-r.left), py=(y==null? r.height/2 : y-r.top);
+  const sp=document.createElement('span'); sp.className='rip';
+  sp.style.cssText=`width:${d}px;height:${d}px;left:${px-d/2}px;top:${py-d/2}px`;
+  btn.appendChild(sp); setTimeout(()=>sp.remove(),600);
+}
+function pressDemo(c){
+  const bs=c.querySelectorAll('.vbtn'), rip=c.querySelector('.v8c');
+  bs.forEach(b=>b.classList.remove('down'));
+  bs.forEach((b,k)=>{
+    later(c,()=>{ b.classList.add('down'); if(rip&&!reduced()) ripple(b); }, 300+k*900);
+    later(c,()=>b.classList.remove('down'), (c.querySelector('.v8d')?800:180)+300+k*900);
+  });
+}
+document.querySelectorAll('.v8c .vbtn').forEach(b=>{
+  b.addEventListener('pointerdown',e=>{ if(!reduced()) ripple(b,e.clientX,e.clientY); });
+  b.addEventListener('click',e=>{ if(e.detail===0 && !reduced()) ripple(b); }); // keyboard
+});
+document.addEventListener('touchstart',()=>{},{passive:true}); // lets iOS show :active
+
+/* X10a–X10d */
+function qAnswer(card,btn){
+  const box=card.querySelector('.qv'), v=box.dataset.v, opts=[...box.querySelectorAll('.qopt')];
+  if(box.dataset.done) return;
+  const ok=btn.dataset.ok==='1', fb=box.querySelector('.fb'), strip=box.querySelector('.strip');
+  const right=opts.find(o=>o.dataset.ok==='1');
+  if(ok){
+    btn.classList.add('ok'); box.dataset.done=1;
+    if(fb){ fb.textContent='答對了。'; fb.className='fb show okc'; }
+    if(strip){ strip.textContent='答對了，清水寺在東山區。'; strip.className='strip okc on'; }
+    return;
+  }
+  if(btn.classList.contains('ng')) return;
+  btn.classList.add('ng');
+  const L=btn.querySelector('.fr')?.textContent || btn.querySelector('.lt').textContent;
+  if(v==='a'){
+    right.classList.add('ok'); box.dataset.done=1;
+    fb.textContent='答錯了，正確答案是 '+right.querySelector('.lt').textContent+'。'; fb.className='fb show ngc';
+  } else if(v==='c'){
+    strip.className='strip'; void strip.offsetWidth;
+    strip.textContent=strip.dataset.ok; strip.className='strip on';
+  } else {
+    fb.textContent='不是 '+L+'，再選一次。'; fb.className='fb show ngc';
+  }
+}
+function qReset(card){
+  const box=card.querySelector('.qv'); delete box.dataset.done;
+  box.querySelectorAll('.qopt').forEach(o=>o.classList.remove('ok','ng'));
+  const fb=box.querySelector('.fb'); if(fb){fb.className='fb';fb.textContent='答對了';}
+  const st=box.querySelector('.strip'); if(st){st.className='strip';}
+}
+function qDemo(c){
+  qReset(c); const o=c.querySelectorAll('.qopt');
+  later(c,()=>qAnswer(c,o[0]),400);
+  if(c.querySelector('.qv').dataset.v!=='a') later(c,()=>qAnswer(c,o[1]),1800);
+}
+document.querySelectorAll('.qv').forEach(box=>{
+  const card=box.closest('.card');
+  box.querySelectorAll('.qopt').forEach(o=>o.addEventListener('click',()=>{clear(card); qAnswer(card,o);}));
+});
+
 const play = {
   X1: c=>restart(c.querySelector('.demo')),
   X2: c=>restart(c.querySelector('.demo')),
@@ -617,6 +838,8 @@ const play = {
   X10: c=>{resetQuiz(c); const o=c.querySelectorAll('.opt'); later(c,()=>answer(c,o[0]),400); later(c,()=>answer(c,o[1]),1500);},
   X11: c=>{openAcc(c,-1); later(c,()=>openAcc(c,0),250); later(c,()=>openAcc(c,1),1300);},
   X12: c=>toast(c),
+  X8a: pressDemo, X8b: pressDemo, X8c: pressDemo, X8d: pressDemo,
+  X10a: qDemo, X10b: qDemo, X10c: qDemo, X10d: qDemo,
   X13: c=>countUp(c),
   X14: c=>restart(c.querySelector('.bars')),
   X15: c=>loadSk(c),
