@@ -20,22 +20,17 @@
   .card p{margin:0 0 8px}
   .num{flex:none;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--primary);color:var(--primary-fg);font-size:.85rem}
   .katex-display{margin:8px 0;overflow-x:auto;overflow-y:hidden;padding:2px 0}
-  .step[hidden],.actions[hidden]{display:none}
   p .katex{white-space:nowrap}
   .answer{border-color:var(--ok);background:var(--ok-bg)}
   .answer h2{color:var(--ok)}
-  .actions{display:flex;gap:8px}
-  button{min-height:44px;padding:0 18px;border-radius:var(--radius);font:inherit;font-size:1rem;cursor:pointer;border:1px solid var(--border);background:var(--bg);color:var(--fg)}
-  button.primary{background:var(--primary);color:var(--primary-fg);border-color:var(--primary);flex:1}
   .tip{color:var(--muted-fg);font-size:.95rem}
-  @media (min-width:768px){main{padding-top:40px}h1{font-size:1.5rem}button.primary{flex:none}}
+  @media (min-width:768px){main{padding-top:40px}h1{font-size:1.5rem}}
 </style>
 </head>
 <body>
 <main>
   <header>
     <h1>找規律，把平方湊出來</h1>
-    <p class="sub">先自己想想看，卡住了再按「下一步」。</p>
   </header>
 
   <section class="card">
@@ -45,51 +40,40 @@
 
   <section class="card step">
     <h2><span class="num">1</span>找規律</h2>
-    <p>每一行左邊是「一個數的平方加自己」，右邊是「下一個數的平方減下一個數」。寫成式子：</p>
+    <p>由已知各式得：</p>
     \[n^2+n=(n+1)^2-(n+1)\]
-    <p class="tip">為什麼一定對？把右邊展開看看：</p>
+    <p class="tip">驗證：</p>
     \[\begin{aligned}&(n+1)^2-(n+1)\\={}&n^2+2n+1-n-1\\={}&n^2+n\end{aligned}\]
   </section>
 
-  <section class="card step" hidden>
+  <section class="card step">
     <h2><span class="num">2</span>套用規律</h2>
     <p>\(n=234\) 代進去：</p>
     \[234^2+234=235^2-235\]
   </section>
 
-  <section class="card step" hidden>
+  <section class="card step">
     <h2><span class="num">3</span>把 470 拆開</h2>
-    <p>\(470=235+235\)，一個 235 抵掉減號，另一個留下來：</p>
+    <p>\(470=2\times235\)：</p>
     \[235^2-235+470=235^2+235\]
   </section>
 
-  <section class="card step" hidden>
+  <section class="card step">
     <h2><span class="num">4</span>再套一次規律</h2>
     <p>這次 \(n=235\)：</p>
     \[235^2+235=236^2-236\]
   </section>
 
-  <section class="card step" hidden>
+  <section class="card step">
     <h2><span class="num">5</span>加上最後的 236</h2>
     \[236^2-236+236=236^2=a^2\]
     <p>因為 \(a>0\)，所以 \(a=236\)。</p>
   </section>
 
-  <section class="card answer step" hidden>
+  <section class="card answer step">
     <h2>答案：\(a=236\)</h2>
     <p><strong>這題的關鍵：</strong>看到 \(n^2+n\) 就想到「下一個數的平方減下一個數」，而 470 剛好是 \(2\times235\)，用來把減號翻成加號。</p>
   </section>
 
-  <div class="actions">
-    <button class="primary" id="next">下一步</button>
-    <button id="all">全部顯示</button>
-  </div>
-</main>
-<script>
-  const show = n => { document.querySelectorAll('.step[hidden]').forEach((s, i) => { if (i < n) s.hidden = false; });
-    if (!document.querySelector('.step[hidden]')) document.querySelector('.actions').hidden = true; };
-  document.getElementById('next').onclick = () => show(1);
-  document.getElementById('all').onclick = () => show(99);
-</script>
 </body>
 </html>
