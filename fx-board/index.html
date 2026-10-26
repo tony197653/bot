@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>網頁特效示意</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E7EAED; --card:#F7F8F9; --text:#2C333A; --main:#56697B; --accent:#A9B7C3;
+  --line:#D3DAE0; --soft:#EEF1F3; --muted:#66727E;
+  --ok:#6F8F72; --ok-ink:#4C6A4F; --ok-bg:#E4ECE3; --ng:#B0695F; --ng-ink:#8E4F46;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --sans:"Noto Sans TC","PingFang TC","Heiti TC","Microsoft JhengHei",sans-serif;
+  --serif:"Noto Serif TC","Songti TC","PMingLiU",serif;
+}
+*{box-sizing:border-box}
+html{scrollbar-gutter:stable;overflow-y:scroll;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.7 var(--sans);
+  overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none;touch-action:pan-y pinch-zoom;
+  -webkit-tap-highlight-color:rgba(86,105,123,.12)}
+img{display:block;max-width:100%}
+button{font:inherit;color:inherit;touch-action:manipulation}
+:focus-visible{outline:2px solid var(--main);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1200px;margin:0 auto;
+  padding:0 max(24px,env(safe-area-inset-right)) max(40px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left))}
+
+/* header */
+.top{padding:40px 0 8px;border-bottom:1px solid var(--line)}
+h1{font:600 30px/1.3 var(--serif);margin:0 0 6px;letter-spacing:.02em;text-wrap:balance}
+.lead{margin:0 0 16px;font-size:16px;color:var(--muted);max-width:48em;text-wrap:pretty;line-break:strict}
+.rm-note{display:none;margin:0 0 16px;font-size:14px;color:var(--main)}
+@media (prefers-reduced-motion:reduce){.rm-note{display:block}}
+p{text-wrap:pretty;line-break:strict}
+.nw{white-space:nowrap}
+
+/* groups */
+.group{margin-top:36px}
+.ghead{display:flex;align-items:baseline;gap:12px;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.ghead h2{font:600 20px/1.4 var(--serif);margin:0;text-wrap:balance}
+.ghead p{margin:0;font-size:14px;color:var(--muted)}
+.ghead .range{margin-left:auto;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+@media (max-width:1023px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* card */
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px;display:flex;flex-direction:column;min-width:0}
+.chead{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.code{font:600 15px/1 var(--sans);color:var(--main);font-variant-numeric:tabular-nums;min-width:2.2em}
+.chead h3{margin:0;font:500 17px/1.4 var(--serif);text-wrap:balance}
+.dur{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.demo{position:relative;aspect-ratio:4/3;min-height:252px;background:var(--soft);border:1px solid var(--line);border-radius:4px;overflow:hidden;contain:layout paint}
+.fit{margin:12px 0 12px;font-size:14px;color:var(--muted)}
+.replay{margin-top:auto;height:44px;padding:0 18px;align-self:flex-start;background:transparent;border:1px solid var(--main);border-radius:4px;color:var(--main);font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:background-color .2s var(--ease),transform .12s var(--ease)}
+.replay svg{width:16px;height:16px}
+.replay:hover{background:rgba(86,105,123,.08)}
+.replay:active{transform:scale(.97)}
+
+/* shared demo pieces */
+.pad{padding:16px;height:100%}
+.ph{width:100%;height:100%;object-fit:cover}
+.muted{color:var(--muted)}
+.tiny{font-size:12px;color:var(--muted)}
+
+/* X1 fade rise */
+.list{list-style:none;margin:0;padding:14px 16px;display:grid;gap:10px}
+.list li{display:grid;grid-template-columns:56px 1fr;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:8px}
+.list img{width:56px;height:42px;object-fit:cover;border-radius:2px}
+.list b{display:block;font:500 14px/1.4 var(--serif)}
+.list span{font-size:12px;color:var(--muted)}
+.rv{opacity:0;transform:translateY(8px)}
+.play .rv{animation:rise .4s var(--ease) both;animation-delay:calc(var(--i,0)*90ms)}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* X2 ken burns */
+.kb{transform-origin:60% 40%}
+.play .kb{animation:kb 9s cubic-bezier(.25,.1,.25,1) both}
+@keyframes kb{from{transform:scale(1)}to{transform:scale(1.06)}}
+.cap{position:absolute;left:12px;bottom:12px;background:rgba(44,51,58,.72);color:#fff;font-size:12px;padding:3px 8px;border-radius:3px}
+
+/* X3 letters */
+.title-demo{height:100%;display:flex;flex-direction:column;justify-content:center;padding:24px;background:var(--card)}
+.title-demo h4{margin:0 0 8px;font:600 26px/1.35 var(--serif);letter-spacing:.04em}
+.title-demo h4 span{display:inline-block;opacity:0;transform:translateY(.3em)}
+.play .title-demo h4 span{animation:rise .45s var(--ease) both;animation-delay:calc(var(--i)*55ms)}
+.title-demo p{margin:0;font-size:14px;color:var(--muted);opacity:0}
+.play .title-demo p{animation:fade .4s var(--ease) both;animation-delay:.6s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+
+/* X4 crossfade */
+.xf img{position:absolute;inset:0;opacity:0;transition:opacity .9s ease-in-out}
+.xf img.on{opacity:1}
+.dots{position:absolute;right:12px;bottom:14px;display:flex;gap:6px}
+.dots i{width:18px;height:2px;background:rgba(255,255,255,.55)}
+.dots i.on{background:#fff}
+
+/* X5 parallax */
+.sbox{height:100%;overflow-y:auto;overscroll-behavior:contain;background:var(--card);scrollbar-width:thin}
+.px-hero{position:relative;height:150px;overflow:hidden}
+.px-hero img{position:absolute;left:0;top:-30px;width:100%;height:210px;object-fit:cover;will-change:transform}
+.px-hero h4{position:absolute;left:14px;bottom:10px;margin:0;color:#fff;font:600 18px/1.3 var(--serif);background:rgba(44,51,58,.55);padding:2px 8px;border-radius:3px}
+.art{padding:12px 16px 20px;font-size:13.5px;line-height:1.8}
+.art p{margin:0 0 10px}
+.hint{position:absolute;right:10px;top:10px;font-size:12px;background:var(--card);border:1px solid var(--line);color:var(--muted);padding:2px 8px;border-radius:3px;pointer-events:none}
+
+/* X6 lift */
+.center{height:100%;display:grid;place-items:center;padding:16px}
+.mini{width:min(220px,80%);background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:pointer;
+  transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
+.mini img{width:100%;aspect-ratio:3/2;object-fit:cover}
+.mini div{padding:10px 12px}
+.mini b{display:block;font:500 15px/1.4 var(--serif)}
+.mini span{font-size:12px;color:var(--muted)}
+.mini:hover,.mini:focus-visible,.mini.on{transform:translateY(-4px);box-shadow:0 10px 24px rgba(44,51,58,.12)}
+
+/* X7 underline */
+.reading{height:100%;padding:22px 20px;background:var(--card);font-size:14.5px;line-height:1.9}
+.reading h4{margin:0 0 6px;font:600 17px/1.4 var(--serif)}
+.reading p{margin:0 0 10px}
+.ul{color:var(--main);text-decoration:none;font-weight:500;
+  background:linear-gradient(currentColor,currentColor) left bottom/0 1px no-repeat;
+  transition:background-size .35s var(--ease);padding-bottom:1px;white-space:nowrap}
+.ul:hover,.ul:focus-visible,.ul.on{background-size:100% 1px}
+
+/* X8 press */
+.btns{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px}
+.btns .row{display:flex;gap:10px}
+.pbtn{height:44px;min-width:7.5em;padding:0 18px;border-radius:4px;border:1px solid var(--main);cursor:pointer;font-weight:500;
+  transition:transform .12s var(--ease),background-color .2s var(--ease),color .2s var(--ease)}
+.pbtn.fill{background:var(--main);color:#fff}
+.pbtn.fill[aria-pressed="true"]{background:var(--text);border-color:var(--text)}
+.pbtn.line{background:var(--card);color:var(--main)}
+.pbtn:active,.pbtn.down{transform:scale(.97)}
+
+/* X9 tabs */
+.tabs-demo{height:100%;background:var(--card);display:flex;flex-direction:column}
+.tablist{position:relative;display:flex;border-bottom:1px solid var(--line);padding:0 8px}
+.tab{flex:0 0 auto;height:44px;padding:0 16px;background:none;border:0;cursor:pointer;color:var(--muted);font-weight:500;transition:color .2s var(--ease)}
+.tab[aria-selected="true"]{color:var(--text)}
+.ind{position:absolute;left:0;bottom:-1px;height:2px;width:0;background:var(--main);transition:transform .3s var(--ease),width .3s var(--ease)}
+.panels{position:relative;flex:1}
+.panel{position:absolute;inset:0;padding:14px 18px;font-size:14px;opacity:0;visibility:hidden;transition:opacity .25s var(--ease),visibility 0s linear .25s}
+.panel.on{opacity:1;visibility:visible;transition:opacity .25s var(--ease)}
+.panel h4{margin:0 0 4px;font:500 15px/1.4 var(--serif)}
+.panel p{margin:0;color:var(--muted)}
+
+/* X10 quiz */
+.quiz{height:100%;padding:14px 16px;background:var(--card);display:flex;flex-direction:column}
+.quiz .q{margin:0 0 10px;font:500 15px/1.5 var(--serif)}
+.opts{display:grid;gap:6px}
+.opt{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#fff;border:1px solid var(--line);border-radius:4px;cursor:pointer;text-align:left;
+  transition:background-color .25s var(--ease),border-color .25s var(--ease),color .25s var(--ease)}
+.opt:hover{border-color:var(--accent)}
+.opt svg{width:18px;height:18px;opacity:0;transition:opacity .2s var(--ease)}
+.opt.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok-ink)}
+.opt.ok svg{opacity:1}
+.opt.ng{border-color:var(--ng);box-shadow:inset 0 0 0 1px var(--ng);color:var(--ng-ink);animation:shake .3s var(--ease)}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.fb{margin:8px 0 0;font-size:13px;min-height:1.6em;visibility:hidden}
+.fb.show{visibility:visible}
+.fb.okc{color:var(--ok-ink)} .fb.ngc{color:var(--ng-ink)}
+
+/* X11 accordion */
+.acc{height:100%;padding:10px 14px;background:var(--card)}
+.acc-item{border-bottom:1px solid var(--line)}
+.acc-btn{width:100%;height:44px;display:flex;align-items:center;justify-content:space-between;background:none;border:0;padding:0 4px;cursor:pointer;font-weight:500;text-align:left}
+.acc-btn svg{width:14px;height:14px;transition:transform .3s var(--ease);color:var(--main)}
+.acc-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+.acc-panel{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s var(--ease)}
+.acc-panel>div{overflow:hidden}
+.acc-panel p{margin:0;padding:0 4px 10px;font-size:13.5px;color:var(--muted)}
+.acc-item.open .acc-panel{grid-template-rows:1fr}
+
+/* X12 toast */
+.settings{height:100%;padding:16px 18px;background:var(--card);display:flex;flex-direction:column;gap:10px}
+.set-row{display:flex;justify-content:space-between;align-items:center;font-size:14px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.sw{width:34px;height:20px;border-radius:10px;background:var(--main);position:relative}
+.sw::after{content:"";position:absolute;right:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff}
+.sw.off{background:var(--accent)} .sw.off::after{right:auto;left:3px}
+.settings .pbtn{align-self:flex-start;margin-top:4px}
+.toast{position:absolute;left:50%;bottom:14px;display:flex;align-items:center;gap:8px;background:var(--text);color:#fff;font-size:13.5px;padding:8px 14px;border-radius:4px;
+  opacity:0;transform:translate(-50%,8px);transition:opacity .3s var(--ease),transform .3s var(--ease);pointer-events:none;white-space:nowrap}
+.toast svg{width:16px;height:16px;color:#BFD3C0}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* X13 count */
+.stats{height:100%;padding:20px;background:var(--card);display:flex;flex-direction:column;justify-content:center}
+.stats .lbl{font-size:13px;color:var(--muted)}
+.big{font:600 46px/1.15 var(--serif);font-variant-numeric:tabular-nums;color:var(--text);min-width:5ch}
+.big small{font:400 15px var(--sans);color:var(--muted);margin-left:6px}
+.sub{display:flex;gap:28px;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+.sub b{display:block;font:600 22px/1.2 var(--serif);font-variant-numeric:tabular-nums}
+
+/* X14 bars */
+.bars{height:100%;padding:16px 18px;background:var(--card)}
+.bars h4{margin:0 0 10px;font:500 14px/1.4 var(--sans);color:var(--muted)}
+.brow{display:grid;grid-template-columns:2.6em 1fr;align-items:center;gap:10px;height:30px}
+.brow span{text-align:right;font-size:13px;color:var(--muted)}
+.track{position:relative;height:14px}
+.bar{display:block;height:100%;width:0;background:var(--main);border-radius:0 2px 2px 0;transition:width .7s var(--ease);transition-delay:calc(var(--i)*60ms)}
+.bar.hi{background:var(--text)}
+.val{position:absolute;top:50%;transform:translateY(-50%);margin-left:8px;font-size:12.5px;font-weight:500;color:var(--main);font-variant-numeric:tabular-nums;opacity:0;transition:opacity .3s var(--ease);transition-delay:calc(var(--i)*60ms + .45s);left:0}
+.bars.play .bar{width:var(--w)}
+.bars.play .val{opacity:1;left:var(--w)}
+.bars .val{transition-property:opacity,left;transition-duration:.3s,0s}
+
+/* X15 skeleton */
+.sk{height:100%;padding:16px;background:var(--card);display:grid}
+.sk>*{grid-area:1/1}
+.items{display:grid;gap:12px;align-content:start}
+.it{display:grid;grid-template-columns:72px 1fr;gap:12px;align-items:center}
+.it img{width:72px;height:54px;object-fit:cover;border-radius:3px}
+.it b{display:block;font:500 14px/1.45 var(--serif)}
+.it span{font-size:12px;color:var(--muted)}
+.bone{background:#E1E6EA;border-radius:3px}
+.skel .bone{animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.b-img{width:72px;height:54px}
+.b-l1{height:12px;width:80%;margin-bottom:8px}
+.b-l2{height:10px;width:45%}
+.real{opacity:0;transition:opacity .3s var(--ease)}
+.skel{transition:opacity .3s var(--ease)}
+.sk.done .real{opacity:1}
+.sk.done .skel{opacity:0}
+
+/* X16 progress */
+.prog{position:absolute;left:0;right:0;top:0;height:3px;background:rgba(169,183,195,.35);z-index:2}
+.prog i{display:block;height:100%;width:100%;background:var(--main);transform-origin:left;transform:scaleX(0)}
+.x16 .sbox{padding-top:3px}
+.x16 .hint{top:auto;bottom:10px}
+.x16 .art h4{margin:6px 0 8px;font:600 16px/1.4 var(--serif)}
+
+footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+footer a{color:var(--main)}
+
+@media (max-width:520px){
+  .wrap{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+  .top{padding-top:28px}
+  h1{font-size:26px}
+  .lead{font-size:15px;max-width:none;text-wrap:balance}
+  .group{margin-top:28px}
+  .ghead{flex-wrap:wrap;row-gap:0}
+  .ghead p{order:3;flex-basis:100%}
+  .card{padding:14px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0ms!important;scroll-behavior:auto!important}
+  .px-hero img{transform:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <h1>網頁特效示意</h1>
+  <p class="lead"><span class="nw">點每張卡片的「重播」看效果，</span><span class="nw">挑喜歡的代號告訴我。</span></p>
+  <p class="rm-note">你的裝置開啟了「減少動態效果」，這裡只會顯示每個特效的最終畫面。</p>
+</header>
+
+<!-- ============ 進場 ============ -->
+<section class="group" aria-labelledby="g1">
+  <div class="ghead"><h2 id="g1">進場</h2><p>區塊第一次出現在畫面上時</p><span class="range">X1–X5</span></div>
+  <div class="grid">
+
+  <article class="card" data-fx="X1" data-auto>
+    <div class="chead"><span class="code">X1</span><h3>捲動淡入</h3><span class="dur">0.4 秒</span></div>
+    <div class="demo">
+      <ul class="list">
+        <li class="rv" style="--i:0"><img src="img/eikando.jpg" alt=""><div><b>永觀堂的楓紅早晨</b><span>11 月 18 日・散步</span></div></li>
+        <li class="rv" style="--i:1"><img src="img/nanzenji.jpg" alt=""><div><b>南禪寺方丈的窗景</b><span>11 月 20 日・寺院</span></div></li>
+        <li class="rv" style="--i:2"><img src="img/kodaiji.jpg" alt=""><div><b>高台寺池畔小記</b><span>11 月 22 日・庭園</span></div></li>
+      </ul>
+    </div>
+    <p class="fit">適合：文章列表、作品集、首頁區塊</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X2" data-auto>
+    <div class="chead"><span class="code">X2</span><h3>照片慢慢放大</h3><span class="dur">9 秒</span></div>
+    <div class="demo"><img class="ph kb" src="img/eikando.jpg" alt="永觀堂的石燈籠與紅葉"><span class="cap">京都・永觀堂</span></div>
+    <p class="fit">適合：首圖、旅遊景點、餐廳介紹</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X3" data-auto>
+    <div class="chead"><span class="code">X3</span><h3>標題逐字浮現</h3><span class="dur">0.9 秒</span></div>
+    <div class="demo"><div class="title-demo"><h4 aria-label="秋日京都，慢慢走">秋日京都，慢慢走</h4><p>三座寺院、兩天行程，跟著楓紅散步。</p></div></div>
+    <p class="fit">適合：首頁大標、活動頁、簡報式網頁</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X4" data-auto>
+    <div class="chead"><span class="code">X4</span><h3>照片交叉淡換</h3><span class="dur">每 3 秒</span></div>
+    <div class="demo xf">
+      <img class="ph on" src="img/eikando.jpg" alt="永觀堂">
+      <img class="ph" src="img/nanzenji.jpg" alt="南禪寺">
+      <img class="ph" src="img/kodaiji.jpg" alt="高台寺">
+      <div class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+    </div>
+    <p class="fit">適合：攝影集首頁、旅遊景點、餐廳環境</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X5" data-auto>
+    <div class="chead"><span class="code">X5</span><h3>首圖輕微視差</h3><span class="dur">隨捲動</span></div>
+    <div class="demo">
+      <div class="sbox" tabindex="0" aria-label="可捲動的文章示意">
+        <div class="px-hero"><img src="img/kodaiji.jpg" alt="高台寺池畔"><h4>高台寺池畔</h4></div>
+        <div class="art">
+          <p>從八坂神社往南走十分鐘就到高台寺。秋天池畔倒映著整片紅葉，早上九點前遊客最少，適合拍照。</p>
+          <p>臥龍池旁的步道不長，慢慢走大約二十分鐘。建議從開山堂往下看，角度最好。</p>
+          <p>夜間點燈從十月底開始，門票含茶室參觀，可以順便休息一下。</p>
+        </div>
+      </div>
+      <span class="hint">在框內上下捲動</span>
+    </div>
+    <p class="fit">適合：長文章首圖、旅遊專題、品牌故事</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  </div>
+</section>
+
+<!-- ============ 互動回饋 ============ -->
+<section class="group" aria-labelledby="g2">
+  <div class="ghead"><h2 id="g2">互動回饋</h2><p>滑過、點擊或作答時給的回應</p><span class="range">X6–X12</span></div>
+  <div class="grid">
+
+  <article class="card" data-fx="X6">
+    <div class="chead"><span class="code">X6</span><h3>卡片浮起</h3><span class="dur">0.3 秒</span></div>
+    <div class="demo"><div class="center">
+      <div class="mini" tabindex="0"><img src="img/nanzenji.jpg" alt=""><div><b>南禪寺水路閣</b><span>京都・左京區</span></div></div>
+    </div></div>
+    <p class="fit">適合：作品集、文章卡片、商品列表</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X7">
+    <div class="chead"><span class="code">X7</span><h3>連結底線延伸</h3><span class="dur">0.35 秒</span></div>
+    <div class="demo"><div class="reading">
+      <h4>出發前的準備</h4>
+      <p>楓葉季住宿很早就滿，建議先看<a class="ul" href="#x7">京都賞楓路線整理</a>，再對照各寺院的<a class="ul" href="#x7">拜觀時間表</a>安排順序。</p>
+      <p class="tiny">把滑鼠移到連結上，或用 Tab 鍵移過去。</p>
+    </div></div>
+    <p class="fit">適合：部落格、新聞內文、頁尾連結</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X8">
+    <div class="chead"><span class="code">X8</span><h3>按鈕按下回饋</h3><span class="dur">0.12 秒</span></div>
+    <div class="demo"><div class="btns">
+      <div class="row"><button class="pbtn fill" type="button" aria-pressed="false">加入收藏</button><button class="pbtn line" type="button">分享</button></div>
+      <p class="tiny" style="margin:0">按下時微微縮小，放開後回彈。</p>
+    </div></div>
+    <p class="fit">適合：所有按鈕、測驗選項、表單送出</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X9">
+    <div class="chead"><span class="code">X9</span><h3>分頁滑動底線</h3><span class="dur">0.3 秒</span></div>
+    <div class="demo"><div class="tabs-demo">
+      <div class="tablist" role="tablist" aria-label="分頁示意">
+        <button class="tab" role="tab" aria-selected="true" tabindex="0">文章</button>
+        <button class="tab" role="tab" aria-selected="false" tabindex="-1">相簿</button>
+        <button class="tab" role="tab" aria-selected="false" tabindex="-1">關於我</button>
+        <span class="ind" aria-hidden="true"></span>
+      </div>
+      <div class="panels">
+        <div class="panel on" role="tabpanel"><h4>最新文章 12 篇</h4><p>京都賞楓、台南小吃，依日期排列。</p></div>
+        <div class="panel" role="tabpanel"><h4>相簿 4 本</h4><p>2026 秋・京都，共 86 張照片。</p></div>
+        <div class="panel" role="tabpanel"><h4>關於我</h4><p>住在台北，週末喜歡走路拍照，偶爾寫點筆記。</p></div>
+      </div>
+    </div></div>
+    <p class="fit">適合：上方分頁版面、儀表板、會員中心</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X10">
+    <div class="chead"><span class="code">X10</span><h3>答對答錯回饋</h3><span class="dur">0.3 秒</span></div>
+    <div class="demo"><div class="quiz">
+      <p class="q">清水寺位於京都的哪一區？</p>
+      <div class="opts">
+        <button class="opt" type="button" data-ok="0">左京區<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+        <button class="opt" type="button" data-ok="1">東山區<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+        <button class="opt" type="button" data-ok="0">北區<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+      </div>
+      <p class="fb" aria-live="polite">答對了</p>
+    </div></div>
+    <p class="fit">適合：測驗題庫、課程練習、問卷</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X11">
+    <div class="chead"><span class="code">X11</span><h3>展開收合</h3><span class="dur">0.3 秒</span></div>
+    <div class="demo"><div class="acc">
+      <div class="acc-item"><button class="acc-btn" type="button" aria-expanded="false">營業時間是幾點？<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="acc-panel"><div><p>週二到週日 11:00–20:00，週一公休。</p></div></div></div>
+      <div class="acc-item"><button class="acc-btn" type="button" aria-expanded="false">可以帶寵物進去嗎？<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="acc-panel"><div><p>戶外座位可以，室內請放在寵物推車裡。</p></div></div></div>
+      <div class="acc-item"><button class="acc-btn" type="button" aria-expanded="false">要怎麼訂位？<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="acc-panel"><div><p>線上訂位或來電，6 人以上請提前三天。</p></div></div></div>
+    </div></div>
+    <p class="fit">適合：常見問題、課程章節、餐廳資訊</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X12">
+    <div class="chead"><span class="code">X12</span><h3>輕提示</h3><span class="dur">停留 2 秒</span></div>
+    <div class="demo"><div class="settings">
+      <div class="set-row"><span>新文章通知</span><span class="sw" aria-hidden="true"></span></div>
+      <div class="set-row"><span>每週摘要信</span><span class="sw off" aria-hidden="true"></span></div>
+      <button class="pbtn fill save" type="button">儲存設定</button>
+    </div>
+    <div class="toast" role="status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>設定已儲存</div></div>
+    <p class="fit">適合：儲存、複製連結、加入收藏</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  </div>
+</section>
+
+<!-- ============ 資料與載入 ============ -->
+<section class="group" aria-labelledby="g3">
+  <div class="ghead"><h2 id="g3">資料與載入</h2><p>數字、圖表和等待中的畫面</p><span class="range">X13–X16</span></div>
+  <div class="grid">
+
+  <article class="card" data-fx="X13" data-auto>
+    <div class="chead"><span class="code">X13</span><h3>數字跑動</h3><span class="dur">1.2 秒</span></div>
+    <div class="demo"><div class="stats">
+      <span class="lbl">本月瀏覽人次</span>
+      <div class="big"><span class="num" data-to="1284">1,284</span><small>人</small></div>
+      <div class="sub">
+        <div><span class="lbl">新訪客</span><b class="num" data-to="312">312</b></div>
+        <div><span class="lbl">平均停留（分）</span><b class="num" data-to="3.2" data-dec="1">3.2</b></div>
+      </div>
+    </div></div>
+    <p class="fit">適合：儀表板、公司成果、活動統計</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X14" data-auto>
+    <div class="chead"><span class="code">X14</span><h3>長條圖長出</h3><span class="dur">0.7 秒</span></div>
+    <div class="demo"><div class="bars">
+      <h4>本週每日瀏覽</h4>
+      <div class="brow"><span>週一</span><div class="track"><i class="bar" style="--w:45%;--i:0"></i><b class="val" style="--w:45%;--i:0">182</b></div></div>
+      <div class="brow"><span>週二</span><div class="track"><i class="bar" style="--w:58%;--i:1"></i><b class="val" style="--w:58%;--i:1">236</b></div></div>
+      <div class="brow"><span>週三</span><div class="track"><i class="bar" style="--w:50%;--i:2"></i><b class="val" style="--w:50%;--i:2">205</b></div></div>
+      <div class="brow"><span>週四</span><div class="track"><i class="bar" style="--w:71%;--i:3"></i><b class="val" style="--w:71%;--i:3">291</b></div></div>
+      <div class="brow"><span>週五</span><div class="track"><i class="bar hi" style="--w:82%;--i:4"></i><b class="val" style="--w:82%;--i:4;color:var(--text)">370</b></div></div>
+    </div></div>
+    <p class="fit">適合：儀表板、報表、測驗成績</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X15" data-auto>
+    <div class="chead"><span class="code">X15</span><h3>載入骨架</h3><span class="dur">載入中</span></div>
+    <div class="demo"><div class="sk">
+      <div class="items skel" aria-hidden="true">
+        <div class="it"><i class="bone b-img"></i><div><i class="bone b-l1" style="display:block"></i><i class="bone b-l2" style="display:block"></i></div></div>
+        <div class="it"><i class="bone b-img"></i><div><i class="bone b-l1" style="display:block;width:70%"></i><i class="bone b-l2" style="display:block"></i></div></div>
+        <div class="it"><i class="bone b-img"></i><div><i class="bone b-l1" style="display:block;width:85%"></i><i class="bone b-l2" style="display:block;width:35%"></i></div></div>
+      </div>
+      <div class="items real">
+        <div class="it"><img src="img/eikando.jpg" alt=""><div><b>永觀堂的楓紅早晨</b><span>閱讀 4 分鐘</span></div></div>
+        <div class="it"><img src="img/nanzenji.jpg" alt=""><div><b>南禪寺方丈的窗景</b><span>閱讀 3 分鐘</span></div></div>
+        <div class="it"><img src="img/kodaiji.jpg" alt=""><div><b>高台寺池畔小記</b><span>閱讀 5 分鐘</span></div></div>
+      </div>
+    </div></div>
+    <p class="fit">適合：文章列表、儀表板、會員資料</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  <article class="card" data-fx="X16" data-auto>
+    <div class="chead"><span class="code">X16</span><h3>頂部閱讀進度條</h3><span class="dur">隨捲動</span></div>
+    <div class="demo x16">
+      <div class="prog" aria-hidden="true"><i></i></div>
+      <div class="sbox" tabindex="0" aria-label="可捲動的文章示意">
+        <div class="art">
+          <h4>南禪寺水路閣散步筆記</h4>
+          <p>水路閣是明治時期蓋的紅磚水道橋，至今仍在輸水。從南禪寺三門往右走，穿過松林就會看到。</p>
+          <p>拱門下的光線早上最柔和，九點前遊客不多，可以拍到整排拱門的透視。</p>
+          <p>沿著水道往上走，可以接到琵琶湖疏水的步道，一路通到蹴上傾斜鐵道。</p>
+          <p>春天是櫻花、秋天是楓葉，冬天人少，反而最適合慢慢看建築細節。</p>
+          <p>回程可以在附近的湯豆腐老店午餐，記得先排隊抽號碼牌。</p>
+        </div>
+      </div>
+      <span class="hint">在框內上下捲動</span>
+    </div>
+    <p class="fit">適合：長文章、教學講義、課程內容</p>
+    <button class="replay" type="button">重播</button>
+  </article>
+
+  </div>
+</section>
+
+<footer>
+  <p>照片：lumoplank，經 Wikimedia Commons，CC0 公眾領域貢獻宣告。<a href="https://commons.wikimedia.org/wiki/File:Eikando,_Kyoto_-_Eikando7373.jpg">永觀堂</a>、<a href="https://commons.wikimedia.org/wiki/File:Nanzen-ji,_Kyoto_-_Nanzenji7333.jpg">南禪寺</a>、<a href="https://commons.wikimedia.org/wiki/File:Kodai-ji,_Kyoto_-_Kodaiji7301.jpg">高台寺</a>。</p>
+</footer>
+</div>
+
+<script>
+(()=>{
+const RM = matchMedia('(prefers-reduced-motion: reduce)');
+const reduced = () => RM.matches;
+const replayIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>';
+const timers = new Map();
+const later = (card, fn, ms) => { const t = setTimeout(fn, ms); timers.get(card).push(t); };
+const clear = card => { (timers.get(card)||[]).forEach(clearTimeout); timers.set(card, []); };
+const restart = (el, cls='play') => { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); };
+
+/* split X3 title into characters */
+document.querySelectorAll('.title-demo h4').forEach(h=>{
+  h.innerHTML = [...h.textContent].map((c,i)=>`<span aria-hidden="true" style="--i:${i}">${c}</span>`).join('');
+});
+
+/* count-up */
+const fmt = (v,dec) => dec ? v.toFixed(dec) : Math.round(v).toLocaleString('en-US');
+function countUp(card){
+  const run = card._run = {};
+  card.querySelectorAll('.num').forEach(n=>{
+    const to=+n.dataset.to, dec=+(n.dataset.dec||0);
+    if(reduced()){ n.textContent = fmt(to,dec); return; }
+    const dur=1200, t0=performance.now();
+    const step = now => {
+      const p=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-p,3);
+      n.textContent = fmt(to*e,dec);
+      if(p<1 && card._run===run) requestAnimationFrame(step);
+    };
+    n.textContent = fmt(0,dec);
+    requestAnimationFrame(step);
+  });
+}
+
+/* smooth scroll inside a box (for X5, X16 replays) */
+function glide(box, to, dur, card, done){
+  if(reduced()){ box.scrollTop = to; done&&done(); return; }
+  const from=box.scrollTop, t0=performance.now(), token = card._glide = {};
+  const step = now => {
+    if(card._glide!==token) return;
+    const p=Math.min(1,(now-t0)/dur), e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+    box.scrollTop = from+(to-from)*e;
+    if(p<1) requestAnimationFrame(step); else done&&done();
+  };
+  requestAnimationFrame(step);
+}
+
+/* X4 slideshow */
+function slideTo(card,i){
+  const imgs=card.querySelectorAll('.xf img'), dots=card.querySelectorAll('.dots i');
+  imgs.forEach((im,k)=>im.classList.toggle('on',k===i)); dots.forEach((d,k)=>d.classList.toggle('on',k===i));
+  card._slide=i;
+}
+function startShow(card){
+  clearInterval(card._iv); slideTo(card,0);
+  if(reduced()) return;
+  card._iv=setInterval(()=>slideTo(card,(card._slide+1)%3),3000);
+}
+
+/* X9 tabs */
+function selectTab(card,i,focus){
+  const tabs=[...card.querySelectorAll('.tab')], panels=card.querySelectorAll('.panel'), ind=card.querySelector('.ind');
+  tabs.forEach((t,k)=>{t.setAttribute('aria-selected',k===i);t.tabIndex=k===i?0:-1;});
+  panels.forEach((p,k)=>p.classList.toggle('on',k===i));
+  const t=tabs[i]; ind.style.width=t.offsetWidth+'px'; ind.style.transform=`translateX(${t.offsetLeft}px)`;
+  if(focus) t.focus();
+  card._tab=i;
+}
+
+/* X10 quiz */
+function answer(card,btn){
+  const fb=card.querySelector('.fb'), ok=btn.dataset.ok==='1';
+  card.querySelectorAll('.opt').forEach(o=>o.classList.remove('ng'));
+  if(ok){ btn.classList.add('ok'); fb.textContent='答對了，清水寺在東山區。'; fb.className='fb show okc'; }
+  else { void btn.offsetWidth; btn.classList.add('ng'); fb.textContent='再想想，不是'+btn.textContent.trim()+'。'; fb.className='fb show ngc'; }
+}
+function resetQuiz(card){
+  card.querySelectorAll('.opt').forEach(o=>o.classList.remove('ok','ng'));
+  const fb=card.querySelector('.fb'); fb.className='fb'; fb.textContent='答對了';
+}
+
+/* X11 accordion */
+function openAcc(card,i){
+  card.querySelectorAll('.acc-item').forEach((it,k)=>{
+    const on = k===i && !it.classList.contains('open');
+    it.classList.toggle('open',on); it.querySelector('.acc-btn').setAttribute('aria-expanded',on);
+  });
+}
+
+/* X12 toast */
+function toast(card){
+  const t=card.querySelector('.toast'); clearTimeout(card._toast);
+  t.classList.remove('on'); void t.offsetWidth; t.classList.add('on');
+  card._toast=setTimeout(()=>t.classList.remove('on'),2000);
+}
+
+/* X15 skeleton */
+function loadSk(card){
+  const sk=card.querySelector('.sk'); sk.classList.remove('done');
+  later(card,()=>sk.classList.add('done'), reduced()?400:1800);
+}
+
+const play = {
+  X1: c=>restart(c.querySelector('.demo')),
+  X2: c=>restart(c.querySelector('.demo')),
+  X3: c=>restart(c.querySelector('.demo')),
+  X4: c=>startShow(c),
+  X5: c=>{const b=c.querySelector('.sbox'); b.scrollTop=0; later(c,()=>glide(b,b.scrollHeight-b.clientHeight,1800,c,()=>later(c,()=>glide(b,0,1200,c),500)),300);},
+  X6: c=>{const m=c.querySelector('.mini'); m.classList.add('on'); later(c,()=>m.classList.remove('on'),1100);},
+  X7: c=>{const ls=c.querySelectorAll('.ul'); ls.forEach(l=>l.classList.remove('on'));
+          later(c,()=>ls[0].classList.add('on'),100); later(c,()=>ls[0].classList.remove('on'),1000);
+          later(c,()=>ls[1].classList.add('on'),1100); later(c,()=>ls[1].classList.remove('on'),2000);},
+  X8: c=>{const b=c.querySelector('.pbtn.fill'); b.classList.add('down'); later(c,()=>{b.classList.remove('down'); togglePress(b);},160);},
+  X9: c=>{selectTab(c,0); later(c,()=>selectTab(c,1),500); later(c,()=>selectTab(c,2),1200); later(c,()=>selectTab(c,0),1900);},
+  X10: c=>{resetQuiz(c); const o=c.querySelectorAll('.opt'); later(c,()=>answer(c,o[0]),400); later(c,()=>answer(c,o[1]),1500);},
+  X11: c=>{openAcc(c,-1); later(c,()=>openAcc(c,0),250); later(c,()=>openAcc(c,1),1300);},
+  X12: c=>toast(c),
+  X13: c=>countUp(c),
+  X14: c=>restart(c.querySelector('.bars')),
+  X15: c=>loadSk(c),
+  X16: c=>{const b=c.querySelector('.sbox'); b.scrollTop=0; later(c,()=>glide(b,b.scrollHeight-b.clientHeight,2200,c,()=>later(c,()=>glide(b,0,900,c),600)),300);},
+};
+
+function togglePress(b){ const on=b.getAttribute('aria-pressed')!=='true'; b.setAttribute('aria-pressed',on); b.textContent=on?'已收藏':'加入收藏'; }
+
+document.querySelectorAll('.card').forEach(card=>{
+  timers.set(card,[]);
+  const id=card.dataset.fx, btn=card.querySelector('.replay');
+  btn.innerHTML = replayIcon+'重播';
+  btn.setAttribute('aria-label', id+' '+card.querySelector('h3').textContent+'，重播');
+  btn.addEventListener('click',()=>{ clear(card); play[id](card); });
+});
+
+/* direct interactions */
+const c = id => document.querySelector(`.card[data-fx="${id}"]`);
+c('X8').querySelector('.pbtn.fill').addEventListener('click',e=>togglePress(e.currentTarget));
+c('X10').querySelectorAll('.opt').forEach(o=>o.addEventListener('click',()=>{clear(c('X10')); answer(c('X10'),o);}));
+c('X11').querySelectorAll('.acc-btn').forEach((b,i)=>b.addEventListener('click',()=>{clear(c('X11')); openAcc(c('X11'),i);}));
+c('X12').querySelector('.save').addEventListener('click',()=>toast(c('X12')));
+c('X7').querySelectorAll('.ul').forEach(a=>a.addEventListener('click',e=>e.preventDefault()));
+const mini=c('X6').querySelector('.mini');
+mini.addEventListener('touchstart',()=>mini.classList.add('on'),{passive:true});
+mini.addEventListener('touchend',()=>setTimeout(()=>mini.classList.remove('on'),400),{passive:true});
+const tabsCard=c('X9'), tabs=[...tabsCard.querySelectorAll('.tab')];
+tabs.forEach((t,i)=>{
+  t.addEventListener('click',()=>{clear(tabsCard); selectTab(tabsCard,i);});
+  t.addEventListener('keydown',e=>{
+    let n=null;
+    if(e.key==='ArrowRight') n=(i+1)%tabs.length; else if(e.key==='ArrowLeft') n=(i-1+tabs.length)%tabs.length;
+    else if(e.key==='Home') n=0; else if(e.key==='End') n=tabs.length-1;
+    if(n!==null){e.preventDefault(); clear(tabsCard); selectTab(tabsCard,n,true);}
+  });
+});
+const placeInd=()=>selectTab(tabsCard,tabsCard._tab||0);
+placeInd(); addEventListener('resize',placeInd);
+document.fonts && document.fonts.ready.then(placeInd);
+
+/* parallax + progress */
+const pxBox=c('X5').querySelector('.sbox'), pxImg=c('X5').querySelector('.px-hero img');
+pxBox.addEventListener('scroll',()=>{ if(!reduced()) pxImg.style.transform=`translateY(${Math.min(pxBox.scrollTop*0.25,40)}px)`; },{passive:true});
+const prBox=c('X16').querySelector('.sbox'), bar=c('X16').querySelector('.prog i');
+prBox.addEventListener('scroll',()=>{ const m=prBox.scrollHeight-prBox.clientHeight; bar.style.transform=`scaleX(${m>0?prBox.scrollTop/m:0})`; },{passive:true});
+
+/* user taking over a scroll box cancels the scripted glide */
+[pxBox,prBox].forEach(b=>['wheel','touchstart','keydown'].forEach(ev=>b.addEventListener(ev,()=>{const card=b.closest('.card'); card._glide=null; clear(card);},{passive:true})));
+
+/* auto-play entrance and data demos once when they come into view */
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(!e.isIntersecting) return;
+  const card=e.target; io.unobserve(card);
+  if(card.dataset.fx==='X5'||card.dataset.fx==='X16') return; // scroll demos wait for the user
+  play[card.dataset.fx](card);
+}),{threshold:.35});
+document.querySelectorAll('.card[data-auto]').forEach(card=>io.observe(card));
+})();
+</script>
+</body>
+</html>
