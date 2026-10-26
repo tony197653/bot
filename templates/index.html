@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>我喜歡的網頁模板</title>
-<meta name="description" content="照宗良的喜好挑出的 24 個網頁模板：極簡留白、日系清新、資訊密集，莫蘭迪色。">
+<meta name="description" content="宗良的網頁模板收藏：5 個最愛，加上 11 種網頁類型各 3 個精選。極簡留白、日系清新、莫蘭迪大地色。">
 <script>document.documentElement.classList.add('js')</script>
 <style>
 :root{--bg:#EDEEE9;--surface:#FBFBF8;--ink:#2F312D;--mute:#696C64;--line:#D6D9D0;--sage:#66745F;--sage-soft:#DFE4DA;--rose:#9C7C74;--rose-soft:#EFE4E0;--sand:#8F7B5E;--sand-soft:#ECE6DA;--slate:#5F6B78;--slate-soft:#E1E5EA}
@@ -12,36 +12,40 @@
 html{scrollbar-gutter:stable;overflow-y:scroll;overflow-x:hidden;-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;overflow-x:hidden}
 a{color:inherit}
-.wrap{max-width:1180px;margin:0 auto;padding:0 max(20px,env(safe-area-inset-right)) 0 max(20px,env(safe-area-inset-left))}
-header{padding:36px 0 18px}
-h1{font-size:26px;font-weight:600;letter-spacing:.02em;margin:0 0 8px}
-.intro{margin:0;color:var(--mute);max-width:68ch}
+.wrap{max-width:1240px;margin:0 auto;padding:0 max(24px,env(safe-area-inset-right)) 0 max(24px,env(safe-area-inset-left))}
+header{padding:40px 0 20px}
+h1{font-size:28px;font-weight:600;letter-spacing:.02em;margin:0 0 8px}
+.intro{margin:0;color:var(--mute);max-width:70ch}
+.intro b{color:var(--ink);font-weight:600;white-space:nowrap}
 .taste{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0;list-style:none}
 .taste li{font-size:13px;padding:2px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--mute)}
 .taste li.no{border-style:dashed}
 nav{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
-[role=tablist]{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
-[role=tablist]::-webkit-scrollbar{display:none}
-[role=tab]{flex:none;appearance:none;border:0;background:none;font:inherit;font-size:15px;color:var(--mute);padding:12px 14px 10px;min-height:44px;border-bottom:2px solid transparent;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;white-space:nowrap}
-[role=tab] .n{font-size:12px;margin-left:5px;color:var(--mute);opacity:.75}
+[role=tablist]{display:flex;gap:4px}
+[role=tab]{flex:none;appearance:none;border:0;background:none;font:inherit;font-size:15px;color:var(--mute);padding:12px 16px 10px;min-height:46px;border-bottom:2px solid transparent;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+[role=tab] .n{font-size:12px;margin-left:6px;opacity:.75}
 [role=tab][aria-selected=true]{color:var(--ink);border-bottom-color:var(--sage);font-weight:600}
 [role=tab]:hover{color:var(--ink)}
 :focus-visible{outline:2px solid var(--sage);outline-offset:2px;border-radius:4px}
-main{padding:22px 0 48px}
-.panel h2{font-size:18px;font-weight:600;margin:0 0 2px}
-.lead{margin:0 0 16px;color:var(--mute);font-size:14px}
+main{padding:26px 0 52px}
+.panel>h2{font-size:20px;font-weight:600;margin:0 0 2px}
+.lead{margin:0 0 14px;color:var(--mute);font-size:14px}
 .js .panel[data-hidden]{display:none}
-#p-top .pick{display:none}
-html:not(.js) .panel{margin-bottom:40px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:16px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
-.th{display:block;aspect-ratio:16/10;background:#E4E6E0;border-bottom:1px solid var(--line);overflow:hidden}
+html:not(.js) .panel{margin-bottom:48px}
+.jump{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px;padding:0;list-style:none}
+.jump a{display:inline-block;font-size:13px;text-decoration:none;color:var(--mute);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+.jump a:hover{color:var(--ink);border-color:var(--sage)}
+.cat{padding-top:22px;scroll-margin-top:56px}
+.cath{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:600;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.ck{font-size:13px;color:var(--surface);background:var(--sage);border-radius:4px;width:24px;line-height:22px;text-align:center}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;scroll-margin-top:60px}
+.th{display:block;aspect-ratio:3/2;background:#E4E6E0;border-bottom:1px solid var(--line);overflow:hidden}
 .th img{display:block;width:100%;height:100%;object-fit:cover}
-.body{padding:12px 14px 14px;display:flex;flex-direction:column;flex:1}
+.body{padding:13px 16px 15px;display:flex;flex-direction:column;flex:1}
 .row1{display:flex;align-items:baseline;gap:8px}
 .code{font-size:12px;font-weight:600;color:var(--sage);border:1px solid var(--sage);border-radius:4px;padding:0 5px;line-height:18px;flex:none}
-h3{font-size:16px;font-weight:600;margin:0;line-height:1.35;min-width:0}
-.pick{font-size:12px;color:var(--rose);background:var(--rose-soft);border-radius:4px;padding:0 6px;line-height:20px}
+h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 .src{margin:2px 0 8px;font-size:13px;color:var(--mute)}
 .tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
 .st,.lic{font-size:12px;line-height:20px;padding:0 7px;border-radius:4px}
@@ -52,223 +56,212 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.35;min-width:0}
 .lic.open{background:var(--sage-soft);color:var(--sage)}
 .lic.ref{border:1px solid var(--line);color:var(--mute);line-height:18px}
 .lic.tool{border:1px solid var(--line);color:var(--sand);line-height:18px}
-.note{margin:0 0 10px;font-size:14px;line-height:1.6;flex:1}
-.links{margin:0;display:flex;gap:16px;font-size:14px}
+.note{margin:0 0 10px;font-size:14px;line-height:1.65;flex:1}
+.links{margin:0;display:flex;gap:18px;font-size:14px}
 .links a{color:var(--sage);text-decoration:none;border-bottom:1px solid currentColor;padding:6px 0 1px}
 .links a:hover{color:var(--ink)}
-.legend{margin:28px 0 0;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--mute);display:grid;gap:4px}
+.legend{margin:36px 0 0;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--mute);display:grid;gap:4px}
 .legend p{margin:0}
+@media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:620px){.grid{grid-template-columns:1fr;gap:14px}}
 @media (max-width:520px){
+  .wrap{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
   body{font-size:14px}
   header{padding:22px 0 12px}
   h1{font-size:22px}
   .intro{font-size:14px}
   .taste li{font-size:12px;padding:1px 8px}
   [role=tablist]{gap:0;justify-content:space-between}
-  [role=tab]{padding:11px 6px 9px;font-size:14px}
+  [role=tab]{padding:11px 4px 9px;font-size:15px;min-width:0}
   [role=tab] .n{display:none}
-  main{padding:16px 0 36px}
-  .grid{grid-template-columns:1fr;gap:10px}
-  .card{display:grid;grid-template-columns:128px 1fr;grid-template-areas:"th body"}
-  .th{grid-area:th;aspect-ratio:auto;border-bottom:0;border-right:1px solid var(--line);height:100%;min-height:96px}
-  .th img{object-position:center top}
-  .body{grid-area:body;padding:9px 11px 10px}
+  main{padding:18px 0 36px}
+  .panel>h2{font-size:18px}
+  .lead{font-size:13px}
+  .jump a{font-size:12px;padding:4px 10px}
+  .cat{padding-top:18px}
+  .cath{font-size:16px}
+  .body{padding:11px 13px 12px}
   h3{font-size:15px}
-  .src{margin:0 0 5px;font-size:12px}
-  .tags{margin-bottom:5px}
-  .note{font-size:13px;line-height:1.55;margin-bottom:4px}
-  .links a{font-size:13px;padding:8px 0 1px}
+  .src{margin:0 0 6px;font-size:12px}
+  .note{font-size:13.5px;line-height:1.6;margin-bottom:6px}
+  .links a{padding:9px 0 1px}
 }
-@media (prefers-reduced-motion:no-preference){[role=tab]{transition:color .15s,border-color .15s}}
+@media (prefers-reduced-motion:no-preference){
+  [role=tab],.jump a{transition:color .15s,border-color .15s}
+  .th img{transition:transform .5s ease}
+  .card:hover .th img{transform:scale(1.025)}
+}
 </style>
 </head>
 <body>
 <header class="wrap">
 <h1>我喜歡的網頁模板</h1>
-<p class="intro">照你的問卷挑的 24 個模板，每個都有編號。以後要做新網頁時，直接說「照 D1 的樣子做」就行。</p>
+<p class="intro">先是你最愛的 5 個，再按 11 種網頁類型各挑 3 個，一共 38 個，每個都有編號。以後要做新網頁時，直接說<b>「照 D1 的樣子做」</b>就行。</p>
 <ul class="taste" aria-label="我的喜好">
-<li>A 極簡留白</li><li>G 日系清新</li><li>H 資訊密集</li><li>莫蘭迪大地色</li><li>單頁長捲動、上方頁籤</li><li>動態輕微</li><li class="no">不要新粗野風</li>
+<li>A 極簡留白</li><li>G 日系清新</li><li>H 資訊密集</li><li>莫蘭迪大地色</li><li>真實照片</li><li>動態輕微</li><li class="no">不要新粗野風</li>
 </ul>
 </header>
-<nav><div class="wrap"><div role="tablist" aria-label="模板分類"><button role="tab" id="t-top" aria-controls="p-top" aria-selected="true" data-p="top">最推薦<span class="n">5</span></button><button role="tab" id="t-q" aria-controls="p-q" aria-selected="false" data-p="q">測驗/學習<span class="n">5</span></button><button role="tab" id="t-d" aria-controls="p-d" aria-selected="false" data-p="d">儀表板<span class="n">8</span></button><button role="tab" id="t-n" aria-controls="p-n" aria-selected="false" data-p="n">資訊/新聞<span class="n">6</span></button><button role="tab" id="t-m" aria-controls="p-m" aria-selected="false" data-p="m">通用極簡<span class="n">5</span></button></div></div></nav>
+<nav><div class="wrap"><div role="tablist" aria-label="模板分類"><button role="tab" id="t-fav" data-p="fav" aria-controls="p-fav" aria-selected="true">我的最愛<span class="n">5</span></button><button role="tab" id="t-content" data-p="content" aria-controls="p-content" aria-selected="false" tabindex=-1>內容展示<span class="n">12</span></button><button role="tab" id="t-biz" data-p="biz" aria-controls="p-biz" aria-selected="false" tabindex=-1>商業品牌<span class="n">9</span></button><button role="tab" id="t-tool" data-p="tool" aria-controls="p-tool" aria-selected="false" tabindex=-1>工具學習<span class="n">12</span></button></div></div></nav>
 <main class="wrap">
-<section class="panel" id="p-top" role="tabpanel" aria-labelledby="t-top"><p class="lead">先從這 5 個看起：都開源可直接改，也最符合你選的 A／H 和上方頁籤、長捲動。</p><div class="grid"><article class="card">
-<a class="th" href="https://shadcn-admin.netlify.app/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d1.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">D1</span><h3>shadcn-admin</h3></div>
-<p class="src">GitHub · satnaing</p>
-<div class="tags"><span class="st st-h" title="資訊密集">H</span><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span><span class="pick">最推薦</span></div>
-<p class="note">上方頁籤（總覽、分析、報表）、數字卡片加表格，資訊密度剛好，換色就能用。</p>
-<p class="links"><a href="https://shadcn-admin.netlify.app/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/satnaing/shadcn-admin" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://evidence.dev/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d5.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">D5</span><h3>Evidence</h3></div>
-<p class="src">GitHub · evidence-dev</p>
-<div class="tags"><span class="st st-h" title="資訊密集">H</span><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span><span class="pick">最推薦</span></div>
-<p class="note">用 SQL 加 Markdown 直接產生報表頁，可以長捲動閱讀，最接近「Excel 報表變網頁」。</p>
-<p class="links"><a href="https://evidence.dev/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/evidence-dev/evidence" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://starlight.astro.build/getting-started/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q2.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">Q2</span><h3>Starlight（Astro）</h3></div>
-<p class="src">GitHub · withastro</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="st st-h" title="資訊密集">H</span><span class="lic open">開源 MIT</span><span class="pick">最推薦</span></div>
-<p class="note">學習／教材站：左側章節、右側本頁大綱、中間大量留白。主色可以換成灰綠。</p>
-<p class="links"><a href="https://starlight.astro.build/getting-started/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/withastro/starlight" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://bonartm.github.io/quizdown-js/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q1.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">Q1</span><h3>quizdown-js</h3></div>
-<p class="src">GitHub · bonartm</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span><span class="pick">最推薦</span></div>
-<p class="note">一題一張卡，上一題/下一題、提示、重來都有，白底細灰線。用 Markdown 寫題目就能出題，跟 JEV 測驗的形式最像。</p>
-<p class="links"><a href="https://bonartm.github.io/quizdown-js/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/bonartm/quizdown-js" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://astro-paper.pages.dev/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n1.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">N1</span><h3>AstroPaper</h3></div>
-<p class="src">GitHub · satnaing</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span><span class="pick">最推薦</span></div>
-<p class="note">單欄長捲動，以文字為主、只有一個強調色。做資訊整理或新聞摘要最直接。</p>
-<p class="links"><a href="https://astro-paper.pages.dev/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/satnaing/astro-paper" target="_blank" rel="noopener">原始碼</a></p></div></article></div></section><section class="panel" id="p-q" role="tabpanel" aria-labelledby="t-q" data-hidden><p class="lead">一題一畫面的測驗，和章節式的學習頁。</p><div class="grid"><article class="card">
-<a class="th" href="https://bonartm.github.io/quizdown-js/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q1.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">Q1</span><h3>quizdown-js</h3></div>
-<p class="src">GitHub · bonartm</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span><span class="pick">最推薦</span></div>
-<p class="note">一題一張卡，上一題/下一題、提示、重來都有，白底細灰線。用 Markdown 寫題目就能出題，跟 JEV 測驗的形式最像。</p>
-<p class="links"><a href="https://bonartm.github.io/quizdown-js/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/bonartm/quizdown-js" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://starlight.astro.build/getting-started/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q2.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">Q2</span><h3>Starlight（Astro）</h3></div>
-<p class="src">GitHub · withastro</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="st st-h" title="資訊密集">H</span><span class="lic open">開源 MIT</span><span class="pick">最推薦</span></div>
-<p class="note">學習／教材站：左側章節、右側本頁大綱、中間大量留白。主色可以換成灰綠。</p>
-<p class="links"><a href="https://starlight.astro.build/getting-started/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/withastro/starlight" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://fumadocs.dev/docs" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q3.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">Q3</span><h3>Fumadocs</h3></div>
-<p class="src">GitHub · fuma-nama</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span></div>
-<p class="note">幾乎只用黑白灰，字距舒服，適合教材章節和學習筆記。</p>
-<p class="links"><a href="https://fumadocs.dev/docs" target="_blank" rel="noopener">看範例</a><a href="https://github.com/fuma-nama/fumadocs" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://vitepress.dev/guide/what-is-vitepress" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q4.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">Q4</span><h3>VitePress</h3></div>
-<p class="src">GitHub · vuejs</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span></div>
-<p class="note">上方導覽加左側章節，載入很快，適合做一系列的課程頁。</p>
-<p class="links"><a href="https://vitepress.dev/guide/what-is-vitepress" target="_blank" rel="noopener">看範例</a><a href="https://github.com/vuejs/vitepress" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://squidfunk.github.io/mkdocs-material/getting-started/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q5.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">Q5</span><h3>Material for MkDocs</h3></div>
-<p class="src">GitHub · squidfunk</p>
-<div class="tags"><span class="st st-h" title="資訊密集">H</span><span class="lic open">開源 MIT</span></div>
-<p class="note">上方頁籤分類，就是你選的版面 4。內建搜尋和深淺色，藍色可改成莫蘭迪色。</p>
-<p class="links"><a href="https://squidfunk.github.io/mkdocs-material/getting-started/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/squidfunk/mkdocs-material" target="_blank" rel="noopener">原始碼</a></p></div></article></div></section><section class="panel" id="p-d" role="tabpanel" aria-labelledby="t-d" data-hidden><p class="lead">像 Excel 報表的數字卡片、表格和小圖表。</p><div class="grid"><article class="card">
-<a class="th" href="https://shadcn-admin.netlify.app/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d1.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">D1</span><h3>shadcn-admin</h3></div>
-<p class="src">GitHub · satnaing</p>
-<div class="tags"><span class="st st-h" title="資訊密集">H</span><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span><span class="pick">最推薦</span></div>
-<p class="note">上方頁籤（總覽、分析、報表）、數字卡片加表格，資訊密度剛好，換色就能用。</p>
-<p class="links"><a href="https://shadcn-admin.netlify.app/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/satnaing/shadcn-admin" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://ui.shadcn.com/view/new-york-v4/dashboard-01" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d2.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">D2</span><h3>shadcn/ui 儀表板區塊</h3></div>
-<p class="src">GitHub · shadcn-ui</p>
-<div class="tags"><span class="st st-h" title="資訊密集">H</span><span class="lic open">開源 MIT</span></div>
-<p class="note">灰階卡片、面積圖、可排序表格，是最乾淨的儀表板骨架，上色後就有莫蘭迪感。</p>
-<p class="links"><a href="https://ui.shadcn.com/view/new-york-v4/dashboard-01" target="_blank" rel="noopener">看範例</a><a href="https://github.com/shadcn-ui/ui" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://dashboard.tremor.so/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d3.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">D3</span><h3>Tremor Dashboard</h3></div>
-<p class="src">GitHub · tremorlabs</p>
-<div class="tags"><span class="st st-h" title="資訊密集">H</span><span class="lic open">開源 Apache-2.0</span></div>
-<p class="note">數字表格配小折線，配色克制，很像整理過的 Excel 報表。</p>
-<p class="links"><a href="https://dashboard.tremor.so/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/tremorlabs/template-dashboard-oss" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://preview.tabler.io/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d4.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">D4</span><h3>Tabler</h3></div>
-<p class="src">GitHub · tabler</p>
-<div class="tags"><span class="st st-h" title="資訊密集">H</span><span class="lic open">開源 MIT</span></div>
-<p class="note">表格、圖表、表單元件最齊全，白底細框，適合正式一點的報表後台。</p>
-<p class="links"><a href="https://preview.tabler.io/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/tabler/tabler" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://evidence.dev/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d5.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">D5</span><h3>Evidence</h3></div>
-<p class="src">GitHub · evidence-dev</p>
-<div class="tags"><span class="st st-h" title="資訊密集">H</span><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span><span class="pick">最推薦</span></div>
-<p class="note">用 SQL 加 Markdown 直接產生報表頁，可以長捲動閱讀，最接近「Excel 報表變網頁」。</p>
-<p class="links"><a href="https://evidence.dev/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/evidence-dev/evidence" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://dribbble.com/shots/27632517-UI-UX-for-Sales-Analitics" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d6.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">D6</span><h3>UI-UX for Sales Analytics</h3></div>
-<p class="src">Dribbble · Arounda</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">你收藏的那張：輕盈的圓角卡片和柔和陰影。螢光綠的強調色要換成莫蘭迪色。</p>
-<p class="links"><a href="https://dribbble.com/shots/27632517-UI-UX-for-Sales-Analitics" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card">
-<a class="th" href="https://dribbble.com/shots/25832424-CRM-Dashboard-Clarity-Metrics" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d7.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">D7</span><h3>CRM Dashboard Clarity Metrics</h3></div>
-<p class="src">Dribbble · Fireart Studio</p>
-<div class="tags"><span class="st st-h" title="資訊密集">H</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">白底、細線表格加一條折線，資訊多但不擠。</p>
-<p class="links"><a href="https://dribbble.com/shots/25832424-CRM-Dashboard-Clarity-Metrics" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card">
-<a class="th" href="https://dribbble.com/shots/27617459-Maisonn-Smart-Home-Interior-Styling-Dashboard" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d8.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">D8</span><h3>Maisonné 室內風格儀表板</h3></div>
-<p class="src">Dribbble · kinetic Glyph</p>
-<div class="tags"><span class="st st-g" title="日系清新">G</span><span class="st st-a" title="極簡留白">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">灰米色底、黑色按鈕、照片卡片，示範大地色也能做儀表板。</p>
-<p class="links"><a href="https://dribbble.com/shots/27617459-Maisonn-Smart-Home-Interior-Styling-Dashboard" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="panel" id="p-n" role="tabpanel" aria-labelledby="t-n" data-hidden><p class="lead">長捲動閱讀、列表整理、新聞頭條。</p><div class="grid"><article class="card">
-<a class="th" href="https://astro-paper.pages.dev/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n1.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">N1</span><h3>AstroPaper</h3></div>
-<p class="src">GitHub · satnaing</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span><span class="pick">最推薦</span></div>
-<p class="note">單欄長捲動，以文字為主、只有一個強調色。做資訊整理或新聞摘要最直接。</p>
-<p class="links"><a href="https://astro-paper.pages.dev/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/satnaing/astro-paper" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://adityatelange.github.io/hugo-PaperMod/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n2.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">N2</span><h3>Hugo PaperMod</h3></div>
-<p class="src">GitHub · adityatelange</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span></div>
-<p class="note">文章列表卡片加大量留白，閱讀舒服，中文顯示也穩定。</p>
-<p class="links"><a href="https://adityatelange.github.io/hugo-PaperMod/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/adityatelange/hugo-PaperMod" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://source.ghost.io/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n3.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">N3</span><h3>Ghost Source</h3></div>
-<p class="src">GitHub · TryGhost</p>
-<div class="tags"><span class="st st-h" title="資訊密集">H</span><span class="lic open">開源 MIT</span></div>
-<p class="note">新聞雜誌版型：上方分類、頭條大圖加側欄列表，適合每日新聞頁。</p>
-<p class="links"><a href="https://source.ghost.io/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/TryGhost/Source" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://edwardtufte.github.io/tufte-css/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n4.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">N4</span><h3>Tufte CSS</h3></div>
-<p class="src">GitHub · edwardtufte</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span></div>
-<p class="note">把補充說明寫在旁邊的側註，圖和文並排，適合「解釋型」的資訊頁。</p>
-<p class="links"><a href="https://edwardtufte.github.io/tufte-css/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/edwardtufte/tufte-css" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://demo.stack.jimmycai.com/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n5.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">N5</span><h3>Hugo Theme Stack</h3></div>
-<p class="src">GitHub · CaiJimmy</p>
-<div class="tags"><span class="st st-g" title="日系清新">G</span><span class="lic open">開源 GPL-3.0</span></div>
-<p class="note">左側欄、圓角卡片、柔和灰底，中文部落格很常用。授權要求修改後也要開源。</p>
-<p class="links"><a href="https://demo.stack.jimmycai.com/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://dribbble.com/shots/27605880-Daily-UI-94-News-Dashboard-UI" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n6.jpg" alt="" width="640" height="400" loading="lazy"></a>
-<div class="body"><div class="row1"><span class="code">N6</span><h3>News Dashboard UI</h3></div>
-<p class="src">Dribbble · Des.ignwi.th.audit</p>
-<div class="tags"><span class="st st-g" title="日系清新">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">米色底配酒紅細節，頭條加熱門列表，是大地色新聞頁的參考。</p>
-<p class="links"><a href="https://dribbble.com/shots/27605880-Daily-UI-94-News-Dashboard-UI" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="panel" id="p-m" role="tabpanel" aria-labelledby="t-m" data-hidden><p class="lead">留白多、線條細、顏色淡，什麼主題都能套。</p><div class="grid"><article class="card">
-<a class="th" href="https://astro-nano-demo.vercel.app/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m1.jpg" alt="" width="640" height="400" loading="lazy"></a>
+<section class="panel" id="p-fav" role="tabpanel" aria-labelledby="t-fav"><h2>我的最愛</h2><p class="lead">你最喜歡的 5 個：極簡版面加有質感的真實照片。之後的挑選都以這 5 個為標準。</p><div class="grid"><article class="card" id="m1">
+<a class="th" href="https://astro-nano-demo.vercel.app/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M1</span><h3>Astro Nano</h3></div>
-<p class="src">GitHub · markhorn-dev</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span></div>
-<p class="note">幾乎只有文字和細線的極致留白，是 A 風格最小的起點。</p>
-<p class="links"><a href="https://astro-nano-demo.vercel.app/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/markhorn-dev/astro-nano" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://picocss.com/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m2.jpg" alt="" width="640" height="400" loading="lazy"></a>
+<p class="src">GitHub · markhorn-dev</p><div class="tags"><span class="st st-a">A</span><span class="lic open">開源 MIT</span></div>
+<p class="note">幾乎只有文字和細線的極致留白，是 A 風格最小的起點。</p><p class="links"><a href="https://astro-nano-demo.vercel.app/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/markhorn-dev/astro-nano" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="m2">
+<a class="th" href="https://picocss.com/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M2</span><h3>Pico CSS</h3></div>
-<p class="src">GitHub · picocss</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="lic open">開源 MIT</span></div>
-<p class="note">不用寫樣式就整齊的極簡 CSS，表單和按鈕乾淨，適合快速做小工具頁。</p>
-<p class="links"><a href="https://picocss.com/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/picocss/pico" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card">
-<a class="th" href="https://www.behance.net/gallery/203244241/Online-store-Decor-Japanese-style-%28design-concept%29" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m3.jpg" alt="" width="640" height="400" loading="lazy"></a>
+<p class="src">GitHub · picocss</p><div class="tags"><span class="st st-a">A</span><span class="lic open">開源 MIT</span></div>
+<p class="note">不用寫樣式就整齊的極簡 CSS，表單和按鈕乾淨，適合快速做小工具頁。</p><p class="links"><a href="https://picocss.com/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/picocss/pico" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="m3">
+<a class="th" href="https://www.behance.net/gallery/203244241/Online-store-Decor-Japanese-style-%28design-concept%29" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M3</span><h3>日式家飾線上商店</h3></div>
-<p class="src">Behance</p>
-<div class="tags"><span class="st st-g" title="日系清新">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">木質照片、細字、大量留白，典型的日系清新。</p>
-<p class="links"><a href="https://www.behance.net/gallery/203244241/Online-store-Decor-Japanese-style-%28design-concept%29" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card">
-<a class="th" href="https://www.behance.net/gallery/244665391/Japanese-Salon-Landing-Page-Design-Elegant-Minimal" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m4.jpg" alt="" width="640" height="400" loading="lazy"></a>
+<p class="src">Behance</p><div class="tags"><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">木質照片、細字、大量留白，典型的日系清新。</p><p class="links"><a href="https://www.behance.net/gallery/203244241/Online-store-Decor-Japanese-style-%28design-concept%29" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="m4">
+<a class="th" href="https://www.behance.net/gallery/244665391/Japanese-Salon-Landing-Page-Design-Elegant-Minimal" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M4</span><h3>日式沙龍形象頁</h3></div>
-<p class="src">Behance</p>
-<div class="tags"><span class="st st-g" title="日系清新">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">米白和淺棕，細明體標題，是莫蘭迪大地色的好範本。</p>
-<p class="links"><a href="https://www.behance.net/gallery/244665391/Japanese-Salon-Landing-Page-Design-Elegant-Minimal" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card">
-<a class="th" href="https://www.webnode.com/zh/template-detail/blh2zj/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m5.jpg" alt="" width="640" height="400" loading="lazy"></a>
+<p class="src">Behance</p><div class="tags"><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">米白和淺棕，細明體標題，是莫蘭迪大地色的好範本。</p><p class="links"><a href="https://www.behance.net/gallery/244665391/Japanese-Salon-Landing-Page-Design-Elegant-Minimal" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="m5">
+<a class="th" href="https://www.webnode.com/zh/template-detail/blh2zj/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M5</span><h3>生活美學部落格模板</h3></div>
-<p class="src">Webnode</p>
-<div class="tags"><span class="st st-a" title="極簡留白">A</span><span class="st st-g" title="日系清新">G</span><span class="lic tool">Webnode 可套用</span></div>
-<p class="note">你書籤裡 Webnode 的代表：白底、細字選單、三欄照片，在 Webnode 裡可直接套用。</p>
-<p class="links"><a href="https://www.webnode.com/zh/template-detail/blh2zj/" target="_blank" rel="noopener">看範例</a></p></div></article></div></section>
+<p class="src">Webnode</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 可套用</span></div>
+<p class="note">你書籤裡 Webnode 的代表：白底、細字選單、三欄照片，在 Webnode 裡可直接套用。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/blh2zj/" target="_blank" rel="noopener">看範例</a></p></div></article></div></section>
+<section class="panel" id="p-content" role="tabpanel" aria-labelledby="t-content" data-hidden><h2>內容展示</h2><p class="lead">作品、文章、新聞、旅遊這類「讓人看」的網頁。</p><ul class="jump"><li><a href="#c-p">P 攝影作品集</a></li><li><a href="#c-b">B 部落格／文章</a></li><li><a href="#c-n">N 新聞／雜誌</a></li><li><a href="#c-t">T 旅遊／景點介紹</a></li></ul><section class="cat" id="c-p" aria-labelledby="h-p"><h3 class="cath" id="h-p"><span class="ck">P</span>攝影作品集</h3><div class="grid"><article class="card" id="p1">
+<a class="th" href="https://dribbble.com/shots/20566686-PHOTOGRAPHER-PORTFOLIO" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">P1</span><h3>底片攝影作品集</h3></div>
+<p class="src">Dribbble · Blaze Smith</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">上半部只有一行標題和大量留白，下半部是滿版的底片照片牆，照片自己說話。</p><p class="links"><a href="https://dribbble.com/shots/20566686-PHOTOGRAPHER-PORTFOLIO" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="p2">
+<a class="th" href="https://dribbble.com/shots/27563444-Minimal-Editorial-Photography-Website-UI" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">P2</span><h3>極簡編輯風攝影師網站</h3></div>
+<p class="src">Dribbble · Falah Studio</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">黑白肖像配細明體引言和三個數字，像雜誌的攝影師專訪頁，安靜又有質感。</p><p class="links"><a href="https://dribbble.com/shots/27563444-Minimal-Editorial-Photography-Website-UI" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="p3">
+<a class="th" href="https://edge.ghost.io/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">P3</span><h3>Ghost Edge 攝影主題</h3></div>
+<p class="src">GitHub · TryGhost</p><div class="tags"><span class="st st-a">A</span><span class="lic open">開源 MIT</span></div>
+<p class="note">Ghost 官方的攝影主題：首頁就是不規則照片格，點進去看大圖。開源可直接架站。</p><p class="links"><a href="https://edge.ghost.io/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/TryGhost/Edge" target="_blank" rel="noopener">原始碼</a></p></div></article></div></section><section class="cat" id="c-b" aria-labelledby="h-b"><h3 class="cath" id="h-b"><span class="ck">B</span>部落格／文章</h3><div class="grid"><article class="card" id="b1">
+<a class="th" href="https://dribbble.com/shots/27660596-Travertine-Journal-Index-UI-Interior-Design-Website-Framer" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">B1</span><h3>Travertine 室內設計手記</h3></div>
+<p class="src">Dribbble · Anubhav · Stellar UI</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">米白底、細明體大標題、一篇一張大照片，是最接近 M4 氣質的部落格。</p><p class="links"><a href="https://dribbble.com/shots/27660596-Travertine-Journal-Index-UI-Interior-Design-Website-Framer" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="b2">
+<a class="th" href="https://dribbble.com/shots/27736036-THE-URBAN-JOURNAL-EDITORIAL-MAGAZINE-STYLE-BLOG-WEBSITE-DESIGN" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">B2</span><h3>The Urban Journal 城市誌</h3></div>
+<p class="src">Dribbble · Favour Olusanya</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">兩欄文章卡片配側欄「本週熱門」，照片色調一致，文章多也不亂。</p><p class="links"><a href="https://dribbble.com/shots/27736036-THE-URBAN-JOURNAL-EDITORIAL-MAGAZINE-STYLE-BLOG-WEBSITE-DESIGN" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="b3">
+<a class="th" href="https://dribbble.com/shots/6114934-Magazine-Article-Page" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">B3</span><h3>雜誌風文章頁</h3></div>
+<p class="src">Dribbble · Zuairia · Ofspace</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">單篇文章頁：大標題、引言放大、照片穿插在文字間，適合長文閱讀。</p><p class="links"><a href="https://dribbble.com/shots/6114934-Magazine-Article-Page" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="cat" id="c-n" aria-labelledby="h-n"><h3 class="cath" id="h-n"><span class="ck">N</span>新聞／雜誌</h3><div class="grid"><article class="card" id="n1">
+<a class="th" href="https://dribbble.com/shots/27765775-M-rekkep-Magazine-Website-Reading-App" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">N1</span><h3>Mürekkep 文化雜誌</h3></div>
+<p class="src">Dribbble · Schwiena</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">米色紙感底、襯線大標題，頭條加最新文章列表，網站和 App 一套設計。</p><p class="links"><a href="https://dribbble.com/shots/27765775-M-rekkep-Magazine-Website-Reading-App" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="n2">
+<a class="th" href="https://dribbble.com/shots/27566737-Editoria-Modern-Editorial-Magazine" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">N2</span><h3>Editoria 編輯雜誌</h3></div>
+<p class="src">Dribbble · Julia Zahorodnia</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">置中刊頭、滿版頭條照片、柔和暖色，像紙本雜誌的封面翻成網頁。</p><p class="links"><a href="https://dribbble.com/shots/27566737-Editoria-Modern-Editorial-Magazine" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="n3">
+<a class="th" href="https://headline.ghost.io/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">N3</span><h3>Ghost Headline 新聞主題</h3></div>
+<p class="src">GitHub · TryGhost</p><div class="tags"><span class="st st-h">H</span><span class="st st-a">A</span><span class="lic open">開源 MIT</span></div>
+<p class="note">Ghost 官方新聞主題：上方分類、頭條大圖加右側列表，開源可直接改成每日新聞頁。</p><p class="links"><a href="https://headline.ghost.io/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/TryGhost/Headline" target="_blank" rel="noopener">原始碼</a></p></div></article></div></section><section class="cat" id="c-t" aria-labelledby="h-t"><h3 class="cath" id="h-t"><span class="ck">T</span>旅遊／景點介紹</h3><div class="grid"><article class="card" id="t1">
+<a class="th" href="https://dribbble.com/shots/26396406-Lunar-Resort-Luxury-Hotel-Website-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">T1</span><h3>Lunar 山林度假村</h3></div>
+<p class="src">Dribbble · Shuvo</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">森林湖畔的大照片配細明體大字，下面是設施與房型照片，留白很多。</p><p class="links"><a href="https://dribbble.com/shots/26396406-Lunar-Resort-Luxury-Hotel-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="t2">
+<a class="th" href="https://dribbble.com/shots/26158874-ANANTARA-Luxury-Minimalist-Resort-Company-Travel-Website-Page" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">T2</span><h3>Anantara 白色度假村</h3></div>
+<p class="src">Dribbble · LAIN</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">白牆拱門的建築照片、霧藍灰點綴，乾淨到幾乎沒有裝飾。</p><p class="links"><a href="https://dribbble.com/shots/26158874-ANANTARA-Luxury-Minimalist-Resort-Company-Travel-Website-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="t3">
+<a class="th" href="https://dribbble.com/shots/27383882-Boutique-Hotel-Website-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">T3</span><h3>精品旅館與 Spa</h3></div>
+<p class="src">Dribbble · 212 Heights</p><div class="tags"><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">暖棕和米白、柔光照片、斜體襯線字，氣氛很放鬆。</p><p class="links"><a href="https://dribbble.com/shots/27383882-Boutique-Hotel-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article></div></section></section>
+<section class="panel" id="p-biz" role="tabpanel" aria-labelledby="t-biz" data-hidden><h2>商業品牌</h2><p class="lead">介紹產品、店家和公司的網頁。</p><ul class="jump"><li><a href="#c-l">L 產品介紹／登陸頁</a></li><li><a href="#c-r">R 餐廳／咖啡店</a></li><li><a href="#c-c">C 公司／工作室官網</a></li></ul><section class="cat" id="c-l" aria-labelledby="h-l"><h3 class="cath" id="h-l"><span class="ck">L</span>產品介紹／登陸頁</h3><div class="grid"><article class="card" id="l1">
+<a class="th" href="https://dribbble.com/shots/27099446-Vella-Botanical-Skincare-Landing-Page" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/l1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">L1</span><h3>Vella 植物保養品</h3></div>
+<p class="src">Dribbble · Growmelab</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">淺灰綠底、深綠按鈕，產品照放在苔蘚和樹葉之間，完全是莫蘭迪綠。</p><p class="links"><a href="https://dribbble.com/shots/27099446-Vella-Botanical-Skincare-Landing-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="l2">
+<a class="th" href="https://dribbble.com/shots/27161494-Modern-Furniture-Landing-Page" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/l2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">L2</span><h3>Modern Furniture 家具</h3></div>
+<p class="src">Dribbble · Oripio</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">超大細字標題加一張焦糖色沙發照，桌機和手機版都有。</p><p class="links"><a href="https://dribbble.com/shots/27161494-Modern-Furniture-Landing-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="l3">
+<a class="th" href="https://dribbble.com/shots/27114205-Glowbbie-Premium-Lighting-eCommerce-Website" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/l3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">L3</span><h3>Glowbbie 燈具</h3></div>
+<p class="src">Dribbble · Ilya Kolesnikov</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">米灰底、粗黑標題、燈具照片排成格子，產品就是主角。</p><p class="links"><a href="https://dribbble.com/shots/27114205-Glowbbie-Premium-Lighting-eCommerce-Website" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="cat" id="c-r" aria-labelledby="h-r"><h3 class="cath" id="h-r"><span class="ck">R</span>餐廳／咖啡店</h3><div class="grid"><article class="card" id="r1">
+<a class="th" href="https://dribbble.com/shots/3764903-Coffee-Lounge-Landing" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/r1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">R1</span><h3>Coffee &amp; Lounge 咖啡館</h3></div>
+<p class="src">Dribbble · Marko Cvijetic</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">白色標題框和奶茶色色塊並排，下面一張店內實景照，簡單耐看。</p><p class="links"><a href="https://dribbble.com/shots/3764903-Coffee-Lounge-Landing" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="r2">
+<a class="th" href="https://dribbble.com/shots/27038156-Crafted-Matcha-Experiences" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/r2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">R2</span><h3>Mori 抹茶快閃</h3></div>
+<p class="src">Dribbble · Maaz Mirza</p><div class="tags"><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">奶油米色、細明體、抹茶飲品照片，日系咖啡店的味道很足。</p><p class="links"><a href="https://dribbble.com/shots/27038156-Crafted-Matcha-Experiences" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="r3">
+<a class="th" href="https://dribbble.com/shots/26575979-Mmterserah-Restaurant-Website-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/r3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">R3</span><h3>東京料理餐廳</h3></div>
+<p class="src">Dribbble · Dujima Studio</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">照片像扇子一樣散開在暖白底上，主廚和料理照真實。橘色字可換成土色。</p><p class="links"><a href="https://dribbble.com/shots/26575979-Mmterserah-Restaurant-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="cat" id="c-c" aria-labelledby="h-c"><h3 class="cath" id="h-c"><span class="ck">C</span>公司／工作室官網</h3><div class="grid"><article class="card" id="c1">
+<a class="th" href="https://dribbble.com/shots/27715279-Interior-Design-Studio-Website-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/c1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">C1</span><h3>Nestora 室內設計工作室</h3></div>
+<p class="src">Dribbble · Topnotch</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">米色、細明體、一排作品照片，從首頁就看得出工作室的品味。</p><p class="links"><a href="https://dribbble.com/shots/27715279-Interior-Design-Studio-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="c2">
+<a class="th" href="https://dribbble.com/shots/27570135-Architecture-Studio-Website-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/c2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">C2</span><h3>Spaces shaped by nature 建築事務所</h3></div>
+<p class="src">Dribbble · Flick Studio</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">灰棕大地色、大標題配建築照片條，下面有服務和 FAQ，資訊完整。</p><p class="links"><a href="https://dribbble.com/shots/27570135-Architecture-Studio-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="c3">
+<a class="th" href="https://dribbble.com/shots/26913961-Interior-design-studio-website-design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/c3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">C3</span><h3>PeaceCraft 室內設計</h3></div>
+<p class="src">Dribbble · Wingly</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">白底配溫暖的陶土色家具照，數字和作品格子排得很整齊。</p><p class="links"><a href="https://dribbble.com/shots/26913961-Interior-design-studio-website-design" target="_blank" rel="noopener">看範例</a></p></div></article></div></section></section>
+<section class="panel" id="p-tool" role="tabpanel" aria-labelledby="t-tool" data-hidden><h2>工具學習</h2><p class="lead">測驗、課程、報表和登入頁。這幾類也挑了有照片或插畫的版本，不只是灰色介面。</p><ul class="jump"><li><a href="#c-q">Q 測驗／題庫</a></li><li><a href="#c-e">E 學習／課程</a></li><li><a href="#c-d">D 儀表板／報表</a></li><li><a href="#c-s">S 登入／會員頁</a></li></ul><section class="cat" id="c-q" aria-labelledby="h-q"><h3 class="cath" id="h-q"><span class="ck">Q</span>測驗／題庫</h3><div class="grid"><article class="card" id="q1">
+<a class="th" href="https://dribbble.com/shots/26411398-Coffee-Roastery-E-commerce-UI-Kit-Quiz-Flow-Custom-Order-Page" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">Q1</span><h3>Alder &amp; Co. 咖啡測驗</h3></div>
+<p class="src">Dribbble · Nucleus UI</p><div class="tags"><span class="st st-g">G</span><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">一題一頁的米色卡片：「今天想喝什麼口味？」三選一，配咖啡照片，最接近你要的測驗感。</p><p class="links"><a href="https://dribbble.com/shots/26411398-Coffee-Roastery-E-commerce-UI-Kit-Quiz-Flow-Custom-Order-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="q2">
+<a class="th" href="https://dribbble.com/shots/26870860-NEEDED-Quiz-Page-E-com-Product" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">Q2</span><h3>NEEDED 問答頁</h3></div>
+<p class="src">Dribbble · Designkast</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">上方進度條、左邊照片、右邊選項，手機版也有。換掉題目就能做練習題。</p><p class="links"><a href="https://dribbble.com/shots/26870860-NEEDED-Quiz-Page-E-com-Product" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="q3">
+<a class="th" href="https://dribbble.com/shots/26790826-Crescite-Beauty-Skincare-Quiz-Page-Redesign" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">Q3</span><h3>Crescite 膚質測驗</h3></div>
+<p class="src">Dribbble · Designkast</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">「第 1 題 / 共 4 題」加一張柔光人像，選項是圓角列表，乾淨好點。</p><p class="links"><a href="https://dribbble.com/shots/26790826-Crescite-Beauty-Skincare-Quiz-Page-Redesign" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="cat" id="c-e" aria-labelledby="h-e"><h3 class="cath" id="h-e"><span class="ck">E</span>學習／課程</h3><div class="grid"><article class="card" id="e1">
+<a class="th" href="https://dribbble.com/shots/26630396--EduVerse-Online-Course-Website" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">E1</span><h3>EduVerse 線上課程</h3></div>
+<p class="src">Dribbble · Attractive UI</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">米色底、真人學習照、課程列表一行一門，資訊清楚又不冷冰冰。</p><p class="links"><a href="https://dribbble.com/shots/26630396--EduVerse-Online-Course-Website" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="e2">
+<a class="th" href="https://dribbble.com/shots/27797274-Shine-with-Karolina-E-Course-Wellness-Website-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">E2</span><h3>Shine with Karolina 線上課</h3></div>
+<p class="src">Dribbble · Muhammad Dian Muhafids</p><div class="tags"><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">淡蜜桃色、細明體、課程卡配人像照，像日系生活風的課程頁。</p><p class="links"><a href="https://dribbble.com/shots/27797274-Shine-with-Karolina-E-Course-Wellness-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="e3">
+<a class="th" href="https://dribbble.com/shots/26015717-Tidemy-Online-Course-Website" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">E3</span><h3>Tidemy 課程網站</h3></div>
+<p class="src">Dribbble · Odama</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">大張學習照片當首頁，下面課程分類和方案價格，結構完整。綠字可改成灰綠。</p><p class="links"><a href="https://dribbble.com/shots/26015717-Tidemy-Online-Course-Website" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="cat" id="c-d" aria-labelledby="h-d"><h3 class="cath" id="h-d"><span class="ck">D</span>儀表板／報表</h3><div class="grid"><article class="card" id="d1">
+<a class="th" href="https://dribbble.com/shots/24264404-Hotel-Dashboard" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">D1</span><h3>居家空間儀表板</h3></div>
+<p class="src">Dribbble · Pradip Karki</p><div class="tags"><span class="st st-g">G</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">把客廳照片直接放進儀表板，旁邊是房間列表和設備卡，灰米色很柔和。</p><p class="links"><a href="https://dribbble.com/shots/24264404-Hotel-Dashboard" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="d2">
+<a class="th" href="https://dribbble.com/shots/24997294-Home-Monitoring-Dashboard" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">D2</span><h3>Home Monitoring 米色儀表板</h3></div>
+<p class="src">Dribbble · Ági Rigó</p><div class="tags"><span class="st st-g">G</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">整片米黃和咖啡色的資料卡，示範大地色也能做資訊密集的報表。</p><p class="links"><a href="https://dribbble.com/shots/24997294-Home-Monitoring-Dashboard" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="d3">
+<a class="th" href="https://dribbble.com/shots/27114636-Hotel-Booking-Software-Dashboard-UI-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">D3</span><h3>LuxStay 訂房後台</h3></div>
+<p class="src">Dribbble · Olack</p><div class="tags"><span class="st st-h">H</span><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">左側選單、中間房型照片和說明、右側訂單明細，照片和資料平衡得好。</p><p class="links"><a href="https://dribbble.com/shots/27114636-Hotel-Booking-Software-Dashboard-UI-Design" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="cat" id="c-s" aria-labelledby="h-s"><h3 class="cath" id="h-s"><span class="ck">S</span>登入／會員頁</h3><div class="grid"><article class="card" id="s1">
+<a class="th" href="https://dribbble.com/shots/24856145-Login-Page-Japanese-Aesthetic" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/s1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">S1</span><h3>日式美學登入頁</h3></div>
+<p class="src">Dribbble · Soraya Woest</p><div class="tags"><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">左邊簡單表單，右邊一幅淡粉櫻花山水畫慢慢淡出，最有日系清新感。</p><p class="links"><a href="https://dribbble.com/shots/24856145-Login-Page-Japanese-Aesthetic" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="s2">
+<a class="th" href="https://dribbble.com/shots/10829383-Flatstep-Registration-Form" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/s2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">S2</span><h3>Flatstep 註冊頁</h3></div>
+<p class="src">Dribbble · Maria Brilkova</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">白色表單配一張床邊木櫃的室內照，安靜、溫暖、沒有多餘的東西。</p><p class="links"><a href="https://dribbble.com/shots/10829383-Flatstep-Registration-Form" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="s3">
+<a class="th" href="https://dribbble.com/shots/25747920-Login-Page-with-Testimonial" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/s3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">S3</span><h3>附推薦語的登入頁</h3></div>
+<p class="src">Dribbble · Dmitry Sergushkin</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">左邊登入表單，右邊木屋庭園照片和一句使用者推薦語，常見又耐看。</p><p class="links"><a href="https://dribbble.com/shots/25747920-Login-Page-with-Testimonial" target="_blank" rel="noopener">看範例</a></p></div></article></div></section></section>
 <footer class="legend">
-<p>A、G、H 是你問卷裡的風格代號。「開源」可以直接拿原始碼來改；「僅參考視覺」是設計稿，只借它的長相。</p>
+<p>A、G、H 是你問卷裡的風格代號。「開源」可以直接拿原始碼來改；「僅參考視覺」是設計稿，只借它的長相；「Webnode 可套用」在 Webnode 裡直接選用。</p>
+<p>編號第一個字母代表類型：P 攝影、B 部落格、N 新聞、T 旅遊、L 產品、R 餐廳、C 公司、Q 測驗、E 課程、D 儀表板、S 登入；M 是你的最愛。</p>
 <p>來源：GitHub、Dribbble、Behance、Webnode。整理於 2026 年 10 月。</p>
 </footer>
 </main>
@@ -276,20 +269,27 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.35;min-width:0}
 (function(){
 var tabs=[].slice.call(document.querySelectorAll('[role=tab]'));
 var nav=document.querySelector('nav');
-function show(p,focus){
-  var ok=false;
-  tabs.forEach(function(t){var on=t.dataset.p===p;if(on)ok=true;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;
+function show(p,focus,keep){
+  var ok=tabs.some(function(t){return t.dataset.p===p});if(!ok)p=tabs[0].dataset.p;
+  tabs.forEach(function(t){var on=t.dataset.p===p;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;
     var s=document.getElementById('p-'+t.dataset.p);if(on)s.removeAttribute('data-hidden');else s.setAttribute('data-hidden','');
     if(on&&focus)t.focus();});
-  if(!ok)return show('top',focus);
-  var top=nav.offsetTop;if(window.scrollY>top)window.scrollTo(0,top);
+  if(!keep){var top=nav.offsetTop;if(window.scrollY>top)window.scrollTo(0,top);}
 }
 tabs.forEach(function(t,i){
   t.addEventListener('click',function(){show(t.dataset.p);history.replaceState(null,'','#'+t.dataset.p)});
   t.addEventListener('keydown',function(e){var j=e.key==='ArrowRight'?i+1:e.key==='ArrowLeft'?i-1:null;if(j===null)return;
     j=(j+tabs.length)%tabs.length;show(tabs[j].dataset.p,true);history.replaceState(null,'','#'+tabs[j].dataset.p);e.preventDefault()});
 });
-var h=location.hash.slice(1);show(h||'top');
+function route(){
+  var h=decodeURIComponent(location.hash.slice(1));
+  var el=h&&document.getElementById(h);
+  var pan=el&&el.closest&&el.closest('.panel');
+  if(pan&&pan!==el){show(pan.id.slice(2),false,true);el.scrollIntoView();}
+  else show(h);
+}
+window.addEventListener('hashchange',route);
+route();
 })();
 </script>
 </body>
