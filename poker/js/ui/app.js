@@ -1211,21 +1211,46 @@ function layoutDealer() {
   }
 
   // Hard rule: if D drifted outward (proj < 0), snap to the inward lip.
-  // Keep the lip shallow so own-plate edgeDist stays well under the 28px assert.
+  // Hero is special — inward is up into the hole cards, so park D on the
+  // left/right of meinfo instead of the top lip.
   {
-    const toEdge = Math.min(
-      ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
-      uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
-    );
-    const lip = toEdge + Math.max(dw, dh) / 2 + 3;
-    const proj = (best.x - ax) * ux + (best.y - ay) * uy;
-    if (proj < Math.max(6, toEdge * 0.35)) {
-      const latX = (best.x - ax) * -uy + (best.y - ay) * ux;
-      const clampedLat = clamp(latX, -ar.width * 0.35, ar.width * 0.35);
-      best = {
-        x: clamp(ax + ux * lip - uy * clampedLat, minX, maxX),
-        y: clamp(ay + uy * lip + ux * clampedLat, minY, maxY),
-      };
+    if (key === 'hero') {
+      // Inward from meinfo is up into hole cards — always use left/right lip
+      const holeBoxes = [...document.querySelectorAll('#heroHole .card')].map((el) =>
+        el.getBoundingClientRect(),
+      );
+      const hitsHole = (x, y) =>
+        holeBoxes.some((h) =>
+          overlaps(
+            { left: x - dw / 2, top: y - dh / 2, right: x + dw / 2, bottom: y + dh / 2 },
+            { left: h.left - 2, top: h.top - 2, right: h.right + 2, bottom: h.bottom + 2 },
+          ),
+        );
+      const leftX = ar.left - dw / 2 - gap;
+      const rightX = ar.right + dw / 2 + gap;
+      const sideY = clamp(ay, minY, maxY);
+      const leftOk = !hitsHole(leftX, sideY);
+      const rightOk = !hitsHole(rightX, sideY);
+      if (leftOk && (!rightOk || Math.abs(leftX - ax) <= Math.abs(rightX - ax))) {
+        best = { x: clamp(leftX, minX, maxX), y: sideY };
+      } else if (rightOk) {
+        best = { x: clamp(rightX, minX, maxX), y: sideY };
+      }
+    } else {
+      const toEdge = Math.min(
+        ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
+        uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
+      );
+      const lip = toEdge + Math.max(dw, dh) / 2 + 3;
+      const proj = (best.x - ax) * ux + (best.y - ay) * uy;
+      if (proj < Math.max(6, toEdge * 0.35)) {
+        const latX = (best.x - ax) * -uy + (best.y - ay) * ux;
+        const clampedLat = clamp(latX, -ar.width * 0.35, ar.width * 0.35);
+        best = {
+          x: clamp(ax + ux * lip - uy * clampedLat, minX, maxX),
+          y: clamp(ay + uy * lip + ux * clampedLat, minY, maxY),
+        };
+      }
     }
   }
 
