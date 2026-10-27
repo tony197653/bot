@@ -1034,21 +1034,23 @@ function layoutDealer() {
   dealer.style.left = `${((best.x - t.left) / t.width) * 100}%`;
   dealer.style.top = `${((best.y - t.top) / t.height) * 100}%`;
 
-  // Street bets yield to D / pot / plates / peers (never move D toward another seat)
+  // Street bets yield to D / pot / board / plates / peers (never move D toward another seat)
   const potBox = potEl?.getBoundingClientRect();
+  const boardBox = boardEl?.getBoundingClientRect();
   const plateRects = [...document.querySelectorAll('.seat .plate, .meinfo')].map((el) =>
     el.getBoundingClientRect(),
   );
   const betEls = [...document.querySelectorAll('#bets .bet')];
-  for (let pass = 0; pass < 12; pass++) {
+  for (let pass = 0; pass < 14; pass++) {
     const finalD = dealer.getBoundingClientRect();
     let moved = false;
     for (let i = 0; i < betEls.length; i++) {
       const bet = betEls[i];
+      const isHero = bet.dataset.hero === '1';
       const br = bet.getBoundingClientRect();
       let px = (br.left + br.right) / 2;
       let py = (br.top + br.bottom) / 2;
-      const pushAway = (ob, pad) => {
+      const pushAway = (ob, pad, opts = {}) => {
         const box = {
           left: px - br.width / 2 - pad,
           top: py - br.height / 2 - pad,
@@ -1056,27 +1058,52 @@ function layoutDealer() {
           bottom: py + br.height / 2 + pad,
         };
         const d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
-        if (d) {
+        if (!d) return false;
+        if (opts.heroBoard) {
+          // Hero bets sit under the board — only slide down / sideways
+          py += Math.max(Math.abs(d.dy), d.dy, 3);
+          px += d.dx;
+        } else {
           px += d.dx;
           py += d.dy;
-          return true;
         }
-        return false;
+        return true;
       };
       let hit = pushAway(finalD, 5);
       if (potBox) hit = pushAway(potBox, 6) || hit;
-      for (const pl of plateRects) hit = pushAway(pl, 4) || hit;
+      if (boardBox) {
+        const inflated = {
+          left: boardBox.left - 4,
+          top: boardBox.top - 4,
+          right: boardBox.right + 4,
+          bottom: boardBox.bottom + 4,
+        };
+        hit = pushAway(inflated, 4, { heroBoard: isHero }) || hit;
+      }
+      for (const pl of plateRects) hit = pushAway(pl, 5) || hit;
       for (let j = 0; j < betEls.length; j++) {
         if (j === i) continue;
         hit = pushAway(betEls[j].getBoundingClientRect(), 4) || hit;
       }
       if (!hit) continue;
       moved = true;
-      const towardCx = cx - px;
-      const towardCy = cy - py;
-      const tlen = Math.hypot(towardCx, towardCy) || 1;
-      px += (towardCx / tlen) * 1.5;
-      py += (towardCy / tlen) * 1.5;
+      // Tiny rail bias away from center so board/pot stay clear after D yields
+      const awayCx = px - cx;
+      const awayCy = py - cy;
+      const tlen = Math.hypot(awayCx, awayCy) || 1;
+      px += (awayCx / tlen) * 0.8;
+      py += (awayCy / tlen) * 0.8;
+      // Re-clear board / plates after rail bias
+      if (boardBox) {
+        const inflated = {
+          left: boardBox.left - 4,
+          top: boardBox.top - 4,
+          right: boardBox.right + 4,
+          bottom: boardBox.bottom + 4,
+        };
+        pushAway(inflated, 4, { heroBoard: isHero });
+      }
+      for (const pl of plateRects) pushAway(pl, 5);
       const left = clamp(px, t.left + br.width / 2 + 2, t.right - br.width / 2 - 2);
       const top = clamp(py, t.top + br.height / 2 + 2, t.bottom - br.height / 2 - 2);
       bet.style.left = `${((left - t.left) / t.width) * 100}%`;
