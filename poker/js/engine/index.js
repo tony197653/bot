@@ -9,6 +9,7 @@ export {
   foldWinCenterNote,
   PHASE,
   STREET_ZH,
+  REVEAL_MS,
   _test,
 } from './game.js';
 

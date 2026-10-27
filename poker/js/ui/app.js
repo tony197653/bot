@@ -11,10 +11,12 @@ import {
   raisePresets,
   PHASE,
   sessionSummary,
+  REVEAL_MS,
 } from '../engine/index.js';
 import { cardHtml, cardBackPair, fmtChips } from './cards-dom.js';
 import { onTick } from './ticker.js';
 import { mapSeatsClockwise } from './seating.js';
+import { placeBets, placeDealer } from './layout-felt.js';
 import {
   playDealAnimation,
   playWinnerFx,
@@ -47,6 +49,15 @@ let dealFxBusy = false;
 let raiseHoldTimer = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let raiseHoldRepeat = null;
+/** Reveal-choice deadline (ms epoch); null when not choosing. */
+let revealDeadline = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let revealTimer = null;
+/** Avoid double-firing bot reveals for the same hand. */
+let botsRevealedForHand = 0;
+/** Auto-advance to next hand after reveal settles. */
+let autoNextTimer = null;
+let raisePanelOpen = false;
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
@@ -139,13 +150,21 @@ function afterState() {
     cancelWinFx();
     winFxKey = '';
     pendingDealHand = state.handNumber;
+    botsRevealedForHand = 0;
+    revealDeadline = null;
+    if (revealTimer) {
+      clearTimeout(revealTimer);
+      revealTimer = null;
+    }
   }
   // Hand over: stop pass gate so winner FX / summary are visible
   if (state.phase === PHASE.HAND_OVER || state.phase === PHASE.SESSION_OVER) {
     needsPass = false;
     $('#passScreen')?.classList.remove('is-on');
+    scheduleAutoNextHand();
   }
   // Hot-seat: when actor changes to another seated player mid-hand, show pass screen
+  // (Reveal phase uses bots for other seats — no pass for 亮牌／不亮.)
   if (
     state.actor != null &&
     state.actor !== viewerSeat &&
@@ -153,15 +172,66 @@ function afterState() {
   ) {
     needsPass = true;
   }
-  // Showdown pending for another player
-  if (state.phase === PHASE.SHOWDOWN && state.showdown?.pending?.length) {
-    const pend = state.showdown.pending[0];
-    if (pend !== viewerSeat) {
-      needsPass = true;
-      viewerSeat = pend; // will confirm via pass screen
-    }
+  if (state.phase === PHASE.SHOWDOWN) {
+    needsPass = false;
+    $('#passScreen')?.classList.remove('is-on');
+    beginRevealUi();
   }
   render();
+}
+
+function beginRevealUi() {
+  if (!state.showdown) return;
+  if (botsRevealedForHand !== state.handNumber) {
+    botsRevealedForHand = state.handNumber;
+    // Single-device: non-viewer seats decide at random immediately
+    const pending = [...(state.showdown.pending || [])];
+    for (const seat of pending) {
+      if (seat === viewerSeat) continue;
+      if (state.phase !== PHASE.SHOWDOWN) break;
+      if (!state.showdown?.pending?.includes(seat)) continue;
+      const show = Math.random() < 0.5;
+      try {
+        state = applyAction(
+          state,
+          { type: show ? 'SHOW' : 'MUCK', seat, mode: 'both' },
+          { now: Date.now() },
+        );
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (state.phase === PHASE.HAND_OVER) {
+      scheduleAutoNextHand();
+    }
+  }
+  if (state.phase !== PHASE.SHOWDOWN) return;
+  if (revealDeadline == null && state.showdown?.pending?.length) {
+    revealDeadline = Date.now() + REVEAL_MS;
+    if (revealTimer) clearTimeout(revealTimer);
+    revealTimer = setTimeout(() => {
+      if (state.phase !== PHASE.SHOWDOWN) return;
+      dispatch({ type: 'REVEAL_TIMEOUT' });
+    }, REVEAL_MS + 30);
+  }
+}
+
+function scheduleAutoNextHand() {
+  if (state.phase !== PHASE.HAND_OVER) return;
+  if (autoNextTimer) clearTimeout(autoNextTimer);
+  autoNextTimer = setTimeout(() => {
+    autoNextTimer = null;
+    if (state.phase !== PHASE.HAND_OVER) return;
+    try {
+      dispatch({ type: 'ACK_HAND' });
+      dispatch({ type: 'NEXT_HAND' });
+      viewerSeat = state.actor ?? state.room.hostSeat;
+      needsPass = true;
+      showPass();
+    } catch (_) {
+      /* ignore */
+    }
+  }, 1600);
 }
 
 function view() {
@@ -204,6 +274,7 @@ async function boot() {
   // Warm layout
   $('#app').classList.remove('hidden');
   setupFullscreenButton();
+  setupMenu();
   set(85, '準備牌桌');
   await new Promise((r) => setTimeout(r, 180));
   set(100, '完成');
@@ -368,9 +439,7 @@ function showPass() {
   $('#passScreen').classList.add('is-on');
   $('#passName').textContent = p.name;
   $('#passHint').textContent =
-    state.phase === PHASE.SHOWDOWN
-      ? '請把裝置交給這位玩家，選擇亮牌或蓋沒。'
-      : '請把裝置交給這位玩家。其他人請勿偷看手牌。';
+    '請把裝置交給這位玩家。其他人請勿偷看手牌。';
 }
 
 function hidePass() {
@@ -403,29 +472,62 @@ function render() {
 
 function renderTop(v) {
   $('#roomTitle').textContent = v.room.name;
-  // Two spans: on phone .meta-b wraps to a second line so nothing truncates
   $('#roomMeta').innerHTML =
-    `<span class="meta-a">無限注 <b>盲注 ${v.config.smallBlind}／${v.config.bigBlind}</b></span>` +
-    `<span class="meta-b">　第 ${v.handNumber} 手　房號 ${v.room.code}</span>`;
-  $('#btnTimerCfg').textContent = v.config.timerEnabled ? '計時開' : '計時關';
-  $('#btnTimerCfg').onclick = () => {
-    dispatch({ type: 'SET_TIMER', enabled: !state.config.timerEnabled });
+    `<span class="meta-a"><b>盲注 ${v.config.smallBlind}／${v.config.bigBlind}</b></span>` +
+    `<span class="meta-b">　第 ${v.handNumber} 手</span>`;
+  const host = v.seats[v.room.hostSeat]?.name || '—';
+  const meta = $('#menuMeta');
+  if (meta) meta.textContent = `第 ${v.handNumber} 手 · 房號 ${v.room.code}`;
+  const hostEl = $('#menuHost');
+  if (hostEl) hostEl.textContent = `房主 ${host}`;
+  const tbtn = $('#btnTimerCfg');
+  if (tbtn) {
+    tbtn.textContent = v.config.timerEnabled ? '計時：開' : '計時：關';
+    tbtn.onclick = () => {
+      dispatch({ type: 'SET_TIMER', enabled: !state.config.timerEnabled });
+      closeMenu();
+    };
+  }
+}
+
+function closeMenu() {
+  $('#menuPop')?.classList.add('hidden');
+  $('#btnMenu')?.setAttribute('aria-expanded', 'false');
+}
+
+function setupMenu() {
+  const btn = $('#btnMenu');
+  const pop = $('#menuPop');
+  if (!btn || !pop || btn.dataset.bound === '1') return;
+  btn.dataset.bound = '1';
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    const open = pop.classList.toggle('hidden') === false;
+    btn.setAttribute('aria-expanded', String(open));
   };
+  document.addEventListener('click', (e) => {
+    if (!pop.classList.contains('hidden') && !pop.contains(e.target) && e.target !== btn) {
+      closeMenu();
+    }
+  });
+  $('#btnEndMenu')?.addEventListener('click', () => {
+    closeMenu();
+    if (state.phase === PHASE.LOBBY) return;
+    dispatch({ type: 'END_SESSION' });
+    showSummary();
+  });
 }
 
 function renderTable(v) {
   const boardEl = $('#board');
-  const slots = [];
-  for (let i = 0; i < 5; i++) {
-    if (v.board[i]) slots.push(cardHtml(v.board[i], { anim: true }));
-    else slots.push('<span class="slot"></span>');
-  }
-  boardEl.innerHTML = slots.join('');
+  // Felt shows ONLY dealt community cards — no dashed placeholders
+  boardEl.innerHTML = (v.board || [])
+    .map((c) => cardHtml(c, { anim: true }))
+    .join('');
 
   $('#potAmt').textContent = fmtChips(v.potTotal);
-  $('#potSub').textContent = v.streetBets ? `本輪下注共 ${fmtChips(v.streetBets)}` : '';
+  if ($('#potSub')) $('#potSub').textContent = '';
 
-  // Relative seating: viewer at bottom (.me), others around
   const seatsRoot = $('#seats');
   const betsRoot = $('#bets');
   seatsRoot.innerHTML = '';
@@ -433,22 +535,14 @@ function renderTable(v) {
 
   const anim = dealAnimKey === `${v.handNumber}-${viewerSeat}`;
 
-  // Fixed 6 slots; viewer at bottom-center; empty seats keep placeholders
   const occupied = [];
   for (let seat = 0; seat < 6; seat++) {
     if (v.seats[seat]) occupied.push(seat);
   }
-  const { seatToPos, emptySlots } = mapSeatsClockwise(occupied, viewerSeat);
+  const { seatToPos } = mapSeatsClockwise(occupied, viewerSeat);
   const opponents = occupied.filter((s) => s !== viewerSeat);
 
-  for (const pos of emptySlots) {
-    const el = document.createElement('div');
-    el.className = `seat pos-${pos} is-empty`;
-    el.dataset.empty = '1';
-    el.innerHTML = `<div class="av" aria-label="空位"><span>空位</span></div>`;
-    seatsRoot.appendChild(el);
-  }
-
+  // Empty seats draw nothing (no 空位 circles)
   for (const seat of opponents) {
     const p = v.seats[seat];
     const pos = seatToPos.get(seat);
@@ -456,51 +550,49 @@ function renderTable(v) {
     const role = roleTag(v, seat);
     const folded = p.folded ? ' is-folded' : '';
     const actor = v.actor === seat ? ' is-actor' : '';
-    const backs = p.holeHidden && !p.folded ? cardBackPair() : '';
-    const holeShow =
-      p.hole && p.hole.length
-        ? `<div class="mini-hole">${p.hole.map((c) => cardHtml(c)).join('')}</div>`
-        : '';
+    const revealed = p.hole && p.hole.length === 2 && !p.isSelf;
+    const backs =
+      p.holeHidden && p.hasHole && !revealed ? cardBackPair() : '';
+    const revealHtml = revealed
+      ? `<div class="reveal-hole">${p.hole
+          .map((c) => cardHtml(c, { hero: true }))
+          .join('')}</div>`
+      : '';
     const wonAmt = state.winnerPayouts?.[seat];
     const isWin = wonAmt != null && (v.isHandOver || v.isShowdown);
     const el = document.createElement('div');
     el.className = `seat pos-${pos}${folded}${actor}${isWin ? ' is-winner' : ''}`;
     el.dataset.seat = String(seat);
-    // Street bet amount lives on the chip marker — omit state line while bet>0
-    // so the plate is shorter and never fights the chip for the same “10”.
-    const stateText =
-      p.bet > 0
-        ? ''
-        : p.lastAction || (p.sittingOut ? '主出' : '　');
     el.innerHTML = `
-      <div class="av"><span>${esc(p.name.slice(0, 1))}</span>${backs}</div>
-      <div class="plate${isWin ? ' is-winner' : ''}">
-        <b class="nm">${esc(p.name)}${role}</b>
-        <span class="ch">${fmtChips(p.chips)}</span>
-        ${stateText ? `<span class="state">${esc(stateText)}</span>` : ''}
-      </div>${holeShow}${
+      ${revealHtml || backs}
+      <div class="plate plateA${isWin ? ' is-winner' : ''}">
+        <div class="av"><span>${esc(p.name.slice(0, 1))}</span></div>
+        <div>
+          <div class="nm">${esc(p.name)}${role}</div>
+          <span class="ch st">${fmtChips(p.chips)}</span>
+        </div>
+      </div>${
         isWin ? `<div class="win-badge">WIN +${fmtChips(wonAmt)}</div>` : ''
       }`;
     seatsRoot.appendChild(el);
 
-    // Hide street bets once the hand is decided — chips slide to winner via FX
     if (p.bet > 0 && !v.isHandOver && !v.isShowdown) {
       const b = document.createElement('div');
       b.className = 'bet is-in';
       b.dataset.forSeat = String(seat);
       b.dataset.pos = String(pos);
-      b.innerHTML = `<span class="chips"><i class="a"></i><i class="b"></i><i class="c"></i></span><span class="amt">${fmtChips(p.bet)}</span>`;
+      if (pos === 0) b.dataset.ref = '1';
+      const blue = p.bet <= state.config.smallBlind ? ' is-blue' : '';
+      b.innerHTML = `<span class="chips${blue}"><i class="a"></i></span><span class="amt">${fmtChips(p.bet)}</span>`;
       betsRoot.appendChild(b);
     }
   }
 
-  // Dealer button — final % set in layoutDealer() after seats/bets paint
   const dealer = $('#dealer');
   const btnPos = seatToPos.get(v.button);
   dealer.dataset.pos = btnPos === 'hero' || v.button === viewerSeat ? 'hero' : String(btnPos);
   dealer.dataset.forSeat = String(v.button);
 
-  // Hero
   const hero = v.seats[viewerSeat];
   const hole = $('#heroHole');
   if (hero?.hole?.length) {
@@ -520,6 +612,8 @@ function renderTable(v) {
         nameEl.textContent = '';
       }
     }
+    const av = $('#heroAv');
+    if (av) av.textContent = hero ? hero.name.slice(0, 1) : '—';
   }
   $('#heroChips').textContent = hero ? fmtChips(hero.chips) : '';
   const mePlate = $('#mePlate');
@@ -534,7 +628,6 @@ function renderTable(v) {
     $('#meRoot')?.appendChild(badge);
   }
 
-  // Fold-win center note (persistent until next hand)
   document.querySelectorAll('.table-note').forEach((n) => n.remove());
   {
     const note = foldWinCenterNote(state);
@@ -546,20 +639,20 @@ function renderTable(v) {
     }
   }
 
-  // Hero street bet (omit after hand decided)
   if (hero?.bet > 0 && !v.isHandOver && !v.isShowdown) {
     const b = document.createElement('div');
     b.className = 'bet is-in';
     b.dataset.forSeat = String(viewerSeat);
     b.dataset.hero = '1';
-    b.innerHTML = `<span class="chips"><i class="a"></i><i class="b"></i><i class="c"></i></span><span class="amt">${fmtChips(hero.bet)}</span>`;
+    b.dataset.pos = 'hero';
+    const blue = hero.bet <= state.config.smallBlind ? ' is-blue' : '';
+    b.innerHTML = `<span class="chips${blue}"><i class="a"></i></span><span class="amt">${fmtChips(hero.bet)}</span>`;
     betsRoot.appendChild(b);
   }
 
-  // Place bets + dealer after layout so they clear plates / board / cards
   requestAnimationFrame(() => {
-    layoutBets();
-    layoutDealer();
+    placeBets();
+    placeDealer();
     const d = $('#dealer');
     if (d && getComputedStyle(d).display !== 'none') {
       prevDealerRect = d.getBoundingClientRect();
@@ -1421,13 +1514,10 @@ function overlapDelta(a, b) {
 }
 
 function roleTag(v, seat) {
-  const tags = [];
-  if (seat === v.room.hostSeat) tags.push('<span class="tag host">房主</span>');
-  // Button / dealer — shown even when HU (dealer is also SB)
-  if (state.button === seat) tags.push('<span class="tag dealer-tag">莊家</span>');
-  if (state.sbSeat === seat) tags.push('<span class="tag">小盲</span>');
-  else if (state.bbSeat === seat) tags.push('<span class="tag">大盲</span>');
-  return tags.join('');
+  // Mockup A: only 小盲／大盲 on nameplates (房主／莊家 live in ☰ menu)
+  if (state.sbSeat === seat) return '<span class="tag sb">小盲</span>';
+  if (state.bbSeat === seat) return '<span class="tag bb">大盲</span>';
+  return '';
 }
 
 function renderSide(v) {
@@ -1452,6 +1542,91 @@ function renderSide(v) {
   log.innerHTML = `<h2>這一手</h2><ol>${items || '<li class="street">尚未開始</li>'}</ol>`;
 }
 
+function closeRaisePanel() {
+  raisePanelOpen = false;
+  const scrim = $('#raiseScrim');
+  const panel = $('#raisePanel');
+  if (scrim) {
+    scrim.classList.remove('is-on');
+    scrim.hidden = true;
+  }
+  if (panel) {
+    panel.classList.remove('is-on');
+    panel.hidden = true;
+  }
+  clearRaiseHold();
+}
+
+function openRaisePanel(legal) {
+  const min = legal.minRaiseTo;
+  const max = legal.maxRaiseTo;
+  const lo = Math.min(min, max);
+  const presets = raisePresets(state, viewerSeat);
+  const preferred = presets.find((p) => p.preferred)?.to ?? min;
+  if (!raiseTo) raiseTo = preferred;
+  raiseTo = clamp(raiseTo, lo, max);
+
+  const range = $('#raiseRange');
+  range.min = String(lo);
+  range.max = String(max);
+  range.step = '1';
+  range.value = String(raiseTo);
+  range.oninput = () => {
+    raiseTo = +range.value;
+    syncRaiseUi();
+  };
+  $('#presets').innerHTML = presets
+    .map(
+      (p) =>
+        `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.to === raiseTo}">` +
+        `<span class="preset-lbl">${p.label}</span>` +
+        `<span class="preset-amt">${fmtChips(p.to)}</span></button>`,
+    )
+    .join('');
+  $('#presets').onclick = (e) => {
+    const b = e.target.closest('button[data-to]');
+    if (!b) return;
+    raiseTo = clamp(+b.dataset.to, lo, max);
+    range.value = String(raiseTo);
+    syncRaiseUi();
+  };
+  bindRaiseStep($('#raiseMinus'), -1);
+  bindRaiseStep($('#raisePlus'), 1);
+
+  const callAmt = legal.callAmount || 0;
+  const hint = $('#raiseHint');
+  if (hint) {
+    hint.textContent = legal.check
+      ? `最少加到 ${fmtChips(lo)}`
+      : `跟注 ${fmtChips(callAmt)} · 最少加到 ${fmtChips(lo)}`;
+  }
+  syncRaiseUi();
+
+  const scrim = $('#raiseScrim');
+  const panel = $('#raisePanel');
+  if (scrim) {
+    scrim.hidden = false;
+    requestAnimationFrame(() => scrim.classList.add('is-on'));
+    scrim.onclick = () => closeRaisePanel();
+  }
+  if (panel) {
+    panel.hidden = false;
+    requestAnimationFrame(() => panel.classList.add('is-on'));
+  }
+  raisePanelOpen = true;
+  const cancel = $('#raiseCancel');
+  if (cancel) cancel.onclick = () => closeRaisePanel();
+  const conf = $('#raiseConfirm');
+  if (conf) {
+    conf.onclick = () => {
+      const amt = raiseTo;
+      closeRaisePanel();
+      dispatch({ type: 'BET_RAISE', seat: viewerSeat, amount: amt });
+      passToNextIfNeeded();
+    };
+  }
+}
+
 function renderActions(v) {
   const act = $('#act');
   const legal = v.legal;
@@ -1462,20 +1637,24 @@ function renderActions(v) {
     [PHASE.PREFLOP, PHASE.FLOP, PHASE.TURN, PHASE.RIVER].includes(v.phase);
 
   const showdownMine =
-    !needsPass && v.isShowdown && v.showdown?.myPending;
+    !needsPass && v.isShowdown && state.showdown?.pending?.includes(viewerSeat);
+
+  if (!myTurn || v.isHandOver || v.isShowdown) closeRaisePanel();
 
   if (v.isHandOver) {
     act.classList.remove('is-dim');
-    $('#turnTitle').textContent = '這一手結束';
-    $('#turnHint').textContent = '查看結果後可開下一手，或結束牌局看戰績。';
-    $('#raiseWrap').classList.add('hidden');
-    $('#presets').classList.add('hidden');
+    $('#showCd')?.classList.add('hidden');
     $('#showBtns').classList.add('hidden');
+    $('#showBtns').innerHTML = '';
     $('#btns').innerHTML = `
       <button type="button" class="call" id="btnNext">下一手</button>
       <button type="button" class="fold" id="btnEnd">結束牌局</button>
       <button type="button" class="raiseb" id="btnSummary">看戰績</button>`;
     $('#btnNext').onclick = () => {
+      if (autoNextTimer) {
+        clearTimeout(autoNextTimer);
+        autoNextTimer = null;
+      }
       dispatch({ type: 'ACK_HAND' });
       dispatch({ type: 'NEXT_HAND' });
       viewerSeat = state.actor ?? viewerSeat;
@@ -1483,6 +1662,10 @@ function renderActions(v) {
       showPass();
     };
     $('#btnEnd').onclick = () => {
+      if (autoNextTimer) {
+        clearTimeout(autoNextTimer);
+        autoNextTimer = null;
+      }
       dispatch({ type: 'END_SESSION' });
       showSummary();
     };
@@ -1492,108 +1675,57 @@ function renderActions(v) {
 
   if (showdownMine) {
     act.classList.remove('is-dim');
-    $('#turnTitle').textContent = '攤牌';
-    $('#turnHint').textContent = '你沒有贏得底池，可選擇亮牌或蓋沒。';
-    $('#raiseWrap').classList.add('hidden');
-    $('#presets').classList.add('hidden');
     $('#btns').innerHTML = '';
+    const left =
+      revealDeadline != null
+        ? Math.max(0, Math.ceil((revealDeadline - Date.now()) / 1000))
+        : Math.ceil(REVEAL_MS / 1000);
+    const cd = $('#showCd');
+    if (cd) {
+      cd.classList.remove('hidden');
+      cd.textContent = `${left} 秒後自動不亮`;
+    }
     $('#showBtns').classList.remove('hidden');
     $('#showBtns').innerHTML = `
-      <button type="button" id="btnMuck">蓋沒</button>
-      <button type="button" id="btnShow1">亮一張</button>
-      <button type="button" class="primary" id="btnShowBoth">亮兩張</button>`;
+      <button type="button" class="primary" id="btnShowBoth">亮牌</button>
+      <button type="button" id="btnMuck">不亮</button>`;
     $('#btnMuck').onclick = () => {
+      if (revealTimer) clearTimeout(revealTimer);
+      revealDeadline = null;
       dispatch({ type: 'MUCK', seat: viewerSeat });
-      passToNextIfNeeded();
     };
     $('#btnShowBoth').onclick = () => {
+      if (revealTimer) clearTimeout(revealTimer);
+      revealDeadline = null;
       dispatch({ type: 'SHOW', seat: viewerSeat, mode: 'both' });
-      passToNextIfNeeded();
-    };
-    $('#btnShow1').onclick = () => {
-      dispatch({ type: 'SHOW', seat: viewerSeat, mode: 'one0' });
-      passToNextIfNeeded();
     };
     return;
   }
 
+  if (v.isShowdown) {
+    act.classList.remove('is-dim');
+    $('#showCd')?.classList.add('hidden');
+    $('#showBtns').classList.add('hidden');
+    $('#btns').innerHTML = '';
+    return;
+  }
+
   $('#showBtns').classList.add('hidden');
+  $('#showCd')?.classList.add('hidden');
 
   if (!myTurn) {
     act.classList.add('is-dim');
     $('#showBtns').classList.add('hidden');
     $('#showBtns').innerHTML = '';
-    const waiting = v.seats[v.actor];
-    $('#turnTitle').textContent = waiting ? `等待 ${waiting.name}` : '請稍候';
-    $('#turnHint').textContent = '熱座模式：輪到別人時請交給對方。';
-    $('#raiseWrap').classList.add('hidden');
-    $('#presets').classList.add('hidden');
     $('#btns').innerHTML = `<button type="button" class="call" id="btnHandOff">換人</button>`;
     $('#btnHandOff').onclick = () => {
-      if (state.phase === PHASE.SHOWDOWN && state.showdown?.pending?.length) {
-        viewerSeat = state.showdown.pending[0];
-      } else if (state.actor != null) {
-        viewerSeat = state.actor;
-      }
+      if (state.actor != null) viewerSeat = state.actor;
       showPass();
     };
     return;
   }
 
   act.classList.remove('is-dim');
-  $('#turnTitle').textContent = '輪到你了';
-  const potTxt = fmtChips(v.potTotal);
-  let hint = `底池 ${potTxt}`;
-  if (legal.check) hint += ' ・ 可以過牌';
-  else if (legal.call) {
-    hint += ` ・ 跟注 ${fmtChips(legal.callAmount)}`;
-    if (legal.raise || legal.bet) hint += ` ・ 最少加到 ${fmtChips(legal.minRaiseTo)}`;
-  }
-  $('#turnHint').textContent = hint;
-
-  const canRaise = legal.bet || legal.raise;
-  if (canRaise || legal.allIn) {
-    $('#raiseWrap').classList.remove('hidden');
-    $('#presets').classList.remove('hidden');
-    const min = legal.minRaiseTo;
-    const max = legal.maxRaiseTo;
-    const lo = Math.min(min, max);
-    const presets = raisePresets(state, viewerSeat);
-    const preferred = presets.find((p) => p.preferred)?.to ?? min;
-    if (!raiseTo) raiseTo = preferred;
-    raiseTo = clamp(raiseTo, lo, max);
-    const range = $('#raiseRange');
-    range.min = String(lo);
-    range.max = String(max);
-    range.step = '1';
-    range.value = String(raiseTo);
-    range.oninput = () => {
-      raiseTo = +range.value;
-      syncRaiseUi();
-    };
-    $('#presets').innerHTML = presets
-      .map(
-        (p) =>
-          `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.to === raiseTo}">` +
-          `<span class="preset-lbl">${p.label}</span>` +
-          `<span class="preset-amt">${fmtChips(p.to)}</span></button>`,
-      )
-      .join('');
-    $('#presets').onclick = (e) => {
-      const b = e.target.closest('button[data-to]');
-      if (!b) return;
-      raiseTo = clamp(+b.dataset.to, lo, max);
-      range.value = String(raiseTo);
-      syncRaiseUi();
-    };
-    bindRaiseStep($('#raiseMinus'), -1);
-    bindRaiseStep($('#raisePlus'), 1);
-    syncRaiseUi();
-  } else {
-    $('#raiseWrap').classList.add('hidden');
-    $('#presets').classList.add('hidden');
-    clearRaiseHold();
-  }
 
   const foldBtn = legal.fold
     ? `<button class="fold" type="button" id="btnFold">蓋牌<span class="key">F</span></button>`
@@ -1607,17 +1739,14 @@ function renderActions(v) {
     mid = `<button class="call" type="button" disabled>—</button>`;
   }
   let raiseBtn;
-  // 本街尚無人下注 →「下注 X」；已有人下注／加注 →「加注到 X」
-  if (legal.bet) {
-    raiseBtn = `<button class="raiseb" type="button" id="btnRaise">下注 ${fmtChips(raiseTo)}<span class="key">R</span></button>`;
-  } else if (legal.raise) {
-    raiseBtn = `<button class="raiseb" type="button" id="btnRaise">加注到 ${fmtChips(raiseTo)}<span class="key">R</span></button>`;
+  if (legal.bet || legal.raise) {
+    raiseBtn = `<button class="raiseb" type="button" id="btnRaiseOpen">${legal.bet ? '下注' : '加注'}<span class="key">R</span></button>`;
   } else if (legal.allIn && !legal.call) {
     raiseBtn = `<button class="raiseb" type="button" id="btnAllIn">全下<span class="key">R</span></button>`;
   } else if (legal.allIn && legal.call && legal.callAmount === state.seats[viewerSeat].chips) {
     raiseBtn = `<button class="raiseb" type="button" id="btnAllIn">全下</button>`;
   } else {
-    raiseBtn = `<button class="raiseb" type="button" id="btnRaise" disabled>加注</button>`;
+    raiseBtn = `<button class="raiseb" type="button" disabled>加注</button>`;
   }
   $('#btns').innerHTML = foldBtn + mid + raiseBtn;
 
@@ -1633,10 +1762,7 @@ function renderActions(v) {
     dispatch({ type: 'CALL', seat: viewerSeat });
     passToNextIfNeeded();
   });
-  $('#btnRaise')?.addEventListener('click', () => {
-    dispatch({ type: 'BET_RAISE', seat: viewerSeat, amount: raiseTo });
-    passToNextIfNeeded();
-  });
+  $('#btnRaiseOpen')?.addEventListener('click', () => openRaisePanel(legal));
   $('#btnAllIn')?.addEventListener('click', () => {
     dispatch({ type: 'ALL_IN', seat: viewerSeat });
     passToNextIfNeeded();
@@ -1644,11 +1770,14 @@ function renderActions(v) {
 }
 
 function syncRaiseBtn() {
-  const b = $('#btnRaise');
-  if (!b) return;
-  const legal = getLegalActions(state, viewerSeat);
-  if (legal.bet) b.innerHTML = `下注 ${fmtChips(raiseTo)}<span class="key">R</span>`;
-  else if (legal.raise) b.innerHTML = `加注到 ${fmtChips(raiseTo)}<span class="key">R</span>`;
+  const out = $('#raiseOut');
+  if (out) out.textContent = fmtChips(raiseTo);
+  const conf = $('#raiseConfirm');
+  if (conf) {
+    const legal = getLegalActions(state, viewerSeat);
+    const verb = legal?.bet ? '確認下注' : '確認加注到';
+    conf.textContent = `${verb} ${fmtChips(raiseTo)}`;
+  }
 }
 
 function syncPresetPressed() {
@@ -1659,17 +1788,9 @@ function syncPresetPressed() {
 
 function passToNextIfNeeded() {
   raiseTo = 0;
-  if (state.phase === PHASE.HAND_OVER) {
+  if (state.phase === PHASE.HAND_OVER || state.phase === PHASE.SHOWDOWN) {
     render();
     return;
-  }
-  if (state.phase === PHASE.SHOWDOWN && state.showdown?.pending?.length) {
-    const next = state.showdown.pending[0];
-    if (next !== viewerSeat) {
-      viewerSeat = next;
-      showPass();
-      return;
-    }
   }
   if (
     state.actor != null &&
@@ -1721,6 +1842,7 @@ $('#btnSummaryClose').onclick = () => {
 };
 
 $('#btnLobby').onclick = () => {
+  closeMenu();
   if (
     state.phase !== PHASE.LOBBY &&
     state.phase !== PHASE.HAND_OVER &&
@@ -1739,6 +1861,11 @@ $('#btnLobby').onclick = () => {
 
 /* ─── Timer tick ─── */
 onTick(() => {
+  if (state.phase === PHASE.SHOWDOWN && revealDeadline != null && state.showdown?.pending?.includes(viewerSeat)) {
+    const left = Math.max(0, Math.ceil((revealDeadline - Date.now()) / 1000));
+    const cd = $('#showCd');
+    if (cd && !cd.classList.contains('hidden')) cd.textContent = `${left} 秒後自動不亮`;
+  }
   if (needsPass) return;
   if (!state.config.timerEnabled || state.deadline == null || state.actor !== viewerSeat) {
     updateTimerDisplay(null);
@@ -1774,7 +1901,7 @@ window.addEventListener('keydown', (e) => {
   if (e.target.matches('input,textarea,select')) return;
   const k = e.key.toLowerCase();
   if (k === 'f') $('#btnFold')?.click();
-  if (k === 'r') $('#btnRaise')?.click() || $('#btnAllIn')?.click();
+  if (k === 'r') $('#btnRaiseOpen')?.click() || $('#btnAllIn')?.click();
   if (k === 'c') $('#btnCheck')?.click() || $('#btnCall')?.click();
 });
 
