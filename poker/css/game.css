@@ -272,7 +272,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   background:linear-gradient(#0f1c15ee,#0b1510);
   border-top:1px solid rgba(214,180,90,.18);
 }
-.act:has(.table-note){height:auto;min-height:var(--bar-h);padding-top:6px}
 .turn{display:none}
 .btns{display:flex;gap:8px;width:100%}
 .btns button{
@@ -503,11 +502,11 @@ input[type=range]::-moz-range-thumb{
   font-size:clamp(10px,2.6vw,12px);font-weight:600;line-height:1.25;
   white-space:normal;overflow:visible;word-break:keep-all;
   box-shadow:0 8px 24px #0005;pointer-events:none}
-/* In the action bar, above 下一手 — clear of felt cards and hero plate */
-.act > .table-note.is-bar{
-  position:relative;left:auto;top:auto;bottom:auto;transform:none;
-  align-self:center;margin:0 auto 6px;max-width:min(96%,360px);width:max-content;
-  z-index:1;
+/* Fixed strip just above the action bar — does not resize #act / push into hero plate */
+.table-note.is-bar{
+  position:fixed;left:50%;top:auto;bottom:calc(var(--bar-h) + 10px);
+  transform:translateX(-50%);z-index:16;
+  max-width:min(92vw,340px);width:max-content;
 }
 
 .card.is-deal{animation:dealIn .45s cubic-bezier(.22,1,.36,1) both}

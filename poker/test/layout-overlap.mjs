@@ -629,7 +629,7 @@ function auditRevealLayoutInPage({ seatCount }) {
     }
   }
 
-  // Centre fold-win note must not cover any revealed / hero cards
+  // Centre fold-win note must not cover any revealed / hero cards / hero plate
   const noteEl = document.querySelector('.table-note');
   if (noteEl && getComputedStyle(noteEl).display !== 'none') {
     const nb = box(noteEl);
@@ -648,6 +648,12 @@ function auditRevealLayoutInPage({ seatCount }) {
         );
         break;
       }
+    }
+    const heroPlate = document.querySelector('#mePlate, .meinfo');
+    if (heroPlate && overlaps(nb, box(heroPlate))) {
+      issues.push(
+        `table-note overlaps hero nameplate (viewport=${window.innerWidth}x${window.innerHeight} seats=${seatCount})`,
+      );
     }
   }
 
@@ -738,13 +744,8 @@ function auditRevealLayoutInPage({ seatCount }) {
         }
         continue;
       }
-      if ((ka === 'note' && kb === 'plate') || (ka === 'plate' && kb === 'note')) {
-        const noteNode = ka === 'note' ? a.el : b.el;
-        // Bar note sits in #act; ignore plate AABB collisions there
-        if (noteNode?.classList?.contains('is-bar') || noteNode?.closest?.('#act')) continue;
-      }
       if ((ka === 'note' && kb === 'act') || (ka === 'act' && kb === 'note')) {
-        // Note is intentionally a child of #act above 下一手
+        // Fixed bar note sits just above #act; AABB may touch the bar chrome
         continue;
       }
       // Hero hole may tuck into own plate; reveals must NOT cover plates

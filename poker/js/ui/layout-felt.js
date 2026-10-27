@@ -387,20 +387,36 @@ export function placeTableNote() {
   const potBox = pot?.getBoundingClientRect();
   const revealHoles = [...document.querySelectorAll('.reveal-hole')];
 
-  // When opponent cards are revealed, park the note in the action bar (above 下一手)
-  // so it cannot graze side-seat cards or the hero plate on a tall oval table.
+  // When opponent cards are revealed, park the note in a fixed strip above #act
+  // (above 下一手) so it cannot graze side-seat cards or the hero plate.
   if (revealHoles.length > 0) {
-    const act = document.getElementById('act');
-    if (act) {
-      const anchor = act.querySelector('.show-cd, .show-btns, .btns, .turn') || act.firstChild;
-      if (note.parentElement !== act) act.insertBefore(note, anchor);
-      else if (anchor && note.nextSibling !== anchor) act.insertBefore(note, anchor);
-    }
+    const tableEl = document.querySelector('.table');
+    if (tableEl && note.parentElement !== tableEl) tableEl.appendChild(note);
     note.classList.add('is-bar');
     note.style.left = '';
     note.style.top = '';
     note.style.transform = '';
     note.style.maxWidth = '';
+    // Nudge up further if it still hits the hero plate / hole cards
+    const heroBits = [
+      ...document.querySelectorAll('#meRoot .meinfo, #heroHole .card, #meRoot .win-badge'),
+    ].map((el) => el.getBoundingClientRect());
+    let bottom = null;
+    for (let i = 0; i < 8; i++) {
+      const nb = note.getBoundingClientRect();
+      let hit = false;
+      for (const o of heroBits) {
+        const ox = Math.min(nb.right, o.right) - Math.max(nb.left, o.left);
+        const oy = Math.min(nb.bottom, o.bottom) - Math.max(nb.top, o.top);
+        if (ox > 2 && oy > 2) {
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) break;
+      bottom = (bottom ?? parseFloat(getComputedStyle(note).bottom) || 88) + 14;
+      note.style.bottom = `${bottom}px`;
+    }
     return { ok: true, issues: [] };
   }
 
