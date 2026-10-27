@@ -1034,20 +1034,20 @@ function layoutDealer() {
   dealer.style.left = `${((best.x - t.left) / t.width) * 100}%`;
   dealer.style.top = `${((best.y - t.top) / t.height) * 100}%`;
 
-  // Street bets yield to D (never move D toward another seat)
+  // Street bets yield to D / pot / plates / peers (never move D toward another seat)
   const potBox = potEl?.getBoundingClientRect();
   const plateRects = [...document.querySelectorAll('.seat .plate, .meinfo')].map((el) =>
     el.getBoundingClientRect(),
   );
-  for (let pass = 0; pass < 8; pass++) {
+  const betEls = [...document.querySelectorAll('#bets .bet')];
+  for (let pass = 0; pass < 12; pass++) {
     const finalD = dealer.getBoundingClientRect();
     let moved = false;
-    for (const bet of document.querySelectorAll('#bets .bet')) {
+    for (let i = 0; i < betEls.length; i++) {
+      const bet = betEls[i];
       const br = bet.getBoundingClientRect();
-      const bcx = (br.left + br.right) / 2;
-      const bcy = (br.top + br.bottom) / 2;
-      let px = bcx;
-      let py = bcy;
+      let px = (br.left + br.right) / 2;
+      let py = (br.top + br.bottom) / 2;
       const pushAway = (ob, pad) => {
         const box = {
           left: px - br.width / 2 - pad,
@@ -1063,17 +1063,20 @@ function layoutDealer() {
         }
         return false;
       };
-      let hit = pushAway(finalD, 4);
+      let hit = pushAway(finalD, 5);
       if (potBox) hit = pushAway(potBox, 6) || hit;
       for (const pl of plateRects) hit = pushAway(pl, 4) || hit;
+      for (let j = 0; j < betEls.length; j++) {
+        if (j === i) continue;
+        hit = pushAway(betEls[j].getBoundingClientRect(), 4) || hit;
+      }
       if (!hit) continue;
       moved = true;
-      // Bias remaining push toward table center so chips stay on the rail
       const towardCx = cx - px;
       const towardCy = cy - py;
       const tlen = Math.hypot(towardCx, towardCy) || 1;
-      px += (towardCx / tlen) * 2;
-      py += (towardCy / tlen) * 2;
+      px += (towardCx / tlen) * 1.5;
+      py += (towardCy / tlen) * 1.5;
       const left = clamp(px, t.left + br.width / 2 + 2, t.right - br.width / 2 - 2);
       const top = clamp(py, t.top + br.height / 2 + 2, t.bottom - br.height / 2 - 2);
       bet.style.left = `${((left - t.left) / t.width) * 100}%`;
