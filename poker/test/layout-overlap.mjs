@@ -629,6 +629,39 @@ function auditRevealLayoutInPage({ seatCount }) {
     }
   }
 
+  // Centre fold-win note must not cover any revealed / hero cards
+  const noteEl = document.querySelector('.table-note');
+  if (noteEl && getComputedStyle(noteEl).display !== 'none') {
+    const nb = box(noteEl);
+    for (const c of document.querySelectorAll('.reveal-hole .card, #heroHole .card')) {
+      if (overlaps(nb, box(c))) {
+        issues.push(
+          `table-note overlaps revealed/hero card (viewport=${window.innerWidth}x${window.innerHeight} seats=${seatCount})`,
+        );
+        break;
+      }
+    }
+    for (const hole of document.querySelectorAll('.reveal-hole')) {
+      if (overlaps(nb, box(hole))) {
+        issues.push(
+          `table-note overlaps reveal-hole (viewport=${window.innerWidth}x${window.innerHeight} seats=${seatCount})`,
+        );
+        break;
+      }
+    }
+  }
+
+  // Timer ring must not sit on the plate border when not actively timing
+  const timerEl = document.querySelector('#mePlate .timer, .meinfo .timer');
+  if (timerEl) {
+    const timing = document.querySelector('#mePlate')?.classList.contains('is-timing');
+    const visible =
+      getComputedStyle(timerEl).display !== 'none' && getComputedStyle(timerEl).visibility !== 'hidden';
+    if (!timing && visible) {
+      issues.push('hero timer visible while not .is-timing (stray ⊖ on nameplate)');
+    }
+  }
+
   // No stray chips at table top-left (unplaced bets / FX)
   const tableEl = document.querySelector('.table');
   if (tableEl) {
@@ -680,6 +713,7 @@ function auditRevealLayoutInPage({ seatCount }) {
   [...document.querySelectorAll('#board .card')].forEach((el, i) => add(`board[${i}]`, el));
   [...document.querySelectorAll('#heroHole .card')].forEach((el, i) => add(`hero[${i}]`, el));
   add('act', document.getElementById('act'));
+  add('note', document.querySelector('.table-note'));
   revealCards.forEach((el, i) => add(`reveal[${i}]`, el));
 
   for (let i = 0; i < tagged.length; i++) {
@@ -693,6 +727,16 @@ function auditRevealLayoutInPage({ seatCount }) {
       }
       if (ka === 'hero' && kb === 'hero') continue;
       if (ka === 'reveal' && kb === 'reveal' && seatOfEl(a.el) === seatOfEl(b.el)) continue;
+      // Note must never overlap reveals / hero / board
+      if (
+        (ka === 'note' || kb === 'note') &&
+        ({ reveal: 1, hero: 1, board: 1 }[ka] || { reveal: 1, hero: 1, board: 1 }[kb])
+      ) {
+        if (overlaps(a.b, b.b)) {
+          issues.push(`showdown: ${a.name} overlaps ${b.name}`);
+        }
+        continue;
+      }
       // Hero hole may tuck into own plate; reveals must NOT cover plates
       if (
         ({ plate: 1, hero: 1 }[ka] && { plate: 1, hero: 1 }[kb]) &&

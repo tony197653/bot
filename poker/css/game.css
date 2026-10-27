@@ -246,15 +246,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .meinfo .av{width:36px;height:36px;font-size:16px;left:3px;top:3px}
 .meinfo b{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:400;color:var(--plateink)}
 .meinfo strong{display:block;font-size:13px;font-weight:700;color:#ffd77a}
-.timer{display:none} /* timer lives in menu / optional overlay */
-.meinfo .timer{
-  display:grid;position:absolute;right:-2px;top:-2px;width:28px;height:28px;place-items:center;
+/* Timer ring: hidden unless hero is on the clock (avoids stray ⊖ on plate border) */
+.timer{display:none}
+.meinfo.is-timing .timer{
+  display:grid;position:absolute;right:4px;top:50%;transform:translateY(-50%);
+  width:28px;height:28px;place-items:center;z-index:2;
 }
 .timer svg{width:100%;height:100%;transform:rotate(-90deg)}
 .timer circle{fill:none;stroke-width:3}
 .timer .bg{stroke:var(--ringbg)}
 .timer .fg{stroke:var(--ring);stroke-linecap:round;stroke-dasharray:75.4;stroke-dashoffset:0}
 .timer span{position:absolute;inset:0;display:grid;place-items:center;font-weight:700;font-size:10px}
+.meinfo.is-timing{padding-right:36px}
 
 /* ── Bottom action bar (3 buttons) ── */
 .act{
@@ -488,12 +491,18 @@ input[type=range]::-moz-range-thumb{
   box-shadow:0 4px 14px #0005;pointer-events:none}
 /* Hero: float above the whole me cluster (cards + plate), never over hole cards */
 .me .win-badge{top:auto;bottom:calc(100% + 12px);z-index:10}
-.table-note{position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);z-index:7;
-  max-width:min(96%,440px);padding:6px 14px;border-radius:10px;text-align:center;
+/* Fold-win centre note — under pot, narrow centre column; JS may nudge clear of reveals */
+.table-note{position:absolute;left:50%;top:48%;transform:translate(-50%,0);z-index:7;
+  max-width:min(46%,200px);width:max-content;padding:5px 10px;border-radius:10px;text-align:center;
   background:#0c1d16ee;border:1px solid var(--gold);color:var(--ink);
-  font-size:clamp(10.5px,2.9vw,13px);font-weight:600;line-height:1.2;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:clamp(10px,2.6vw,12px);font-weight:600;line-height:1.25;
+  white-space:normal;overflow:visible;word-break:keep-all;
   box-shadow:0 8px 24px #0005;pointer-events:none}
+/* Fallback: sit in the action bar above 下一手 when felt is too crowded */
+.table-note.is-bar{
+  position:fixed;left:50%;top:auto;bottom:calc(var(--bar-h) + 8px);
+  transform:translateX(-50%);z-index:16;max-width:min(92vw,360px);
+}
 
 .card.is-deal{animation:dealIn .45s cubic-bezier(.22,1,.36,1) both}
 @keyframes dealIn{from{opacity:0;transform:translateY(-18px) scale(.92)}to{opacity:1;transform:none}}

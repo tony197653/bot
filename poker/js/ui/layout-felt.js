@@ -367,4 +367,107 @@ export function placeDealer() {
   return { ok: issues.length === 0, issues };
 }
 
+/**
+ * Place fold-win centre note under the pot, clear of revealed/hero/board cards.
+ * Falls back to the action-bar strip if the felt centre is too crowded.
+ */
+export function placeTableNote() {
+  const note = document.querySelector('.table-note');
+  const table = document.querySelector('.table');
+  if (!note || !table) return { ok: true, issues: [] };
+
+  note.classList.remove('is-bar');
+  note.style.left = '';
+  note.style.top = '';
+  note.style.transform = '';
+  note.style.maxWidth = '';
+
+  const t = table.getBoundingClientRect();
+  const pot = document.querySelector('.pot');
+  const potBox = pot?.getBoundingClientRect();
+
+  const obstacles = [
+    ...document.querySelectorAll(
+      '.reveal-hole, #heroHole .card, #board .card, .backs, .seat .plateA, .seat .plate, .meinfo, #dealer, .win-badge',
+    ),
+  ]
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.width > 0 && r.height > 0);
+
+  // Free centre column: between leftmost right-side reveal and rightmost left-side reveal
+  const reveals = [...document.querySelectorAll('.reveal-hole, #heroHole')].map((el) =>
+    el.getBoundingClientRect(),
+  );
+  const midX = t.left + t.width / 2;
+  let leftBound = t.left + t.width * 0.18;
+  let rightBound = t.right - t.width * 0.18;
+  for (const r of reveals) {
+    const cx = (r.left + r.right) / 2;
+    if (cx < midX) leftBound = Math.max(leftBound, r.right + 8);
+    else rightBound = Math.min(rightBound, r.left - 8);
+  }
+  const freeW = Math.max(96, Math.min(200, rightBound - leftBound));
+  note.style.maxWidth = `${freeW}px`;
+
+  const overlapsBox = (box, pad = 4) => {
+    for (const o of obstacles) {
+      const ox = Math.min(box.right, o.right) - Math.max(box.left, o.left);
+      const oy = Math.min(box.bottom, o.bottom) - Math.max(box.top, o.top);
+      if (ox > pad && oy > pad) return true;
+    }
+    return false;
+  };
+
+  // Candidates: just under pot, then slightly lower, then above board band
+  const potBottom = potBox ? potBox.bottom : t.top + t.height * 0.42;
+  const yStarts = [
+    potBottom + 8,
+    potBottom + 18,
+    potBottom + 28,
+    t.top + t.height * 0.46,
+    t.top + t.height * 0.5,
+  ];
+
+  let placed = false;
+  for (const y of yStarts) {
+    // Force layout with current max-width so height is accurate
+    note.style.left = '50%';
+    note.style.top = `${((y - t.top) / t.height) * 100}%`;
+    note.style.transform = 'translate(-50%, 0)';
+    const nb = note.getBoundingClientRect();
+    const box = {
+      left: midX - nb.width / 2,
+      right: midX + nb.width / 2,
+      top: y,
+      bottom: y + nb.height,
+    };
+    if (!overlapsBox(box, 2)) {
+      placed = true;
+      break;
+    }
+  }
+
+  if (!placed) {
+    // Bar fallback above 下一手
+    note.classList.add('is-bar');
+    note.style.left = '';
+    note.style.top = '';
+    note.style.transform = '';
+    note.style.maxWidth = '';
+  }
+
+  const issues = [];
+  const final = note.getBoundingClientRect();
+  for (const el of document.querySelectorAll('.reveal-hole .card, #heroHole .card')) {
+    const r = el.getBoundingClientRect();
+    const ox = Math.min(final.right, r.right) - Math.max(final.left, r.left);
+    const oy = Math.min(final.bottom, r.bottom) - Math.max(final.top, r.top);
+    if (ox > 0 && oy > 0) {
+      issues.push('table-note still overlaps a revealed/hero card');
+      break;
+    }
+  }
+  return { ok: issues.length === 0, issues };
+}
+
 export { GAP as BET_GAP };

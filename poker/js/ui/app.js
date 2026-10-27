@@ -16,7 +16,7 @@ import {
 import { cardHtml, cardBackPair, fmtChips } from './cards-dom.js';
 import { onTick } from './ticker.js';
 import { mapSeatsClockwise } from './seating.js';
-import { placeBets, placeDealer } from './layout-felt.js';
+import { placeBets, placeDealer, placeTableNote } from './layout-felt.js';
 import {
   playDealAnimation,
   playWinnerFx,
@@ -635,7 +635,12 @@ function renderTable(v) {
     if (note && (v.isHandOver || v.isShowdown)) {
       const el = document.createElement('div');
       el.className = 'table-note';
-      el.textContent = note;
+      // Two-line wrap: name/amount on first line, （其他人蓋牌） on second
+      const parts = note.split('（');
+      el.innerHTML =
+        parts.length === 2
+          ? `${esc(parts[0].trim())}<br>（${esc(parts[1])}`
+          : esc(note);
       document.querySelector('.table')?.appendChild(el);
     }
   }
@@ -657,6 +662,7 @@ function renderTable(v) {
     placeBets();
     // Re-place D now that bets are parked, so D clears chips too
     placeDealer();
+    placeTableNote();
     const d = $('#dealer');
     if (d && getComputedStyle(d).display !== 'none') {
       prevDealerRect = d.getBoundingClientRect();
@@ -1894,15 +1900,18 @@ onTick(() => {
 function updateTimerDisplay(leftMs) {
   const el = $('#timerSec');
   const fg = $('#timerFg');
+  const plate = $('#mePlate');
   if (leftMs == null) {
     el.textContent = '—';
     fg.style.strokeDashoffset = '0';
+    plate?.classList.remove('is-timing');
     return;
   }
+  plate?.classList.add('is-timing');
   const sec = Math.ceil(leftMs / 1000);
   el.textContent = String(sec);
   const total = state.config.actionTimeoutMs;
-  const circ = 125.66;
+  const circ = 75.4;
   fg.style.strokeDashoffset = String(circ * (1 - leftMs / total));
 }
 
