@@ -514,7 +514,8 @@ function layoutDealer() {
     el.getBoundingClientRect(),
   );
 
-  // Prefer beside the plate (tangent), especially when button seat also posted a bet
+  // Prefer toward pot from the plate (radial), with a small side bias so D
+  // does not sit under the plate or on top of the street-bet chips.
   if (anchorEl) {
     const ar = anchorEl.getBoundingClientRect();
     const ax = ar.left + ar.width / 2;
@@ -527,18 +528,19 @@ function layoutDealer() {
     const tx = -ry / len;
     const ty = rx / len;
     const br0 = dealer.getBoundingClientRect();
-    const side = betRects.length ? 1 : 0.75;
-    let x = ax + tx * (ar.width * 0.5 + br0.width) * side;
-    let y = ay + ty * (ar.height * 0.35 + br0.height * 0.45) * side;
-    x += (rx / len) * (betRects.length ? 8 : 14);
-    y += (ry / len) * (betRects.length ? 8 : 14);
+    // Strong radial offset keeps D on the felt even for top seats (avoids clamp-to-rim)
+    const radial = Math.max(ar.height, ar.width) * 0.55 + br0.height + 12;
+    const tangential = br0.width * 0.85 + 6;
+    let x = ax + (rx / len) * radial + tx * tangential;
+    let y = ay + (ry / len) * radial + ty * tangential;
     dealer.style.left = `${((x - t.left) / t.width) * 100}%`;
     dealer.style.top = `${((y - t.top) / t.height) * 100}%`;
   }
 
-  const pad = 4;
+  const softPad = 4;
   const betPad = 6;
-  for (let pass = 0; pass < 14; pass++) {
+  const plateGap = 10; // clear plate drop-shadow
+  for (let pass = 0; pass < 20; pass++) {
     const br = dealer.getBoundingClientRect();
     let x = br.left;
     let y = br.top;
@@ -551,10 +553,19 @@ function layoutDealer() {
       bottom: y + h + p,
     });
     for (const ob of soft) {
-      const d = overlapDelta(mk(pad), ob);
+      const d = overlapDelta(mk(softPad), ob);
       if (d) {
         x += d.dx;
         y += d.dy;
+      }
+    }
+    for (const pl of document.querySelectorAll('.seat .plate, .meinfo')) {
+      const pr = pl.getBoundingClientRect();
+      const dBox = { left: x, top: y, right: x + w, bottom: y + h };
+      const push = separationDelta(dBox, pr, plateGap);
+      if (push) {
+        x += push.dx;
+        y += push.dy;
       }
     }
     for (const ob of betRects) {
@@ -564,11 +575,51 @@ function layoutDealer() {
         y += d.dy;
       }
     }
-    x = clamp(x, t.left + 2, t.right - w - 2);
-    y = clamp(y, t.top + 2, t.bottom - h - 2);
+    // Keep inside felt; if clamp would fight plate separation, prefer inward
+    const cx = t.left + t.width / 2;
+    const cy = t.top + t.height * 0.42;
+    const nx = clamp(x, t.left + 4, t.right - w - 4);
+    const ny = clamp(y, t.top + 4, t.bottom - h - 4);
+    if (nx !== x || ny !== y) {
+      // Pulled by rim — bias toward table center
+      x = nx + (cx - (nx + w / 2)) * 0.08;
+      y = ny + (cy - (ny + h / 2)) * 0.08;
+      x = clamp(x, t.left + 4, t.right - w - 4);
+      y = clamp(y, t.top + 4, t.bottom - h - 4);
+    } else {
+      x = nx;
+      y = ny;
+    }
     dealer.style.left = `${((x + w / 2 - t.left) / t.width) * 100}%`;
     dealer.style.top = `${((y + h / 2 - t.top) / t.height) * 100}%`;
   }
+}
+
+/** Push `a` away from `b` until edge gap >= minGap (or clear overlap). */
+function separationDelta(a, b, minGap) {
+  const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+  const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+  const acx = (a.left + a.right) / 2;
+  const acy = (a.top + a.bottom) / 2;
+  const bcx = (b.left + b.right) / 2;
+  const bcy = (b.top + b.bottom) / 2;
+  if (ox > 0 && oy > 0) {
+    if (ox < oy) {
+      return { dx: (acx >= bcx ? 1 : -1) * (ox + minGap), dy: 0 };
+    }
+    return { dx: 0, dy: (acy >= bcy ? 1 : -1) * (oy + minGap) };
+  }
+  if (ox > 0) {
+    const gap = Math.max(a.top - b.bottom, b.top - a.bottom);
+    if (gap >= minGap) return null;
+    return { dx: 0, dy: (acy >= bcy ? 1 : -1) * (minGap - gap) };
+  }
+  if (oy > 0) {
+    const gap = Math.max(a.left - b.right, b.left - a.right);
+    if (gap >= minGap) return null;
+    return { dx: (acx >= bcx ? 1 : -1) * (minGap - gap), dy: 0 };
+  }
+  return null;
 }
 
 /** @returns {{dx:number,dy:number}|null} */

@@ -148,9 +148,18 @@ async function checkViewport(browser, url, vp, seatCount) {
       ) {
         issues.push('dealer button clipped outside .table');
       }
+      const edgeGap = (a, b) => {
+        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (ox > 0 && oy > 0) return -Math.min(ox, oy);
+        if (ox > 0) return Math.max(a.top - b.bottom, b.top - a.bottom);
+        if (oy > 0) return Math.max(a.left - b.right, b.left - a.right);
+        return 99;
+      };
       plates.forEach((p, j) => {
-        if (overlaps(dBox, p) || near(dBox, p, 2)) {
-          issues.push(`dealer overlaps/covers plate[${j}]`);
+        // ≥8px edge gap so plate drop-shadow does not visually cover D
+        if (edgeGap(dBox, p) < 8) {
+          issues.push(`dealer too close to plate[${j}] (gap=${edgeGap(dBox, p).toFixed(1)})`);
         }
       });
       bets.forEach((b, i) => {

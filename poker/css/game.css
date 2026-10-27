@@ -79,7 +79,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   background:repeating-linear-gradient(45deg,var(--back1) 0 3px,var(--back2) 3px 6px);box-shadow:0 1px 3px #0004}
 .backs i+i{margin-left:-10px;transform:rotate(10deg)}
 .plate{margin-top:-6px;padding:7px 6px 5px;width:100%;border-radius:10px;background:var(--plate);
-  box-shadow:0 0 0 1px var(--plateline),0 3px 10px #0003;text-align:center;line-height:1.25}
+  box-shadow:0 0 0 1px var(--plateline),0 2px 6px #0003;text-align:center;line-height:1.25}
 .plate:not(:has(.state)){padding-bottom:7px}
 .nm{display:flex;justify-content:center;align-items:center;gap:4px;font-size:13px;font-weight:700;color:var(--plateink);white-space:nowrap}
 .tag{font-size:10px;font-weight:500;padding:0 4px;border-radius:4px;border:1px solid var(--platemute);color:var(--platemute);line-height:15px}
