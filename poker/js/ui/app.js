@@ -1040,114 +1040,48 @@ function layoutDealer() {
   const plateRects = [...document.querySelectorAll('.seat .plate, .meinfo')].map((el) =>
     el.getBoundingClientRect(),
   );
+  const desktop = window.matchMedia('(min-width: 1024px)').matches;
+  const anchors = desktop ? BET_ANCHOR_DESKTOP : BET_ANCHOR_PHONE;
   const betEls = [...document.querySelectorAll('#bets .bet')];
-  for (let pass = 0; pass < 14; pass++) {
+
+  /** Preferred rest center (px) from seat rail anchors — used to unstack peers. */
+  const preferred = betEls.map((bet) => {
+    const key = bet.dataset.hero === '1' ? 'hero' : bet.dataset.pos;
+    const [axPct, ayPct] = anchors[key] || anchors.hero;
+    return {
+      x: t.left + (axPct / 100) * t.width,
+      y: t.top + (ayPct / 100) * t.height,
+    };
+  });
+
+  const writeBet = (bet, px, py, bw, bh) => {
+    const left = clamp(px, t.left + bw / 2 + 2, t.right - bw / 2 - 2);
+    const top = clamp(py, t.top + bh / 2 + 2, t.bottom - bh / 2 - 2);
+    bet.style.left = `${((left - t.left) / t.width) * 100}%`;
+    bet.style.top = `${((top - t.top) / t.height) * 100}%`;
+  };
+
+  for (let pass = 0; pass < 16; pass++) {
     const finalD = dealer.getBoundingClientRect();
     let moved = false;
-    for (let i = 0; i < betEls.length; i++) {
-      const bet = betEls[i];
-      const isHero = bet.dataset.hero === '1';
-      const br = bet.getBoundingClientRect();
-      let px = (br.left + br.right) / 2;
-      let py = (br.top + br.bottom) / 2;
-      const pushAway = (ob, pad, opts = {}) => {
-        const box = {
-          left: px - br.width / 2 - pad,
-          top: py - br.height / 2 - pad,
-          right: px + br.width / 2 + pad,
-          bottom: py + br.height / 2 + pad,
-        };
-        let d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
-        if (!d) return false;
-        // Stacked chips share a center — bias by index so both don't nudge the same way
-        if (opts.peerDir != null && Math.abs(d.dx) + Math.abs(d.dy) > 0) {
-          const ocx = (ob.left + ob.right) / 2;
-          const ocy = (ob.top + ob.bottom) / 2;
-          if (Math.abs(px - ocx) < 1.5 && Math.abs(py - ocy) < 1.5) {
-            d = { dx: opts.peerDir * Math.max(Math.abs(d.dx), pad + 2), dy: d.dy };
-          }
-        }
-        if (opts.heroBoard) {
-          // Hero bets sit under the board — only slide down / sideways
-          py += Math.max(Math.abs(d.dy), d.dy, 3);
-          px += d.dx;
-        } else {
-          px += d.dx;
-          py += d.dy;
-        }
-        return true;
-      };
-      let hit = pushAway(finalD, 5);
-      if (potBox) hit = pushAway(potBox, 6) || hit;
-      if (boardBox) {
-        const inflated = {
-          left: boardBox.left - 4,
-          top: boardBox.top - 4,
-          right: boardBox.right + 4,
-          bottom: boardBox.bottom + 4,
-        };
-        hit = pushAway(inflated, 4, { heroBoard: isHero }) || hit;
-      }
-      for (const pl of plateRects) hit = pushAway(pl, 5) || hit;
-      for (let j = 0; j < betEls.length; j++) {
-        if (j === i) continue;
-        hit =
-          pushAway(betEls[j].getBoundingClientRect(), 4, {
-            peerDir: i < j ? -1 : 1,
-          }) || hit;
-      }
-      if (!hit) continue;
-      moved = true;
-      // Re-clear board / plates / peers without a center pull (that collapsed
-      // neighboring street bets on short phones).
-      if (boardBox) {
-        const inflated = {
-          left: boardBox.left - 4,
-          top: boardBox.top - 4,
-          right: boardBox.right + 4,
-          bottom: boardBox.bottom + 4,
-        };
-        pushAway(inflated, 4, { heroBoard: isHero });
-      }
-      for (const pl of plateRects) pushAway(pl, 5);
-      for (let j = 0; j < betEls.length; j++) {
-        if (j === i) continue;
-        pushAway(betEls[j].getBoundingClientRect(), 5, { peerDir: i < j ? -1 : 1 });
-      }
-      const left = clamp(px, t.left + br.width / 2 + 2, t.right - br.width / 2 - 2);
-      const top = clamp(py, t.top + br.height / 2 + 2, t.bottom - br.height / 2 - 2);
-      bet.style.left = `${((left - t.left) / t.width) * 100}%`;
-      bet.style.top = `${((top - t.top) / t.height) * 100}%`;
-    }
-    if (!moved) break;
-  }
 
-  // Final peer pass: after D yields, ensure street bets still clear each other
-  for (let pass = 0; pass < 8; pass++) {
-    let moved = false;
+    // 1) Clear D / pot / board / plates
     for (let i = 0; i < betEls.length; i++) {
       const bet = betEls[i];
       const isHero = bet.dataset.hero === '1';
       const br = bet.getBoundingClientRect();
       let px = (br.left + br.right) / 2;
       let py = (br.top + br.bottom) / 2;
-      const pushAway = (ob, pad, opts = {}) => {
+      const apply = (ob, pad, heroBoard = false) => {
         const box = {
-          left: px - br.width / 2 - pad,
-          top: py - br.height / 2 - pad,
-          right: px + br.width / 2 + pad,
-          bottom: py + br.height / 2 + pad,
+          left: px - br.width / 2,
+          top: py - br.height / 2,
+          right: px + br.width / 2,
+          bottom: py + br.height / 2,
         };
-        let d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
+        const d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
         if (!d) return false;
-        if (opts.peerDir != null) {
-          const ocx = (ob.left + ob.right) / 2;
-          const ocy = (ob.top + ob.bottom) / 2;
-          if (Math.abs(px - ocx) < 1.5 && Math.abs(py - ocy) < 1.5) {
-            d = { dx: opts.peerDir * Math.max(Math.abs(d.dx), pad + 2), dy: d.dy };
-          }
-        }
-        if (opts.heroBoard) {
+        if (heroBoard) {
           py += Math.max(Math.abs(d.dy), d.dy, 3);
           px += d.dx;
         } else {
@@ -1156,17 +1090,11 @@ function layoutDealer() {
         }
         return true;
       };
-      let hit = false;
-      for (let j = 0; j < betEls.length; j++) {
-        if (j === i) continue;
-        hit =
-          pushAway(betEls[j].getBoundingClientRect(), 5, {
-            peerDir: i < j ? -1 : 1,
-          }) || hit;
-      }
+      let hit = apply(finalD, 5);
+      if (potBox) hit = apply(potBox, 6) || hit;
       if (boardBox) {
         hit =
-          pushAway(
+          apply(
             {
               left: boardBox.left - 4,
               top: boardBox.top - 4,
@@ -1174,19 +1102,49 @@ function layoutDealer() {
               bottom: boardBox.bottom + 4,
             },
             4,
-            { heroBoard: isHero },
+            isHero,
           ) || hit;
       }
-      if (potBox) hit = pushAway(potBox, 6) || hit;
-      for (const pl of plateRects) hit = pushAway(pl, 5) || hit;
-      const finalD = dealer.getBoundingClientRect();
-      hit = pushAway(finalD, 5) || hit;
+      for (const pl of plateRects) hit = apply(pl, 5) || hit;
       if (!hit) continue;
       moved = true;
-      const left = clamp(px, t.left + br.width / 2 + 2, t.right - br.width / 2 - 2);
-      const top = clamp(py, t.top + br.height / 2 + 2, t.bottom - br.height / 2 - 2);
-      bet.style.left = `${((left - t.left) / t.width) * 100}%`;
-      bet.style.top = `${((top - t.top) / t.height) * 100}%`;
+      writeBet(bet, px, py, br.width, br.height);
+    }
+
+    // 2) Unstack peers — split along preferred-anchor axis (not shared D radial)
+    for (let i = 0; i < betEls.length; i++) {
+      for (let j = i + 1; j < betEls.length; j++) {
+        const a = betEls[i].getBoundingClientRect();
+        const b = betEls[j].getBoundingClientRect();
+        const gap = 4;
+        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        const acx = (a.left + a.right) / 2;
+        const acy = (a.top + a.bottom) / 2;
+        const bcx = (b.left + b.right) / 2;
+        const bcy = (b.top + b.bottom) / 2;
+        const overlapping = ox > 0 && oy > 0;
+        const stacked = Math.hypot(acx - bcx, acy - bcy) < 10;
+        if (!overlapping && !stacked) continue;
+        // Direction from preferred anchors; fall back to horizontal by index
+        let dx = preferred[i].x - preferred[j].x;
+        let dy = preferred[i].y - preferred[j].y;
+        let len = Math.hypot(dx, dy);
+        if (len < 2) {
+          dx = -1;
+          dy = 0;
+          len = 1;
+        }
+        const need =
+          Math.max(a.width, b.width) / 2 + Math.max(a.height, b.height) / 2 + gap;
+        const cur = Math.hypot(acx - bcx, acy - bcy);
+        const push = Math.max(need - cur, gap + 2) / 2;
+        const ux = dx / len;
+        const uy = dy / len;
+        writeBet(betEls[i], acx + ux * push, acy + uy * push, a.width, a.height);
+        writeBet(betEls[j], bcx - ux * push, bcy - uy * push, b.width, b.height);
+        moved = true;
+      }
     }
     if (!moved) break;
   }
