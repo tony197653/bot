@@ -606,21 +606,23 @@ function maybePlayWinnerFx(v) {
 
 /** Safe chip-rail anchors (% of .table) — inward from seats, clear of pot (~28%) / board. */
 const BET_ANCHOR_PHONE = {
-  0: [50, 26],
-  1: [66, 36],
-  2: [66, 50],
-  3: [34, 50],
-  4: [34, 36],
+  0: [50, 22],
+  // Inward of side nameplates, above the board band (~45%+ on phones)
+  1: [64, 32],
+  2: [64, 41],
+  3: [36, 41],
+  4: [36, 32],
   // Below board band (board ~52–60% on short phones)
-  hero: [50, 70],
+  hero: [50, 72],
 };
 const BET_ANCHOR_DESKTOP = {
   0: [50, 22],
-  1: [68, 34],
-  2: [68, 54],
-  3: [32, 54],
-  4: [32, 34],
-  hero: [50, 70],
+  // Above board band (~46–58% on desktop felt)
+  1: [64, 32],
+  2: [64, 42],
+  3: [36, 42],
+  4: [36, 32],
+  hero: [50, 72],
 };
 
 /** Dealer «D» anchors — near the button seat but inward; nudged clear of plates. */
@@ -787,7 +789,7 @@ function layoutBets() {
     for (const p of placed) {
       const a0 = () => ({ left: p.x, top: p.y, right: p.x + p.w, bottom: p.y + p.h });
       for (const pl of plates) {
-        const d = separationDelta(a0(), pl, 5);
+        const d = separationDelta(a0(), pl, 8);
         if (d) {
           p.x += d.dx;
           p.y += d.dy;
@@ -993,40 +995,82 @@ function layoutDealer() {
     }
     if (blocked) continue;
     const own = edgeDist(x, y, ar);
-    if (own > 26) continue;
-    // Must be nearer to own plate than to any other
+    if (own > 22) continue;
+    // Clearly nearer to own plate than to any other (never drift toward a neighbor)
+    let nearestOther = Infinity;
     let nearerOther = false;
     for (const pl of otherPlates) {
       const pr = pl.getBoundingClientRect();
-      if (edgeDist(x, y, pr) <= own + 1) {
+      const od = edgeDist(x, y, pr);
+      nearestOther = Math.min(nearestOther, od);
+      if (od <= own + 12) {
         nearerOther = true;
         break;
       }
     }
     if (nearerOther) continue;
-    // Prefer inward + close to plate
+    // Prefer inward + close to plate + far from neighbors
     const inward = (x - ax) * ux + (y - ay) * uy;
-    const score = own * 3 + Math.max(0, -inward) * 2;
+    const score = own * 3 + Math.max(0, -inward) * 4 + Math.max(0, 28 - nearestOther);
     if (score < bestScore) {
       bestScore = score;
       best = { x, y };
     }
   }
 
-  // Fallback: glue to the inward / side edge of the plate
+  // Fallback: glue to the inward edge, or the side farther from other seats
   if (!best) {
     const plateAlong = (Math.abs(ux) * ar.width + Math.abs(uy) * ar.height) / 2;
     const rad = plateAlong + Math.max(dw, dh) / 2 + gap;
-    // Prefer left/right of hero plate if radial is blocked
-    if (key === 'hero') {
-      best = {
-        x: clamp(ar.left - dw / 2 - gap, minX, maxX),
-        y: clamp(ay, minY, maxY),
+    const fallbacks =
+      key === 'hero'
+        ? [
+            { x: ar.left - dw / 2 - gap, y: ay },
+            { x: ar.right + dw / 2 + gap, y: ay },
+            { x: ax, y: ar.top - dh / 2 - gap },
+          ]
+        : [
+            { x: ax + ux * rad, y: ay + uy * rad },
+            // Along plate edge, perpendicular to inward (both directions)
+            { x: ax - uy * rad, y: ay + ux * rad },
+            { x: ax + uy * rad, y: ay - ux * rad },
+            { x: ax + ux * (rad * 0.7) - uy * (rad * 0.5), y: ay + uy * (rad * 0.7) + ux * (rad * 0.5) },
+            { x: ax + ux * (rad * 0.7) + uy * (rad * 0.5), y: ay + uy * (rad * 0.7) - ux * (rad * 0.5) },
+          ];
+    let fbBest = null;
+    let fbScore = Infinity;
+    for (const f of fallbacks) {
+      const x = clamp(f.x, minX, maxX);
+      const y = clamp(f.y, minY, maxY);
+      const own = edgeDist(x, y, ar);
+      let nearestOther = Infinity;
+      for (const pl of otherPlates) {
+        nearestOther = Math.min(nearestOther, edgeDist(x, y, pl.getBoundingClientRect()));
+      }
+      if (nearestOther <= own + 8) continue;
+      const inward = (x - ax) * ux + (y - ay) * uy;
+      const score = own * 2 + Math.max(0, -inward) * 3 + Math.max(0, 30 - nearestOther);
+      if (score < fbScore) {
+        fbScore = score;
+        fbBest = { x, y };
+      }
+    }
+    best = fbBest || {
+      x: clamp(ax + ux * rad, minX, maxX),
+      y: clamp(ay + uy * rad, minY, maxY),
+    };
+    // Never rest on top of the button's own nameplate
+    for (let k = 0; k < 8; k++) {
+      const box = {
+        left: best.x - dw / 2,
+        top: best.y - dh / 2,
+        right: best.x + dw / 2,
+        bottom: best.y + dh / 2,
       };
-    } else {
+      if (!overlaps(box, ar)) break;
       best = {
-        x: clamp(ax + ux * rad, minX, maxX),
-        y: clamp(ay + uy * rad, minY, maxY),
+        x: clamp(best.x + ux * 6, minX, maxX),
+        y: clamp(best.y + uy * 6, minY, maxY),
       };
     }
   }
@@ -1034,7 +1078,8 @@ function layoutDealer() {
   dealer.style.left = `${((best.x - t.left) / t.width) * 100}%`;
   dealer.style.top = `${((best.y - t.top) / t.height) * 100}%`;
 
-  // Street bets yield to D / pot / board / plates / peers (never move D toward another seat)
+  // Street bets: snap back to rail anchors, then resolve D/pot/board/plates/peers.
+  // (Heavy D-nudging previously walked chips into plate↔board dead zones.)
   const potBox = potEl?.getBoundingClientRect();
   const boardBox = boardEl?.getBoundingClientRect();
   const plateRects = [...document.querySelectorAll('.seat .plate, .meinfo')].map((el) =>
@@ -1043,58 +1088,64 @@ function layoutDealer() {
   const desktop = window.matchMedia('(min-width: 1024px)').matches;
   const anchors = desktop ? BET_ANCHOR_DESKTOP : BET_ANCHOR_PHONE;
   const betEls = [...document.querySelectorAll('#bets .bet')];
+  const peerGap = window.innerHeight < 700 ? 4 : 6;
 
-  /** Preferred rest center (px) from seat rail anchors — used to unstack peers. */
-  const preferred = betEls.map((bet) => {
+  /** @type {{el:HTMLElement,x:number,y:number,w:number,h:number,hero:boolean,ax:number,ay:number}[]} */
+  const placed = [];
+  for (const bet of betEls) {
     const key = bet.dataset.hero === '1' ? 'hero' : bet.dataset.pos;
     const [axPct, ayPct] = anchors[key] || anchors.hero;
-    return {
-      x: t.left + (axPct / 100) * t.width,
-      y: t.top + (ayPct / 100) * t.height,
-    };
-  });
+    const ax = t.left + (axPct / 100) * t.width;
+    const ay = t.top + (ayPct / 100) * t.height;
+    bet.style.left = `${axPct}%`;
+    bet.style.top = `${ayPct}%`;
+    const br = bet.getBoundingClientRect();
+    placed.push({
+      el: bet,
+      x: br.left,
+      y: br.top,
+      w: br.width,
+      h: br.height,
+      hero: bet.dataset.hero === '1',
+      ax,
+      ay,
+    });
+  }
 
-  const writeBet = (bet, px, py, bw, bh) => {
-    const left = clamp(px, t.left + bw / 2 + 2, t.right - bw / 2 - 2);
-    const top = clamp(py, t.top + bh / 2 + 2, t.bottom - bh / 2 - 2);
-    bet.style.left = `${((left - t.left) / t.width) * 100}%`;
-    bet.style.top = `${((top - t.top) / t.height) * 100}%`;
+  const commit = (p) => {
+    p.x = clamp(p.x, t.left + 2, t.right - p.w - 2);
+    p.y = clamp(p.y, t.top + 2, t.bottom - p.h - 2);
+    p.el.style.left = `${((p.x + p.w / 2 - t.left) / t.width) * 100}%`;
+    p.el.style.top = `${((p.y + p.h / 2 - t.top) / t.height) * 100}%`;
+    const br = p.el.getBoundingClientRect();
+    p.x = br.left;
+    p.y = br.top;
+    p.w = br.width;
+    p.h = br.height;
   };
 
   for (let pass = 0; pass < 16; pass++) {
     const finalD = dealer.getBoundingClientRect();
     let moved = false;
-
-    // 1) Clear D / pot / board / plates
-    for (let i = 0; i < betEls.length; i++) {
-      const bet = betEls[i];
-      const isHero = bet.dataset.hero === '1';
-      const br = bet.getBoundingClientRect();
-      let px = (br.left + br.right) / 2;
-      let py = (br.top + br.bottom) / 2;
-      const apply = (ob, pad, heroBoard = false) => {
-        const box = {
-          left: px - br.width / 2,
-          top: py - br.height / 2,
-          right: px + br.width / 2,
-          bottom: py + br.height / 2,
-        };
-        const d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
+    for (const p of placed) {
+      const a0 = () => ({ left: p.x, top: p.y, right: p.x + p.w, bottom: p.y + p.h });
+      const bump = (ob, pad, heroBoard = false) => {
+        const d = separationDelta(a0(), ob, pad) || overlapDelta(a0(), ob);
         if (!d) return false;
         if (heroBoard) {
-          py += Math.max(Math.abs(d.dy), d.dy, 3);
-          px += d.dx;
+          p.y += Math.max(Math.abs(d.dy), d.dy, 3);
+          p.x += d.dx;
         } else {
-          px += d.dx;
-          py += d.dy;
+          p.x += d.dx;
+          p.y += d.dy;
         }
         return true;
       };
-      let hit = apply(finalD, 5);
-      if (potBox) hit = apply(potBox, 6) || hit;
+      let hit = bump(finalD, 5);
+      if (potBox) hit = bump(potBox, 6) || hit;
       if (boardBox) {
         hit =
-          apply(
+          bump(
             {
               left: boardBox.left - 4,
               top: boardBox.top - 4,
@@ -1102,49 +1153,33 @@ function layoutDealer() {
               bottom: boardBox.bottom + 4,
             },
             4,
-            isHero,
+            p.hero,
           ) || hit;
       }
-      for (const pl of plateRects) hit = apply(pl, 5) || hit;
+      // Pad ≥7: tall-phone layout asserts a 3px near-buffer around plates
+      for (const pl of plateRects) hit = bump(pl, 8) || hit;
+      for (const q of placed) {
+        if (q === p) continue;
+        const qb = { left: q.x, top: q.y, right: q.x + q.w, bottom: q.y + q.h };
+        const d = separationDelta(a0(), qb, peerGap) || overlapDelta(a0(), qb);
+        if (!d) continue;
+        // Split along preferred-anchor axis when stacked
+        const pcx = p.x + p.w / 2;
+        const pcy = p.y + p.h / 2;
+        const qcx = q.x + q.w / 2;
+        const qcy = q.y + q.h / 2;
+        if (Math.hypot(pcx - qcx, pcy - qcy) < 8) {
+          const dirY = p.ay <= q.ay ? -1 : 1;
+          p.y += dirY * (peerGap + 2);
+        } else {
+          p.x += d.dx * 0.7;
+          p.y += d.dy * 0.7;
+        }
+        hit = true;
+      }
       if (!hit) continue;
       moved = true;
-      writeBet(bet, px, py, br.width, br.height);
-    }
-
-    // 2) Unstack peers — split along preferred-anchor axis (not shared D radial)
-    for (let i = 0; i < betEls.length; i++) {
-      for (let j = i + 1; j < betEls.length; j++) {
-        const a = betEls[i].getBoundingClientRect();
-        const b = betEls[j].getBoundingClientRect();
-        const gap = 4;
-        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-        const acx = (a.left + a.right) / 2;
-        const acy = (a.top + a.bottom) / 2;
-        const bcx = (b.left + b.right) / 2;
-        const bcy = (b.top + b.bottom) / 2;
-        const overlapping = ox > 0 && oy > 0;
-        const stacked = Math.hypot(acx - bcx, acy - bcy) < 10;
-        if (!overlapping && !stacked) continue;
-        // Direction from preferred anchors; fall back to horizontal by index
-        let dx = preferred[i].x - preferred[j].x;
-        let dy = preferred[i].y - preferred[j].y;
-        let len = Math.hypot(dx, dy);
-        if (len < 2) {
-          dx = -1;
-          dy = 0;
-          len = 1;
-        }
-        const need =
-          Math.max(a.width, b.width) / 2 + Math.max(a.height, b.height) / 2 + gap;
-        const cur = Math.hypot(acx - bcx, acy - bcy);
-        const push = Math.max(need - cur, gap + 2) / 2;
-        const ux = dx / len;
-        const uy = dy / len;
-        writeBet(betEls[i], acx + ux * push, acy + uy * push, a.width, a.height);
-        writeBet(betEls[j], bcx - ux * push, bcy - uy * push, b.width, b.height);
-        moved = true;
-      }
+      commit(p);
     }
     if (!moved) break;
   }
