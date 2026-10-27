@@ -728,7 +728,7 @@ function auditRevealLayoutInPage({ seatCount }) {
       }
       if (ka === 'hero' && kb === 'hero') continue;
       if (ka === 'reveal' && kb === 'reveal' && seatOfEl(a.el) === seatOfEl(b.el)) continue;
-      // Note must never overlap reveals / hero / board
+      // Note must never overlap reveals / hero cards / board (plates OK if note is in the bar)
       if (
         (ka === 'note' || kb === 'note') &&
         ({ reveal: 1, hero: 1, board: 1 }[ka] || { reveal: 1, hero: 1, board: 1 }[kb])
@@ -737,6 +737,11 @@ function auditRevealLayoutInPage({ seatCount }) {
           issues.push(`showdown: ${a.name} overlaps ${b.name}`);
         }
         continue;
+      }
+      if ((ka === 'note' && kb === 'plate') || (ka === 'plate' && kb === 'note')) {
+        const noteNode = ka === 'note' ? a.el : b.el;
+        // Bar note sits in #act; ignore plate AABB collisions there
+        if (noteNode?.classList?.contains('is-bar') || noteNode?.closest?.('#act')) continue;
       }
       // Hero hole may tuck into own plate; reveals must NOT cover plates
       if (

@@ -387,11 +387,15 @@ export function placeTableNote() {
   const potBox = pot?.getBoundingClientRect();
   const revealHoles = [...document.querySelectorAll('.reveal-hole')];
 
-  // When opponent cards are revealed, park the note above the action bar so it
-  // cannot graze side-seat hero-sized cards on a tall oval table.
+  // When opponent cards are revealed, park the note in the action bar (above 下一手)
+  // so it cannot graze side-seat cards or the hero plate on a tall oval table.
   if (revealHoles.length > 0) {
     const act = document.getElementById('act');
-    if (act && note.parentElement !== act) act.appendChild(note);
+    if (act) {
+      const anchor = act.querySelector('.show-cd, .show-btns, .btns, .turn') || act.firstChild;
+      if (note.parentElement !== act) act.insertBefore(note, anchor);
+      else if (anchor && note.nextSibling !== anchor) act.insertBefore(note, anchor);
+    }
     note.classList.add('is-bar');
     note.style.left = '';
     note.style.top = '';
