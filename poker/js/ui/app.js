@@ -608,10 +608,10 @@ function maybePlayWinnerFx(v) {
 const BET_ANCHOR_PHONE = {
   0: [50, 22],
   // Inward of side nameplates, above the board band (~45%+ on phones)
-  1: [64, 32],
-  2: [64, 41],
-  3: [36, 41],
-  4: [36, 32],
+  1: [64, 31],
+  2: [64, 39],
+  3: [36, 39],
+  4: [36, 31],
   // Below board band (board ~52–60% on short phones)
   hero: [50, 72],
 };
@@ -1184,13 +1184,21 @@ function layoutDealer() {
           nearest = Math.min(nearest, edgeDist(x, y, pl.getBoundingClientRect()));
         }
         if (nearest <= own + 4) continue;
-        // Prefer still centered on the button plate and far from neighbors
-        // (left pot-escape under the top seat otherwise reads as 老K's D).
+        // Prefer glued to own plate, far from neighbors, and away from street
+        // bets (top-seat pot escape to the right crowds SB/BB chips).
+        let betNear = 0;
+        for (const bet of document.querySelectorAll('#bets .bet')) {
+          const br = bet.getBoundingClientRect();
+          const bcx = (br.left + br.right) / 2;
+          const bcy = (br.top + br.bottom) / 2;
+          betNear += 1 / (1 + Math.hypot(x - bcx, y - bcy));
+        }
         const score =
-          own * 2 +
-          Math.abs(x - ax) * 1.2 +
-          Math.abs(y - ay) * 0.4 +
-          Math.max(0, 48 - nearest) * 2;
+          own * 2.5 +
+          Math.abs(x - ax) * 0.8 +
+          Math.abs(y - ay) * 0.3 +
+          Math.max(0, 40 - nearest) * 1.5 +
+          betNear * 40;
         if (score < pickScore) {
           pickScore = score;
           pick = { x, y };
@@ -1249,7 +1257,7 @@ function layoutDealer() {
     p.h = br.height;
   };
 
-  for (let pass = 0; pass < 16; pass++) {
+  for (let pass = 0; pass < 18; pass++) {
     const finalD = dealer.getBoundingClientRect();
     let moved = false;
     for (const p of placed) {
@@ -1270,17 +1278,28 @@ function layoutDealer() {
       let hit = bump(finalD, 8);
       if (potBox) hit = bump(potBox, 6) || hit;
       if (boardBox) {
-        hit =
-          bump(
-            {
-              left: boardBox.left - 4,
-              top: boardBox.top - 4,
-              right: boardBox.right + 4,
-              bottom: boardBox.bottom + 4,
-            },
-            4,
-            p.hero,
-          ) || hit;
+        const inflated = {
+          left: boardBox.left - 4,
+          top: boardBox.top - 4,
+          right: boardBox.right + 4,
+          bottom: boardBox.bottom + 4,
+        };
+        if (!p.hero) {
+          const before = a0();
+          if (
+            before.bottom > inflated.top &&
+            before.top < inflated.bottom &&
+            before.right > inflated.left &&
+            before.left < inflated.right
+          ) {
+            p.y -= Math.max(4, before.bottom - inflated.top + 4);
+            hit = true;
+          } else {
+            hit = bump(inflated, 4) || hit;
+          }
+        } else {
+          hit = bump(inflated, 4, true) || hit;
+        }
       }
       // Pad ≥7: tall-phone layout asserts a 3px near-buffer around plates
       for (const pl of plateRects) hit = bump(pl, 8) || hit;
@@ -1289,7 +1308,6 @@ function layoutDealer() {
         const qb = { left: q.x, top: q.y, right: q.x + q.w, bottom: q.y + q.h };
         const d = separationDelta(a0(), qb, peerGap) || overlapDelta(a0(), qb);
         if (!d) continue;
-        // Split along preferred-anchor axis when stacked
         const pcx = p.x + p.w / 2;
         const pcy = p.y + p.h / 2;
         const qcx = q.x + q.w / 2;
@@ -1303,6 +1321,8 @@ function layoutDealer() {
         }
         hit = true;
       }
+      // Re-clear D last so plate/board nudges cannot leave chips under the button
+      hit = bump(finalD, 8) || hit;
       if (!hit) continue;
       moved = true;
       commit(p);
