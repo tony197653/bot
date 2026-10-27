@@ -1,6 +1,8 @@
 /**
  * Automated layout checks: board slot gaps, no bet/plate/board overlaps,
  * header not truncated — for seat counts 2–6 at 390×844 and 1280×800.
+ * Also: non-table screens (lobby / pass / summary) must vertical-scroll and
+ * keep primary CTAs reachable at phone + Safari-toolbar heights.
  */
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -275,6 +277,194 @@ async function checkViewport(browser, url, vp, seatCount) {
   };
 }
 
+/**
+ * Scroll-reachability for one overlay screen:
+ * - no horizontal overflow on the screen
+ * - primary CTA can be brought into the viewport (scroll screen and/or sheet-body)
+ */
+async function measureScreenReach(page, screenId, ctaSel) {
+  return page.evaluate(
+    ({ screenId, ctaSel }) => {
+      const screen = document.getElementById(screenId);
+      const cta = document.querySelector(ctaSel);
+      const issues = [];
+      if (!screen) return { issues: [`missing #${screenId}`] };
+      if (!cta) return { issues: [`missing CTA ${ctaSel}`] };
+
+      const body = screen.querySelector('.sheet-body');
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+
+      if (screen.scrollWidth > screen.clientWidth + 1) {
+        issues.push(`#${screenId} horizontal overflow (${screen.scrollWidth}>${screen.clientWidth})`);
+      }
+      if (body && body.scrollWidth > body.clientWidth + 1) {
+        issues.push(`.sheet-body horizontal overflow on #${screenId}`);
+      }
+
+      const tryReveal = () => {
+        if (body && body.scrollHeight > body.clientHeight + 1) {
+          body.scrollTop = body.scrollHeight;
+        }
+        screen.scrollTop = screen.scrollHeight;
+        cta.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      };
+
+      let r = cta.getBoundingClientRect();
+      if (!(r.bottom > 0 && r.top < vh && Math.min(r.bottom, vh) - Math.max(r.top, 0) >= 36)) {
+        tryReveal();
+        r = cta.getBoundingClientRect();
+      }
+
+      const visible = Math.min(r.bottom, vh) - Math.max(r.top, 0);
+      const reachable =
+        r.bottom > 0 && r.top < vh && visible >= Math.min(r.height, 36) && r.left < vw && r.right > 0;
+      if (!reachable) {
+        issues.push(
+          `#${screenId} CTA ${ctaSel} unreachable (top=${r.top.toFixed(1)} bottom=${r.bottom.toFixed(1)} vh=${vh})`,
+        );
+      }
+
+      // Lobby: start button should stay pinned / sticky without requiring sheet-body scroll
+      let lobbyStartPinned = null;
+      if (screenId === 'lobbyScreen' && body) {
+        body.scrollTop = 0;
+        screen.scrollTop = 0;
+        const r0 = cta.getBoundingClientRect();
+        const pinnedVisible =
+          r0.bottom > 0 &&
+          r0.top < vh &&
+          Math.min(r0.bottom, vh) - Math.max(r0.top, 0) >= Math.min(r0.height, 36);
+        lobbyStartPinned = pinnedVisible;
+        if (!pinnedVisible) {
+          issues.push('#btnStart not visible at lobby top (sticky/pinned foot failed)');
+        }
+      }
+
+      return {
+        issues,
+        screenScroll: {
+          scrollHeight: screen.scrollHeight,
+          clientHeight: screen.clientHeight,
+          canScrollY: screen.scrollHeight > screen.clientHeight + 1,
+        },
+        bodyScroll: body
+          ? {
+              scrollHeight: body.scrollHeight,
+              clientHeight: body.clientHeight,
+              canScrollY: body.scrollHeight > body.clientHeight + 1,
+            }
+          : null,
+        cta: { top: r.top, bottom: r.bottom, height: r.height },
+        lobbyStartPinned,
+        viewport: { w: vw, h: vh },
+      };
+    },
+    { screenId, ctaSel },
+  );
+}
+
+async function checkScrollScreens(browser, url, vp) {
+  const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  const issues = [];
+  const shots = [];
+
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
+  await page.locator('#timerToggle').uncheck().catch(() => {});
+
+  // Lobby — tall form (all 6 players on) must still reach 開始牌局
+  const lobby = await measureScreenReach(page, 'lobbyScreen', '#btnStart');
+  issues.push(...lobby.issues.map((m) => `lobby: ${m}`));
+  const lobbyShot = join(ART, `poker-scroll-${vp.name}-lobby.png`);
+  await page.screenshot({ path: lobbyShot });
+  shots.push(lobbyShot);
+
+  await page.click('#btnStart');
+  await page.waitForSelector('#passScreen.is-on', { timeout: 10000 });
+
+  const pass = await measureScreenReach(page, 'passScreen', '#btnPassOk');
+  issues.push(...pass.issues.map((m) => `pass: ${m}`));
+  const passShot = join(ART, `poker-scroll-${vp.name}-pass.png`);
+  await page.screenshot({ path: passShot });
+  shots.push(passShot);
+
+  // Inflate pass sheet to force vertical overflow, then confirm CTA still reachable
+  await page.evaluate(() => {
+    const sheet = document.querySelector('#passScreen .sheet');
+    if (!sheet) return;
+    const pad = document.createElement('div');
+    pad.id = 'scrollTestPad';
+    pad.style.cssText = 'height:120vh;margin:8px 0;color:transparent;user-select:none';
+    pad.textContent = '.';
+    const actions = sheet.querySelector('.actions');
+    sheet.insertBefore(pad, actions);
+  });
+  const passTall = await measureScreenReach(page, 'passScreen', '#btnPassOk');
+  issues.push(...passTall.issues.map((m) => `pass-tall: ${m}`));
+  if (!passTall.screenScroll?.canScrollY) {
+    issues.push('pass-tall: #passScreen did not become vertically scrollable');
+  }
+  await page.evaluate(() => document.getElementById('scrollTestPad')?.remove());
+
+  await page.click('#btnPassOk');
+  await page.waitForTimeout(250);
+
+  // Summary overlay (open directly; pad content so it exceeds short Safari toolbars)
+  await page.evaluate(() => {
+    const scr = document.getElementById('summaryScreen');
+    const body = document.getElementById('summaryBody');
+    scr.classList.add('is-on');
+    const rows = Array.from({ length: 16 }, (_, i) => {
+      const n = `測試玩家${i + 1}`;
+      return `<tr><td>${n}</td><td>2,000</td><td>2,000</td><td class="pos">+0</td></tr>`;
+    }).join('');
+    body.innerHTML = `
+      <div class="summary">
+        <p class="lead">捲動測試：確認關閉鈕在矮視窗仍可到達。</p>
+        <table>
+          <thead><tr><th>玩家</th><th>買入</th><th>籌碼</th><th>淨勝</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  });
+  await page.waitForSelector('#summaryScreen.is-on');
+  const summary = await measureScreenReach(page, 'summaryScreen', '#btnSummaryClose');
+  issues.push(...summary.issues.map((m) => `summary: ${m}`));
+  if (!summary.screenScroll?.canScrollY) {
+    issues.push('summary: #summaryScreen did not become vertically scrollable with tall content');
+  }
+  const sumShot = join(ART, `poker-scroll-${vp.name}-summary.png`);
+  await page.screenshot({ path: sumShot });
+  shots.push(sumShot);
+
+  // After scrolling to CTA, capture scrolled summary
+  await page.evaluate(() => {
+    const scr = document.getElementById('summaryScreen');
+    scr.scrollTop = scr.scrollHeight;
+    document.getElementById('btnSummaryClose')?.scrollIntoView({ block: 'end' });
+  });
+  const sumShotEnd = join(ART, `poker-scroll-${vp.name}-summary-end.png`);
+  await page.screenshot({ path: sumShotEnd });
+  shots.push(sumShotEnd);
+
+  await page.close();
+  return {
+    kind: 'scroll',
+    viewport: vp.name,
+    size: `${vp.w}x${vp.h}`,
+    errors,
+    issues,
+    lobby,
+    pass,
+    passTall,
+    summary,
+    screenshots: shots,
+  };
+}
+
 async function main() {
   const { server, url } = await startServer();
   const browser = await chromium.launch({
@@ -287,22 +477,36 @@ async function main() {
     { name: 'phone', w: 390, h: 844 },
     { name: 'desktop', w: 1280, h: 800 },
   ];
+  const scrollViewports = [
+    { name: 'phone-390', w: 390, h: 844 },
+    { name: 'phone-se', w: 375, h: 667 },
+    { name: 'safari-toolbars', w: 390, h: 664 },
+    { name: 'desktop', w: 1280, h: 800 },
+  ];
   const results = [];
   for (const vp of viewports) {
     for (let seats = 2; seats <= 6; seats++) {
       results.push(await checkViewport(browser, url, vp, seats));
     }
   }
+  const scrollResults = [];
+  for (const vp of scrollViewports) {
+    scrollResults.push(await checkScrollScreens(browser, url, vp));
+  }
 
   await browser.close();
   server.close();
 
   const failed = results.filter((r) => r.issues.length || r.errors.length);
+  const scrollFailed = scrollResults.filter((r) => r.issues.length || r.errors.length);
   const summary = {
-    ok: failed.length === 0,
+    ok: failed.length === 0 && scrollFailed.length === 0,
     checked: results.length,
     failed: failed.length,
+    scrollChecked: scrollResults.length,
+    scrollFailed: scrollFailed.length,
     results,
+    scrollResults,
   };
   writeFileSync(join(ART, 'poker-layout-overlap.json'), JSON.stringify(summary, null, 2));
   console.log(JSON.stringify(summary, null, 2));
