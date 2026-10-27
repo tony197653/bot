@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#10261d">
+<meta name="theme-color" content="#13231a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="週五牌局">
@@ -16,18 +16,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/game.css">
-<style>
-.mini-hole{display:none}
-.top-tools .mute{gap:4px}
-#btnTimerCfg,#btnLobby{font-size:13px}
-@media (min-width:1024px){
-  .mini-hole{display:flex;gap:2px;margin-top:4px;justify-content:center}
-  .mini-hole .card{width:28px;height:40px;border-radius:4px}
-  .mini-hole .rk{font-size:11px;left:3px;top:2px}
-  .mini-hole .sm{display:none}
-  .mini-hole .big{width:14px;height:14px;right:3px;bottom:3px}
-}
-</style>
 </head>
 <body>
 <div class="boot" id="boot" aria-live="polite">
@@ -43,30 +31,32 @@
   <header class="top">
     <div class="room">
       <h1 id="roomTitle">週五牌局</h1>
-      <p id="roomMeta">無限注 <b>盲注 10／20</b>　第 0 手</p>
+      <p id="roomMeta"><span class="meta-a"><b>盲注 10／20</b></span><span class="meta-b">　第 0 手</span></p>
     </div>
-    <div class="top-tools">
-      <button class="mute hidden" type="button" id="btnFullscreen" aria-pressed="false" title="全螢幕">全螢幕</button>
-      <button class="mute" type="button" id="btnTimerCfg" title="測試時可關閉計時">計時關</button>
-      <button class="mute" type="button" id="btnLobby">大廳</button>
-      <button class="mute" type="button" id="btnMute" aria-pressed="false" aria-label="音效（里程碑 5）">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        <span>音效</span>
-      </button>
+    <button type="button" class="menu-btn" id="btnMenu" aria-label="選單" aria-expanded="false" aria-controls="menuPop">
+      <i></i><i></i><i></i>
+    </button>
+    <div class="menu-pop hidden" id="menuPop" role="menu">
+      <div class="menu-meta" id="menuMeta">第 0 手 · 房號 —</div>
+      <div class="menu-meta" id="menuHost">房主 —</div>
+      <button type="button" id="btnTimerCfg" role="menuitem">計時關</button>
+      <button type="button" class="hidden" id="btnFullscreen" role="menuitem">全螢幕</button>
+      <button type="button" id="btnMute" role="menuitem" aria-pressed="false">音效</button>
+      <button type="button" id="btnLobby" role="menuitem">大廳</button>
+      <button type="button" id="btnEndMenu" role="menuitem">結束牌局</button>
     </div>
   </header>
 
   <main class="stage" aria-label="牌桌">
     <div class="table">
-      <div class="felt"><span class="logo">德州撲克</span></div>
-      <div class="pot">
-        <div class="lbl">底池</div>
+      <div class="rail"><div class="felt"><span class="logo">德州撲克</span></div></div>
+      <div class="pot" id="potRoot">
+        <div class="stack" aria-hidden="true"><span class="chip"></span><span class="chip"></span></div>
         <div class="amt" id="potAmt">0</div>
+        <div class="lbl">底池</div>
         <div class="sub" id="potSub"></div>
       </div>
-      <div class="board" id="board" aria-label="公共牌">
-        <span class="slot"></span><span class="slot"></span><span class="slot"></span><span class="slot"></span><span class="slot"></span>
-      </div>
+      <div class="board" id="board" aria-label="公共牌"></div>
       <div id="bets"></div>
       <div id="seats"></div>
       <div class="dealer" id="dealer" title="莊家">D</div>
@@ -75,11 +65,12 @@
     <div class="me" id="meRoot">
       <div class="hole" id="heroHole" aria-label="你的手牌"></div>
       <div class="meinfo" id="mePlate">
-        <div class="timer" aria-label="剩餘秒數">
-          <svg viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="20"/><circle class="fg" id="timerFg" cx="23" cy="23" r="20" style="stroke-dasharray:125.66;stroke-dashoffset:0"/></svg>
-          <span id="timerSec">—</span>
+        <div class="av" id="heroAv">—</div>
+        <div>
+          <b id="heroName">—</b>
+          <strong id="heroChips">0</strong>
         </div>
-        <div><b id="heroName">—</b><strong id="heroChips">0</strong></div>
+        <!-- Action timer lives in ☰; no ring on the nameplate (avoids stray ⊖ on the border) -->
       </div>
     </div>
   </main>
@@ -91,18 +82,30 @@
 
   <section class="act" id="act" aria-label="你的動作">
     <div class="turn"><b id="turnTitle">準備中</b><span id="turnHint"></span></div>
-    <div class="raise hidden" id="raiseWrap">
-      <button type="button" class="raise-step" id="raiseMinus" aria-label="減少一大盲">－</button>
-      <div class="raise-track">
-        <input type="range" id="raiseRange" min="0" max="0" value="0" aria-label="加注金額">
-      </div>
-      <button type="button" class="raise-step" id="raisePlus" aria-label="增加一大盲">＋</button>
-      <output id="raiseOut" class="raise-out" for="raiseRange">0</output>
-    </div>
-    <div class="presets hidden" id="presets"></div>
+    <div class="show-cd hidden" id="showCd"></div>
     <div class="show-btns hidden" id="showBtns"></div>
     <div class="btns" id="btns"></div>
   </section>
+</div>
+
+<div class="raise-scrim" id="raiseScrim" hidden></div>
+<div class="raise-panel" id="raisePanel" hidden aria-label="加注">
+  <div class="ph">
+    <b>加注到 <span class="big" id="raiseOut">0</span></b>
+    <span id="raiseHint">—</span>
+  </div>
+  <div class="raise" id="raiseWrap">
+    <button type="button" class="raise-step" id="raiseMinus" aria-label="減少一大盲">−</button>
+    <div class="raise-track">
+      <input type="range" id="raiseRange" min="0" max="0" value="0" aria-label="加注金額">
+    </div>
+    <button type="button" class="raise-step" id="raisePlus" aria-label="增加一大盲">＋</button>
+  </div>
+  <div class="presets" id="presets"></div>
+  <div class="raise-actions">
+    <button type="button" class="cancel" id="raiseCancel">取消</button>
+    <button type="button" class="ok" id="raiseConfirm">確認加注</button>
+  </div>
 </div>
 
 <div class="screen" id="lobbyScreen" role="dialog" aria-labelledby="lobbyTitle">

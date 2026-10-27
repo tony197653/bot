@@ -180,7 +180,12 @@ describe('蓋牌獲勝中央文案', () => {
       if (live <= 1) break;
       s = applyAction(s, { type: 'FOLD', seat: actor }, { now: 1e6 + guard });
     }
-    assert.equal(s.phase, PHASE.HAND_OVER);
+    // Fold-win enters reveal (SHOWDOWN) so everyone may 亮牌／不亮
+    assert.ok(
+      s.phase === PHASE.SHOWDOWN || s.phase === PHASE.HAND_OVER,
+      'phase=' + s.phase,
+    );
+    assert.ok(s.showdown?.foldWin || s.lastHandSummary?.foldWin);
     const note = foldWinCenterNote(s);
     assert.ok(note);
     assert.match(note, /贏得/);

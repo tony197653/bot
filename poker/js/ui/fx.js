@@ -301,22 +301,22 @@ export async function playWinnerFx({ state, viewerSeat, holdMs = 2000 }) {
     const toWin = centerOf(winAnchor, table);
     for (const bet of leftoverBets) {
       const start = centerOf(bet, table);
+      const html = bet.innerHTML;
+      bet.remove();
+      if (prefersReducedMotion()) continue;
       const fly = document.createElement('div');
       fly.className = 'fx-chip-fly';
-      fly.innerHTML = bet.innerHTML;
+      fly.innerHTML = html;
       layer.appendChild(fly);
-      if (!prefersReducedMotion()) {
-        animateEl(
-          fly,
-          [
-            { transform: `translate(${start.x}px, ${start.y}px) translate(-50%,-50%)`, opacity: 1 },
-            { transform: `translate(${toWin.x}px, ${toWin.y}px) translate(-50%,-50%) scale(.7)`, opacity: 0.2 },
-          ],
-          { duration: 420, easing: 'cubic-bezier(.18,.75,.22,1)', fill: 'forwards' },
-          signal,
-        ).catch(() => {});
-      }
-      bet.remove();
+      animateEl(
+        fly,
+        [
+          { transform: `translate(${start.x}px, ${start.y}px) translate(-50%,-50%)`, opacity: 1 },
+          { transform: `translate(${toWin.x}px, ${toWin.y}px) translate(-50%,-50%) scale(.7)`, opacity: 0.2 },
+        ],
+        { duration: 420, easing: 'cubic-bezier(.18,.75,.22,1)', fill: 'forwards' },
+        signal,
+      ).catch(() => {});
     }
   }
 
@@ -348,22 +348,22 @@ export async function playWinnerFx({ state, viewerSeat, holdMs = 2000 }) {
       );
     }
 
+    // Under reduced motion, skip fly chips — unpositioned nodes sit at table (0,0) as stray top-left chips
+    if (prefersReducedMotion()) continue;
     const chip = document.createElement('div');
     chip.className = 'fx-chip-fly';
     chip.innerHTML = `<span class="chips"><i class="a"></i><i class="b"></i><i class="c"></i></span><span class="amt">${fmtChips(amt)}</span>`;
     layer.appendChild(chip);
     const to = centerOf(anchor, table);
-    if (!prefersReducedMotion()) {
-      animateEl(
-        chip,
-        [
-          { transform: `translate(${from.x}px, ${from.y}px) translate(-50%,-50%) scale(.7)`, opacity: 0.3 },
-          { transform: `translate(${to.x}px, ${to.y}px) translate(-50%,-50%) scale(1)`, opacity: 1 },
-        ],
-        { duration: 520, easing: 'cubic-bezier(.18,.75,.22,1)', fill: 'forwards' },
-        signal,
-      ).catch(() => {});
-    }
+    animateEl(
+      chip,
+      [
+        { transform: `translate(${from.x}px, ${from.y}px) translate(-50%,-50%) scale(.7)`, opacity: 0.3 },
+        { transform: `translate(${to.x}px, ${to.y}px) translate(-50%,-50%) scale(1)`, opacity: 1 },
+      ],
+      { duration: 520, easing: 'cubic-bezier(.18,.75,.22,1)', fill: 'forwards' },
+      signal,
+    ).catch(() => {});
   }
 
   try {

@@ -1,8 +1,6 @@
 /**
- * Automated layout checks: board slot gaps, no bet/plate/board overlaps,
- * header not truncated — for seat counts 2–6 at 390×844 and 1280×800.
- * Also: non-table screens (lobby / pass / summary) must vertical-scroll and
- * keep primary CTAs reachable at phone + Safari-toolbar heights.
+ * Layout overlap + showdown reveal sizing for mockup A table UI.
+ * Seat counts 2–6 × phone-se / phone / phone-plus / desktop viewports.
  */
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
@@ -26,6 +24,19 @@ const MIME = {
   '.json': 'application/json',
 };
 
+const TABLE_VIEWPORTS = [
+  { name: 'phone-se', w: 375, h: 667 },
+  { name: 'phone', w: 390, h: 844 },
+  { name: 'phone-plus', w: 430, h: 932 },
+  { name: 'desktop', w: 1440, h: 900 },
+];
+
+const PHONE_SCROLL_VIEWPORTS = [
+  { name: 'phone-se', w: 375, h: 667 },
+  { name: 'phone', w: 390, h: 844 },
+  { name: 'phone-plus', w: 430, h: 932 },
+];
+
 function startServer() {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
@@ -46,10 +57,756 @@ function startServer() {
   });
 }
 
-function overlap(a, b, pad = 0) {
-  const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-  const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-  return ox > pad && oy > pad ? { ox, oy } : null;
+async function waitFrames(page, n = 3) {
+  await page.evaluate(
+    (count) =>
+      new Promise((r) => {
+        let i = 0;
+        const step = () => {
+          i += 1;
+          if (i >= count) r();
+          else requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      }),
+    n,
+  );
+}
+
+async function configureLobby(page, seatCount) {
+  const rows = page.locator('#playerRows .p-row');
+  const nRows = await rows.count();
+  for (let i = 0; i < nRows; i++) {
+    const row = rows.nth(i);
+    const input = row.locator('input');
+    const disabled = await input.isDisabled();
+    const wantOn = i < seatCount;
+    if (wantOn === disabled) await row.locator('button[data-toggle]').click();
+  }
+  await page.locator('#timerToggle').uncheck().catch(() => {});
+}
+
+async function startTable(page) {
+  await page.click('#btnStart');
+  await page.waitForSelector('#passScreen.is-on', { timeout: 10000 });
+  await page.click('#btnPassOk');
+  await page.waitForTimeout(180);
+  await waitFrames(page, 3);
+  await page.waitForTimeout(200);
+}
+
+/**
+ * In-page layout audit (serialized as plain function body).
+ * @param {number} seatCount
+ * @param {{ raisePanelOpen?: boolean }} opts
+ */
+function auditTableLayoutInPage({ seatCount, opts = {} }) {
+  const issues = [];
+  const box = (el) => {
+    const r = el.getBoundingClientRect();
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: r.width, h: r.height };
+  };
+  const overlaps = (a, b, pad = 0) => {
+    const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    return ox > pad && oy > pad;
+  };
+  const edgeGap = (a, b) => {
+    const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    if (ox > 0 && oy > 0) return -Math.min(ox, oy);
+    if (ox > 0) return Math.max(a.top - b.bottom, b.top - a.bottom);
+    if (oy > 0) return Math.max(a.left - b.right, b.left - a.right);
+    return 99;
+  };
+
+  const plates = [...document.querySelectorAll('.seat .plate, .seat .plateA, .meinfo')];
+  const backs = [...document.querySelectorAll('.backs')];
+  const bets = [...document.querySelectorAll('#bets .bet')];
+  const dealerEl = document.getElementById('dealer');
+  const potEl = document.querySelector('.pot');
+  const boardCards = [...document.querySelectorAll('#board .card')];
+  const heroCards = [...document.querySelectorAll('#heroHole .card')];
+  const actEl = document.getElementById('act');
+  const revealCards = [...document.querySelectorAll('.reveal-hole .card')];
+
+  const targets = [];
+  const tag = (name, el) => {
+    if (!el || getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden') {
+      return;
+    }
+    const b = box(el);
+    if (b.w < 0.5 && b.h < 0.5) return;
+    targets.push({ name, el, b });
+  };
+  plates.forEach((el, i) => tag(`plate[${i}]`, el));
+  backs.forEach((el, i) => tag(`backs[${i}]`, el));
+  bets.forEach((el, i) => tag(`bet[${i}]`, el));
+  if (dealerEl) tag('dealer', dealerEl);
+  if (potEl) tag('pot', potEl);
+  boardCards.forEach((el, i) => tag(`board[${i}]`, el));
+  heroCards.forEach((el, i) => tag(`heroHole[${i}]`, el));
+  if (actEl) tag('act', actEl);
+  revealCards.forEach((el, i) => tag(`reveal[${i}]`, el));
+
+  const seatOf = (t) => {
+    const el = t.el;
+    const seatEl = el.closest?.('.seat[data-seat]');
+    if (seatEl) return seatEl.dataset.seat;
+    if (el.closest?.('#meRoot, .meinfo, #heroHole')) return 'hero';
+    return null;
+  };
+  const kind = (name) => name.replace(/\[\d+\]/, '');
+  for (let i = 0; i < targets.length; i++) {
+    for (let j = i + 1; j < targets.length; j++) {
+      const a = targets[i];
+      const b = targets[j];
+      const ka = kind(a.name);
+      const kb = kind(b.name);
+      // Mockup A: card backs tuck into the nameplate; hole/reveal pairs fan-overlap
+      if (
+        (ka === 'plate' && kb === 'backs') ||
+        (ka === 'backs' && kb === 'plate')
+      ) {
+        if (seatOf(a) != null && seatOf(a) === seatOf(b)) continue;
+      }
+      if (ka === 'heroHole' && kb === 'heroHole') continue;
+      if (ka === 'reveal' && kb === 'reveal' && seatOf(a) === seatOf(b)) continue;
+      // Hero hole cards may tuck slightly into own nameplate (mockup A)
+      if (
+        ({plate:1,heroHole:1}[ka] && {plate:1,heroHole:1}[kb]) &&
+        seatOf(a) != null &&
+        seatOf(a) === seatOf(b)
+      ) {
+        continue;
+      }
+      // Revealed cards must NOT cover the owner's nameplate
+      if ((ka === 'plate' && kb === 'reveal') || (ka === 'reveal' && kb === 'plate')) {
+        if (seatOf(a) != null && seatOf(a) === seatOf(b) && overlaps(a.b, b.b)) {
+          issues.push(`${a.name} overlaps ${b.name} (reveal must sit above nameplate)`);
+          continue;
+        }
+      }
+      // D must stay clear of EVERY nameplate (including the button's own) — no skip
+      if ((ka === 'dealer' && kb === 'plate') || (ka === 'plate' && kb === 'dealer')) {
+        const g = edgeGap(a.b, b.b);
+        if (g < 10) {
+          issues.push(`dealer vs ${ka === 'plate' ? a.name : b.name} gap ${g.toFixed(1)}px (want ≥10)`);
+        }
+        continue;
+      }
+      if (overlaps(a.b, b.b)) {
+        issues.push(`${a.name} overlaps ${b.name}`);
+      }
+    }
+  }
+
+  // Bet → own seat chrome (plate + backs) gap 6–14px; nearest plate must be the owner
+  for (const bet of bets) {
+    const seatId = bet.dataset.forSeat;
+    const isHero = bet.dataset.hero === '1';
+    const seatEl = isHero
+      ? document.querySelector('#meRoot')
+      : seatId != null
+        ? document.querySelector(`.seat[data-seat="${seatId}"]`)
+        : null;
+    if (!seatEl) {
+      issues.push(`bet missing own seat (seat=${seatId || 'hero'})`);
+      continue;
+    }
+    const plateEl = seatEl.querySelector('.plate, .plateA, .meinfo') || seatEl;
+    const ownPlate = box(plateEl);
+    // Chrome = plate + backs (not reveal-hole). Hero bets sit above hole cards (mockup A).
+    let L = ownPlate.left,
+      T = ownPlate.top,
+      R = ownPlate.right,
+      B = ownPlate.bottom;
+    seatEl.querySelectorAll('.backs').forEach((c) => {
+      const q = c.getBoundingClientRect();
+      if (q.width && q.height) {
+        L = Math.min(L, q.left);
+        T = Math.min(T, q.top);
+        R = Math.max(R, q.right);
+        B = Math.max(B, q.bottom);
+      }
+    });
+    const holeEl = isHero ? document.querySelector('#heroHole') : null;
+    const holeBox =
+      holeEl && holeEl.children.length
+        ? (() => {
+            const r = holeEl.getBoundingClientRect();
+            return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+          })()
+        : null;
+    const betBox = box(bet);
+    // Off-screen unplaced bets
+    if (betBox.left < -500 || betBox.top < -500) {
+      issues.push(`bet seat ${seatId ?? 'hero'} unplaced (off-screen)`);
+      continue;
+    }
+    const target = holeBox || { left: L, top: T, right: R, bottom: B };
+    const g = edgeGap(betBox, target);
+    const gap = Math.round(g * 10) / 10;
+    const hi = isHero ? 20 : 14;
+    if (gap < 6 || gap > hi) {
+      issues.push(
+        `bet seat ${seatId ?? 'hero'} ${holeBox ? 'hole' : 'plate'} gap ${gap}px (want 6–${hi})`,
+      );
+    }
+    // Nearest nameplate must be the owner's (non-hero). Hero bets sit above hole cards
+    // toward felt centre, so they can be nearer an opponent plate than meinfo.
+    if (!isHero) {
+      const rectDist = (a, b) => {
+        const dx = Math.max(a.left - b.right, b.left - a.right, 0);
+        const dy = Math.max(a.top - b.bottom, b.top - a.bottom, 0);
+        return Math.hypot(dx, dy);
+      };
+      let nearest = { seat: null, dist: Infinity };
+      for (const pl of plates) {
+        const pd = rectDist(betBox, box(pl));
+        const sid =
+          pl.closest?.('.seat[data-seat]')?.dataset?.seat ??
+          (pl.classList?.contains('meinfo') || pl.closest?.('#meRoot') ? 'hero' : null);
+        if (pd < nearest.dist) nearest = { seat: sid, dist: pd };
+      }
+      const ownerKey = String(seatId);
+      if (nearest.seat != null && nearest.seat !== ownerKey) {
+        issues.push(
+          `bet seat ${ownerKey} nearest plate is seat ${nearest.seat} (dist ${nearest.dist.toFixed(1)}), not owner`,
+        );
+      }
+    }
+  }
+
+  // No empty-seat placeholders
+  const emptySeats = document.querySelectorAll('.seat.is-empty');
+  if (emptySeats.length > 0) issues.push(`.seat.is-empty count ${emptySeats.length} (want 0)`);
+  const oppSeats = document.querySelectorAll('.seat[data-seat]');
+  if (oppSeats.length !== seatCount - 1) {
+    issues.push(`opponent seats ${oppSeats.length} != ${seatCount - 1}`);
+  }
+  for (const el of emptySeats) {
+    if ((el.textContent || '').includes('空位')) issues.push('empty seat still shows 空位');
+  }
+
+  // No 莊家 / 房主 on nameplates
+  for (const el of document.querySelectorAll('.seat .plate .nm, .seat .plateA .nm, #heroName')) {
+    const t = el.textContent || '';
+    if (t.includes('莊家')) issues.push(`nameplate has 莊家: "${t.trim()}"`);
+    if (t.includes('房主')) issues.push(`nameplate has 房主: "${t.trim()}"`);
+  }
+
+  // Dealer placement — ≥10px clear of EVERY nameplate (incl. own) + backs / bets / pot / cards
+  const st = window.__poker?.getState?.();
+  const viewer = window.__poker?.getViewer?.();
+  const buttonSeat = st?.button;
+  if (dealerEl && getComputedStyle(dealerEl).display !== 'none' && buttonSeat != null) {
+    const dBox = box(dealerEl);
+    const dC = { x: (dBox.left + dBox.right) / 2, y: (dBox.top + dBox.bottom) / 2 };
+    const distToPlate = (p) => {
+      const dx = Math.max(p.left - dC.x, 0, dC.x - p.right);
+      const dy = Math.max(p.top - dC.y, 0, dC.y - p.bottom);
+      return Math.hypot(dx, dy);
+    };
+    const dealerPlateEl =
+      buttonSeat === viewer
+        ? document.querySelector('.meinfo')
+        : document.querySelector(
+            `.seat[data-seat="${buttonSeat}"] .plate, .seat[data-seat="${buttonSeat}"] .plateA`,
+          );
+    if (!dealerPlateEl) {
+      issues.push('missing dealer nameplate for button seat');
+    } else {
+      const ownGap = edgeGap(dBox, box(dealerPlateEl));
+      if (ownGap < 10) {
+        issues.push(`dealer overlaps/too close to OWN nameplate (gap=${ownGap.toFixed(1)}, want ≥10)`);
+      }
+      // Also clear of stack/name text box inside the plate
+      const textEl =
+        dealerPlateEl.querySelector?.('.nm, .ch, .st, b, strong') || dealerPlateEl;
+      const textGap = edgeGap(dBox, box(textEl));
+      if (textGap < 10) {
+        issues.push(`dealer too close to nameplate text (gap=${textGap.toFixed(1)}, want ≥10)`);
+      }
+      const ownDist = distToPlate(box(dealerPlateEl));
+      plates.forEach((el, j) => {
+        if (el === dealerPlateEl) return;
+        const od = distToPlate(box(el));
+        if (od <= ownDist + 1) {
+          issues.push(
+            `dealer nearer to plate[${j}] (${od.toFixed(1)}) than button plate (${ownDist.toFixed(1)})`,
+          );
+        }
+        const g = edgeGap(dBox, box(el));
+        if (g < 10) {
+          issues.push(`dealer too close to plate[${j}] (gap=${g.toFixed(1)}, want ≥10)`);
+        }
+      });
+      if (ownDist > 48) issues.push(`dealer too far from button plate (edgeDist=${ownDist.toFixed(1)})`);
+    }
+    for (const bk of backs) {
+      const g = edgeGap(dBox, box(bk));
+      if (g < 10) issues.push(`dealer too close to card backs (gap=${g.toFixed(1)})`);
+    }
+    const minObstacleGap = 10;
+    for (const bet of bets) {
+      const bb = box(bet);
+      if (bb.left < -500) continue;
+      const g = edgeGap(dBox, bb);
+      if (g < minObstacleGap) issues.push(`dealer too close to bet (gap=${g.toFixed(1)})`);
+    }
+    if (potEl) {
+      const g = edgeGap(dBox, box(potEl));
+      if (g < minObstacleGap) issues.push(`dealer too close to pot (gap=${g.toFixed(1)})`);
+    }
+    for (const c of boardCards) {
+      if (edgeGap(dBox, box(c)) < minObstacleGap) issues.push('dealer too close to board card');
+    }
+    for (const c of heroCards) {
+      if (overlaps(dBox, box(c)) || edgeGap(dBox, box(c)) < 10) {
+        issues.push('dealer too close to hero hole card');
+      }
+    }
+    for (const c of revealCards) {
+      if (overlaps(dBox, box(c)) || edgeGap(dBox, box(c)) < 10) {
+        issues.push('dealer too close to revealed card');
+      }
+    }
+  }
+
+  if (opts.raisePanelOpen) {
+    const panel = document.getElementById('raisePanel');
+    const scrim = document.getElementById('raiseScrim');
+    if (!panel?.classList.contains('is-on')) issues.push('raisePanel not .is-on');
+    if (!scrim?.classList.contains('is-on')) issues.push('raiseScrim not .is-on');
+    const presets = document.getElementById('presets');
+    const buttons = [...(presets?.querySelectorAll('button[data-to]') || [])];
+    if (buttons.length !== 6) issues.push(`raise presets count ${buttons.length} (want 6)`);
+    if (buttons.length === 6) {
+      const tops = buttons.map((b) => b.getBoundingClientRect().top);
+      const near = (a, b) => Math.abs(a - b) <= 3;
+      const row0 = tops[0];
+      const row1 = tops[3];
+      if (!(near(tops[1], row0) && near(tops[2], row0))) issues.push('preset row1 not aligned');
+      if (!(near(tops[4], row1) && near(tops[5], row1))) issues.push('preset row2 not aligned');
+      if (!(row1 > row0 + 16)) issues.push('presets not 2 rows');
+    }
+    const stage = document.querySelector('.stage');
+    const stageBox = stage ? box(stage) : null;
+    if (panel && stageBox) {
+      const pb = box(panel);
+      const clipped =
+        pb.bottom > stageBox.bottom + 2 &&
+        pb.top < stageBox.bottom &&
+        pb.height > stageBox.height * 0.35;
+      if (clipped) issues.push('raise panel heavily clips table stage');
+    }
+    const doc = document.documentElement;
+    if (doc.scrollHeight > doc.clientHeight + 4) {
+      issues.push(`page scrolls with raise open (${doc.scrollHeight}>${doc.clientHeight})`);
+    }
+  }
+
+  return {
+    issues,
+    betCount: bets.length,
+    revealCount: revealCards.length,
+  };
+}
+
+async function auditTableLayout(page, seatCount, opts = {}) {
+  return page.evaluate(auditTableLayoutInPage, { seatCount, opts });
+}
+
+/** Fold-win showdown; force every pending seat to SHOW (hero-sized reveals). */
+async function forceAllSeatsRevealed(page) {
+  return page.evaluate(() => {
+    const api = window.__poker;
+    if (!api) return { ok: false, error: 'no __poker' };
+    const origRandom = Math.random;
+    // Bots in beginRevealUi: Math.random() < 0.5 → SHOW when 0
+    Math.random = () => 0;
+
+    const street = new Set(['preflop', 'flop', 'turn', 'river']);
+    let raised = false;
+    let steps = 0;
+    while (steps++ < 160) {
+      const st = api.getState();
+      if (st.phase === 'showdown') break;
+      if (st.phase === 'hand_over') {
+        // Auto-next may have fired — start another hand
+        try {
+          api.dispatch({ type: 'ACK_HAND' });
+          api.dispatch({ type: 'NEXT_HAND' });
+          raised = false;
+          continue;
+        } catch (e) {
+          Math.random = origRandom;
+          return { ok: false, error: 'hand_over: ' + (e.message || e) };
+        }
+      }
+      if (!street.has(st.phase) || st.actor == null) break;
+      const actor = st.actor;
+      const live = st.seats.filter((p) => p && !p.folded && !p.sittingOut);
+      if (live.length <= 1) break;
+      // Open a bet so others can fold (fold only legal when facing a bet)
+      if (!raised) {
+        try {
+          const bb = st.config.bigBlind;
+          const p = st.seats[actor];
+          const minTo = Math.max(st.minRaiseTo || bb * 2, (st.currentBet || 0) + bb);
+          const to = Math.min(minTo, p.bet + p.chips);
+          api.dispatch({ type: 'BET_RAISE', seat: actor, amount: to });
+          raised = true;
+          continue;
+        } catch (_) {
+          /* actor cannot raise — fall through */
+        }
+      }
+      try {
+        api.dispatch({ type: 'FOLD', seat: actor });
+      } catch {
+        try {
+          api.dispatch({ type: 'CHECK', seat: actor });
+        } catch {
+          try {
+            api.dispatch({ type: 'CALL', seat: actor });
+          } catch (e) {
+            Math.random = origRandom;
+            return { ok: false, error: String(e.message || e) };
+          }
+        }
+      }
+    }
+
+    let st = api.getState();
+    if (st.phase !== 'showdown') {
+      Math.random = origRandom;
+      return { ok: false, error: `stuck in ${st.phase}` };
+    }
+
+    api.cancelAutoNext?.();
+
+    // SHOW any remaining pending (viewer + anyone bots skipped)
+    const viewer = api.getViewer();
+    const pending = [...(st.showdown?.pending || [])];
+    for (const seat of pending) {
+      if (!api.getState().showdown?.pending?.includes(seat)) continue;
+      try {
+        api.dispatch({ type: 'SHOW', seat, mode: 'both' });
+      } catch (e) {
+        Math.random = origRandom;
+        return { ok: false, error: String(e.message || e) };
+      }
+    }
+    // If hand_over already, re-SHOW is N/A — but we need DOM reveals.
+    // beginRevealUi bots already SHOW'd others while Math.random=0.
+    api.setViewer(viewer);
+    // Re-render by pinning viewer
+    api.setViewer(viewer);
+
+    st = api.getState();
+    Math.random = origRandom;
+
+    // Prevent auto next from clearing holes during audit: noop if already over
+    const revealedDom = document.querySelectorAll('.reveal-hole .card').length;
+    const occ = st.seats.map((p, i) => (p ? i : null)).filter((x) => x != null);
+    return {
+      ok: true,
+      phase: st.phase,
+      occupied: occ.length,
+      pendingLeft: st.showdown?.pending?.length ?? 0,
+      revealedDom,
+      foldWin: !!(st.showdown?.foldWin || st.lastHandSummary?.foldWin),
+    };
+  });
+}
+
+function auditRevealLayoutInPage({ seatCount }) {
+  const issues = [];
+  const box = (el) => {
+    const r = el.getBoundingClientRect();
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: r.width, h: r.height };
+  };
+  const overlaps = (a, b) => {
+    const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    return ox > 0 && oy > 0;
+  };
+
+  const heroRef = document.querySelector('#heroHole .card.hero');
+  if (!heroRef) {
+    issues.push('missing #heroHole .card.hero reference');
+    return { issues };
+  }
+  const ref = box(heroRef);
+  const cs = getComputedStyle(document.documentElement);
+  const hw = parseFloat(cs.getPropertyValue('--hw')) || ref.w;
+  const hh = parseFloat(cs.getPropertyValue('--hh')) || ref.h;
+  const stage = document.querySelector('.stage');
+  const stageBox = stage ? box(stage) : null;
+
+  const revealCards = [...document.querySelectorAll('.reveal-hole .card')];
+  const expectedOpponents = seatCount - 1;
+  const seatsWithReveal = new Set(
+    [...document.querySelectorAll('.seat[data-seat] .reveal-hole')].map((el) =>
+      el.closest('.seat')?.dataset?.seat,
+    ),
+  );
+
+  if (seatsWithReveal.size < expectedOpponents) {
+    issues.push(
+      `only ${seatsWithReveal.size}/${expectedOpponents} opponent seats show reveal-hole`,
+    );
+  }
+
+  for (const seatEl of document.querySelectorAll('.seat[data-seat]')) {
+    const seat = seatEl.dataset.seat;
+    const hole = seatEl.querySelector('.reveal-hole');
+    const plate = seatEl.querySelector('.plate, .plateA');
+    if (!hole) {
+      issues.push(`reveal cards do not fit at seat ${seat} (no reveal-hole)`);
+      continue;
+    }
+    if (!seatEl.classList.contains('is-showing')) {
+      issues.push(`seat ${seat} revealed but missing .is-showing (nameplate may be dimmed)`);
+    }
+    const plateOp = plate ? parseFloat(getComputedStyle(plate).opacity) : 1;
+    if (plateOp < 0.9) {
+      issues.push(`seat ${seat} nameplate dimmed while showing (opacity=${plateOp})`);
+    }
+    const cards = [...hole.querySelectorAll('.card')];
+    if (cards.length < 2) {
+      issues.push(`reveal cards do not fit at seat ${seat} (expected 2 cards)`);
+    }
+    const holeBox = box(hole);
+    if (plate) {
+      const pb = box(plate);
+      // Reveals must sit above the nameplate (bottom of cards ≤ top of plate + 2px)
+      if (holeBox.bottom > pb.top + 2) {
+        issues.push(
+          `seat ${seat} reveal covers nameplate (reveal.bottom=${holeBox.bottom.toFixed(1)} plate.top=${pb.top.toFixed(1)})`,
+        );
+      }
+      for (const card of cards) {
+        if (overlaps(box(card), pb)) {
+          issues.push(`seat ${seat} reveal card overlaps nameplate`);
+        }
+      }
+    }
+    for (const card of cards) {
+      const b = box(card);
+      if (Math.abs(b.w - ref.w) > 1 || Math.abs(b.h - ref.h) > 1) {
+        if (Math.abs(b.w - hw) > 1 || Math.abs(b.h - hh) > 1) {
+          issues.push(
+            `seat ${seat} reveal card size ${b.w.toFixed(1)}×${b.h.toFixed(1)} != hero ${ref.w.toFixed(1)}×${ref.h.toFixed(1)}`,
+          );
+        }
+      }
+      if (stageBox) {
+        const out =
+          b.left < stageBox.left - 1 ||
+          b.top < stageBox.top - 1 ||
+          b.right > stageBox.right + 1 ||
+          b.bottom > stageBox.bottom + 1;
+        if (out) {
+          issues.push(
+            `reveal cards do not fit at seat ${seat} viewport=${window.innerWidth}x${window.innerHeight} (clipped outside stage)`,
+          );
+        }
+      }
+    }
+  }
+
+  // WIN badge must not cover hero hole cards
+  const winBadge = document.querySelector('#meRoot > .win-badge, .me .win-badge');
+  if (winBadge && heroRef) {
+    const wb = box(winBadge);
+    for (const c of document.querySelectorAll('#heroHole .card')) {
+      if (overlaps(wb, box(c))) {
+        issues.push('WIN badge overlaps hero hole cards');
+      }
+    }
+  }
+
+  // Centre fold-win note must not cover any revealed / hero cards / hero plate
+  const noteEl = document.querySelector('.table-note');
+  if (noteEl && getComputedStyle(noteEl).display !== 'none') {
+    const nb = box(noteEl);
+    for (const c of document.querySelectorAll('.reveal-hole .card, #heroHole .card')) {
+      if (overlaps(nb, box(c))) {
+        issues.push(
+          `table-note overlaps revealed/hero card (viewport=${window.innerWidth}x${window.innerHeight} seats=${seatCount})`,
+        );
+        break;
+      }
+    }
+    for (const hole of document.querySelectorAll('.reveal-hole')) {
+      if (overlaps(nb, box(hole))) {
+        issues.push(
+          `table-note overlaps reveal-hole (viewport=${window.innerWidth}x${window.innerHeight} seats=${seatCount})`,
+        );
+        break;
+      }
+    }
+    const heroPlate = document.querySelector('#mePlate, .meinfo');
+    if (heroPlate && overlaps(nb, box(heroPlate))) {
+      issues.push(
+        `table-note overlaps hero nameplate (viewport=${window.innerWidth}x${window.innerHeight} seats=${seatCount})`,
+      );
+    }
+  }
+
+  // No timer ring on the hero nameplate (idle ⊖ sat on the gold border)
+  const timerEl = document.querySelector('#mePlate .timer, .meinfo .timer');
+  if (timerEl) {
+    const cs = getComputedStyle(timerEl);
+    const visible =
+      !timerEl.hasAttribute('hidden') &&
+      cs.display !== 'none' &&
+      cs.visibility !== 'hidden' &&
+      parseFloat(cs.opacity || '1') > 0.05;
+    if (visible) issues.push('hero nameplate must not show a timer ring');
+  }
+
+  // No stray chips at table top-left (unplaced bets / FX)
+  const tableEl = document.querySelector('.table');
+  if (tableEl) {
+    const tb = box(tableEl);
+    for (const el of document.querySelectorAll('#bets .bet, .fx-chip-fly')) {
+      const b = box(el);
+      if (b.w < 1 || b.h < 1) continue;
+      if (b.left < tb.left + 8 && b.top < tb.top + 8) {
+        issues.push('stray chip near table top-left');
+      }
+    }
+  }
+
+  const targets = [];
+  const pushTarget = (name, el) => {
+    if (!el) return;
+    targets.push({ name, b: box(el) });
+  };
+  [...document.querySelectorAll('.seat .plate, .seat .plateA, .meinfo')].forEach((el, i) =>
+    pushTarget(`plate[${i}]`, el),
+  );
+  [...document.querySelectorAll('.backs')].forEach((el, i) => pushTarget(`backs[${i}]`, el));
+  [...document.querySelectorAll('#bets .bet')].forEach((el, i) => pushTarget(`bet[${i}]`, el));
+  pushTarget('dealer', document.getElementById('dealer'));
+  pushTarget('pot', document.querySelector('.pot'));
+  [...document.querySelectorAll('#board .card')].forEach((el, i) => pushTarget(`board[${i}]`, el));
+  [...document.querySelectorAll('#heroHole .card')].forEach((el, i) => pushTarget(`hero[${i}]`, el));
+  pushTarget('act', document.getElementById('act'));
+  revealCards.forEach((el, i) => pushTarget(`reveal[${i}]`, el));
+
+  const seatOfEl = (el) => {
+    const seatEl = el?.closest?.('.seat[data-seat]');
+    if (seatEl) return seatEl.dataset.seat;
+    if (el?.closest?.('#meRoot, .meinfo, #heroHole')) return 'hero';
+    return null;
+  };
+  const kind = (name) => name.replace(/\[\d+\]/, '');
+  // Rebuild with elements for seat checks
+  const tagged = [];
+  const add = (name, el) => {
+    if (!el || getComputedStyle(el).display === 'none') return;
+    tagged.push({ name, el, b: box(el) });
+  };
+  [...document.querySelectorAll('.seat .plate, .seat .plateA, .meinfo')].forEach((el, i) => add(`plate[${i}]`, el));
+  [...document.querySelectorAll('.backs')].forEach((el, i) => add(`backs[${i}]`, el));
+  [...document.querySelectorAll('#bets .bet')].forEach((el, i) => add(`bet[${i}]`, el));
+  add('dealer', document.getElementById('dealer'));
+  add('pot', document.querySelector('.pot'));
+  [...document.querySelectorAll('#board .card')].forEach((el, i) => add(`board[${i}]`, el));
+  [...document.querySelectorAll('#heroHole .card')].forEach((el, i) => add(`hero[${i}]`, el));
+  add('act', document.getElementById('act'));
+  add('note', document.querySelector('.table-note'));
+  revealCards.forEach((el, i) => add(`reveal[${i}]`, el));
+
+  for (let i = 0; i < tagged.length; i++) {
+    for (let j = i + 1; j < tagged.length; j++) {
+      const a = tagged[i];
+      const b = tagged[j];
+      const ka = kind(a.name);
+      const kb = kind(b.name);
+      if ((ka === 'plate' && kb === 'backs') || (ka === 'backs' && kb === 'plate')) {
+        if (seatOfEl(a.el) != null && seatOfEl(a.el) === seatOfEl(b.el)) continue;
+      }
+      if (ka === 'hero' && kb === 'hero') continue;
+      if (ka === 'reveal' && kb === 'reveal' && seatOfEl(a.el) === seatOfEl(b.el)) continue;
+      // Note must never overlap reveals / hero cards / board (plates OK if note is in the bar)
+      if (
+        (ka === 'note' || kb === 'note') &&
+        ({ reveal: 1, hero: 1, board: 1 }[ka] || { reveal: 1, hero: 1, board: 1 }[kb])
+      ) {
+        if (overlaps(a.b, b.b)) {
+          issues.push(`showdown: ${a.name} overlaps ${b.name}`);
+        }
+        continue;
+      }
+      if ((ka === 'note' && kb === 'act') || (ka === 'act' && kb === 'note')) {
+        // Fixed bar note sits just above #act; AABB may touch the bar chrome
+        continue;
+      }
+      // Hero hole may tuck into own plate; reveals must NOT cover plates
+      if (
+        ({ plate: 1, hero: 1 }[ka] && { plate: 1, hero: 1 }[kb]) &&
+        seatOfEl(a.el) != null &&
+        seatOfEl(a.el) === seatOfEl(b.el)
+      ) {
+        continue;
+      }
+      if ((ka === 'dealer' && kb === 'plate') || (ka === 'plate' && kb === 'dealer')) {
+        const ox = Math.min(a.b.right, b.b.right) - Math.max(a.b.left, b.b.left);
+        const oy = Math.min(a.b.bottom, b.b.bottom) - Math.max(a.b.top, b.b.top);
+        let gap;
+        if (ox > 0 && oy > 0) gap = -Math.min(ox, oy);
+        else if (ox > 0) gap = Math.max(a.b.top - b.b.bottom, b.b.top - a.b.bottom);
+        else if (oy > 0) gap = Math.max(a.b.left - b.b.right, b.b.left - a.b.right);
+        else gap = 99;
+        if (gap < 10) {
+          issues.push(`showdown: dealer vs plate gap ${gap.toFixed(1)} (want ≥10)`);
+        }
+        continue;
+      }
+      if (overlaps(a.b, b.b)) {
+        issues.push(`showdown: ${a.name} overlaps ${b.name}`);
+      }
+    }
+  }
+
+  return { issues, revealCards: revealCards.length };
+}
+
+async function ensureHeroCanRaise(page) {
+  for (let i = 0; i < 40; i++) {
+    const can = await page.evaluate(() => {
+      const v = window.__poker?.view?.(window.__poker.getState(), window.__poker.getViewer());
+      return !!document.querySelector('#btnRaiseOpen:not([disabled])') && v?.legal?.canAct;
+    });
+    if (can) return true;
+    const phase = await page.evaluate(() => window.__poker?.getState?.()?.phase);
+    if (phase === 'hand_over' || phase === 'showdown') return false;
+    const actor = await page.evaluate(() => window.__poker?.getState?.()?.actor);
+    if (actor != null) {
+      await page.evaluate((a) => {
+        window.__poker.setViewer(a);
+        const st = window.__poker.getState();
+        if (st.actor !== a) return;
+        try {
+          window.__poker.dispatch({ type: 'FOLD', seat: a });
+        } catch {
+          try {
+            window.__poker.dispatch({ type: 'CHECK', seat: a });
+          } catch {
+            window.__poker.dispatch({ type: 'CALL', seat: a });
+          }
+        }
+      }, actor);
+    }
+    await page.waitForTimeout(60);
+  }
+  return false;
 }
 
 async function checkViewport(browser, url, vp, seatCount) {
@@ -60,685 +817,98 @@ async function checkViewport(browser, url, vp, seatCount) {
 
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
+  await configureLobby(page, seatCount);
+  await startTable(page);
 
-  // Configure N players via lobby toggles (first 6 rows; enable first seatCount)
-  const rows = page.locator('#playerRows .p-row');
-  const nRows = await rows.count();
-  for (let i = 0; i < nRows; i++) {
-    const row = rows.nth(i);
-    const input = row.locator('input');
-    const disabled = await input.isDisabled();
-    const wantOn = i < seatCount;
-    if (wantOn === disabled) {
-      // currently off but want on, or on but want off
-      await row.locator('button[data-toggle]').click();
-    }
-  }
-
-  await page.locator('#timerToggle').uncheck().catch(() => {});
-  await page.click('#btnStart');
-  await page.waitForSelector('#passScreen.is-on', { timeout: 10000 });
-  await page.click('#btnPassOk');
-  await page.waitForTimeout(200);
-  // Allow bet + dealer layout rAF + nudge passes
-  await page.evaluate(
-    () =>
-      new Promise((r) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))),
-      ),
-  );
-  await page.waitForTimeout(220);
-
-  const report = await page.evaluate((seatCount) => {
-    const issues = [];
-    const board = document.getElementById('board');
-    const kids = [...board.children].map((el) => {
-      const r = el.getBoundingClientRect();
-      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: r.width };
-    });
-    for (let i = 0; i < kids.length; i++) {
-      if (kids[i].w < 30) issues.push(`board child ${i} too narrow (${kids[i].w})`);
-    }
-    for (let i = 0; i < kids.length - 1; i++) {
-      const gap = kids[i + 1].left - kids[i].right;
-      if (gap < 6) issues.push(`board gap ${i}/${i + 1} = ${gap.toFixed(1)}px (<6)`);
-      const oy = Math.min(kids[i].bottom, kids[i + 1].bottom) - Math.max(kids[i].top, kids[i + 1].top);
-      const ox = Math.min(kids[i].right, kids[i + 1].right) - Math.max(kids[i].left, kids[i + 1].left);
-      if (ox > 0 && oy > 0) issues.push(`board slots ${i}/${i + 1} overlap ox=${ox.toFixed(1)}`);
-    }
-
-    const box = (el) => {
-      const r = el.getBoundingClientRect();
-      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
-    };
-    const near = (a, b, pad) => {
-      const ox =
-        Math.min(a.right + pad, b.right + pad) - Math.max(a.left - pad, b.left - pad);
-      const oy =
-        Math.min(a.bottom + pad, b.bottom + pad) - Math.max(a.top - pad, b.top - pad);
-      return ox > 0 && oy > 0;
-    };
-    const overlaps = (a, b) => near(a, b, 0);
-
-    const bets = [...document.querySelectorAll('#bets .bet')].map(box);
-    const plates = [...document.querySelectorAll('.seat .plate, .meinfo')].map(box);
-    const boardBox = box(board);
-    const potEl = document.querySelector('.pot');
-    const potBox = potEl ? box(potEl) : null;
-    const noteEl = document.querySelector('.table-note');
-    const noteBox = noteEl ? box(noteEl) : null;
-
-    // Short Safari toolbars: require clear overlap (pad 0); taller phones keep 3px buffer
-    const betPlatePad = window.innerHeight < 700 ? 0 : 3;
-    bets.forEach((b, i) => {
-      plates.forEach((p, j) => {
-        if (overlaps(b, p) || (betPlatePad > 0 && near(b, p, betPlatePad))) {
-          issues.push(`bet[${i}] overlaps/covers plate[${j}]`);
-        }
-      });
-      if (overlaps(b, boardBox)) issues.push(`bet[${i}] overlaps board`);
-      if (potBox && (overlaps(b, potBox) || near(b, potBox, 2))) {
-        issues.push(`bet[${i}] overlaps pot`);
-      }
-      if (noteBox && overlaps(b, noteBox)) {
-        issues.push(`bet[${i}] overlaps center note`);
-      }
-    });
-    const betBetPad = window.innerHeight < 700 ? 0 : 2;
-    for (let i = 0; i < bets.length; i++) {
-      for (let j = i + 1; j < bets.length; j++) {
-        if (overlaps(bets[i], bets[j]) || (betBetPad > 0 && near(bets[i], bets[j], betBetPad))) {
-          issues.push(`bet[${i}] overlaps bet[${j}]`);
-        }
-      }
-    }
-
-    // Dealer button must be fully visible and clear of plates / bets / pot / note / cards
-    const dealerEl = document.getElementById('dealer');
-    const st0 = window.__poker?.getState?.();
-    const viewer0 = window.__poker?.getViewer?.();
-    const buttonSeat = st0?.button;
-    const dealerPlateEl =
-      buttonSeat == null
-        ? null
-        : buttonSeat === viewer0
-          ? document.querySelector('.meinfo')
-          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate`);
-    if (dealerEl && getComputedStyle(dealerEl).display !== 'none') {
-      const dBox = box(dealerEl);
-      const tableBox = box(document.querySelector('.table'));
-      const stageEl = document.querySelector('.stage');
-      const stageBox = stageEl ? box(stageEl) : tableBox;
-      // Prefer inside .table; hero-dealer may sit beside meinfo just below the felt
-      const inTable =
-        dBox.left >= tableBox.left - 1 &&
-        dBox.top >= tableBox.top - 1 &&
-        dBox.right <= tableBox.right + 1 &&
-        dBox.bottom <= tableBox.bottom + 1;
-      const inStage =
-        dBox.left >= stageBox.left - 1 &&
-        dBox.top >= stageBox.top - 1 &&
-        dBox.right <= stageBox.right + 1 &&
-        dBox.bottom <= stageBox.bottom + 1;
-      if (!inTable && !(buttonSeat === viewer0 && inStage)) {
-        issues.push('dealer button clipped outside .table');
-      }
-      const edgeGap = (a, b) => {
-        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-        if (ox > 0 && oy > 0) return -Math.min(ox, oy);
-        if (ox > 0) return Math.max(a.top - b.bottom, b.top - a.bottom);
-        if (oy > 0) return Math.max(a.left - b.right, b.left - a.right);
-        return 99;
-      };
-      const dC = {
-        x: (dBox.left + dBox.right) / 2,
-        y: (dBox.top + dBox.bottom) / 2,
-      };
-      // Edge distance to a plate AABB (0 if center is inside / touching)
-      const distToPlate = (p) => {
-        const dx = Math.max(p.left - dC.x, 0, dC.x - p.right);
-        const dy = Math.max(p.top - dC.y, 0, dC.y - p.bottom);
-        return Math.hypot(dx, dy);
-      };
-
-      // D must be nearer (by edge distance) to the button seat's plate than to any other
-      if (dealerPlateEl) {
-        const own = box(dealerPlateEl);
-        const ownDist = distToPlate(own);
-        const allPlates = [...document.querySelectorAll('.seat .plate, .meinfo')];
-        allPlates.forEach((el, j) => {
-          if (el === dealerPlateEl) return;
-          const otherDist = distToPlate(box(el));
-          if (otherDist <= ownDist + 1) {
-            issues.push(
-              `dealer nearer to plate[${j}] (${otherDist.toFixed(1)}) than button plate (${ownDist.toFixed(1)})`,
-            );
-          }
-          // Other plates keep a clear edge gap
-          if (edgeGap(dBox, box(el)) < 8) {
-            issues.push(`dealer too close to other plate[${j}] (gap=${edgeGap(dBox, box(el)).toFixed(1)})`);
-          }
-        });
-        // Own plate: may sit tight (gap can be small) but must not heavily cover the plate
-        if (overlaps(dBox, own) && edgeGap(dBox, own) < -4) {
-          issues.push('dealer heavily overlaps own nameplate');
-        }
-        // Must stay close to own plate (not drifted toward table center)
-        if (ownDist > 28) {
-          issues.push(`dealer too far from own nameplate (edgeDist=${ownDist.toFixed(1)})`);
-        }
-      } else {
-        issues.push('missing dealer nameplate for button seat');
-      }
-
-      bets.forEach((b, i) => {
-        if (overlaps(dBox, b) || near(dBox, b, 2)) {
-          issues.push(`dealer overlaps bet[${i}]`);
-        }
-      });
-      if (overlaps(dBox, boardBox)) issues.push('dealer overlaps board');
-      if (potBox && (overlaps(dBox, potBox) || near(dBox, potBox, 2))) {
-        issues.push('dealer overlaps pot');
-      }
-      if (noteBox && (overlaps(dBox, noteBox) || near(dBox, noteBox, 2))) {
-        issues.push('dealer overlaps center note');
-      }
-      for (const card of document.querySelectorAll(
-        '#heroHole .card, .mini-hole .card, #board .card',
-      )) {
-        if (overlaps(dBox, box(card))) issues.push('dealer overlaps card');
-      }
-    }
-
-    // 「莊家」 tag on the button seat nameplate (and HU also keeps 小盲)
-    if (st0 && buttonSeat != null) {
-      const tagRoot =
-        buttonSeat === viewer0
-          ? document.getElementById('heroName')
-          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate .nm`);
-      const tagText = tagRoot?.textContent?.replace(/\s+/g, '') || '';
-      if (!tagText.includes('莊家')) {
-        issues.push(`missing 莊家 tag on button seat ${buttonSeat} (got "${tagText}")`);
-      }
-      // Tag must not appear on non-button seats
-      for (const el of document.querySelectorAll('.seat .plate .nm, #heroName')) {
-        const seatEl = el.closest('.seat');
-        const seat =
-          seatEl?.dataset?.seat != null
-            ? +seatEl.dataset.seat
-            : el.id === 'heroName'
-              ? viewer0
-              : null;
-        if (seat == null || seat === buttonSeat) continue;
-        if ((el.textContent || '').includes('莊家')) {
-          issues.push(`莊家 tag on non-button seat ${seat}`);
-        }
-      }
-      if (seatCount === 2 && st0.sbSeat === buttonSeat) {
-        if (!tagText.includes('小盲')) {
-          issues.push('HU dealer missing 小盲 tag alongside 莊家');
-        }
-      }
-    }
-
-    // Center note must stay one line and clear of pot
-    if (noteEl && noteBox) {
-      const cs = getComputedStyle(noteEl);
-      if (cs.whiteSpace !== 'nowrap') issues.push('center note not white-space:nowrap');
-      if (noteEl.scrollHeight > noteEl.clientHeight + 2) {
-        issues.push('center note wraps to multiple lines');
-      }
-      if (potBox && (overlaps(noteBox, potBox) || near(noteBox, potBox, 2))) {
-        issues.push('center note overlaps pot');
-      }
-    }
-
-    // Internal chip vs amount
-    for (const bet of document.querySelectorAll('#bets .bet')) {
-      const chips = bet.querySelector('.chips');
-      const amt = bet.querySelector('.amt');
-      if (!chips || !amt) continue;
-      const c = chips.getBoundingClientRect();
-      const a = amt.getBoundingClientRect();
-      if (c.right > a.left + 1 && c.left < a.right && c.bottom > a.top && c.top < a.bottom) {
-        // horizontal stack expected: chips left of amt — only fail if substantial cover
-        const ox = Math.min(c.right, a.right) - Math.max(c.left, a.left);
-        if (ox > a.width * 0.35) issues.push(`chip covers amount in bet "${bet.textContent}"`);
-      }
-    }
-
-    const meta = document.getElementById('roomMeta');
-    if (meta.scrollWidth > meta.clientWidth + 1) {
-      issues.push(`roomMeta truncated scroll=${meta.scrollWidth} client=${meta.clientWidth}`);
-    }
-    // Also ensure no ellipsis style effectively hiding
-    const cs = getComputedStyle(meta);
-    if (cs.textOverflow === 'ellipsis' && meta.scrollWidth > meta.clientWidth + 1) {
-      issues.push('roomMeta uses ellipsis while overflowing');
-    }
-
-    // Clockwise visual order must match engine order (hero at bottom = angle 0)
-    const st = window.__poker?.getState?.();
-    const viewer = window.__poker?.getViewer?.();
-    if (st && viewer != null) {
-      const table = document.querySelector('.table')?.getBoundingClientRect();
-      const cx = table ? table.left + table.width / 2 : 0;
-      const cy = table ? table.top + table.height / 2 : 0;
-      const angleOf = (el) => {
-        const r = el.getBoundingClientRect();
-        const x = r.left + r.width / 2 - cx;
-        const y = r.top + r.height / 2 - cy;
-        // atan2 from bottom-up screen coords → convert so 0 = bottom, CW increases
-        let deg = (Math.atan2(x, -y) * 180) / Math.PI; // 0 at bottom, +CW toward left? 
-        // atan2(x, -y): bottom (0,+1 in up-y) → atan2(0,-1)=π → 180. Hmm.
-        // Use: angle from +y-down (screen): from bottom vector (0, +1)
-        deg = (Math.atan2(x, y) * 180) / Math.PI; // 0=bottom, +90=right? atan2(x,y) with y down: right=+x → +90 if y=0.
-        // For y positive down, bottom of table is +y from center: atan2(0, +dy)=0. Left is -x: atan2(-,+)≈-90.
-        // Clockwise from bottom goes left first → negative atan2. Use -atan2 so CW is positive.
-        deg = (-Math.atan2(x, y) * 180) / Math.PI;
-        if (deg < 0) deg += 360;
-        return deg;
-      };
-      const me = document.querySelector('.me');
-      const seats = [...document.querySelectorAll('.seat[data-seat]')].map((el) => ({
-        seat: +el.dataset.seat,
-        ang: angleOf(el),
-      }));
-      if (me) seats.push({ seat: viewer, ang: angleOf(me) });
-      seats.sort((a, b) => a.ang - b.ang || a.seat - b.seat);
-      const visualOrder = seats.map((s) => s.seat);
-      // Engine clockwise from viewer
-      const occ = st.seats.map((p, i) => (p ? i : null)).filter((x) => x != null);
-      const start = occ.indexOf(viewer);
-      const engineOrder = [];
-      for (let i = 0; i < occ.length; i++) engineOrder.push(occ[(start + i) % occ.length]);
-      if (visualOrder.join() !== engineOrder.join()) {
-        issues.push(
-          `clockwise mismatch visual=[${visualOrder}] engine=[${engineOrder}]`,
-        );
-      }
-      // SB then BB adjacent in visual order
-      if (st.sbSeat != null && st.bbSeat != null && occ.length >= 2) {
-        const iSb = visualOrder.indexOf(st.sbSeat);
-        const iBb = visualOrder.indexOf(st.bbSeat);
-        if (iSb < 0 || iBb < 0 || (iSb + 1) % visualOrder.length !== iBb) {
-          // HU: sb===button, bb next — still must be adjacent
-          if (!((iSb + 1) % visualOrder.length === iBb)) {
-            issues.push(`SB(${st.sbSeat}) not followed CW by BB(${st.bbSeat}) visual=${visualOrder}`);
-          }
-        }
-      }
-    }
-
-    // Fixed 6 slots: 5 opponent seats (filled or 空位) + hero at bottom
-    const oppSeats = [...document.querySelectorAll('#seats .seat')];
-    if (oppSeats.length !== 5) {
-      issues.push(`expected 5 ring seats (filled+empty), got ${oppSeats.length}`);
-    }
-    const emptySeats = oppSeats.filter((el) => el.classList.contains('is-empty'));
-    const expectEmpty = Math.max(0, 5 - (seatCount - 1));
-    if (emptySeats.length !== expectEmpty) {
-      issues.push(`empty seats ${emptySeats.length} != ${expectEmpty} (players=${seatCount})`);
-    }
-    for (const el of emptySeats) {
-      const t = el.textContent.replace(/\s+/g, '');
-      if (!t.includes('空位')) issues.push('empty seat missing 空位 label');
-    }
-
-    // Hero hole cards must not overlap opponent plates/bets, dealer, or action panel
-    const holeCards = [...document.querySelectorAll('#heroHole .card')].map(box);
-    const actBox = document.getElementById('act')
-      ? box(document.getElementById('act'))
-      : null;
-    const oppPlates = [...document.querySelectorAll('.seat .plate')].map(box);
-    const oppBets = [...document.querySelectorAll('#bets .bet:not([data-hero="1"])')].map(box);
-    for (const hc of holeCards) {
-      oppPlates.forEach((p, j) => {
-        if (overlaps(hc, p) || near(hc, p, 2)) issues.push(`hero hole overlaps plate[${j}]`);
-      });
-      oppBets.forEach((b, i) => {
-        if (overlaps(hc, b) || near(hc, b, 2)) issues.push(`hero hole overlaps bet[${i}]`);
-      });
-      if (dealerEl && overlaps(hc, box(dealerEl))) issues.push('hero hole overlaps dealer');
-      if (actBox && overlaps(hc, actBox)) issues.push('hero hole overlaps action panel');
-    }
-
-    return {
-      issues,
-      boardGaps: kids.slice(0, -1).map((k, i) => +(kids[i + 1].left - k.right).toFixed(1)),
-      betCount: bets.length,
-      metaText: meta.textContent,
-      emptySeats: emptySeats.length,
-    };
-  }, seatCount);
-
+  const report = await auditTableLayout(page, seatCount, { raisePanelOpen: false });
   const shot = join(ART, `poker-layout-${vp.name}-seats${seatCount}.png`);
   await page.screenshot({ path: shot, fullPage: true });
 
-  // Rotate button through every occupied seat with viewer pinned, so D walks
-  // every visual ring position; re-assert D nearest + 莊家 each hand.
-  const rotationIssues = [];
-  const seenButtons = new Set();
-  const pinnedViewer = await page.evaluate(() => window.__poker?.getViewer?.());
-  const firstBtn = await page.evaluate(() => window.__poker?.getState?.()?.button);
-  if (firstBtn != null) seenButtons.add(firstBtn);
-  for (let hand = 1; hand < seatCount; hand++) {
-    // Fold out current hand by jumping viewer to the current actor
-    for (let step = 0; step < 60; step++) {
-      const phase = await page.evaluate(() => window.__poker?.getState?.()?.phase || '');
-      if (phase === 'hand_over') break;
-      const actor = await page.evaluate(() => window.__poker?.getState?.()?.actor);
-      if (actor != null) {
-        await page.evaluate((a) => window.__poker?.setViewer?.(a), actor);
-        await page.waitForTimeout(50);
-      }
-      let acted = false;
-      for (const sel of [
-        '#btnFold:not([disabled])',
-        '#btnCheck:not([disabled])',
-        '#btnCall:not([disabled])',
-        '#btnMuck:not([disabled])',
-      ]) {
-        if (await page.locator(sel).count()) {
-          await page.locator(sel).first().click();
-          acted = true;
-          await page.waitForTimeout(70);
-          break;
-        }
-      }
-      if (!acted) await page.waitForTimeout(40);
-    }
-    await page.evaluate((v) => window.__poker?.setViewer?.(v), pinnedViewer);
-    await page.waitForTimeout(120);
-    // Next hand
-    const next = page.locator('#btnNext');
-    if (await next.count()) {
-      await next.click();
-    } else {
-      // Fallback: dispatch next hand via API
-      const advanced = await page.evaluate(() => {
-        const st = window.__poker?.getState?.();
-        if (st?.phase !== 'hand_over') return false;
-        window.__poker.dispatch({ type: 'ACK_HAND' });
-        window.__poker.dispatch({ type: 'NEXT_HAND' });
-        return true;
-      });
-      if (!advanced) {
-        rotationIssues.push(`hand ${hand}: missing #btnNext after hand_over`);
-        break;
-      }
-    }
-    await page.waitForTimeout(120);
-    await page.evaluate((v) => window.__poker?.setViewer?.(v), pinnedViewer);
-    await page.waitForTimeout(200);
-    await page.evaluate(
-      () =>
-        new Promise((r) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))),
-        ),
-    );
-    await page.waitForTimeout(180);
-
-    const rot = await page.evaluate((seatCount) => {
-      const issues = [];
-      const box = (el) => {
-        const r = el.getBoundingClientRect();
-        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
-      };
-      const overlaps = (a, b) => {
-        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-        return ox > 0 && oy > 0;
-      };
-      const near = (a, b, pad) => {
-        const ox =
-          Math.min(a.right + pad, b.right + pad) - Math.max(a.left - pad, b.left - pad);
-        const oy =
-          Math.min(a.bottom + pad, b.bottom + pad) - Math.max(a.top - pad, b.top - pad);
-        return ox > 0 && oy > 0;
-      };
-      const st = window.__poker?.getState?.();
-      const viewer = window.__poker?.getViewer?.();
-      const buttonSeat = st?.button;
-      const dealerEl = document.getElementById('dealer');
-      if (!dealerEl || getComputedStyle(dealerEl).display === 'none') {
-        return { issues: ['missing dealer'], button: buttonSeat };
-      }
-      const dBox = box(dealerEl);
-      const dC = {
-        x: (dBox.left + dBox.right) / 2,
-        y: (dBox.top + dBox.bottom) / 2,
-      };
-      const dealerPlateEl =
-        buttonSeat === viewer
-          ? document.querySelector('.meinfo')
-          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate`);
-      if (!dealerPlateEl) {
-        issues.push(`no plate for button ${buttonSeat}`);
-        return { issues, button: buttonSeat };
-      }
-      const own = box(dealerPlateEl);
-      const distToPlate = (p) => {
-        const dx = Math.max(p.left - dC.x, 0, dC.x - p.right);
-        const dy = Math.max(p.top - dC.y, 0, dC.y - p.bottom);
-        return Math.hypot(dx, dy);
-      };
-      const ownDist = distToPlate(own);
-      if (ownDist > 28) {
-        issues.push(`button=${buttonSeat}: D too far from own plate (${ownDist.toFixed(1)})`);
-      }
-      for (const el of document.querySelectorAll('.seat .plate, .meinfo')) {
-        if (el === dealerPlateEl) continue;
-        const od = distToPlate(box(el));
-        if (od <= ownDist + 1) {
-          issues.push(
-            `button=${buttonSeat}: D nearer other plate (${od.toFixed(1)}) than own (${ownDist.toFixed(1)})`,
-          );
-        }
-      }
-      const pot = document.querySelector('.pot');
-      if (pot && (overlaps(dBox, box(pot)) || near(dBox, box(pot), 2))) {
-        issues.push(`button=${buttonSeat}: D overlaps pot`);
-      }
-      for (const bet of document.querySelectorAll('#bets .bet')) {
-        if (overlaps(dBox, box(bet)) || near(dBox, box(bet), 2)) {
-          issues.push(`button=${buttonSeat}: D overlaps bet`);
-        }
-      }
-      const tagRoot =
-        buttonSeat === viewer
-          ? document.getElementById('heroName')
-          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate .nm`);
-      const tagText = tagRoot?.textContent?.replace(/\s+/g, '') || '';
-      if (!tagText.includes('莊家')) {
-        issues.push(`button=${buttonSeat}: missing 莊家 (got "${tagText}")`);
-      }
-      if (seatCount === 2 && st.sbSeat === buttonSeat && !tagText.includes('小盲')) {
-        issues.push(`button=${buttonSeat}: HU missing 小盲 with 莊家`);
-      }
-      return { issues, button: buttonSeat };
-    }, seatCount);
-
-    if (rot.button != null) seenButtons.add(rot.button);
-    rotationIssues.push(...rot.issues);
-  }
-
-  if (seenButtons.size < seatCount) {
-    rotationIssues.push(
-      `only saw ${seenButtons.size}/${seatCount} button seats: [${[...seenButtons]}]`,
-    );
-  }
-
   await page.close();
-
   return {
-    viewport: vp.name,
-    seatCount,
-    errors,
-    issues: [...report.issues, ...rotationIssues],
-    boardGaps: report.boardGaps,
-    betCount: report.betCount,
-    buttonSeatsSeen: [...seenButtons],
-    screenshot: shot,
-  };
-}
-
-/** Fold until hand-over; assert no street bets, one-line note, pot/D/note clear. */
-async function checkHandOver(browser, url, vp, seatCount) {
-  const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(String(e)));
-
-  await page.goto(url, { waitUntil: 'networkidle' });
-  await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
-
-  const rows = page.locator('#playerRows .p-row');
-  const nRows = await rows.count();
-  for (let i = 0; i < nRows; i++) {
-    const row = rows.nth(i);
-    const input = row.locator('input');
-    const disabled = await input.isDisabled();
-    const wantOn = i < seatCount;
-    if (wantOn === disabled) {
-      await row.locator('button[data-toggle]').click();
-    }
-  }
-
-  await page.locator('#timerToggle').uncheck().catch(() => {});
-  await page.click('#btnStart');
-  await page.waitForSelector('#passScreen.is-on', { timeout: 10000 });
-  await page.click('#btnPassOk');
-  await page.waitForTimeout(200);
-
-  // Keep folding until hand_over (or safety cap)
-  for (let step = 0; step < 40; step++) {
-    const phase = await page.evaluate(() => window.__poker?.getState?.()?.phase || '');
-    if (phase === 'hand_over') break;
-    // Clear pass / hand-off overlays
-    const passOn = await page.locator('#passScreen.is-on').count();
-    if (passOn) {
-      await page.click('#btnPassOk').catch(() => {});
-      await page.waitForTimeout(80);
-      continue;
-    }
-    const fold = page.locator('#btnFold:not([disabled])');
-    if (await fold.count()) {
-      await fold.click();
-      await page.waitForTimeout(120);
-      continue;
-    }
-    const check = page.locator('#btnCheck:not([disabled])');
-    if (await check.count()) {
-      await check.click();
-      await page.waitForTimeout(80);
-      continue;
-    }
-    const call = page.locator('#btnCall:not([disabled])');
-    if (await call.count()) {
-      await call.click();
-      await page.waitForTimeout(80);
-      continue;
-    }
-    await page.waitForTimeout(80);
-  }
-
-  await page.evaluate(
-    () =>
-      new Promise((r) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))),
-      ),
-  );
-  await page.waitForTimeout(400);
-
-  const report = await page.evaluate(() => {
-    const issues = [];
-    const box = (el) => {
-      const r = el.getBoundingClientRect();
-      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
-    };
-    const overlaps = (a, b) => {
-      const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-      const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-      return ox > 0 && oy > 0;
-    };
-    const near = (a, b, pad) => {
-      const ox =
-        Math.min(a.right + pad, b.right + pad) - Math.max(a.left - pad, b.left - pad);
-      const oy =
-        Math.min(a.bottom + pad, b.bottom + pad) - Math.max(a.top - pad, b.top - pad);
-      return ox > 0 && oy > 0;
-    };
-
-    const st = window.__poker?.getState?.();
-    if (st?.phase !== 'hand_over') {
-      issues.push(`expected hand_over, got ${st?.phase || 'none'}`);
-    }
-
-    const bets = [...document.querySelectorAll('#bets .bet')];
-    if (bets.length > 0) {
-      issues.push(`hand-over still has ${bets.length} street bet chip(s) on felt`);
-    }
-
-    const potEl = document.querySelector('.pot');
-    const potBox = potEl ? box(potEl) : null;
-    const dealerEl = document.getElementById('dealer');
-    const dBox =
-      dealerEl && getComputedStyle(dealerEl).display !== 'none' ? box(dealerEl) : null;
-    const noteEl = document.querySelector('.table-note');
-    const noteBox = noteEl ? box(noteEl) : null;
-
-    if (st?.lastHandSummary?.foldWin || (st?.winners?.length === 1 && st.winners[0]?.hand == null)) {
-      if (!noteEl) issues.push('fold-win missing center note');
-    }
-
-    if (noteEl && noteBox) {
-      const cs = getComputedStyle(noteEl);
-      if (cs.whiteSpace !== 'nowrap') issues.push('hand-over note not nowrap');
-      // One visual line: client height ≈ line-height + padding
-      if (noteEl.scrollHeight > noteEl.clientHeight + 2) {
-        issues.push('hand-over note wraps');
-      }
-      if (noteEl.getClientRects().length > 1) {
-        issues.push('hand-over note has multiple client rects');
-      }
-      if (potBox && (overlaps(noteBox, potBox) || near(noteBox, potBox, 2))) {
-        issues.push('hand-over note overlaps pot');
-      }
-      if (dBox && (overlaps(noteBox, dBox) || near(noteBox, dBox, 2))) {
-        issues.push('hand-over note overlaps dealer');
-      }
-    }
-
-    if (potBox && dBox && (overlaps(potBox, dBox) || near(potBox, dBox, 2))) {
-      issues.push('hand-over dealer overlaps pot');
-    }
-
-    return { issues, betCount: bets.length, note: noteEl?.textContent || null };
-  });
-
-  const shot = join(ART, `poker-layout-handover-${vp.name}-seats${seatCount}.png`);
-  await page.screenshot({ path: shot, fullPage: true });
-  await page.close();
-
-  return {
-    kind: 'hand-over',
+    kind: 'layout',
     viewport: vp.name,
     seatCount,
     errors,
     issues: report.issues,
     betCount: report.betCount,
-    note: report.note,
     screenshot: shot,
   };
 }
 
-/**
- * Scroll-reachability for one overlay screen:
- * - no horizontal overflow on the screen
- * - primary CTA can be brought into the viewport (scroll screen and/or sheet-body)
- */
+async function checkRaisePanel(browser, url, vp) {
+  const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors = [];
+  const issues = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
+  await configureLobby(page, 3);
+  await startTable(page);
+
+  const heroTurn = await ensureHeroCanRaise(page);
+  if (!heroTurn) {
+    issues.push('could not reach hero raise turn');
+  } else {
+    await page.click('#btnRaiseOpen');
+    await page.waitForSelector('#raisePanel.is-on', { timeout: 5000 });
+    await waitFrames(page, 2);
+    await page.waitForTimeout(120);
+    const report = await auditTableLayout(page, 3, { raisePanelOpen: true });
+    issues.push(...report.issues);
+  }
+
+  const shot = join(ART, `poker-raise-${vp.name}.png`);
+  await page.screenshot({ path: shot, fullPage: true });
+  await page.close();
+  return {
+    kind: 'raise-panel',
+    viewport: vp.name,
+    errors,
+    issues,
+    screenshot: shot,
+  };
+}
+
+async function checkShowdownReveal(browser, url, vp, seatCount) {
+  const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  const issues = [];
+
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
+  await configureLobby(page, seatCount);
+  await startTable(page);
+
+  const setup = await forceAllSeatsRevealed(page);
+  if (!setup.ok) issues.push(`showdown setup: ${setup.error || 'failed'}`);
+  await page.evaluate(() => window.__poker?.cancelAutoNext?.());
+  await waitFrames(page, 3);
+  await page.waitForTimeout(280);
+
+  const reveal = await page.evaluate(auditRevealLayoutInPage, { seatCount });
+  issues.push(...reveal.issues);
+
+  const shot = join(ART, `poker-reveal-${vp.name}-seats${seatCount}.png`);
+  await page.screenshot({ path: shot, fullPage: true });
+  await page.close();
+
+  return {
+    kind: 'showdown-reveal',
+    viewport: vp.name,
+    seatCount,
+    errors,
+    issues,
+    setup,
+    revealCards: reveal.revealCards,
+    screenshot: shot,
+  };
+}
+
 async function measureScreenReach(page, screenId, ctaSel) {
   return page.evaluate(
     ({ screenId, ctaSel }) => {
@@ -760,9 +930,7 @@ async function measureScreenReach(page, screenId, ctaSel) {
       }
 
       const tryReveal = () => {
-        if (body && body.scrollHeight > body.clientHeight + 1) {
-          body.scrollTop = body.scrollHeight;
-        }
+        if (body && body.scrollHeight > body.clientHeight + 1) body.scrollTop = body.scrollHeight;
         screen.scrollTop = screen.scrollHeight;
         cta.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       };
@@ -782,7 +950,6 @@ async function measureScreenReach(page, screenId, ctaSel) {
         );
       }
 
-      // Lobby: start button should stay pinned / sticky without requiring sheet-body scroll
       let lobbyStartPinned = null;
       if (screenId === 'lobbyScreen' && body) {
         body.scrollTop = 0;
@@ -793,9 +960,7 @@ async function measureScreenReach(page, screenId, ctaSel) {
           r0.top < vh &&
           Math.min(r0.bottom, vh) - Math.max(r0.top, 0) >= Math.min(r0.height, 36);
         lobbyStartPinned = pinnedVisible;
-        if (!pinnedVisible) {
-          issues.push('#btnStart not visible at lobby top (sticky/pinned foot failed)');
-        }
+        if (!pinnedVisible) issues.push('#btnStart not visible at lobby top (sticky/pinned foot failed)');
       }
 
       return {
@@ -833,23 +998,19 @@ async function checkScrollScreens(browser, url, vp) {
   await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
   await page.locator('#timerToggle').uncheck().catch(() => {});
 
-  // Lobby — tall form (all 6 players on) must still reach 開始牌局
   const lobby = await measureScreenReach(page, 'lobbyScreen', '#btnStart');
   issues.push(...lobby.issues.map((m) => `lobby: ${m}`));
-  const lobbyShot = join(ART, `poker-scroll-${vp.name}-lobby.png`);
-  await page.screenshot({ path: lobbyShot });
-  shots.push(lobbyShot);
+  shots.push(join(ART, `poker-scroll-${vp.name}-lobby.png`));
+  await page.screenshot({ path: shots.at(-1) });
 
   await page.click('#btnStart');
   await page.waitForSelector('#passScreen.is-on', { timeout: 10000 });
 
   const pass = await measureScreenReach(page, 'passScreen', '#btnPassOk');
   issues.push(...pass.issues.map((m) => `pass: ${m}`));
-  const passShot = join(ART, `poker-scroll-${vp.name}-pass.png`);
-  await page.screenshot({ path: passShot });
-  shots.push(passShot);
+  shots.push(join(ART, `poker-scroll-${vp.name}-pass.png`));
+  await page.screenshot({ path: shots.at(-1) });
 
-  // Inflate pass sheet to force vertical overflow, then confirm CTA still reachable
   await page.evaluate(() => {
     const sheet = document.querySelector('#passScreen .sheet');
     if (!sheet) return;
@@ -870,23 +1031,25 @@ async function checkScrollScreens(browser, url, vp) {
   await page.click('#btnPassOk');
   await page.waitForTimeout(250);
 
-  // Summary overlay (open directly; pad content so it exceeds short Safari toolbars)
   await page.evaluate(() => {
     const scr = document.getElementById('summaryScreen');
     const body = document.getElementById('summaryBody');
+    const sheet = scr?.querySelector('.sheet');
     scr.classList.add('is-on');
-    const rows = Array.from({ length: 16 }, (_, i) => {
+    const rows = Array.from({ length: 24 }, (_, i) => {
       const n = `測試玩家${i + 1}`;
       return `<tr><td>${n}</td><td>2,000</td><td>2,000</td><td class="pos">+0</td></tr>`;
     }).join('');
     body.innerHTML = `
       <div class="summary">
         <p class="lead">捲動測試：確認關閉鈕在矮視窗仍可到達。</p>
+        <div id="scrollTestPadSum" style="height:80vh;color:transparent">.</div>
         <table>
           <thead><tr><th>玩家</th><th>買入</th><th>籌碼</th><th>淨勝</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
+    void sheet;
   });
   await page.waitForSelector('#summaryScreen.is-on');
   const summary = await measureScreenReach(page, 'summaryScreen', '#btnSummaryClose');
@@ -894,19 +1057,8 @@ async function checkScrollScreens(browser, url, vp) {
   if (!summary.screenScroll?.canScrollY) {
     issues.push('summary: #summaryScreen did not become vertically scrollable with tall content');
   }
-  const sumShot = join(ART, `poker-scroll-${vp.name}-summary.png`);
-  await page.screenshot({ path: sumShot });
-  shots.push(sumShot);
-
-  // After scrolling to CTA, capture scrolled summary
-  await page.evaluate(() => {
-    const scr = document.getElementById('summaryScreen');
-    scr.scrollTop = scr.scrollHeight;
-    document.getElementById('btnSummaryClose')?.scrollIntoView({ block: 'end' });
-  });
-  const sumShotEnd = join(ART, `poker-scroll-${vp.name}-summary-end.png`);
-  await page.screenshot({ path: sumShotEnd });
-  shots.push(sumShotEnd);
+  shots.push(join(ART, `poker-scroll-${vp.name}-summary.png`));
+  await page.screenshot({ path: shots.at(-1) });
 
   await page.close();
   return {
@@ -923,145 +1075,6 @@ async function checkScrollScreens(browser, url, vp) {
   };
 }
 
-/** Bet/raise panel: 3×2 presets, ± steppers, no table overlap, no page scroll. */
-async function checkBetPanel(browser, url, vp) {
-  const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(String(e)));
-  const issues = [];
-
-  await page.goto(url, { waitUntil: 'networkidle' });
-  await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
-  await page.locator('#timerToggle').uncheck().catch(() => {});
-  // 3 players keeps preflop unraised sizing stable for first actor
-  const rows = page.locator('#playerRows .p-row');
-  const nRows = await rows.count();
-  for (let i = 0; i < nRows; i++) {
-    const row = rows.nth(i);
-    const disabled = await row.locator('input').isDisabled();
-    const wantOn = i < 3;
-    if (wantOn === disabled) await row.locator('button[data-toggle]').click();
-  }
-  await page.click('#btnStart');
-  await page.waitForSelector('#passScreen.is-on', { timeout: 10000 });
-  await page.click('#btnPassOk');
-  await page.waitForSelector('#presets:not(.hidden)', { timeout: 10000 });
-  await page.waitForTimeout(200);
-
-  const report = await page.evaluate(() => {
-    const issues = [];
-    const wrap = document.getElementById('raiseWrap');
-    const presets = document.getElementById('presets');
-    const minus = document.getElementById('raiseMinus');
-    const plus = document.getElementById('raisePlus');
-    const range = document.getElementById('raiseRange');
-    const act = document.getElementById('act');
-    const table = document.querySelector('.table');
-    const app = document.querySelector('.app');
-
-    if (!wrap || wrap.classList.contains('hidden')) issues.push('raiseWrap hidden on hero turn');
-    if (!presets || presets.classList.contains('hidden')) issues.push('presets hidden');
-    const buttons = [...(presets?.querySelectorAll('button[data-to]') || [])];
-    if (buttons.length !== 6) issues.push(`expected 6 presets, got ${buttons.length}`);
-
-    const labels = buttons.map((b) => b.querySelector('.preset-lbl')?.textContent?.trim());
-    const amts = buttons.map((b) => b.querySelector('.preset-amt')?.textContent?.trim());
-    if (labels.some((t) => !t)) issues.push('preset missing label');
-    if (amts.some((t) => !t)) issues.push('preset missing amount');
-
-    const pressed = buttons.filter((b) => b.getAttribute('aria-pressed') === 'true');
-    if (pressed.length < 1) issues.push('no preset aria-pressed');
-
-    for (const el of [minus, plus]) {
-      if (!el) {
-        issues.push('missing ± button');
-        continue;
-      }
-      const r = el.getBoundingClientRect();
-      if (r.width < 44 - 0.5 || r.height < 44 - 0.5) {
-        issues.push(`step control too small ${r.width.toFixed(1)}×${r.height.toFixed(1)}`);
-      }
-    }
-    if (!range) issues.push('missing raiseRange');
-
-    // Grid is 3 columns × 2 rows
-    if (buttons.length === 6) {
-      const tops = buttons.map((b) => b.getBoundingClientRect().top);
-      const near = (a, b) => Math.abs(a - b) <= 2;
-      const row0 = tops[0];
-      const row1 = tops[3];
-      if (!(near(tops[1], row0) && near(tops[2], row0))) issues.push('preset row1 not aligned');
-      if (!(near(tops[4], row1) && near(tops[5], row1))) issues.push('preset row2 not aligned');
-      if (!(row1 > row0 + 20)) issues.push('presets not in 2 rows');
-    }
-
-    // No overlap between act panel and table felt
-    if (act && table) {
-      const a = act.getBoundingClientRect();
-      const t = table.getBoundingClientRect();
-      const ox = Math.min(a.right, t.right) - Math.max(a.left, t.left);
-      const oy = Math.min(a.bottom, t.bottom) - Math.max(a.top, t.top);
-      if (ox > 2 && oy > 2) issues.push(`act overlaps table by ${ox.toFixed(1)}×${oy.toFixed(1)}`);
-    }
-
-    // Table screen should not require document/app vertical scroll
-    const doc = document.documentElement;
-    if (doc.scrollHeight > doc.clientHeight + 2) {
-      issues.push(`page vertical scroll ${doc.scrollHeight}>${doc.clientHeight}`);
-    }
-    if (app && app.scrollHeight > app.clientHeight + 2 && getComputedStyle(app).overflowY !== 'hidden') {
-      // app may grow; body locks overflow — flag only if window scrolled
-      if (window.scrollY > 0) issues.push('window scrolled on table screen');
-    }
-
-    // Horizontal lock
-    if (doc.scrollWidth > doc.clientWidth + 1) {
-      issues.push(`horizontal overflow ${doc.scrollWidth}>${doc.clientWidth}`);
-    }
-
-    return {
-      issues,
-      labels,
-      amts,
-      raiseBtn: document.getElementById('btnRaise')?.textContent?.replace(/\s+/g, ' ').trim() || null,
-      hint: document.getElementById('turnHint')?.textContent || null,
-    };
-  });
-  issues.push(...report.issues);
-
-  // Stepper nudges amount by 1 BB
-  const before = await page.locator('#raiseRange').inputValue();
-  await page.click('#raisePlus');
-  const afterPlus = await page.locator('#raiseRange').inputValue();
-  if (!(+afterPlus > +before)) issues.push(`plus did not increase (${before}→${afterPlus})`);
-  await page.click('#raiseMinus');
-  const afterMinus = await page.locator('#raiseRange').inputValue();
-  if (+afterMinus !== +before) issues.push(`minus did not restore (${before}→${afterMinus})`);
-
-  // Preset click selects gold border
-  const third = page.locator('#presets button').nth(2);
-  await third.click();
-  const pressed = await third.getAttribute('aria-pressed');
-  if (pressed !== 'true') issues.push('clicked preset not pressed');
-
-  const shot = join(ART, `poker-betpanel-${vp.name}.png`);
-  await page.screenshot({ path: shot });
-  await page.close();
-
-  return {
-    kind: 'bet-panel',
-    viewport: vp.name,
-    size: `${vp.w}x${vp.h}`,
-    errors,
-    issues,
-    labels: report.labels,
-    raiseBtn: report.raiseBtn,
-    hint: report.hint,
-    screenshot: shot,
-  };
-}
-
 async function main() {
   const { server, url } = await startServer();
   const browser = await chromium.launch({
@@ -1070,71 +1083,59 @@ async function main() {
     args: ['--no-sandbox', '--disable-dev-shm-usage'],
   });
 
-  const viewports = [
-    { name: 'phone', w: 390, h: 844 },
-    { name: 'phone-se', w: 375, h: 667 },
-    { name: 'safari-toolbars', w: 390, h: 664 },
-    { name: 'desktop', w: 1280, h: 800 },
-  ];
-  const scrollViewports = [
-    { name: 'phone-390', w: 390, h: 844 },
-    { name: 'phone-se', w: 375, h: 667 },
-    { name: 'safari-toolbars', w: 390, h: 664 },
-    { name: 'desktop', w: 1280, h: 800 },
-  ];
-  const betPanelViewports = [
-    { name: 'phone-390', w: 390, h: 844 },
-    { name: 'phone-se', w: 375, h: 667 },
-    { name: 'safari-toolbars', w: 390, h: 664 },
-    { name: 'desktop', w: 1280, h: 800 },
-  ];
-  const results = [];
-  for (const vp of viewports) {
+  const layoutResults = [];
+  for (const vp of TABLE_VIEWPORTS) {
     for (let seats = 2; seats <= 6; seats++) {
-      results.push(await checkViewport(browser, url, vp, seats));
+      layoutResults.push(await checkViewport(browser, url, vp, seats));
     }
   }
-  const handOverResults = [];
-  for (const vp of viewports) {
+
+  const raiseResults = [];
+  for (const vp of TABLE_VIEWPORTS) {
+    raiseResults.push(await checkRaisePanel(browser, url, vp));
+  }
+
+  const revealResults = [];
+  for (const vp of TABLE_VIEWPORTS) {
     for (let seats = 2; seats <= 6; seats++) {
-      handOverResults.push(await checkHandOver(browser, url, vp, seats));
+      revealResults.push(await checkShowdownReveal(browser, url, vp, seats));
     }
   }
+
   const scrollResults = [];
-  for (const vp of scrollViewports) {
+  for (const vp of PHONE_SCROLL_VIEWPORTS) {
     scrollResults.push(await checkScrollScreens(browser, url, vp));
-  }
-  const betPanelResults = [];
-  for (const vp of betPanelViewports) {
-    betPanelResults.push(await checkBetPanel(browser, url, vp));
   }
 
   await browser.close();
   server.close();
 
-  const failed = results.filter((r) => r.issues.length || r.errors.length);
-  const handOverFailed = handOverResults.filter((r) => r.issues.length || r.errors.length);
-  const scrollFailed = scrollResults.filter((r) => r.issues.length || r.errors.length);
-  const betFailed = betPanelResults.filter((r) => r.issues.length || r.errors.length);
+  const failed = (rows) => rows.filter((r) => r.issues.length || r.errors.length);
+  const layoutFailed = failed(layoutResults);
+  const raiseFailed = failed(raiseResults);
+  const revealFailed = failed(revealResults);
+  const scrollFailed = failed(scrollResults);
+
   const summary = {
     ok:
-      failed.length === 0 &&
-      handOverFailed.length === 0 &&
-      scrollFailed.length === 0 &&
-      betFailed.length === 0,
-    checked: results.length,
-    failed: failed.length,
-    handOverChecked: handOverResults.length,
-    handOverFailed: handOverFailed.length,
+      layoutFailed.length === 0 &&
+      raiseFailed.length === 0 &&
+      revealFailed.length === 0 &&
+      scrollFailed.length === 0,
+    layoutChecked: layoutResults.length,
+    layoutFailed: layoutFailed.length,
+    raiseChecked: raiseResults.length,
+    raiseFailed: raiseFailed.length,
+    revealChecked: revealResults.length,
+    revealFailed: revealFailed.length,
     scrollChecked: scrollResults.length,
     scrollFailed: scrollFailed.length,
-    betPanelChecked: betPanelResults.length,
-    betPanelFailed: betFailed.length,
-    results,
-    handOverResults,
+    layoutResults,
+    raiseResults,
+    revealResults,
     scrollResults,
-    betPanelResults,
   };
+
   writeFileSync(join(ART, 'poker-layout-overlap.json'), JSON.stringify(summary, null, 2));
   console.log(JSON.stringify(summary, null, 2));
   if (!summary.ok) process.exit(1);

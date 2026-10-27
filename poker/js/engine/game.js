@@ -96,7 +96,7 @@ export function createInitialState(opts = {}) {
  * @property {boolean} folded
  * @property {boolean} allIn
  * @property {string|null} lastAction
- * @property {'muck'|'one0'|'one1'|'both'|'auto'|null} showChoice
+ * @property {'muck'|'both'|'auto'|null} showChoice
  * @property {boolean} hasHole
  */
 
@@ -138,6 +138,8 @@ export function applyAction(state, action, env = {}) {
       return doShow(s, action);
     case 'MUCK':
       return doMuck(s, action);
+    case 'REVEAL_TIMEOUT':
+      return doRevealTimeout(s, action);
     case 'ACK_HAND':
       return doAckHand(s);
     case 'END_SESSION':
@@ -608,15 +610,8 @@ function awardUncontested(s, seat) {
   s.currentBet = 0;
   s.actor = null;
   s.deadline = null;
-  s.phase = PHASE.HAND_OVER;
-  s.lastHandSummary = {
-    winners: s.winners,
-    winnerPayouts: s.winnerPayouts,
-    board: cloneCards(s.board),
-    foldWin: true,
-  };
-  // Clear holes for next
-  return s;
+  // Fold-win: every player who had hole cards (incl. winner) may 亮牌／不亮
+  return beginRevealPhase(s, { autoRevealSeats: new Set(), foldWin: true });
 }
 
 /**
@@ -627,6 +622,7 @@ function awardUncontested(s, seat) {
 export function foldWinCenterNote(s) {
   if (!s?.winners?.length) return null;
   const foldWin =
+    s.showdown?.foldWin === true ||
     s.lastHandSummary?.foldWin === true ||
     s.winners.every((w) => w.hand == null && !w.handZh);
   if (!foldWin) return null;
@@ -703,36 +699,52 @@ function goShowdown(s) {
   for (const sp of seatedPlayers(s)) sp.bet = 0;
   s.currentBet = 0;
 
-  // Non-winners may muck/show; winners already auto-shown
+  // Showdown winners auto-reveal; everyone else who had hole cards may choose
   const winnerSeats = new Set([...awards.keys()]);
-  /** @type {number[]} */
-  const pendingShow = [];
   for (const p of contenders) {
     if (winnerSeats.has(p.seat)) {
-      p.showChoice = 'auto';
       p.lastAction = awards.has(p.seat)
         ? `贏得 ${awards.get(p.seat).amount}`
         : '攤牌';
-    } else {
-      p.showChoice = null; // pending decision
-      p.lastAction = '待選擇亮牌';
-      pendingShow.push(p.seat);
     }
   }
-
-  s.showdown = {
-    pending: pendingShow,
-    revealed: Object.fromEntries(
-      contenders
-        .filter((p) => winnerSeats.has(p.seat))
-        .map((p) => [p.seat, { cards: cloneCards(p.hole), mode: 'both' }]),
-    ),
+  return beginRevealPhase(s, {
+    autoRevealSeats: winnerSeats,
+    foldWin: false,
     ranks: Object.fromEntries(ranked.map((r) => [r.seat, r.rank])),
-  };
+  });
+}
 
-  if (pendingShow.length === 0) {
-    return finishShowdown(s);
+/**
+ * Hand-end reveal: each player who still holds hole cards chooses 亮牌 or 不亮
+ * (both cards together). `autoRevealSeats` are forced face-up (showdown winners).
+ */
+function beginRevealPhase(s, { autoRevealSeats, foldWin, ranks = null }) {
+  /** @type {Record<string, {cards: object[], mode: string}>} */
+  const revealed = {};
+  /** @type {number[]} */
+  const pending = [];
+  for (const p of seatedPlayers(s)) {
+    if (!p.hole || p.hole.length < 2) continue;
+    if (autoRevealSeats.has(p.seat)) {
+      p.showChoice = 'auto';
+      revealed[p.seat] = { cards: cloneCards(p.hole), mode: 'both' };
+    } else {
+      p.showChoice = null;
+      if (!p.lastAction || p.folded) p.lastAction = '待選擇亮牌';
+      pending.push(p.seat);
+    }
   }
+  s.phase = PHASE.SHOWDOWN;
+  s.showdown = {
+    pending,
+    revealed,
+    ranks: ranks || {},
+    foldWin: !!foldWin,
+    /** UI starts a 5s countdown from this timestamp (ms); null until UI sets via SET_REVEAL_DEADLINE */
+    revealDeadline: null,
+  };
+  if (pending.length === 0) return finishShowdown(s);
   return s;
 }
 
@@ -741,17 +753,14 @@ function doShow(s, action) {
   const seat = action.seat;
   const p = s.seats[seat];
   if (!p || !s.showdown?.pending.includes(seat)) throw err('無法亮牌');
-  const mode = action.mode; // 'both' | 'one0' | 'one1'
-  if (!['both', 'one0', 'one1'].includes(mode)) throw err('亮牌模式無效');
-  p.showChoice = mode;
-  /** @type {{r:number,s:number}[]} */
-  let cards;
-  if (mode === 'both') cards = cloneCards(p.hole);
-  else if (mode === 'one0') cards = [cloneCards(p.hole)[0]];
-  else cards = [cloneCards(p.hole)[1]];
-  s.showdown.revealed[seat] = { cards, mode };
-  p.lastAction = mode === 'both' ? '亮牌' : '亮一張';
-  pushLog(s, 'action', `${p.name} ${p.lastAction}`);
+  // All-or-nothing: both hole cards together only
+  const mode = action.mode || 'both';
+  if (mode !== 'both') throw err('亮牌須同時亮兩張');
+  if (!p.hole || p.hole.length < 2) throw err('沒有手牌可亮');
+  p.showChoice = 'both';
+  s.showdown.revealed[seat] = { cards: cloneCards(p.hole), mode: 'both' };
+  p.lastAction = '亮牌';
+  pushLog(s, 'action', `${p.name} 亮牌`);
   s.showdown.pending = s.showdown.pending.filter((x) => x !== seat);
   if (s.showdown.pending.length === 0) return finishShowdown(s);
   return s;
@@ -761,14 +770,31 @@ function doMuck(s, action) {
   if (s.phase !== PHASE.SHOWDOWN) throw err('現在不是攤牌階段');
   const seat = action.seat;
   const p = s.seats[seat];
-  if (!p || !s.showdown?.pending.includes(seat)) throw err('無法蓋沒');
+  if (!p || !s.showdown?.pending.includes(seat)) throw err('無法不亮');
   p.showChoice = 'muck';
-  p.lastAction = '蓋沒';
-  pushLog(s, 'action', `${p.name} 蓋沒`);
+  p.lastAction = '不亮';
+  pushLog(s, 'action', `${p.name} 不亮`);
   s.showdown.pending = s.showdown.pending.filter((x) => x !== seat);
   if (s.showdown.pending.length === 0) return finishShowdown(s);
   return s;
 }
+
+/** Default no-show when the 5s reveal countdown expires (all remaining → 不亮). */
+function doRevealTimeout(s, action) {
+  if (s.phase !== PHASE.SHOWDOWN) throw err('現在不是攤牌階段');
+  const seats = action.seats?.length
+    ? action.seats
+    : [...(s.showdown?.pending || [])];
+  for (const seat of seats) {
+    if (s.phase !== PHASE.SHOWDOWN) break;
+    if (!s.showdown?.pending.includes(seat)) continue;
+    doMuck(s, { seat });
+  }
+  return s;
+}
+
+/** Reveal-choice window (ms). UI countdown; timeout → 不亮. */
+export const REVEAL_MS = 5000;
 
 function finishShowdown(s) {
   s.phase = PHASE.HAND_OVER;
@@ -777,7 +803,7 @@ function finishShowdown(s) {
     winnerPayouts: s.winnerPayouts,
     board: cloneCards(s.board),
     revealed: s.showdown?.revealed ?? {},
-    foldWin: false,
+    foldWin: !!s.showdown?.foldWin,
   };
   return s;
 }
