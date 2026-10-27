@@ -743,6 +743,10 @@ function auditRevealLayoutInPage({ seatCount }) {
         // Bar note sits in #act; ignore plate AABB collisions there
         if (noteNode?.classList?.contains('is-bar') || noteNode?.closest?.('#act')) continue;
       }
+      if ((ka === 'note' && kb === 'act') || (ka === 'act' && kb === 'note')) {
+        // Note is intentionally a child of #act above 下一手
+        continue;
+      }
       // Hero hole may tuck into own plate; reveals must NOT cover plates
       if (
         ({ plate: 1, hero: 1 }[ka] && { plate: 1, hero: 1 }[kb]) &&
