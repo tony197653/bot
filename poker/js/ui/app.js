@@ -1036,51 +1036,50 @@ function layoutDealer() {
 
   // Street bets yield to D (never move D toward another seat)
   const potBox = potEl?.getBoundingClientRect();
-  const finalD = dealer.getBoundingClientRect();
-  for (const bet of document.querySelectorAll('#bets .bet')) {
-    const br = bet.getBoundingClientRect();
-    const pad = 4;
-    const ox = Math.min(finalD.right + pad, br.right) - Math.max(finalD.left - pad, br.left);
-    const oy = Math.min(finalD.bottom + pad, br.bottom) - Math.max(finalD.top - pad, br.top);
-    if (!(ox > 0 && oy > 0)) continue;
-    const bcx = (br.left + br.right) / 2;
-    const bcy = (br.top + br.bottom) / 2;
-    const dcx = (finalD.left + finalD.right) / 2;
-    const dcy = (finalD.top + finalD.bottom) / 2;
-    let nx = bcx - dcx;
-    let ny = bcy - dcy;
-    const nlen = Math.hypot(nx, ny) || 1;
-    nx /= nlen;
-    ny /= nlen;
-    const towardCx = cx - bcx;
-    const towardCy = cy - bcy;
-    const tlen = Math.hypot(towardCx, towardCy) || 1;
-    const push = Math.max(ox, oy) + 6;
-    let px = bcx + (nx * 0.55 + (towardCx / tlen) * 0.45) * push;
-    let py = bcy + (ny * 0.55 + (towardCy / tlen) * 0.45) * push;
-    if (potBox) {
-      const trial = {
-        left: px - br.width / 2,
-        top: py - br.height / 2,
-        right: px + br.width / 2,
-        bottom: py + br.height / 2,
+  const plateRects = [...document.querySelectorAll('.seat .plate, .meinfo')].map((el) =>
+    el.getBoundingClientRect(),
+  );
+  for (let pass = 0; pass < 8; pass++) {
+    const finalD = dealer.getBoundingClientRect();
+    let moved = false;
+    for (const bet of document.querySelectorAll('#bets .bet')) {
+      const br = bet.getBoundingClientRect();
+      const bcx = (br.left + br.right) / 2;
+      const bcy = (br.top + br.bottom) / 2;
+      let px = bcx;
+      let py = bcy;
+      const pushAway = (ob, pad) => {
+        const box = {
+          left: px - br.width / 2 - pad,
+          top: py - br.height / 2 - pad,
+          right: px + br.width / 2 + pad,
+          bottom: py + br.height / 2 + pad,
+        };
+        const d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
+        if (d) {
+          px += d.dx;
+          py += d.dy;
+          return true;
+        }
+        return false;
       };
-      const inflated = {
-        left: potBox.left - 6,
-        top: potBox.top - 6,
-        right: potBox.right + 6,
-        bottom: potBox.bottom + 6,
-      };
-      const d = overlapDelta(trial, inflated);
-      if (d) {
-        px += d.dx;
-        py += d.dy;
-      }
+      let hit = pushAway(finalD, 4);
+      if (potBox) hit = pushAway(potBox, 6) || hit;
+      for (const pl of plateRects) hit = pushAway(pl, 4) || hit;
+      if (!hit) continue;
+      moved = true;
+      // Bias remaining push toward table center so chips stay on the rail
+      const towardCx = cx - px;
+      const towardCy = cy - py;
+      const tlen = Math.hypot(towardCx, towardCy) || 1;
+      px += (towardCx / tlen) * 2;
+      py += (towardCy / tlen) * 2;
+      const left = clamp(px, t.left + br.width / 2 + 2, t.right - br.width / 2 - 2);
+      const top = clamp(py, t.top + br.height / 2 + 2, t.bottom - br.height / 2 - 2);
+      bet.style.left = `${((left - t.left) / t.width) * 100}%`;
+      bet.style.top = `${((top - t.top) / t.height) * 100}%`;
     }
-    const left = clamp(px, t.left + br.width / 2 + 2, t.right - br.width / 2 - 2);
-    const top = clamp(py, t.top + br.height / 2 + 2, t.bottom - br.height / 2 - 2);
-    bet.style.left = `${((left - t.left) / t.width) * 100}%`;
-    bet.style.top = `${((top - t.top) / t.height) * 100}%`;
+    if (!moved) break;
   }
 }
 

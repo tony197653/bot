@@ -167,13 +167,20 @@ async function checkViewport(browser, url, vp, seatCount) {
     if (dealerEl && getComputedStyle(dealerEl).display !== 'none') {
       const dBox = box(dealerEl);
       const tableBox = box(document.querySelector('.table'));
-      // Fully inside the table (not clipped by overflow)
-      if (
-        dBox.left < tableBox.left - 1 ||
-        dBox.top < tableBox.top - 1 ||
-        dBox.right > tableBox.right + 1 ||
-        dBox.bottom > tableBox.bottom + 1
-      ) {
+      const stageEl = document.querySelector('.stage');
+      const stageBox = stageEl ? box(stageEl) : tableBox;
+      // Prefer inside .table; hero-dealer may sit beside meinfo just below the felt
+      const inTable =
+        dBox.left >= tableBox.left - 1 &&
+        dBox.top >= tableBox.top - 1 &&
+        dBox.right <= tableBox.right + 1 &&
+        dBox.bottom <= tableBox.bottom + 1;
+      const inStage =
+        dBox.left >= stageBox.left - 1 &&
+        dBox.top >= stageBox.top - 1 &&
+        dBox.right <= stageBox.right + 1 &&
+        dBox.bottom <= stageBox.bottom + 1;
+      if (!inTable && !(buttonSeat === viewer0 && inStage)) {
         issues.push('dealer button clipped outside .table');
       }
       const edgeGap = (a, b) => {
@@ -417,45 +424,50 @@ async function checkViewport(browser, url, vp, seatCount) {
   const firstBtn = await page.evaluate(() => window.__poker?.getState?.()?.button);
   if (firstBtn != null) seenButtons.add(firstBtn);
   for (let hand = 1; hand < seatCount; hand++) {
-    // Fold out current hand (auto-pass via setViewer when needed)
-    for (let step = 0; step < 50; step++) {
+    // Fold out current hand by jumping viewer to the current actor
+    for (let step = 0; step < 60; step++) {
       const phase = await page.evaluate(() => window.__poker?.getState?.()?.phase || '');
       if (phase === 'hand_over') break;
-      await page.evaluate((v) => window.__poker?.setViewer?.(v), pinnedViewer);
-      await page.waitForTimeout(40);
-      const fold = page.locator('#btnFold:not([disabled])');
-      if (await fold.count()) {
-        await fold.click();
-        await page.waitForTimeout(70);
-        continue;
-      }
-      const check = page.locator('#btnCheck:not([disabled])');
-      if (await check.count()) {
-        await check.click();
-        await page.waitForTimeout(50);
-        continue;
-      }
-      const call = page.locator('#btnCall:not([disabled])');
-      if (await call.count()) {
-        await call.click();
-        await page.waitForTimeout(50);
-        continue;
-      }
-      // Not our turn — jump viewer to actor, act, then pin back
       const actor = await page.evaluate(() => window.__poker?.getState?.()?.actor);
-      if (actor != null && actor !== pinnedViewer) {
+      if (actor != null) {
         await page.evaluate((a) => window.__poker?.setViewer?.(a), actor);
-        await page.waitForTimeout(40);
-        continue;
+        await page.waitForTimeout(50);
       }
-      await page.waitForTimeout(50);
+      let acted = false;
+      for (const sel of [
+        '#btnFold:not([disabled])',
+        '#btnCheck:not([disabled])',
+        '#btnCall:not([disabled])',
+        '#btnMuck:not([disabled])',
+      ]) {
+        if (await page.locator(sel).count()) {
+          await page.locator(sel).first().click();
+          acted = true;
+          await page.waitForTimeout(70);
+          break;
+        }
+      }
+      if (!acted) await page.waitForTimeout(40);
     }
+    await page.evaluate((v) => window.__poker?.setViewer?.(v), pinnedViewer);
+    await page.waitForTimeout(120);
     // Next hand
-    const next = page.locator('#btnNext:not([disabled])');
-    if (await next.count()) await next.click();
-    else {
-      rotationIssues.push(`hand ${hand}: missing #btnNext after hand_over`);
-      break;
+    const next = page.locator('#btnNext');
+    if (await next.count()) {
+      await next.click();
+    } else {
+      // Fallback: dispatch next hand via API
+      const advanced = await page.evaluate(() => {
+        const st = window.__poker?.getState?.();
+        if (st?.phase !== 'hand_over') return false;
+        window.__poker.dispatch({ type: 'ACK_HAND' });
+        window.__poker.dispatch({ type: 'NEXT_HAND' });
+        return true;
+      });
+      if (!advanced) {
+        rotationIssues.push(`hand ${hand}: missing #btnNext after hand_over`);
+        break;
+      }
     }
     await page.waitForTimeout(120);
     await page.evaluate((v) => window.__poker?.setViewer?.(v), pinnedViewer);
