@@ -182,12 +182,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   box-shadow:0 0 0 2px var(--gold),0 0 18px #d6ab4588,0 2px 8px #0005;
 }
 
-/* Fixed 6 slots — tuned so hero-sized reveals fit above every plate */
-.seat.pos-0{--x:50%;--y:14%}
-.seat.pos-1{--x:84%;--y:32%}
-.seat.pos-2{--x:84%;--y:68%}
-.seat.pos-3{--x:16%;--y:68%}
-.seat.pos-4{--x:16%;--y:32%}
+/* Fixed 6 slots — leave room for hero-sized reveals above every plate */
+.seat.pos-0{--x:50%;--y:16%}
+.seat.pos-1{--x:86%;--y:34%}
+.seat.pos-2{--x:86%;--y:62%}
+.seat.pos-3{--x:14%;--y:62%}
+.seat.pos-4{--x:14%;--y:34%}
 
 /* Revealed hole cards (hero-sized) above nameplate */
 .reveal-hole{

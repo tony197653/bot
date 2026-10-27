@@ -149,31 +149,83 @@ function auditTableLayoutInPage({ seatCount, opts = {} }) {
   if (actEl) tag('act', actEl);
   revealCards.forEach((el, i) => tag(`reveal[${i}]`, el));
 
+  const seatOf = (t) => {
+    const el = t.el;
+    const seatEl = el.closest?.('.seat[data-seat]');
+    if (seatEl) return seatEl.dataset.seat;
+    if (el.closest?.('#meRoot, .meinfo, #heroHole')) return 'hero';
+    return null;
+  };
+  const kind = (name) => name.replace(/\[\d+\]/, '');
   for (let i = 0; i < targets.length; i++) {
     for (let j = i + 1; j < targets.length; j++) {
-      if (overlaps(targets[i].b, targets[j].b)) {
-        issues.push(`${targets[i].name} overlaps ${targets[j].name}`);
+      const a = targets[i];
+      const b = targets[j];
+      const ka = kind(a.name);
+      const kb = kind(b.name);
+      // Mockup A: card backs tuck into the nameplate; hole/reveal pairs fan-overlap
+      if (
+        (ka === 'plate' && kb === 'backs') ||
+        (ka === 'backs' && kb === 'plate')
+      ) {
+        if (seatOf(a) != null && seatOf(a) === seatOf(b)) continue;
+      }
+      if (ka === 'heroHole' && kb === 'heroHole') continue;
+      if (ka === 'reveal' && kb === 'reveal' && seatOf(a) === seatOf(b)) continue;
+      // Hero cards sit just above own nameplate (intentional overlap/tuck)
+      if (
+        ({plate:1,heroHole:1}[ka] && {plate:1,heroHole:1}[kb]) ||
+        ({plate:1,reveal:1}[ka] && {plate:1,reveal:1}[kb])
+      ) {
+        if (seatOf(a) != null && seatOf(a) === seatOf(b)) continue;
+      }
+      // D may sit tight against the button's own nameplate
+      if ((ka === 'dealer' && kb === 'plate') || (ka === 'plate' && kb === 'dealer')) {
+        const plateT = ka === 'plate' ? a : b;
+        const st0 = window.__poker?.getState?.();
+        const viewer0 = window.__poker?.getViewer?.();
+        const button0 = st0?.button;
+        if (
+          (button0 === viewer0 && seatOf(plateT) === 'hero') ||
+          (button0 != null && seatOf(plateT) === String(button0))
+        ) {
+          continue;
+        }
+      }
+      if (overlaps(a.b, b.b)) {
+        issues.push(`${a.name} overlaps ${b.name}`);
       }
     }
   }
 
-  // Bet → own nameplate gap 6–14px
+  // Bet → own seat chrome (plate + backs) gap 6–14px; hero may sit above hole cards
   for (const bet of bets) {
     const seatId = bet.dataset.forSeat;
-    const plate =
+    const seatEl =
       bet.dataset.hero === '1'
-        ? document.querySelector('.meinfo')
+        ? document.querySelector('#meRoot')
         : seatId != null
-          ? document.querySelector(`.seat[data-seat="${seatId}"] .plate, .seat[data-seat="${seatId}"] .plateA`)
+          ? document.querySelector(`.seat[data-seat="${seatId}"]`)
           : null;
-    if (!plate) {
-      issues.push(`bet missing own plate (seat=${seatId || 'hero'})`);
+    if (!seatEl) {
+      issues.push(`bet missing own seat (seat=${seatId || 'hero'})`);
       continue;
     }
-    const g = edgeGap(box(bet), box(plate));
+    const chrome = seatEl.getBoundingClientRect();
+    // Expand with descendants (backs)
+    let L = chrome.left, T = chrome.top, R = chrome.right, B = chrome.bottom;
+    seatEl.querySelectorAll('.plate, .plateA, .meinfo, .backs, .reveal-hole').forEach((c) => {
+      const q = c.getBoundingClientRect();
+      if (q.width && q.height) {
+        L = Math.min(L, q.left); T = Math.min(T, q.top);
+        R = Math.max(R, q.right); B = Math.max(B, q.bottom);
+      }
+    });
+    const g = edgeGap(box(bet), { left: L, top: T, right: R, bottom: B });
     const gap = Math.round(g * 10) / 10;
-    if (gap < 6 || gap > 14) {
-      issues.push(`bet seat ${seatId ?? 'hero'} plate gap ${gap}px (want 6–14)`);
+    const hi = bet.dataset.hero === '1' ? 48 : 14;
+    if (gap < 6 || gap > hi) {
+      issues.push(`bet seat ${seatId ?? 'hero'} plate gap ${gap}px (want 6–${hi})`);
     }
   }
 
@@ -293,71 +345,80 @@ async function auditTableLayout(page, seatCount, opts = {}) {
   return page.evaluate(auditTableLayoutInPage, { seatCount, opts });
 }
 
-/** Fold-win showdown; bots always SHOW; viewer SHOW if still pending. */
+/** Fold-win showdown; force every pending seat to SHOW (hero-sized reveals). */
 async function forceAllSeatsRevealed(page) {
   return page.evaluate(() => {
     const api = window.__poker;
     if (!api) return { ok: false, error: 'no __poker' };
     const origRandom = Math.random;
+    // Bots in beginRevealUi: Math.random() < 0.5 → SHOW when 0
     Math.random = () => 0;
 
-    const seated = () =>
-      api.getState().seats.map((p, i) => (p ? i : null)).filter((x) => x != null);
-
-    const actOnce = () => {
+    const street = new Set(['preflop', 'flop', 'turn', 'river']);
+    let raised = false;
+    let steps = 0;
+    while (steps++ < 160) {
       const st = api.getState();
+      if (st.phase === 'showdown') break;
       if (st.phase === 'hand_over') {
-        api.dispatch({ type: 'ACK_HAND' });
-        return 'next';
-      }
-      if (st.phase === 'showdown') return 'showdown';
-      const actor = st.actor;
-      if (actor == null) return 'idle';
-      const occ = seated();
-      const keeper = occ[0];
-      if (actor !== keeper) {
-        api.dispatch({ type: 'FOLD', seat: actor });
-        return 'fold';
-      }
-      try {
-        api.dispatch({ type: 'CHECK', seat: actor });
-        return 'check';
-      } catch {
+        // Auto-next may have fired — start another hand
         try {
-          api.dispatch({ type: 'CALL', seat: actor });
-          return 'call';
-        } catch {
-          api.dispatch({ type: 'FOLD', seat: actor });
-          return 'fold';
+          api.dispatch({ type: 'ACK_HAND' });
+          api.dispatch({ type: 'NEXT_HAND' });
+          raised = false;
+          continue;
+        } catch (e) {
+          Math.random = origRandom;
+          return { ok: false, error: 'hand_over: ' + (e.message || e) };
         }
       }
-    };
-
-    let steps = 0;
-    while (steps++ < 120) {
-      const phase = api.getState().phase;
-      if (phase === 'showdown') break;
-      const r = actOnce();
-      if (r === 'idle' && phase !== 'preflop') break;
+      if (!street.has(st.phase) || st.actor == null) break;
+      const actor = st.actor;
+      const live = st.seats.filter((p) => p && !p.folded && !p.sittingOut);
+      if (live.length <= 1) break;
+      // Open a bet so others can fold (fold only legal when facing a bet)
+      if (!raised) {
+        try {
+          const bb = st.config.bigBlind;
+          const p = st.seats[actor];
+          const minTo = Math.max(st.minRaiseTo || bb * 2, (st.currentBet || 0) + bb);
+          const to = Math.min(minTo, p.bet + p.chips);
+          api.dispatch({ type: 'BET_RAISE', seat: actor, amount: to });
+          raised = true;
+          continue;
+        } catch (_) {
+          /* actor cannot raise — fall through */
+        }
+      }
+      try {
+        api.dispatch({ type: 'FOLD', seat: actor });
+      } catch {
+        try {
+          api.dispatch({ type: 'CHECK', seat: actor });
+        } catch {
+          try {
+            api.dispatch({ type: 'CALL', seat: actor });
+          } catch (e) {
+            Math.random = origRandom;
+            return { ok: false, error: String(e.message || e) };
+          }
+        }
+      }
     }
 
     let st = api.getState();
-    if (st.phase !== 'showdown' && st.phase !== 'hand_over') {
+    if (st.phase !== 'showdown') {
       Math.random = origRandom;
       return { ok: false, error: `stuck in ${st.phase}` };
     }
 
-    if (st.phase === 'hand_over') {
-      // Re-run once if auto-advanced too fast
-      Math.random = origRandom;
-      return { ok: false, error: 'reached hand_over before reveal audit' };
-    }
+    api.cancelAutoNext?.();
 
-    const pending = [...(st.showdown?.pending || [])];
+    // SHOW any remaining pending (viewer + anyone bots skipped)
     const viewer = api.getViewer();
+    const pending = [...(st.showdown?.pending || [])];
     for (const seat of pending) {
       if (!api.getState().showdown?.pending?.includes(seat)) continue;
-      api.setViewer(seat);
       try {
         api.dispatch({ type: 'SHOW', seat, mode: 'both' });
       } catch (e) {
@@ -365,19 +426,25 @@ async function forceAllSeatsRevealed(page) {
         return { ok: false, error: String(e.message || e) };
       }
     }
+    // If hand_over already, re-SHOW is N/A — but we need DOM reveals.
+    // beginRevealUi bots already SHOW'd others while Math.random=0.
+    api.setViewer(viewer);
+    // Re-render by pinning viewer
     api.setViewer(viewer);
 
     st = api.getState();
     Math.random = origRandom;
 
-    const occ = seated();
+    // Prevent auto next from clearing holes during audit: noop if already over
     const revealedDom = document.querySelectorAll('.reveal-hole .card').length;
+    const occ = st.seats.map((p, i) => (p ? i : null)).filter((x) => x != null);
     return {
       ok: true,
       phase: st.phase,
       occupied: occ.length,
       pendingLeft: st.showdown?.pending?.length ?? 0,
       revealedDom,
+      foldWin: !!(st.showdown?.foldWin || st.lastHandSummary?.foldWin),
     };
   });
 }
@@ -468,10 +535,60 @@ function auditRevealLayoutInPage({ seatCount }) {
   pushTarget('act', document.getElementById('act'));
   revealCards.forEach((el, i) => pushTarget(`reveal[${i}]`, el));
 
-  for (let i = 0; i < targets.length; i++) {
-    for (let j = i + 1; j < targets.length; j++) {
-      if (overlaps(targets[i].b, targets[j].b)) {
-        issues.push(`showdown: ${targets[i].name} overlaps ${targets[j].name}`);
+  const seatOfEl = (el) => {
+    const seatEl = el?.closest?.('.seat[data-seat]');
+    if (seatEl) return seatEl.dataset.seat;
+    if (el?.closest?.('#meRoot, .meinfo, #heroHole')) return 'hero';
+    return null;
+  };
+  const kind = (name) => name.replace(/\[\d+\]/, '');
+  // Rebuild with elements for seat checks
+  const tagged = [];
+  const add = (name, el) => {
+    if (!el || getComputedStyle(el).display === 'none') return;
+    tagged.push({ name, el, b: box(el) });
+  };
+  [...document.querySelectorAll('.seat .plate, .seat .plateA, .meinfo')].forEach((el, i) => add(`plate[${i}]`, el));
+  [...document.querySelectorAll('.backs')].forEach((el, i) => add(`backs[${i}]`, el));
+  [...document.querySelectorAll('#bets .bet')].forEach((el, i) => add(`bet[${i}]`, el));
+  add('dealer', document.getElementById('dealer'));
+  add('pot', document.querySelector('.pot'));
+  [...document.querySelectorAll('#board .card')].forEach((el, i) => add(`board[${i}]`, el));
+  [...document.querySelectorAll('#heroHole .card')].forEach((el, i) => add(`hero[${i}]`, el));
+  add('act', document.getElementById('act'));
+  revealCards.forEach((el, i) => add(`reveal[${i}]`, el));
+
+  for (let i = 0; i < tagged.length; i++) {
+    for (let j = i + 1; j < tagged.length; j++) {
+      const a = tagged[i];
+      const b = tagged[j];
+      const ka = kind(a.name);
+      const kb = kind(b.name);
+      if ((ka === 'plate' && kb === 'backs') || (ka === 'backs' && kb === 'plate')) {
+        if (seatOfEl(a.el) != null && seatOfEl(a.el) === seatOfEl(b.el)) continue;
+      }
+      if (ka === 'hero' && kb === 'hero') continue;
+      if (ka === 'reveal' && kb === 'reveal' && seatOfEl(a.el) === seatOfEl(b.el)) continue;
+      if (
+        ({ plate: 1, hero: 1, reveal: 1 }[ka] && { plate: 1, hero: 1, reveal: 1 }[kb]) &&
+        seatOfEl(a.el) != null &&
+        seatOfEl(a.el) === seatOfEl(b.el)
+      ) {
+        continue;
+      }
+      // Dealer may sit tight against own button plate
+      if ((ka === 'dealer' && kb === 'plate') || (ka === 'plate' && kb === 'dealer')) {
+        const plateEl = ka === 'plate' ? a.el : b.el;
+        const st = window.__poker?.getState?.();
+        const viewer = window.__poker?.getViewer?.();
+        const button = st?.button;
+        const isOwn =
+          (button === viewer && plateEl.classList?.contains('meinfo')) ||
+          plateEl.closest?.(`.seat[data-seat="${button}"]`);
+        if (isOwn) continue;
+      }
+      if (overlaps(a.b, b.b)) {
+        issues.push(`showdown: ${a.name} overlaps ${b.name}`);
       }
     }
   }
@@ -587,6 +704,7 @@ async function checkShowdownReveal(browser, url, vp, seatCount) {
 
   const setup = await forceAllSeatsRevealed(page);
   if (!setup.ok) issues.push(`showdown setup: ${setup.error || 'failed'}`);
+  await page.evaluate(() => window.__poker?.cancelAutoNext?.());
   await waitFrames(page, 3);
   await page.waitForTimeout(280);
 
@@ -734,19 +852,22 @@ async function checkScrollScreens(browser, url, vp) {
   await page.evaluate(() => {
     const scr = document.getElementById('summaryScreen');
     const body = document.getElementById('summaryBody');
+    const sheet = scr?.querySelector('.sheet');
     scr.classList.add('is-on');
-    const rows = Array.from({ length: 16 }, (_, i) => {
+    const rows = Array.from({ length: 24 }, (_, i) => {
       const n = `測試玩家${i + 1}`;
       return `<tr><td>${n}</td><td>2,000</td><td>2,000</td><td class="pos">+0</td></tr>`;
     }).join('');
     body.innerHTML = `
       <div class="summary">
         <p class="lead">捲動測試：確認關閉鈕在矮視窗仍可到達。</p>
+        <div id="scrollTestPadSum" style="height:80vh;color:transparent">.</div>
         <table>
           <thead><tr><th>玩家</th><th>買入</th><th>籌碼</th><th>淨勝</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
+    void sheet;
   });
   await page.waitForSelector('#summaryScreen.is-on');
   const summary = await measureScreenReach(page, 'summaryScreen', '#btnSummaryClose');

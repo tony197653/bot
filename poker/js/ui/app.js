@@ -1936,6 +1936,13 @@ window.__poker = {
     $('#passScreen')?.classList.remove('is-on');
     render();
   },
+  /** Cancel auto-advance so layout audits can inspect showdown DOM. */
+  cancelAutoNext() {
+    if (autoNextTimer) {
+      clearTimeout(autoNextTimer);
+      autoNextTimer = null;
+    }
+  },
   dispatch,
   view,
   applyAction,

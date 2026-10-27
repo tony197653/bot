@@ -74,20 +74,18 @@ export function placeBets() {
   const D = dealer && getComputedStyle(dealer).display !== 'none' ? uni(dealer) : null;
 
   const bets = [...document.querySelectorAll('#bets .bet')];
-  // Top seat first → its plate→chip distance becomes the shared reference (gen.py)
-  bets.sort((a, b) => (b.dataset.ref ? 1 : 0) - (a.dataset.ref ? 1 : 0));
-  let REF = 0;
 
   for (const b of bets) {
     const seatKey = b.dataset.pos || (b.dataset.hero === '1' ? 'hero' : '');
     const seatEl =
       b.dataset.hero === '1'
-        ? document.querySelector('.heroA, #meRoot')
+        ? document.querySelector('#meRoot')
         : document.querySelector(`.seat[data-seat="${b.dataset.forSeat}"]`);
     if (!seatEl) {
       issues.push(`bet missing seat ${b.dataset.forSeat}`);
       continue;
     }
+    // Gap is measured to nameplate + card backs (user: ~10px from that chrome)
     const sBox = uni(seatEl);
     const plate =
       seatEl.querySelector('.plateA, .plate, .meinfo') || seatEl;
@@ -106,7 +104,7 @@ export function placeBets() {
     const n = Math.hypot(ux, uy) || 1;
     ux /= n;
     uy /= n;
-    const side = Math.abs(ux) > 0.9;
+    const side = Math.abs(ux) > 0.85;
     if (side && ux < 0) b.classList.add('is-rtl');
     else b.classList.remove('is-rtl');
 
@@ -131,29 +129,47 @@ export function placeBets() {
     const h = b.offsetHeight;
     const chipOff = !side ? w / 2 : ux < 0 ? w - 8 : 8;
     let placed = false;
-    for (let t = REF || GAP; t < 420; t += 0.5) {
+    // Per-seat: first t that clears own chrome by GAP (do not share top-seat REF)
+    for (let t = 4; t < 220; t += 0.5) {
       const cx = px + ux * t;
       const cy = py + uy * t;
       const l = cx - chipOff;
       const tp = cy - h / 2;
       const g = gapR(sBox, l, tp, w, h);
       const gd = D ? gapR(D, l, tp, w, h) : 99;
-      if (
-        g >= GAP &&
-        gd >= GAP &&
-        inFelt(F, l, tp) &&
-        inFelt(F, l + w, tp) &&
-        inFelt(F, l, tp + h) &&
-        inFelt(F, l + w, tp + h)
-      ) {
+      const cornersOk =
+        inFelt(F, l + 2, tp + 2) &&
+        inFelt(F, l + w - 2, tp + 2) &&
+        inFelt(F, l + 2, tp + h - 2) &&
+        inFelt(F, l + w - 2, tp + h - 2);
+      if (g >= GAP && g <= 14 && gd >= GAP && cornersOk) {
         b.style.left = `${((l - F.table.left) / F.table.width) * 100}%`;
         b.style.top = `${((tp - F.table.top) / F.table.height) * 100}%`;
         b.style.transform = 'none';
         b.dataset.gap = String(Math.round(g));
         gaps[seatKey || b.dataset.forSeat || 'x'] = Math.round(g);
-        if (b.dataset.ref) REF = t;
         placed = true;
         break;
+      }
+    }
+    if (!placed) {
+      // Relax upper bound — still require ≥GAP
+      for (let t = 4; t < 220; t += 0.5) {
+        const cx = px + ux * t;
+        const cy = py + uy * t;
+        const l = cx - chipOff;
+        const tp = cy - h / 2;
+        const g = gapR(sBox, l, tp, w, h);
+        const gd = D ? gapR(D, l, tp, w, h) : 99;
+        if (g >= GAP && gd >= 4) {
+          b.style.left = `${((l - F.table.left) / F.table.width) * 100}%`;
+          b.style.top = `${((tp - F.table.top) / F.table.height) * 100}%`;
+          b.style.transform = 'none';
+          b.dataset.gap = String(Math.round(g));
+          gaps[seatKey || b.dataset.forSeat || 'x'] = Math.round(g);
+          placed = true;
+          break;
+        }
       }
     }
     if (!placed) issues.push(`bet seat ${b.dataset.forSeat} could not place with GAP=${GAP}`);
@@ -163,7 +179,7 @@ export function placeBets() {
 
 /**
  * Place gold D coin near the button seat, on the felt, away from that seat's bet.
- * Prefers the side of the nameplate opposite the bet direction.
+ * Hero-dealer: sit left of nameplate (mockup A), clear of hole cards.
  */
 export function placeDealer() {
   const table = document.querySelector('.table');
@@ -176,7 +192,7 @@ export function placeDealer() {
   const pos = dealer.dataset.pos || 'hero';
   const seatEl =
     pos === 'hero'
-      ? document.querySelector('#meRoot, .heroA')
+      ? document.querySelector('#meRoot')
       : document.querySelector(`.seat[data-seat="${seatId}"]`);
   if (!seatEl) return { ok: false, issues: ['no dealer seat'] };
 
@@ -184,62 +200,74 @@ export function placeDealer() {
   const p = plate.getBoundingClientRect();
   const px = (p.left + p.right) / 2;
   const py = (p.top + p.bottom) / 2;
-  const bet = document.querySelector(`#bets .bet[data-for-seat="${seatId}"], #bets .bet[data-hero="1"]`);
-  // Prefer direction toward centre, then nudge away from bet
-  let ux = F.cx - px;
-  let uy = F.cy - py;
-  const n0 = Math.hypot(ux, uy) || 1;
-  ux /= n0;
-  uy /= n0;
-  // If bet exists along that ray, bias perpendicular
   const dw = dealer.offsetWidth || 20;
   const dh = dealer.offsetHeight || 20;
+
+  // Own plate may sit tight; exclude it from hard obstacles
   const obstacles = [
     ...document.querySelectorAll(
-      '.seat .plateA, .seat .plate, .meinfo, #bets .bet, .pot, #board .card, #heroHole .card, .seat .reveal-hole .card',
+      '.seat .plateA, .seat .plate, .meinfo, #bets .bet, .pot, #board .card, #heroHole .card, .seat .reveal-hole .card, .backs',
     ),
-  ].map((el) => el.getBoundingClientRect());
+  ]
+    .filter((el) => el !== plate && !plate.contains(el))
+    .map((el) => el.getBoundingClientRect());
 
-  let best = null;
-  for (let dist = GAP + 4; dist < 80; dist += 1) {
-    for (const ang of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2, Math.PI / 2, -Math.PI / 2]) {
-      const ca = Math.cos(ang);
-      const sa = Math.sin(ang);
-      const vx = ux * ca - uy * sa;
-      const vy = ux * sa + uy * ca;
-      const cx = px + vx * dist;
-      const cy = py + vy * dist;
-      const l = cx - dw / 2;
-      const t = cy - dh / 2;
-      if (!inFelt(F, l, t) || !inFelt(F, l + dw, t + dh)) continue;
-      const box = { left: l, top: t, right: l + dw, bottom: t + dh };
-      let minGap = 99;
-      let hit = false;
-      for (const o of obstacles) {
-        const g = Math.max(o.left - box.right, box.left - o.right, o.top - box.bottom, box.top - o.bottom);
-        if (g < GAP) {
-          hit = true;
-          break;
-        }
-        minGap = Math.min(minGap, g);
-      }
-      if (hit) continue;
-      // Prefer closer to own plate
-      const ownDist = Math.hypot(cx - px, cy - py);
-      const score = ownDist - minGap * 0.1;
-      if (!best || score < best.score) {
-        best = { l, t, score, ownDist };
+  /** @type {{x:number,y:number}[]} */
+  const candidates = [];
+  if (pos === 'hero') {
+    candidates.push(
+      { x: p.left - GAP - dw / 2, y: p.top - 6 },
+      { x: p.left - GAP - dw / 2 - 10, y: (p.top + p.bottom) / 2 },
+      { x: p.left - GAP - dw / 2, y: (p.top + p.bottom) / 2 },
+      { x: p.right + GAP + dw / 2, y: p.top - 6 },
+      { x: p.left - GAP - dw / 2 - 16, y: p.top - 24 },
+    );
+  } else {
+    let ux = F.cx - px;
+    let uy = F.cy - py;
+    const n0 = Math.hypot(ux, uy) || 1;
+    ux /= n0;
+    uy /= n0;
+    for (let dist = GAP + 6; dist < 56; dist += 2) {
+      for (const ang of [0, 0.55, -0.55, 1.1, -1.1, Math.PI / 2, -Math.PI / 2]) {
+        const ca = Math.cos(ang);
+        const sa = Math.sin(ang);
+        candidates.push({
+          x: px + (ux * ca - uy * sa) * dist,
+          y: py + (ux * sa + uy * ca) * dist,
+        });
       }
     }
-    if (best && best.ownDist < 36) break;
   }
+
+  let best = null;
+  for (const c of candidates) {
+    const l = c.x - dw / 2;
+    const t = c.y - dh / 2;
+    if (!inFelt(F, l + 1, t + 1) || !inFelt(F, l + dw - 1, t + dh - 1)) continue;
+    const box = { left: l, top: t, right: l + dw, bottom: t + dh };
+    let hit = false;
+    let minGap = 99;
+    for (const o of obstacles) {
+      const g = Math.max(o.left - box.right, box.left - o.right, o.top - box.bottom, box.top - o.bottom);
+      if (g < GAP) {
+        hit = true;
+        break;
+      }
+      minGap = Math.min(minGap, g);
+    }
+    if (hit) continue;
+    const ownDist = Math.hypot(c.x - px, c.y - py);
+    const score = ownDist - minGap * 0.15;
+    if (!best || score < best.score) best = { l, t, score, ownDist };
+  }
+
   const issues = [];
   if (!best) {
-    // Fallback: inward from plate centre
-    const cx = px + ux * (GAP + 14);
-    const cy = py + uy * (GAP + 14);
-    dealer.style.left = `${(((cx - dw / 2) - F.table.left) / F.table.width) * 100}%`;
-    dealer.style.top = `${(((cy - dh / 2) - F.table.top) / F.table.height) * 100}%`;
+    const cx = pos === 'hero' ? p.left - GAP - dw / 2 : px + (F.cx - px) * 0.12;
+    const cy = pos === 'hero' ? (p.top + p.bottom) / 2 : py + (F.cy - py) * 0.12;
+    dealer.style.left = `${((cx - dw / 2 - F.table.left) / F.table.width) * 100}%`;
+    dealer.style.top = `${((cy - dh / 2 - F.table.top) / F.table.height) * 100}%`;
     dealer.style.transform = 'none';
     issues.push('dealer fallback placement');
   } else {
