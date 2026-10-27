@@ -159,6 +159,15 @@ describe('發牌順序：自小盲起順時針兩輪', () => {
   });
 });
 
+describe('莊家標籤語意（引擎座位）', () => {
+  it('按鈕座位可與小盲同座（單挑）', () => {
+    let s = seatPlayers(['宗良', '阿哲']);
+    s = applyAction(s, { type: 'START_HAND' }, { randUnit: mulberry32(2), now: 1e6 });
+    assert.equal(s.button, s.sbSeat);
+    assert.notEqual(s.button, s.bbSeat);
+  });
+});
+
 describe('蓋牌獲勝中央文案', () => {
   it('全員蓋牌時產生「X 贏得 N（其他人蓋牌）」', () => {
     let s = seatPlayers(['宗良', '阿哲', '小芸']);

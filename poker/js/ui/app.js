@@ -510,7 +510,17 @@ function renderTable(v) {
   } else {
     hole.innerHTML = '';
   }
-  $('#heroName').textContent = hero ? `${hero.name}（你）` : '';
+  {
+    const nameEl = $('#heroName');
+    if (nameEl) {
+      if (hero) {
+        const role = roleTag(v, viewerSeat);
+        nameEl.innerHTML = `${esc(hero.name)}（你）${role}`;
+      } else {
+        nameEl.textContent = '';
+      }
+    }
+  }
   $('#heroChips').textContent = hero ? fmtChips(hero.chips) : '';
   const mePlate = $('#mePlate');
   const heroWon = state.winnerPayouts?.[viewerSeat];
@@ -839,8 +849,9 @@ function layoutBets() {
 }
 
 /**
- * Place the dealer button fully visible: start near the button seat,
- * then nudge clear of plates, bets, board, and hole cards.
+ * Place the dealer «D» tight against the button seat's nameplate, on the
+ * side facing table center. Score candidate spots around the plate's inward
+ * perimeter so D never drifts toward another seat. Bet chips yield to D.
  */
 function layoutDealer() {
   const table = document.querySelector('.table');
@@ -849,152 +860,227 @@ function layoutDealer() {
   const t = table.getBoundingClientRect();
   if (t.width < 8 || t.height < 8) return;
 
-  const desktop = window.matchMedia('(min-width: 1024px)').matches;
-  const anchors = desktop ? DEALER_ANCHOR_DESKTOP : DEALER_ANCHOR_PHONE;
   const key = dealer.dataset.pos || 'hero';
-  const [px, py] = anchors[key] || anchors.hero;
-  dealer.style.left = `${px}%`;
-  dealer.style.top = `${py}%`;
-
   const seatId = dealer.dataset.forSeat;
   const anchorEl =
     key === 'hero'
       ? document.querySelector('.meinfo')
       : document.querySelector(`.seat[data-seat="${seatId}"] .plate`);
+  if (!anchorEl) return;
 
-  const soft = [
-    ...document.querySelectorAll(
-      '.seat .plate, .meinfo, #board, #board .card, #board .slot, #heroHole .card, .mini-hole .card, .seat .av, .pot, .table-note',
-    ),
-  ].map((el) => el.getBoundingClientRect());
-  const betRects = [...document.querySelectorAll('#bets .bet')].map((el) =>
-    el.getBoundingClientRect(),
+  const ar = anchorEl.getBoundingClientRect();
+  const ax = ar.left + ar.width / 2;
+  const ay = ar.top + ar.height / 2;
+  const cx = t.left + t.width / 2;
+  const cy = t.top + t.height * 0.4;
+  const toCx = cx - ax;
+  const toCy = cy - ay;
+  const toLen = Math.hypot(toCx, toCy) || 1;
+  const ux = toCx / toLen;
+  const uy = toCy / toLen;
+
+  dealer.style.left = '50%';
+  dealer.style.top = '50%';
+  const br0 = dealer.getBoundingClientRect();
+  const dw = br0.width;
+  const dh = br0.height;
+  const gap = 4;
+
+  const otherPlates = [...document.querySelectorAll('.seat .plate, .meinfo')].filter(
+    (el) => el !== anchorEl,
   );
-
-  // Prefer toward pot from the plate (radial), with a small side bias so D
-  // does not sit under the plate or on top of the street-bet chips.
-  if (anchorEl) {
-    const ar = anchorEl.getBoundingClientRect();
-    const ax = ar.left + ar.width / 2;
-    const ay = ar.top + ar.height / 2;
-    const cx = t.left + t.width / 2;
-    const cy = t.top + t.height * 0.42;
-    const rx = cx - ax;
-    const ry = cy - ay;
-    const len = Math.hypot(rx, ry) || 1;
-    const tx = -ry / len;
-    const ty = rx / len;
-    const br0 = dealer.getBoundingClientRect();
-    // Strong radial offset keeps D on the felt even for top seats (avoids clamp-to-rim)
-    const radial = Math.max(ar.height, ar.width) * 0.55 + br0.height + 12;
-    const tangential = br0.width * 0.85 + 6;
-    let x = ax + (rx / len) * radial + tx * tangential;
-    let y = ay + (ry / len) * radial + ty * tangential;
-    dealer.style.left = `${((x - t.left) / t.width) * 100}%`;
-    dealer.style.top = `${((y - t.top) / t.height) * 100}%`;
-  }
-
-  const softPad = 10;
-  const betPad = 6;
-  const plateGap = 10; // clear plate drop-shadow
-  for (let pass = 0; pass < 32; pass++) {
-    const br = dealer.getBoundingClientRect();
-    let x = br.left;
-    let y = br.top;
-    const w = br.width;
-    const h = br.height;
-    const mk = (p) => ({
-      left: x - p,
-      top: y - p,
-      right: x + w + p,
-      bottom: y + h + p,
-    });
-    for (const ob of soft) {
-      const d = overlapDelta(mk(softPad), ob);
-      if (d) {
-        x += d.dx;
-        y += d.dy;
-      }
-    }
-    for (const pl of document.querySelectorAll('.seat .plate, .meinfo')) {
-      const pr = pl.getBoundingClientRect();
-      const dBox = { left: x, top: y, right: x + w, bottom: y + h };
-      const push = separationDelta(dBox, pr, plateGap);
-      if (push) {
-        x += push.dx;
-        y += push.dy;
-      }
-    }
-    for (const ob of betRects) {
-      const d = overlapDelta(mk(betPad), ob);
-      if (d) {
-        x += d.dx;
-        y += d.dy;
-      }
-    }
-    // Keep inside felt; if clamp would fight plate separation, prefer inward
-    const cx = t.left + t.width / 2;
-    const cy = t.top + t.height * 0.42;
-    const nx = clamp(x, t.left + 4, t.right - w - 4);
-    const ny = clamp(y, t.top + 4, t.bottom - h - 4);
-    if (nx !== x || ny !== y) {
-      // Pulled by rim — bias toward table center
-      x = nx + (cx - (nx + w / 2)) * 0.08;
-      y = ny + (cy - (ny + h / 2)) * 0.08;
-      x = clamp(x, t.left + 4, t.right - w - 4);
-      y = clamp(y, t.top + 4, t.bottom - h - 4);
-    } else {
-      x = nx;
-      y = ny;
-    }
-    dealer.style.left = `${((x + w / 2 - t.left) / t.width) * 100}%`;
-    dealer.style.top = `${((y + h / 2 - t.top) / t.height) * 100}%`;
-  }
-
-  // Escape: if still on the board or pot, park beside the button seat clear of both
-  const boardEl = $('#board');
   const potEl = document.querySelector('.pot');
-  if (anchorEl) {
-    for (let k = 0; k < 12; k++) {
-      const br = dealer.getBoundingClientRect();
-      const hits = [];
-      if (boardEl) hits.push(boardEl.getBoundingClientRect());
-      if (potEl) {
-        const pb = potEl.getBoundingClientRect();
-        hits.push({
-          left: pb.left - 8,
-          top: pb.top - 8,
-          right: pb.right + 8,
-          bottom: pb.bottom + 8,
-        });
-      }
-      let blocked = false;
-      for (const bb of hits) {
-        const ox = Math.min(br.right, bb.right) - Math.max(br.left, bb.left);
-        const oy = Math.min(br.bottom, bb.bottom) - Math.max(br.top, bb.top);
-        if (ox > 0 && oy > 0) {
-          blocked = true;
-          break;
-        }
-      }
-      if (!blocked) break;
-      const ar = anchorEl.getBoundingClientRect();
-      const side = ar.left + ar.width / 2 < t.left + t.width / 2 ? -1 : 1;
-      const bb0 = boardEl?.getBoundingClientRect();
-      let x = ar.left + ar.width / 2 + side * (ar.width * 0.75 + br.width);
-      let y = bb0
-        ? Math.min(ar.top - br.height - 6, bb0.top - br.height - 8)
-        : ar.top - br.height - 8;
-      // If still near pot band, park above pot
-      if (potEl) {
-        const pb = potEl.getBoundingClientRect();
-        if (y + br.height > pb.top - 4) y = pb.top - br.height - 10;
-      }
-      x = clamp(x, t.left + 4, t.right - br.width - 4);
-      y = clamp(y, t.top + 4, t.bottom - br.height - 4);
-      dealer.style.left = `${((x + br.width / 2 - t.left) / t.width) * 100}%`;
-      dealer.style.top = `${((y + br.height / 2 - t.top) / t.height) * 100}%`;
+  const boardEl = $('#board');
+  const noteEl = document.querySelector('.table-note');
+  const softRects = [
+    potEl,
+    boardEl,
+    noteEl,
+    ...document.querySelectorAll(
+      '#board .card, #board .slot, #heroHole .card, .mini-hole .card, .seat .av',
+    ),
+  ]
+    .filter(Boolean)
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      const pad = el === potEl || el === noteEl ? 4 : el === boardEl ? 2 : 1;
+      return {
+        left: r.left - pad,
+        top: r.top - pad,
+        right: r.right + pad,
+        bottom: r.bottom + pad,
+      };
+    });
+  for (const pl of otherPlates) {
+    const r = pl.getBoundingClientRect();
+    softRects.push({
+      left: r.left - 8,
+      top: r.top - 8,
+      right: r.right + 8,
+      bottom: r.bottom + 8,
+    });
+  }
+
+  const overlaps = (a, b) => {
+    const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    return ox > 0 && oy > 0;
+  };
+  const edgeDist = (px, py, r) => {
+    const dx = Math.max(r.left - px, 0, px - r.right);
+    const dy = Math.max(r.top - py, 0, py - r.bottom);
+    return Math.hypot(dx, dy);
+  };
+
+  // Candidates: ring around the plate, biased to the inward (table-center) half
+  /** @type {{x:number,y:number,score:number}[]} */
+  const candidates = [];
+  const rings = [gap + Math.max(dw, dh) / 2, gap + Math.max(dw, dh) / 2 + 8];
+  for (const rad of rings) {
+    for (let i = 0; i < 24; i++) {
+      const ang = (i / 24) * Math.PI * 2;
+      const dx = Math.cos(ang);
+      const dy = Math.sin(ang);
+      // Inward hemisphere only (dot with table-center direction >= -0.15)
+      if (dx * ux + dy * uy < -0.15) continue;
+      const x = ax + dx * (rad + (Math.abs(dx) * ar.width + Math.abs(dy) * ar.height) / 2);
+      const y = ay + dy * (rad + (Math.abs(dx) * ar.width + Math.abs(dy) * ar.height) / 2);
+      candidates.push({ x, y, score: 0 });
     }
+  }
+  // Also try the pure inward radial spot
+  {
+    const plateAlong = (Math.abs(ux) * ar.width + Math.abs(uy) * ar.height) / 2;
+    const rad = plateAlong + Math.max(dw, dh) / 2 + gap;
+    candidates.push({ x: ax + ux * rad, y: ay + uy * rad, score: 0 });
+  }
+
+  // Hero plate sits below the felt — allow D into that band
+  const stage = document.querySelector('.stage')?.getBoundingClientRect() || t;
+  const minX = Math.min(t.left, stage.left) + dw / 2 + 4;
+  const maxX = Math.max(t.right, stage.right) - dw / 2 - 4;
+  const minY = t.top + dh / 2 + 4;
+  const maxY = Math.max(t.bottom, ar.bottom + dh / 2 + 8) - dh / 2 - 2;
+
+  // Hero hole cards sit above meinfo; for hero, don't treat them as hard blocks on
+  // lateral candidates (left/right of the plate still read as "this seat's D").
+  const softForHeroSide = softRects.filter((r) => {
+    if (key !== 'hero') return true;
+    // drop obstacles that are mostly above the plate (hole cards)
+    return r.bottom > ar.top - 4;
+  });
+
+  let best = null;
+  let bestScore = Infinity;
+  for (const c of candidates) {
+    let x = clamp(c.x, minX, maxX);
+    let y = clamp(c.y, minY, maxY);
+    const box = {
+      left: x - dw / 2,
+      top: y - dh / 2,
+      right: x + dw / 2,
+      bottom: y + dh / 2,
+    };
+    // Must not cover own plate
+    if (overlaps(box, ar)) continue;
+    const soft = key === 'hero' && Math.abs(x - ax) > Math.abs(y - ay) ? softForHeroSide : softRects;
+    let blocked = false;
+    for (const ob of soft) {
+      if (overlaps(box, ob)) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) continue;
+    const own = edgeDist(x, y, ar);
+    if (own > 26) continue;
+    // Must be nearer to own plate than to any other
+    let nearerOther = false;
+    for (const pl of otherPlates) {
+      const pr = pl.getBoundingClientRect();
+      if (edgeDist(x, y, pr) <= own + 1) {
+        nearerOther = true;
+        break;
+      }
+    }
+    if (nearerOther) continue;
+    // Prefer inward + close to plate
+    const inward = (x - ax) * ux + (y - ay) * uy;
+    const score = own * 3 + Math.max(0, -inward) * 2;
+    if (score < bestScore) {
+      bestScore = score;
+      best = { x, y };
+    }
+  }
+
+  // Fallback: glue to the inward / side edge of the plate
+  if (!best) {
+    const plateAlong = (Math.abs(ux) * ar.width + Math.abs(uy) * ar.height) / 2;
+    const rad = plateAlong + Math.max(dw, dh) / 2 + gap;
+    // Prefer left/right of hero plate if radial is blocked
+    if (key === 'hero') {
+      best = {
+        x: clamp(ar.left - dw / 2 - gap, minX, maxX),
+        y: clamp(ay, minY, maxY),
+      };
+    } else {
+      best = {
+        x: clamp(ax + ux * rad, minX, maxX),
+        y: clamp(ay + uy * rad, minY, maxY),
+      };
+    }
+  }
+
+  dealer.style.left = `${((best.x - t.left) / t.width) * 100}%`;
+  dealer.style.top = `${((best.y - t.top) / t.height) * 100}%`;
+
+  // Street bets yield to D (never move D toward another seat)
+  const potBox = potEl?.getBoundingClientRect();
+  const finalD = dealer.getBoundingClientRect();
+  for (const bet of document.querySelectorAll('#bets .bet')) {
+    const br = bet.getBoundingClientRect();
+    const pad = 4;
+    const ox = Math.min(finalD.right + pad, br.right) - Math.max(finalD.left - pad, br.left);
+    const oy = Math.min(finalD.bottom + pad, br.bottom) - Math.max(finalD.top - pad, br.top);
+    if (!(ox > 0 && oy > 0)) continue;
+    const bcx = (br.left + br.right) / 2;
+    const bcy = (br.top + br.bottom) / 2;
+    const dcx = (finalD.left + finalD.right) / 2;
+    const dcy = (finalD.top + finalD.bottom) / 2;
+    let nx = bcx - dcx;
+    let ny = bcy - dcy;
+    const nlen = Math.hypot(nx, ny) || 1;
+    nx /= nlen;
+    ny /= nlen;
+    const towardCx = cx - bcx;
+    const towardCy = cy - bcy;
+    const tlen = Math.hypot(towardCx, towardCy) || 1;
+    const push = Math.max(ox, oy) + 6;
+    let px = bcx + (nx * 0.55 + (towardCx / tlen) * 0.45) * push;
+    let py = bcy + (ny * 0.55 + (towardCy / tlen) * 0.45) * push;
+    if (potBox) {
+      const trial = {
+        left: px - br.width / 2,
+        top: py - br.height / 2,
+        right: px + br.width / 2,
+        bottom: py + br.height / 2,
+      };
+      const inflated = {
+        left: potBox.left - 6,
+        top: potBox.top - 6,
+        right: potBox.right + 6,
+        bottom: potBox.bottom + 6,
+      };
+      const d = overlapDelta(trial, inflated);
+      if (d) {
+        px += d.dx;
+        py += d.dy;
+      }
+    }
+    const left = clamp(px, t.left + br.width / 2 + 2, t.right - br.width / 2 - 2);
+    const top = clamp(py, t.top + br.height / 2 + 2, t.bottom - br.height / 2 - 2);
+    bet.style.left = `${((left - t.left) / t.width) * 100}%`;
+    bet.style.top = `${((top - t.top) / t.height) * 100}%`;
   }
 }
 
@@ -1044,6 +1130,8 @@ function overlapDelta(a, b) {
 function roleTag(v, seat) {
   const tags = [];
   if (seat === v.room.hostSeat) tags.push('<span class="tag host">房主</span>');
+  // Button / dealer — shown even when HU (dealer is also SB)
+  if (state.button === seat) tags.push('<span class="tag dealer-tag">莊家</span>');
   if (state.sbSeat === seat) tags.push('<span class="tag">小盲</span>');
   else if (state.bbSeat === seat) tags.push('<span class="tag">大盲</span>');
   return tags.join('');
@@ -1417,10 +1505,17 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
-// Expose for headless e2e
+// Expose for headless e2e / layout tests
 window.__poker = {
   getState: () => state,
   getViewer: () => viewerSeat,
+  /** Pin the hot-seat viewer (skips pass gate) and re-render. */
+  setViewer(seat) {
+    viewerSeat = seat;
+    needsPass = false;
+    $('#passScreen')?.classList.remove('is-on');
+    render();
+  },
   dispatch,
   view,
   applyAction,

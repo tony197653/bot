@@ -155,6 +155,15 @@ async function checkViewport(browser, url, vp, seatCount) {
 
     // Dealer button must be fully visible and clear of plates / bets / pot / note / cards
     const dealerEl = document.getElementById('dealer');
+    const st0 = window.__poker?.getState?.();
+    const viewer0 = window.__poker?.getViewer?.();
+    const buttonSeat = st0?.button;
+    const dealerPlateEl =
+      buttonSeat == null
+        ? null
+        : buttonSeat === viewer0
+          ? document.querySelector('.meinfo')
+          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate`);
     if (dealerEl && getComputedStyle(dealerEl).display !== 'none') {
       const dBox = box(dealerEl);
       const tableBox = box(document.querySelector('.table'));
@@ -175,12 +184,47 @@ async function checkViewport(browser, url, vp, seatCount) {
         if (oy > 0) return Math.max(a.left - b.right, b.left - a.right);
         return 99;
       };
-      plates.forEach((p, j) => {
-        // ≥8px edge gap so plate drop-shadow does not visually cover D
-        if (edgeGap(dBox, p) < 8) {
-          issues.push(`dealer too close to plate[${j}] (gap=${edgeGap(dBox, p).toFixed(1)})`);
+      const dC = {
+        x: (dBox.left + dBox.right) / 2,
+        y: (dBox.top + dBox.bottom) / 2,
+      };
+      // Edge distance to a plate AABB (0 if center is inside / touching)
+      const distToPlate = (p) => {
+        const dx = Math.max(p.left - dC.x, 0, dC.x - p.right);
+        const dy = Math.max(p.top - dC.y, 0, dC.y - p.bottom);
+        return Math.hypot(dx, dy);
+      };
+
+      // D must be nearer (by edge distance) to the button seat's plate than to any other
+      if (dealerPlateEl) {
+        const own = box(dealerPlateEl);
+        const ownDist = distToPlate(own);
+        const allPlates = [...document.querySelectorAll('.seat .plate, .meinfo')];
+        allPlates.forEach((el, j) => {
+          if (el === dealerPlateEl) return;
+          const otherDist = distToPlate(box(el));
+          if (otherDist <= ownDist + 1) {
+            issues.push(
+              `dealer nearer to plate[${j}] (${otherDist.toFixed(1)}) than button plate (${ownDist.toFixed(1)})`,
+            );
+          }
+          // Other plates keep a clear edge gap
+          if (edgeGap(dBox, box(el)) < 8) {
+            issues.push(`dealer too close to other plate[${j}] (gap=${edgeGap(dBox, box(el)).toFixed(1)})`);
+          }
+        });
+        // Own plate: may sit tight (gap can be small) but must not heavily cover the plate
+        if (overlaps(dBox, own) && edgeGap(dBox, own) < -4) {
+          issues.push('dealer heavily overlaps own nameplate');
         }
-      });
+        // Must stay close to own plate (not drifted toward table center)
+        if (ownDist > 28) {
+          issues.push(`dealer too far from own nameplate (edgeDist=${ownDist.toFixed(1)})`);
+        }
+      } else {
+        issues.push('missing dealer nameplate for button seat');
+      }
+
       bets.forEach((b, i) => {
         if (overlaps(dBox, b) || near(dBox, b, 2)) {
           issues.push(`dealer overlaps bet[${i}]`);
@@ -197,6 +241,37 @@ async function checkViewport(browser, url, vp, seatCount) {
         '#heroHole .card, .mini-hole .card, #board .card',
       )) {
         if (overlaps(dBox, box(card))) issues.push('dealer overlaps card');
+      }
+    }
+
+    // 「莊家」 tag on the button seat nameplate (and HU also keeps 小盲)
+    if (st0 && buttonSeat != null) {
+      const tagRoot =
+        buttonSeat === viewer0
+          ? document.getElementById('heroName')
+          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate .nm`);
+      const tagText = tagRoot?.textContent?.replace(/\s+/g, '') || '';
+      if (!tagText.includes('莊家')) {
+        issues.push(`missing 莊家 tag on button seat ${buttonSeat} (got "${tagText}")`);
+      }
+      // Tag must not appear on non-button seats
+      for (const el of document.querySelectorAll('.seat .plate .nm, #heroName')) {
+        const seatEl = el.closest('.seat');
+        const seat =
+          seatEl?.dataset?.seat != null
+            ? +seatEl.dataset.seat
+            : el.id === 'heroName'
+              ? viewer0
+              : null;
+        if (seat == null || seat === buttonSeat) continue;
+        if ((el.textContent || '').includes('莊家')) {
+          issues.push(`莊家 tag on non-button seat ${seat}`);
+        }
+      }
+      if (seatCount === 2 && st0.sbSeat === buttonSeat) {
+        if (!tagText.includes('小盲')) {
+          issues.push('HU dealer missing 小盲 tag alongside 莊家');
+        }
       }
     }
 
@@ -333,15 +408,166 @@ async function checkViewport(browser, url, vp, seatCount) {
 
   const shot = join(ART, `poker-layout-${vp.name}-seats${seatCount}.png`);
   await page.screenshot({ path: shot, fullPage: true });
+
+  // Rotate button through every occupied seat with viewer pinned, so D walks
+  // every visual ring position; re-assert D nearest + 莊家 each hand.
+  const rotationIssues = [];
+  const seenButtons = new Set();
+  const pinnedViewer = await page.evaluate(() => window.__poker?.getViewer?.());
+  const firstBtn = await page.evaluate(() => window.__poker?.getState?.()?.button);
+  if (firstBtn != null) seenButtons.add(firstBtn);
+  for (let hand = 1; hand < seatCount; hand++) {
+    // Fold out current hand (auto-pass via setViewer when needed)
+    for (let step = 0; step < 50; step++) {
+      const phase = await page.evaluate(() => window.__poker?.getState?.()?.phase || '');
+      if (phase === 'hand_over') break;
+      await page.evaluate((v) => window.__poker?.setViewer?.(v), pinnedViewer);
+      await page.waitForTimeout(40);
+      const fold = page.locator('#btnFold:not([disabled])');
+      if (await fold.count()) {
+        await fold.click();
+        await page.waitForTimeout(70);
+        continue;
+      }
+      const check = page.locator('#btnCheck:not([disabled])');
+      if (await check.count()) {
+        await check.click();
+        await page.waitForTimeout(50);
+        continue;
+      }
+      const call = page.locator('#btnCall:not([disabled])');
+      if (await call.count()) {
+        await call.click();
+        await page.waitForTimeout(50);
+        continue;
+      }
+      // Not our turn — jump viewer to actor, act, then pin back
+      const actor = await page.evaluate(() => window.__poker?.getState?.()?.actor);
+      if (actor != null && actor !== pinnedViewer) {
+        await page.evaluate((a) => window.__poker?.setViewer?.(a), actor);
+        await page.waitForTimeout(40);
+        continue;
+      }
+      await page.waitForTimeout(50);
+    }
+    // Next hand
+    const next = page.locator('#btnNext:not([disabled])');
+    if (await next.count()) await next.click();
+    else {
+      rotationIssues.push(`hand ${hand}: missing #btnNext after hand_over`);
+      break;
+    }
+    await page.waitForTimeout(120);
+    await page.evaluate((v) => window.__poker?.setViewer?.(v), pinnedViewer);
+    await page.waitForTimeout(200);
+    await page.evaluate(
+      () =>
+        new Promise((r) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))),
+        ),
+    );
+    await page.waitForTimeout(180);
+
+    const rot = await page.evaluate((seatCount) => {
+      const issues = [];
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+      };
+      const overlaps = (a, b) => {
+        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        return ox > 0 && oy > 0;
+      };
+      const near = (a, b, pad) => {
+        const ox =
+          Math.min(a.right + pad, b.right + pad) - Math.max(a.left - pad, b.left - pad);
+        const oy =
+          Math.min(a.bottom + pad, b.bottom + pad) - Math.max(a.top - pad, b.top - pad);
+        return ox > 0 && oy > 0;
+      };
+      const st = window.__poker?.getState?.();
+      const viewer = window.__poker?.getViewer?.();
+      const buttonSeat = st?.button;
+      const dealerEl = document.getElementById('dealer');
+      if (!dealerEl || getComputedStyle(dealerEl).display === 'none') {
+        return { issues: ['missing dealer'], button: buttonSeat };
+      }
+      const dBox = box(dealerEl);
+      const dC = {
+        x: (dBox.left + dBox.right) / 2,
+        y: (dBox.top + dBox.bottom) / 2,
+      };
+      const dealerPlateEl =
+        buttonSeat === viewer
+          ? document.querySelector('.meinfo')
+          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate`);
+      if (!dealerPlateEl) {
+        issues.push(`no plate for button ${buttonSeat}`);
+        return { issues, button: buttonSeat };
+      }
+      const own = box(dealerPlateEl);
+      const distToPlate = (p) => {
+        const dx = Math.max(p.left - dC.x, 0, dC.x - p.right);
+        const dy = Math.max(p.top - dC.y, 0, dC.y - p.bottom);
+        return Math.hypot(dx, dy);
+      };
+      const ownDist = distToPlate(own);
+      if (ownDist > 28) {
+        issues.push(`button=${buttonSeat}: D too far from own plate (${ownDist.toFixed(1)})`);
+      }
+      for (const el of document.querySelectorAll('.seat .plate, .meinfo')) {
+        if (el === dealerPlateEl) continue;
+        const od = distToPlate(box(el));
+        if (od <= ownDist + 1) {
+          issues.push(
+            `button=${buttonSeat}: D nearer other plate (${od.toFixed(1)}) than own (${ownDist.toFixed(1)})`,
+          );
+        }
+      }
+      const pot = document.querySelector('.pot');
+      if (pot && (overlaps(dBox, box(pot)) || near(dBox, box(pot), 2))) {
+        issues.push(`button=${buttonSeat}: D overlaps pot`);
+      }
+      for (const bet of document.querySelectorAll('#bets .bet')) {
+        if (overlaps(dBox, box(bet)) || near(dBox, box(bet), 2)) {
+          issues.push(`button=${buttonSeat}: D overlaps bet`);
+        }
+      }
+      const tagRoot =
+        buttonSeat === viewer
+          ? document.getElementById('heroName')
+          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate .nm`);
+      const tagText = tagRoot?.textContent?.replace(/\s+/g, '') || '';
+      if (!tagText.includes('莊家')) {
+        issues.push(`button=${buttonSeat}: missing 莊家 (got "${tagText}")`);
+      }
+      if (seatCount === 2 && st.sbSeat === buttonSeat && !tagText.includes('小盲')) {
+        issues.push(`button=${buttonSeat}: HU missing 小盲 with 莊家`);
+      }
+      return { issues, button: buttonSeat };
+    }, seatCount);
+
+    if (rot.button != null) seenButtons.add(rot.button);
+    rotationIssues.push(...rot.issues);
+  }
+
+  if (seenButtons.size < seatCount) {
+    rotationIssues.push(
+      `only saw ${seenButtons.size}/${seatCount} button seats: [${[...seenButtons]}]`,
+    );
+  }
+
   await page.close();
 
   return {
     viewport: vp.name,
     seatCount,
     errors,
-    issues: report.issues,
+    issues: [...report.issues, ...rotationIssues],
     boardGaps: report.boardGaps,
     betCount: report.betCount,
+    buttonSeatsSeen: [...seenButtons],
     screenshot: shot,
   };
 }
