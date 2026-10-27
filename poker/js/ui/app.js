@@ -28,9 +28,82 @@ let lastActor = null;
 let raiseTo = 0;
 let toastTimer = 0;
 let dealAnimKey = '';
+/** @type {ReturnType<typeof setTimeout> | null} */
+let raiseHoldTimer = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let raiseHoldRepeat = null;
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
+
+function clearRaiseHold() {
+  if (raiseHoldTimer != null) clearTimeout(raiseHoldTimer);
+  if (raiseHoldRepeat != null) clearTimeout(raiseHoldRepeat);
+  raiseHoldTimer = null;
+  raiseHoldRepeat = null;
+}
+
+/** Step raise-to by ±1 BB; press-and-hold auto-repeats after ~400ms then accelerates. */
+function bindRaiseStep(btn, dir) {
+  if (!btn || btn.dataset.bound === '1') return;
+  btn.dataset.bound = '1';
+  const stepOnce = () => {
+    const legal = getLegalActions(state, viewerSeat);
+    if (!legal?.canAct) return;
+    const min = legal.minRaiseTo;
+    const max = legal.maxRaiseTo;
+    const bb = state.config.bigBlind;
+    raiseTo = clamp(raiseTo + dir * bb, Math.min(min, max), max);
+    const range = $('#raiseRange');
+    if (range) {
+      range.value = String(raiseTo);
+      syncRaiseUi();
+    }
+  };
+  const onDown = (e) => {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    clearRaiseHold();
+    try {
+      btn.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    stepOnce();
+    let interval = 140;
+    raiseHoldTimer = setTimeout(function tick() {
+      stepOnce();
+      interval = Math.max(36, Math.floor(interval * 0.82));
+      raiseHoldRepeat = setTimeout(tick, interval);
+    }, 400);
+  };
+  const onUp = () => clearRaiseHold();
+  btn.addEventListener('pointerdown', onDown);
+  btn.addEventListener('pointerup', onUp);
+  btn.addEventListener('pointercancel', onUp);
+  btn.addEventListener('lostpointercapture', onUp);
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+function syncRaiseUi() {
+  const range = $('#raiseRange');
+  const out = $('#raiseOut');
+  if (out) out.textContent = fmtChips(raiseTo);
+  if (range) {
+    const min = +range.min;
+    const max = +range.max;
+    const pct = max > min ? ((raiseTo - min) / (max - min)) * 100 : 0;
+    range.style.setProperty('--raise-pct', `${clamp(pct, 0, 100)}%`);
+  }
+  syncPresetPressed();
+  syncRaiseBtn();
+  const minus = $('#raiseMinus');
+  const plus = $('#raisePlus');
+  if (range && minus && plus) {
+    minus.disabled = raiseTo <= +range.min;
+    plus.disabled = raiseTo >= +range.max;
+  }
+}
 
 function dispatch(action, env = {}) {
   try {
@@ -758,10 +831,13 @@ function renderActions(v) {
 
   act.classList.remove('is-dim');
   $('#turnTitle').textContent = '輪到你了';
-  let hint = '';
-  if (legal.check) hint = '可以過牌或下注';
-  else if (legal.call)
-    hint = `跟注 ${legal.callAmount} 或加注，最少加到 ${legal.minRaiseTo}`;
+  const potTxt = fmtChips(v.potTotal);
+  let hint = `底池 ${potTxt}`;
+  if (legal.check) hint += ' ・ 可以過牌';
+  else if (legal.call) {
+    hint += ` ・ 跟注 ${fmtChips(legal.callAmount)}`;
+    if (legal.raise || legal.bet) hint += ` ・ 最少加到 ${fmtChips(legal.minRaiseTo)}`;
+  }
   $('#turnHint').textContent = hint;
 
   const canRaise = legal.bet || legal.raise;
@@ -770,38 +846,42 @@ function renderActions(v) {
     $('#presets').classList.remove('hidden');
     const min = legal.minRaiseTo;
     const max = legal.maxRaiseTo;
-    raiseTo = clamp(raiseTo || min, min, max);
+    const lo = Math.min(min, max);
+    const presets = raisePresets(state, viewerSeat);
+    const preferred = presets.find((p) => p.preferred)?.to ?? min;
+    if (!raiseTo) raiseTo = preferred;
+    raiseTo = clamp(raiseTo, lo, max);
     const range = $('#raiseRange');
-    range.min = String(min);
+    range.min = String(lo);
     range.max = String(max);
+    range.step = '1';
     range.value = String(raiseTo);
-    $('#raiseOut').textContent = fmtChips(raiseTo);
     range.oninput = () => {
       raiseTo = +range.value;
-      $('#raiseOut').textContent = fmtChips(raiseTo);
-      syncPresetPressed();
-      syncRaiseBtn();
+      syncRaiseUi();
     };
-    const presets = raisePresets(state, viewerSeat);
     $('#presets').innerHTML = presets
       .map(
         (p) =>
-          `<button type="button" data-to="${p.to}" data-id="${p.id}">${p.label}</button>`,
+          `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.to === raiseTo}">` +
+          `<span class="preset-lbl">${p.label}</span>` +
+          `<span class="preset-amt">${fmtChips(p.to)}</span></button>`,
       )
       .join('');
     $('#presets').onclick = (e) => {
       const b = e.target.closest('button[data-to]');
       if (!b) return;
-      raiseTo = clamp(+b.dataset.to, min, max);
+      raiseTo = clamp(+b.dataset.to, lo, max);
       range.value = String(raiseTo);
-      $('#raiseOut').textContent = fmtChips(raiseTo);
-      syncPresetPressed();
-      syncRaiseBtn();
+      syncRaiseUi();
     };
-    syncPresetPressed();
+    bindRaiseStep($('#raiseMinus'), -1);
+    bindRaiseStep($('#raisePlus'), 1);
+    syncRaiseUi();
   } else {
     $('#raiseWrap').classList.add('hidden');
     $('#presets').classList.add('hidden');
+    clearRaiseHold();
   }
 
   const foldBtn = legal.fold
@@ -816,6 +896,7 @@ function renderActions(v) {
     mid = `<button class="call" type="button" disabled>—</button>`;
   }
   let raiseBtn;
+  // 本街尚無人下注 →「下注 X」；已有人下注／加注 →「加注到 X」
   if (legal.bet) {
     raiseBtn = `<button class="raiseb" type="button" id="btnRaise">下注 ${fmtChips(raiseTo)}<span class="key">R</span></button>`;
   } else if (legal.raise) {
@@ -856,7 +937,7 @@ function syncRaiseBtn() {
   if (!b) return;
   const legal = getLegalActions(state, viewerSeat);
   if (legal.bet) b.innerHTML = `下注 ${fmtChips(raiseTo)}<span class="key">R</span>`;
-  else b.innerHTML = `加注到 ${fmtChips(raiseTo)}<span class="key">R</span>`;
+  else if (legal.raise) b.innerHTML = `加注到 ${fmtChips(raiseTo)}<span class="key">R</span>`;
 }
 
 function syncPresetPressed() {

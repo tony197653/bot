@@ -824,8 +824,11 @@ export function getLegalActions(s, seat) {
 }
 
 /**
- * Quick-pick raise targets clamped to legal range.
- * Amounts are "raise to" totals for the street.
+ * Quick-pick raise-to totals in a fixed 3×2 grid (labels change by situation).
+ * - Preflop, only blinds (currentBet ≤ BB): 最小 / 2.5–5 大盲 / 全下（大盲倍數＝加到總額）
+ * - Preflop, facing a raise above BB: 最小 / 2.5–4 倍 / 一池 / 全下（倍數＝對目前面額 currentBet）
+ * - Postflop: 最小 / 池比例 / 全下（raise-to ≈ call + frac×(pot+call)）
+ * Every amount is rounded to whole chips and clamped to [minRaise, all-in].
  */
 export function raisePresets(s, seat) {
   const L = getLegalActions(s, seat);
@@ -835,26 +838,63 @@ export function raisePresets(s, seat) {
   const toCall = Math.max(0, s.currentBet - p.bet);
   const minTo = L.minRaiseTo;
   const maxTo = L.maxRaiseTo;
+  const bb = s.config.bigBlind;
+  const lo = Math.min(minTo, maxTo);
+  const hi = maxTo;
 
-  // Pot-style sizing: common convention — raise-to ≈ call + fraction * (pot + call)
+  // Pot-style sizing: raise-to ≈ call + fraction * (pot + call)
   const potRaiseTo = (frac) => {
     const add = Math.round((pot + toCall) * frac);
     return p.bet + toCall + add;
   };
 
-  const picks = [
-    { id: 'min', label: '最小', to: minTo },
-    { id: '1/3', label: '1/3 池', to: potRaiseTo(1 / 3) },
-    { id: '1/2', label: '半池', to: potRaiseTo(1 / 2) },
-    { id: '2/3', label: '2/3 池', to: potRaiseTo(2 / 3) },
-    { id: 'pot', label: '一池', to: potRaiseTo(1) },
-    { id: 'allin', label: '全下', to: maxTo },
-  ];
+  const preflop = s.phase === PHASE.PREFLOP;
+  /** @type {{ id: string, label: string, to: number }[]} */
+  let picks;
+  /** @type {string} */
+  let preferId;
 
-  return picks.map((x) => ({
-    ...x,
-    to: clamp(x.to, Math.min(minTo, maxTo), maxTo),
-  }));
+  if (preflop && s.currentBet <= bb) {
+    preferId = '3bb';
+    picks = [
+      { id: 'min', label: '最小', to: minTo },
+      { id: '2.5bb', label: '2.5 大盲', to: 2.5 * bb },
+      { id: '3bb', label: '3 大盲', to: 3 * bb },
+      { id: '4bb', label: '4 大盲', to: 4 * bb },
+      { id: '5bb', label: '5 大盲', to: 5 * bb },
+      { id: 'allin', label: '全下', to: maxTo },
+    ];
+  } else if (preflop) {
+    preferId = '3x';
+    const face = s.currentBet;
+    picks = [
+      { id: 'min', label: '最小', to: minTo },
+      { id: '2.5x', label: '2.5 倍', to: 2.5 * face },
+      { id: '3x', label: '3 倍', to: 3 * face },
+      { id: '4x', label: '4 倍', to: 4 * face },
+      { id: 'pot', label: '一池', to: potRaiseTo(1) },
+      { id: 'allin', label: '全下', to: maxTo },
+    ];
+  } else {
+    preferId = '1/2';
+    picks = [
+      { id: 'min', label: '最小', to: minTo },
+      { id: '1/3', label: '1/3 池', to: potRaiseTo(1 / 3) },
+      { id: '1/2', label: '半池', to: potRaiseTo(1 / 2) },
+      { id: '2/3', label: '2/3 池', to: potRaiseTo(2 / 3) },
+      { id: 'pot', label: '一池', to: potRaiseTo(1) },
+      { id: 'allin', label: '全下', to: maxTo },
+    ];
+  }
+
+  return picks.map((x) => {
+    const to = clamp(Math.round(x.to), lo, hi);
+    return {
+      ...x,
+      to,
+      preferred: x.id === preferId,
+    };
+  });
 }
 
 export function totalPot(s) {

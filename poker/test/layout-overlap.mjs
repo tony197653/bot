@@ -465,6 +465,144 @@ async function checkScrollScreens(browser, url, vp) {
   };
 }
 
+/** Bet/raise panel: 3×2 presets, ± steppers, no table overlap, no page scroll. */
+async function checkBetPanel(browser, url, vp) {
+  const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  const issues = [];
+
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
+  await page.locator('#timerToggle').uncheck().catch(() => {});
+  // 3 players keeps preflop unraised sizing stable for first actor
+  const rows = page.locator('#playerRows .p-row');
+  const nRows = await rows.count();
+  for (let i = 0; i < nRows; i++) {
+    const row = rows.nth(i);
+    const disabled = await row.locator('input').isDisabled();
+    const wantOn = i < 3;
+    if (wantOn === disabled) await row.locator('button[data-toggle]').click();
+  }
+  await page.click('#btnStart');
+  await page.waitForSelector('#passScreen.is-on', { timeout: 10000 });
+  await page.click('#btnPassOk');
+  await page.waitForSelector('#presets:not(.hidden)', { timeout: 10000 });
+  await page.waitForTimeout(200);
+
+  const report = await page.evaluate(() => {
+    const issues = [];
+    const wrap = document.getElementById('raiseWrap');
+    const presets = document.getElementById('presets');
+    const minus = document.getElementById('raiseMinus');
+    const plus = document.getElementById('raisePlus');
+    const range = document.getElementById('raiseRange');
+    const act = document.getElementById('act');
+    const table = document.querySelector('.table');
+    const app = document.querySelector('.app');
+
+    if (!wrap || wrap.classList.contains('hidden')) issues.push('raiseWrap hidden on hero turn');
+    if (!presets || presets.classList.contains('hidden')) issues.push('presets hidden');
+    const buttons = [...(presets?.querySelectorAll('button[data-to]') || [])];
+    if (buttons.length !== 6) issues.push(`expected 6 presets, got ${buttons.length}`);
+
+    const labels = buttons.map((b) => b.querySelector('.preset-lbl')?.textContent?.trim());
+    const amts = buttons.map((b) => b.querySelector('.preset-amt')?.textContent?.trim());
+    if (labels.some((t) => !t)) issues.push('preset missing label');
+    if (amts.some((t) => !t)) issues.push('preset missing amount');
+
+    const pressed = buttons.filter((b) => b.getAttribute('aria-pressed') === 'true');
+    if (pressed.length < 1) issues.push('no preset aria-pressed');
+
+    for (const el of [minus, plus]) {
+      if (!el) {
+        issues.push('missing ± button');
+        continue;
+      }
+      const r = el.getBoundingClientRect();
+      if (r.width < 44 - 0.5 || r.height < 44 - 0.5) {
+        issues.push(`step control too small ${r.width.toFixed(1)}×${r.height.toFixed(1)}`);
+      }
+    }
+    if (!range) issues.push('missing raiseRange');
+
+    // Grid is 3 columns × 2 rows
+    if (buttons.length === 6) {
+      const tops = buttons.map((b) => b.getBoundingClientRect().top);
+      const near = (a, b) => Math.abs(a - b) <= 2;
+      const row0 = tops[0];
+      const row1 = tops[3];
+      if (!(near(tops[1], row0) && near(tops[2], row0))) issues.push('preset row1 not aligned');
+      if (!(near(tops[4], row1) && near(tops[5], row1))) issues.push('preset row2 not aligned');
+      if (!(row1 > row0 + 20)) issues.push('presets not in 2 rows');
+    }
+
+    // No overlap between act panel and table felt
+    if (act && table) {
+      const a = act.getBoundingClientRect();
+      const t = table.getBoundingClientRect();
+      const ox = Math.min(a.right, t.right) - Math.max(a.left, t.left);
+      const oy = Math.min(a.bottom, t.bottom) - Math.max(a.top, t.top);
+      if (ox > 2 && oy > 2) issues.push(`act overlaps table by ${ox.toFixed(1)}×${oy.toFixed(1)}`);
+    }
+
+    // Table screen should not require document/app vertical scroll
+    const doc = document.documentElement;
+    if (doc.scrollHeight > doc.clientHeight + 2) {
+      issues.push(`page vertical scroll ${doc.scrollHeight}>${doc.clientHeight}`);
+    }
+    if (app && app.scrollHeight > app.clientHeight + 2 && getComputedStyle(app).overflowY !== 'hidden') {
+      // app may grow; body locks overflow — flag only if window scrolled
+      if (window.scrollY > 0) issues.push('window scrolled on table screen');
+    }
+
+    // Horizontal lock
+    if (doc.scrollWidth > doc.clientWidth + 1) {
+      issues.push(`horizontal overflow ${doc.scrollWidth}>${doc.clientWidth}`);
+    }
+
+    return {
+      issues,
+      labels,
+      amts,
+      raiseBtn: document.getElementById('btnRaise')?.textContent?.replace(/\s+/g, ' ').trim() || null,
+      hint: document.getElementById('turnHint')?.textContent || null,
+    };
+  });
+  issues.push(...report.issues);
+
+  // Stepper nudges amount by 1 BB
+  const before = await page.locator('#raiseRange').inputValue();
+  await page.click('#raisePlus');
+  const afterPlus = await page.locator('#raiseRange').inputValue();
+  if (!(+afterPlus > +before)) issues.push(`plus did not increase (${before}→${afterPlus})`);
+  await page.click('#raiseMinus');
+  const afterMinus = await page.locator('#raiseRange').inputValue();
+  if (+afterMinus !== +before) issues.push(`minus did not restore (${before}→${afterMinus})`);
+
+  // Preset click selects gold border
+  const third = page.locator('#presets button').nth(2);
+  await third.click();
+  const pressed = await third.getAttribute('aria-pressed');
+  if (pressed !== 'true') issues.push('clicked preset not pressed');
+
+  const shot = join(ART, `poker-betpanel-${vp.name}.png`);
+  await page.screenshot({ path: shot });
+  await page.close();
+
+  return {
+    kind: 'bet-panel',
+    viewport: vp.name,
+    size: `${vp.w}x${vp.h}`,
+    errors,
+    issues,
+    labels: report.labels,
+    raiseBtn: report.raiseBtn,
+    hint: report.hint,
+    screenshot: shot,
+  };
+}
+
 async function main() {
   const { server, url } = await startServer();
   const browser = await chromium.launch({
@@ -483,6 +621,12 @@ async function main() {
     { name: 'safari-toolbars', w: 390, h: 664 },
     { name: 'desktop', w: 1280, h: 800 },
   ];
+  const betPanelViewports = [
+    { name: 'phone-390', w: 390, h: 844 },
+    { name: 'phone-se', w: 375, h: 667 },
+    { name: 'safari-toolbars', w: 390, h: 664 },
+    { name: 'desktop', w: 1280, h: 800 },
+  ];
   const results = [];
   for (const vp of viewports) {
     for (let seats = 2; seats <= 6; seats++) {
@@ -493,20 +637,28 @@ async function main() {
   for (const vp of scrollViewports) {
     scrollResults.push(await checkScrollScreens(browser, url, vp));
   }
+  const betPanelResults = [];
+  for (const vp of betPanelViewports) {
+    betPanelResults.push(await checkBetPanel(browser, url, vp));
+  }
 
   await browser.close();
   server.close();
 
   const failed = results.filter((r) => r.issues.length || r.errors.length);
   const scrollFailed = scrollResults.filter((r) => r.issues.length || r.errors.length);
+  const betFailed = betPanelResults.filter((r) => r.issues.length || r.errors.length);
   const summary = {
-    ok: failed.length === 0 && scrollFailed.length === 0,
+    ok: failed.length === 0 && scrollFailed.length === 0 && betFailed.length === 0,
     checked: results.length,
     failed: failed.length,
     scrollChecked: scrollResults.length,
     scrollFailed: scrollFailed.length,
+    betPanelChecked: betPanelResults.length,
+    betPanelFailed: betFailed.length,
     results,
     scrollResults,
+    betPanelResults,
   };
   writeFileSync(join(ART, 'poker-layout-overlap.json'), JSON.stringify(summary, null, 2));
   console.log(JSON.stringify(summary, null, 2));
