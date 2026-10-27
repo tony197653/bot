@@ -1168,6 +1168,7 @@ function layoutDealer() {
       for (const o of options) {
         const x = clamp(o.x, minX, maxX);
         const y = clamp(o.y, minY, maxY);
+        if ((x - ax) * ux + (y - ay) * uy < 2) continue; // must face table center
         if (blocked(x, y)) continue;
         if (
           overlaps(
@@ -1205,6 +1206,21 @@ function layoutDealer() {
         }
       }
       if (pick) best = pick;
+    }
+  }
+
+  // Hard rule: D must sit on the inward side of the plate (facing table center)
+  {
+    const inwardDot = (best.x - ax) * ux + (best.y - ay) * uy;
+    if (inwardDot < 2) {
+      const faceDist = Math.min(
+        ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
+        uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
+      );
+      best = {
+        x: clamp(ax + ux * (faceDist + edgeDepth), minX, maxX),
+        y: clamp(ay + uy * (faceDist + edgeDepth), minY, maxY),
+      };
     }
   }
 
