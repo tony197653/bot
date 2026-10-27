@@ -560,8 +560,9 @@ function renderTable(v) {
       : '';
     const wonAmt = state.winnerPayouts?.[seat];
     const isWin = wonAmt != null && (v.isHandOver || v.isShowdown);
+    const showing = revealed ? ' is-showing' : '';
     const el = document.createElement('div');
-    el.className = `seat pos-${pos}${folded}${actor}${isWin ? ' is-winner' : ''}`;
+    el.className = `seat pos-${pos}${folded}${actor}${showing}${isWin ? ' is-winner' : ''}`;
     el.dataset.seat = String(seat);
     el.innerHTML = `
       ${revealHtml || backs}
@@ -651,11 +652,21 @@ function renderTable(v) {
   }
 
   requestAnimationFrame(() => {
+    // D first (gen.py has D static before bets); then bets clear of D
+    placeDealer();
     placeBets();
+    // Re-place D now that bets are parked, so D clears chips too
     placeDealer();
     const d = $('#dealer');
     if (d && getComputedStyle(d).display !== 'none') {
       prevDealerRect = d.getBoundingClientRect();
+    }
+    // Keep pot CSS-centred (clear any stray inline left/top from older layouts)
+    const pot = document.querySelector('.pot');
+    if (pot) {
+      pot.style.left = '';
+      pot.style.top = '';
+      pot.style.transform = '';
     }
     maybePlayWinnerFx(v);
   });

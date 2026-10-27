@@ -172,25 +172,28 @@ function auditTableLayoutInPage({ seatCount, opts = {} }) {
       }
       if (ka === 'heroHole' && kb === 'heroHole') continue;
       if (ka === 'reveal' && kb === 'reveal' && seatOf(a) === seatOf(b)) continue;
-      // Hero cards sit just above own nameplate (intentional overlap/tuck)
+      // Hero hole cards may tuck slightly into own nameplate (mockup A)
       if (
-        ({plate:1,heroHole:1}[ka] && {plate:1,heroHole:1}[kb]) ||
-        ({plate:1,reveal:1}[ka] && {plate:1,reveal:1}[kb])
+        ({plate:1,heroHole:1}[ka] && {plate:1,heroHole:1}[kb]) &&
+        seatOf(a) != null &&
+        seatOf(a) === seatOf(b)
       ) {
-        if (seatOf(a) != null && seatOf(a) === seatOf(b)) continue;
+        continue;
       }
-      // D may sit tight against the button's own nameplate
-      if ((ka === 'dealer' && kb === 'plate') || (ka === 'plate' && kb === 'dealer')) {
-        const plateT = ka === 'plate' ? a : b;
-        const st0 = window.__poker?.getState?.();
-        const viewer0 = window.__poker?.getViewer?.();
-        const button0 = st0?.button;
-        if (
-          (button0 === viewer0 && seatOf(plateT) === 'hero') ||
-          (button0 != null && seatOf(plateT) === String(button0))
-        ) {
+      // Revealed cards must NOT cover the owner's nameplate
+      if ((ka === 'plate' && kb === 'reveal') || (ka === 'reveal' && kb === 'plate')) {
+        if (seatOf(a) != null && seatOf(a) === seatOf(b) && overlaps(a.b, b.b)) {
+          issues.push(`${a.name} overlaps ${b.name} (reveal must sit above nameplate)`);
           continue;
         }
+      }
+      // D must stay clear of EVERY nameplate (including the button's own) — no skip
+      if ((ka === 'dealer' && kb === 'plate') || (ka === 'plate' && kb === 'dealer')) {
+        const g = edgeGap(a.b, b.b);
+        if (g < 10) {
+          issues.push(`dealer vs ${ka === 'plate' ? a.name : b.name} gap ${g.toFixed(1)}px (want ≥10)`);
+        }
+        continue;
       }
       if (overlaps(a.b, b.b)) {
         issues.push(`${a.name} overlaps ${b.name}`);
@@ -198,34 +201,61 @@ function auditTableLayoutInPage({ seatCount, opts = {} }) {
     }
   }
 
-  // Bet → own seat chrome (plate + backs) gap 6–14px; hero may sit above hole cards
+  // Bet → own seat chrome (plate + backs) gap 6–14px; nearest plate must be the owner
   for (const bet of bets) {
     const seatId = bet.dataset.forSeat;
-    const seatEl =
-      bet.dataset.hero === '1'
-        ? document.querySelector('#meRoot')
-        : seatId != null
-          ? document.querySelector(`.seat[data-seat="${seatId}"]`)
-          : null;
+    const isHero = bet.dataset.hero === '1';
+    const seatEl = isHero
+      ? document.querySelector('#meRoot')
+      : seatId != null
+        ? document.querySelector(`.seat[data-seat="${seatId}"]`)
+        : null;
     if (!seatEl) {
       issues.push(`bet missing own seat (seat=${seatId || 'hero'})`);
       continue;
     }
-    const chrome = seatEl.getBoundingClientRect();
-    // Expand with descendants (backs)
-    let L = chrome.left, T = chrome.top, R = chrome.right, B = chrome.bottom;
-    seatEl.querySelectorAll('.plate, .plateA, .meinfo, .backs, .reveal-hole').forEach((c) => {
+    const plateEl = seatEl.querySelector('.plate, .plateA, .meinfo') || seatEl;
+    const ownPlate = box(plateEl);
+    // Chrome = plate + backs (not reveal-hole)
+    let L = ownPlate.left,
+      T = ownPlate.top,
+      R = ownPlate.right,
+      B = ownPlate.bottom;
+    seatEl.querySelectorAll('.backs').forEach((c) => {
       const q = c.getBoundingClientRect();
       if (q.width && q.height) {
-        L = Math.min(L, q.left); T = Math.min(T, q.top);
-        R = Math.max(R, q.right); B = Math.max(B, q.bottom);
+        L = Math.min(L, q.left);
+        T = Math.min(T, q.top);
+        R = Math.max(R, q.right);
+        B = Math.max(B, q.bottom);
       }
     });
-    const g = edgeGap(box(bet), { left: L, top: T, right: R, bottom: B });
+    const betBox = box(bet);
+    // Off-screen unplaced bets
+    if (betBox.left < -500 || betBox.top < -500) {
+      issues.push(`bet seat ${seatId ?? 'hero'} unplaced (off-screen)`);
+      continue;
+    }
+    const g = edgeGap(betBox, { left: L, top: T, right: R, bottom: B });
     const gap = Math.round(g * 10) / 10;
-    const hi = bet.dataset.hero === '1' ? 48 : 14;
+    const hi = isHero ? 48 : 14;
     if (gap < 6 || gap > hi) {
       issues.push(`bet seat ${seatId ?? 'hero'} plate gap ${gap}px (want 6–${hi})`);
+    }
+    // Nearest nameplate must be the owner's
+    let nearest = { seat: null, gap: Infinity };
+    for (const pl of plates) {
+      const pg = edgeGap(betBox, box(pl));
+      const sid =
+        pl.closest?.('.seat[data-seat]')?.dataset?.seat ??
+        (pl.classList?.contains('meinfo') || pl.closest?.('#meRoot') ? 'hero' : null);
+      if (pg < nearest.gap) nearest = { seat: sid, gap: pg };
+    }
+    const ownerKey = isHero ? 'hero' : String(seatId);
+    if (nearest.seat != null && nearest.seat !== ownerKey) {
+      issues.push(
+        `bet seat ${ownerKey} nearest plate is seat ${nearest.seat} (gap ${nearest.gap.toFixed(1)}), not owner`,
+      );
     }
   }
 
@@ -247,7 +277,7 @@ function auditTableLayoutInPage({ seatCount, opts = {} }) {
     if (t.includes('房主')) issues.push(`nameplate has 房主: "${t.trim()}"`);
   }
 
-  // Dealer placement
+  // Dealer placement — ≥10px clear of EVERY nameplate (incl. own) + backs / bets / pot / cards
   const st = window.__poker?.getState?.();
   const viewer = window.__poker?.getViewer?.();
   const buttonSeat = st?.button;
@@ -262,10 +292,23 @@ function auditTableLayoutInPage({ seatCount, opts = {} }) {
     const dealerPlateEl =
       buttonSeat === viewer
         ? document.querySelector('.meinfo')
-        : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate, .seat[data-seat="${buttonSeat}"] .plateA`);
+        : document.querySelector(
+            `.seat[data-seat="${buttonSeat}"] .plate, .seat[data-seat="${buttonSeat}"] .plateA`,
+          );
     if (!dealerPlateEl) {
       issues.push('missing dealer nameplate for button seat');
     } else {
+      const ownGap = edgeGap(dBox, box(dealerPlateEl));
+      if (ownGap < 10) {
+        issues.push(`dealer overlaps/too close to OWN nameplate (gap=${ownGap.toFixed(1)}, want ≥10)`);
+      }
+      // Also clear of stack/name text box inside the plate
+      const textEl =
+        dealerPlateEl.querySelector?.('.nm, .ch, .st, b, strong') || dealerPlateEl;
+      const textGap = edgeGap(dBox, box(textEl));
+      if (textGap < 10) {
+        issues.push(`dealer too close to nameplate text (gap=${textGap.toFixed(1)}, want ≥10)`);
+      }
       const ownDist = distToPlate(box(dealerPlateEl));
       plates.forEach((el, j) => {
         if (el === dealerPlateEl) return;
@@ -275,15 +318,22 @@ function auditTableLayoutInPage({ seatCount, opts = {} }) {
             `dealer nearer to plate[${j}] (${od.toFixed(1)}) than button plate (${ownDist.toFixed(1)})`,
           );
         }
-        if (edgeGap(dBox, box(el)) < 8) {
-          issues.push(`dealer too close to other plate[${j}] (gap=${edgeGap(dBox, box(el)).toFixed(1)})`);
+        const g = edgeGap(dBox, box(el));
+        if (g < 10) {
+          issues.push(`dealer too close to plate[${j}] (gap=${g.toFixed(1)}, want ≥10)`);
         }
       });
-      if (ownDist > 32) issues.push(`dealer too far from button plate (edgeDist=${ownDist.toFixed(1)})`);
+      if (ownDist > 48) issues.push(`dealer too far from button plate (edgeDist=${ownDist.toFixed(1)})`);
     }
-    const minObstacleGap = 8;
+    for (const bk of backs) {
+      const g = edgeGap(dBox, box(bk));
+      if (g < 10) issues.push(`dealer too close to card backs (gap=${g.toFixed(1)})`);
+    }
+    const minObstacleGap = 10;
     for (const bet of bets) {
-      const g = edgeGap(dBox, box(bet));
+      const bb = box(bet);
+      if (bb.left < -500) continue;
+      const g = edgeGap(dBox, bb);
       if (g < minObstacleGap) issues.push(`dealer too close to bet (gap=${g.toFixed(1)})`);
     }
     if (potEl) {
@@ -294,10 +344,14 @@ function auditTableLayoutInPage({ seatCount, opts = {} }) {
       if (edgeGap(dBox, box(c)) < minObstacleGap) issues.push('dealer too close to board card');
     }
     for (const c of heroCards) {
-      if (overlaps(dBox, box(c))) issues.push('dealer overlaps hero hole card');
+      if (overlaps(dBox, box(c)) || edgeGap(dBox, box(c)) < 10) {
+        issues.push('dealer too close to hero hole card');
+      }
     }
     for (const c of revealCards) {
-      if (overlaps(dBox, box(c))) issues.push('dealer overlaps revealed card');
+      if (overlaps(dBox, box(c)) || edgeGap(dBox, box(c)) < 10) {
+        issues.push('dealer too close to revealed card');
+      }
     }
   }
 
@@ -490,13 +544,36 @@ function auditRevealLayoutInPage({ seatCount }) {
   for (const seatEl of document.querySelectorAll('.seat[data-seat]')) {
     const seat = seatEl.dataset.seat;
     const hole = seatEl.querySelector('.reveal-hole');
+    const plate = seatEl.querySelector('.plate, .plateA');
     if (!hole) {
       issues.push(`reveal cards do not fit at seat ${seat} (no reveal-hole)`);
       continue;
     }
+    if (!seatEl.classList.contains('is-showing')) {
+      issues.push(`seat ${seat} revealed but missing .is-showing (nameplate may be dimmed)`);
+    }
+    const plateOp = plate ? parseFloat(getComputedStyle(plate).opacity) : 1;
+    if (plateOp < 0.9) {
+      issues.push(`seat ${seat} nameplate dimmed while showing (opacity=${plateOp})`);
+    }
     const cards = [...hole.querySelectorAll('.card')];
     if (cards.length < 2) {
       issues.push(`reveal cards do not fit at seat ${seat} (expected 2 cards)`);
+    }
+    const holeBox = box(hole);
+    if (plate) {
+      const pb = box(plate);
+      // Reveals must sit above the nameplate (bottom of cards ≤ top of plate + 2px)
+      if (holeBox.bottom > pb.top + 2) {
+        issues.push(
+          `seat ${seat} reveal covers nameplate (reveal.bottom=${holeBox.bottom.toFixed(1)} plate.top=${pb.top.toFixed(1)})`,
+        );
+      }
+      for (const card of cards) {
+        if (overlaps(box(card), pb)) {
+          issues.push(`seat ${seat} reveal card overlaps nameplate`);
+        }
+      }
     }
     for (const card of cards) {
       const b = box(card);
@@ -513,7 +590,35 @@ function auditRevealLayoutInPage({ seatCount }) {
           b.top < stageBox.top - 1 ||
           b.right > stageBox.right + 1 ||
           b.bottom > stageBox.bottom + 1;
-        if (out) issues.push(`reveal cards do not fit at seat ${seat} (clipped outside stage)`);
+        if (out) {
+          issues.push(
+            `reveal cards do not fit at seat ${seat} viewport=${window.innerWidth}x${window.innerHeight} (clipped outside stage)`,
+          );
+        }
+      }
+    }
+  }
+
+  // WIN badge must not cover hero hole cards
+  const winBadge = document.querySelector('#meRoot > .win-badge, .me .win-badge');
+  if (winBadge && heroRef) {
+    const wb = box(winBadge);
+    for (const c of document.querySelectorAll('#heroHole .card')) {
+      if (overlaps(wb, box(c))) {
+        issues.push('WIN badge overlaps hero hole cards');
+      }
+    }
+  }
+
+  // No stray chips at table top-left (unplaced bets / FX)
+  const tableEl = document.querySelector('.table');
+  if (tableEl) {
+    const tb = box(tableEl);
+    for (const el of document.querySelectorAll('#bets .bet, .fx-chip-fly')) {
+      const b = box(el);
+      if (b.w < 1 || b.h < 1) continue;
+      if (b.left < tb.left + 8 && b.top < tb.top + 8) {
+        issues.push('stray chip near table top-left');
       }
     }
   }
@@ -569,23 +674,26 @@ function auditRevealLayoutInPage({ seatCount }) {
       }
       if (ka === 'hero' && kb === 'hero') continue;
       if (ka === 'reveal' && kb === 'reveal' && seatOfEl(a.el) === seatOfEl(b.el)) continue;
+      // Hero hole may tuck into own plate; reveals must NOT cover plates
       if (
-        ({ plate: 1, hero: 1, reveal: 1 }[ka] && { plate: 1, hero: 1, reveal: 1 }[kb]) &&
+        ({ plate: 1, hero: 1 }[ka] && { plate: 1, hero: 1 }[kb]) &&
         seatOfEl(a.el) != null &&
         seatOfEl(a.el) === seatOfEl(b.el)
       ) {
         continue;
       }
-      // Dealer may sit tight against own button plate
       if ((ka === 'dealer' && kb === 'plate') || (ka === 'plate' && kb === 'dealer')) {
-        const plateEl = ka === 'plate' ? a.el : b.el;
-        const st = window.__poker?.getState?.();
-        const viewer = window.__poker?.getViewer?.();
-        const button = st?.button;
-        const isOwn =
-          (button === viewer && plateEl.classList?.contains('meinfo')) ||
-          plateEl.closest?.(`.seat[data-seat="${button}"]`);
-        if (isOwn) continue;
+        const ox = Math.min(a.b.right, b.b.right) - Math.max(a.b.left, b.b.left);
+        const oy = Math.min(a.b.bottom, b.b.bottom) - Math.max(a.b.top, b.b.top);
+        let gap;
+        if (ox > 0 && oy > 0) gap = -Math.min(ox, oy);
+        else if (ox > 0) gap = Math.max(a.b.top - b.b.bottom, b.b.top - a.b.bottom);
+        else if (oy > 0) gap = Math.max(a.b.left - b.b.right, b.b.left - a.b.right);
+        else gap = 99;
+        if (gap < 10) {
+          issues.push(`showdown: dealer vs plate gap ${gap.toFixed(1)} (want ≥10)`);
+        }
+        continue;
       }
       if (overlaps(a.b, b.b)) {
         issues.push(`showdown: ${a.name} overlaps ${b.name}`);
