@@ -14,6 +14,7 @@ import {
 } from '../engine/index.js';
 import { cardHtml, cardBackPair, fmtChips } from './cards-dom.js';
 import { onTick } from './ticker.js';
+import { mapSeatsClockwise } from './seating.js';
 
 const DEFAULT_NAMES = ['宗良', '阿哲', '小芸', '志明', '小美', '老K'];
 
@@ -274,22 +275,18 @@ function renderTable(v) {
 
   const anim = dealAnimKey === `${v.handNumber}-${viewerSeat}`;
 
-  // Map opponents to visual slots (prefer top, then sides)
-  const opponents = [];
+  // Clockwise table order with hero rotated to bottom (matches engine seat order)
+  const occupied = [];
   for (let seat = 0; seat < 6; seat++) {
-    const p = v.seats[seat];
-    if (!p || seat === viewerSeat) continue;
-    opponents.push(seat);
+    if (v.seats[seat]) occupied.push(seat);
   }
-  const slotOrder = [0, 1, 4, 2, 3]; // top, TR, TL, BR, BL
-  const seatPos = new Map();
-  opponents.forEach((seat, i) => {
-    seatPos.set(seat, slotOrder[i] ?? i);
-  });
+  const { seatToPos } = mapSeatsClockwise(occupied, viewerSeat);
+  const opponents = occupied.filter((s) => s !== viewerSeat);
 
   for (const seat of opponents) {
     const p = v.seats[seat];
-    const pos = seatPos.get(seat);
+    const pos = seatToPos.get(seat);
+    if (typeof pos !== 'number') continue;
     const role = roleTag(v, seat);
     const folded = p.folded ? ' is-folded' : '';
     const actor = v.actor === seat ? ' is-actor' : '';
@@ -328,11 +325,11 @@ function renderTable(v) {
 
   // Dealer button
   const dealer = $('#dealer');
-  if (v.button === viewerSeat) {
+  const btnPos = seatToPos.get(v.button);
+  if (btnPos === 'hero' || v.button === viewerSeat) {
     dealer.style.setProperty('--x', '58%');
     dealer.style.setProperty('--y', '86%');
   } else {
-    const pos = seatPos.get(v.button) ?? 0;
     const map = {
       0: [50, 18],
       1: [80, 34],
@@ -340,7 +337,7 @@ function renderTable(v) {
       3: [22, 74],
       4: [20, 34],
     };
-    const [x, y] = map[pos] || [50, 50];
+    const [x, y] = map[btnPos] || [50, 50];
     dealer.style.setProperty('--x', x + '%');
     dealer.style.setProperty('--y', y + '%');
   }

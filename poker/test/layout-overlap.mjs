@@ -153,6 +153,59 @@ async function checkViewport(browser, url, vp, seatCount) {
       issues.push('roomMeta uses ellipsis while overflowing');
     }
 
+    // Clockwise visual order must match engine order (hero at bottom = angle 0)
+    const st = window.__poker?.getState?.();
+    const viewer = window.__poker?.getViewer?.();
+    if (st && viewer != null) {
+      const table = document.querySelector('.table')?.getBoundingClientRect();
+      const cx = table ? table.left + table.width / 2 : 0;
+      const cy = table ? table.top + table.height / 2 : 0;
+      const angleOf = (el) => {
+        const r = el.getBoundingClientRect();
+        const x = r.left + r.width / 2 - cx;
+        const y = r.top + r.height / 2 - cy;
+        // atan2 from bottom-up screen coords → convert so 0 = bottom, CW increases
+        let deg = (Math.atan2(x, -y) * 180) / Math.PI; // 0 at bottom, +CW toward left? 
+        // atan2(x, -y): bottom (0,+1 in up-y) → atan2(0,-1)=π → 180. Hmm.
+        // Use: angle from +y-down (screen): from bottom vector (0, +1)
+        deg = (Math.atan2(x, y) * 180) / Math.PI; // 0=bottom, +90=right? atan2(x,y) with y down: right=+x → +90 if y=0.
+        // For y positive down, bottom of table is +y from center: atan2(0, +dy)=0. Left is -x: atan2(-,+)≈-90.
+        // Clockwise from bottom goes left first → negative atan2. Use -atan2 so CW is positive.
+        deg = (-Math.atan2(x, y) * 180) / Math.PI;
+        if (deg < 0) deg += 360;
+        return deg;
+      };
+      const me = document.querySelector('.me');
+      const seats = [...document.querySelectorAll('.seat[data-seat]')].map((el) => ({
+        seat: +el.dataset.seat,
+        ang: angleOf(el),
+      }));
+      if (me) seats.push({ seat: viewer, ang: angleOf(me) });
+      seats.sort((a, b) => a.ang - b.ang || a.seat - b.seat);
+      const visualOrder = seats.map((s) => s.seat);
+      // Engine clockwise from viewer
+      const occ = st.seats.map((p, i) => (p ? i : null)).filter((x) => x != null);
+      const start = occ.indexOf(viewer);
+      const engineOrder = [];
+      for (let i = 0; i < occ.length; i++) engineOrder.push(occ[(start + i) % occ.length]);
+      if (visualOrder.join() !== engineOrder.join()) {
+        issues.push(
+          `clockwise mismatch visual=[${visualOrder}] engine=[${engineOrder}]`,
+        );
+      }
+      // SB then BB adjacent in visual order
+      if (st.sbSeat != null && st.bbSeat != null && occ.length >= 2) {
+        const iSb = visualOrder.indexOf(st.sbSeat);
+        const iBb = visualOrder.indexOf(st.bbSeat);
+        if (iSb < 0 || iBb < 0 || (iSb + 1) % visualOrder.length !== iBb) {
+          // HU: sb===button, bb next — still must be adjacent
+          if (!((iSb + 1) % visualOrder.length === iBb)) {
+            issues.push(`SB(${st.sbSeat}) not followed CW by BB(${st.bbSeat}) visual=${visualOrder}`);
+          }
+        }
+      }
+    }
+
     return {
       issues,
       boardGaps: kids.slice(0, -1).map((k, i) => +(kids[i + 1].left - k.right).toFixed(1)),
