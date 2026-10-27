@@ -3,15 +3,19 @@ import assert from 'node:assert/strict';
 import {
   mapSeatsClockwise,
   clockwiseFrom,
-  opponentSlotsForCount,
+  seatVisualPos,
+  dealOrderFromSb,
   rolesAreClockwiseAdjacent,
   visualAngle,
+  CW_OPPONENT_SLOTS,
+  SLOT_BY_REL,
 } from '../js/ui/seating.js';
 import {
   createInitialState,
   applyAction,
   mulberry32,
   PHASE,
+  foldWinCenterNote,
 } from '../js/engine/index.js';
 
 function seatPlayers(names) {
@@ -28,29 +32,45 @@ function seatPlayers(names) {
   return s;
 }
 
-describe('畫面座位：順時針對齊引擎', () => {
+describe('畫面座位：固定六位＋順時針', () => {
   it('clockwiseFrom 由指定座位起依引擎座位遞增繞圈', () => {
     assert.deepEqual(clockwiseFrom([0, 1, 2, 3], 3), [3, 0, 1, 2]);
     assert.deepEqual(clockwiseFrom([0, 2, 5], 2), [2, 5, 0]);
   });
 
-  it('4 人：hero 在底，順時針為 hero → 下一位 → …，視覺角遞增', () => {
-    const occupied = [0, 1, 2, 3];
+  it('相對位移固定：加人只填空位、不重排既有座位', () => {
+    const viewer = 0;
+    // seats 0+2 occupied → opponent at rel 2 → TL (pos 4)
+    let occupied = [0, 2];
+    let { seatToPos, emptySlots } = mapSeatsClockwise(occupied, viewer);
+    assert.equal(seatToPos.get(0), 'hero');
+    assert.equal(seatToPos.get(2), SLOT_BY_REL[2]);
+    assert.ok(emptySlots.includes(SLOT_BY_REL[1]));
+    // add seat 1 → fills rel 1 (BL); seat 2 stays at same visual pos
+    occupied = [0, 1, 2];
+    ({ seatToPos, emptySlots } = mapSeatsClockwise(occupied, viewer));
+    assert.equal(seatToPos.get(1), SLOT_BY_REL[1]);
+    assert.equal(seatToPos.get(2), SLOT_BY_REL[2]);
+    assert.equal(emptySlots.length, 3);
+  });
+
+  it('6 人全滿：五個對手位皆占用、無空位', () => {
+    const occupied = [0, 1, 2, 3, 4, 5];
     const viewer = 3;
-    const { order, seatToPos } = mapSeatsClockwise(occupied, viewer);
-    assert.deepEqual(order, [3, 0, 1, 2]);
+    const { seatToPos, emptySlots } = mapSeatsClockwise(occupied, viewer);
     assert.equal(seatToPos.get(3), 'hero');
-    // Clockwise after hero: leftish → top → rightish
-    assert.deepEqual(
-      [seatToPos.get(0), seatToPos.get(1), seatToPos.get(2)],
-      opponentSlotsForCount(3),
-    );
-    let prev = 0;
-    for (const seat of order.slice(1)) {
-      const ang = visualAngle(seatToPos.get(seat));
-      assert.ok(ang > prev, `angle should increase CW (${prev} → ${ang})`);
-      prev = ang;
+    assert.equal(emptySlots.length, 0);
+    for (const seat of occupied) {
+      if (seat === viewer) continue;
+      assert.equal(seatToPos.get(seat), seatVisualPos(seat, viewer));
+      assert.notEqual(seatToPos.get(seat), 'hero');
     }
+  });
+
+  it('空位清單＝未占用的固定對手格', () => {
+    const { emptySlots } = mapSeatsClockwise([0, 1], 0);
+    assert.deepEqual(emptySlots.sort((a, b) => a - b), [0, 1, 2, 4].sort((a, b) => a - b));
+    assert.equal(emptySlots.length, CW_OPPONENT_SLOTS.length - 1);
   });
 
   it('渲染順時針順序＝引擎順序（以 viewer 為起點）', () => {
@@ -87,7 +107,6 @@ describe('畫面座位：順時針對齊引擎', () => {
           `n=${n} viewer=${viewer} D=${button} SB=${sb} BB=${bb}`,
         );
       }
-      // UTG (first to act multiway) is seat after BB — adjacent CW from BB
       if (n > 2) {
         const { order } = mapSeatsClockwise(occupied, button);
         const bbIdx = order.indexOf(bb);
@@ -98,7 +117,6 @@ describe('畫面座位：順時針對齊引擎', () => {
   });
 
   it('重現主人回報的 4 人桌：D→SB→BB 不得被 hero 隔開', () => {
-    // Engine seats 0宗良 1阿哲 2小芸 3志明; viewer=志明
     const occupied = [0, 1, 2, 3];
     const viewer = 3;
     const button = 0;
@@ -106,15 +124,96 @@ describe('畫面座位：順時針對齊引擎', () => {
     const bb = 2;
     assert.ok(rolesAreClockwiseAdjacent(occupied, viewer, button, sb, bb));
     const { order, seatToPos } = mapSeatsClockwise(occupied, viewer);
-    // order: 志明, 宗良, 阿哲, 小芸 — SB then BB with no one between
     const iSb = order.indexOf(sb);
     const iBb = order.indexOf(bb);
     assert.equal((iSb + 1) % 4, iBb);
-    // Visual: 宗良 leftish, 阿哲 top, 小芸 rightish — not BB on opposite side of SB across hero
-    assert.equal(seatToPos.get(0), 4); // TL
-    assert.equal(seatToPos.get(1), 0); // top
-    assert.equal(seatToPos.get(2), 1); // TR
-    // Angles: SB then BB clockwise (top → TR), not SB(right) then skip hero to BB(left)
+    // Fixed relative: seat0→top, seat1→TR, seat2→BR; BL/TL empty (seats 4/5)
+    assert.equal(seatToPos.get(0), 0);
+    assert.equal(seatToPos.get(1), 1);
+    assert.equal(seatToPos.get(2), 2);
     assert.ok(visualAngle(seatToPos.get(sb)) < visualAngle(seatToPos.get(bb)));
+  });
+});
+
+describe('發牌順序：自小盲起順時針兩輪', () => {
+  it('回傳 occupied×2，且每輪皆自 SB 起', () => {
+    const occupied = [0, 1, 2, 3];
+    const sb = 1;
+    const order = dealOrderFromSb(occupied, sb);
+    assert.equal(order.length, 8);
+    assert.deepEqual(order.slice(0, 4), [1, 2, 3, 0]);
+    assert.deepEqual(order.slice(4), [1, 2, 3, 0]);
+  });
+
+  it('與引擎實際發牌座位順序一致', () => {
+    let s = seatPlayers(['宗良', '阿哲', '小芸', '志明']);
+    s = applyAction(s, { type: 'START_HAND' }, { randUnit: mulberry32(99), now: 1e6 });
+    const occupied = s.seats.map((p, i) => (p ? i : null)).filter((x) => x != null);
+    const expected = dealOrderFromSb(occupied, s.sbSeat);
+    // Engine deals two rounds from left of button (= SB in multiway)
+    assert.equal(expected[0], s.sbSeat);
+    assert.equal(expected[occupied.length], s.sbSeat);
+    for (const seat of occupied) {
+      assert.equal(s.seats[seat].hole.length, 2);
+    }
+  });
+});
+
+describe('莊家標籤語意（引擎座位）', () => {
+  it('按鈕座位可與小盲同座（單挑）', () => {
+    let s = seatPlayers(['宗良', '阿哲']);
+    s = applyAction(s, { type: 'START_HAND' }, { randUnit: mulberry32(2), now: 1e6 });
+    assert.equal(s.button, s.sbSeat);
+    assert.notEqual(s.button, s.bbSeat);
+  });
+});
+
+describe('蓋牌獲勝中央文案', () => {
+  it('全員蓋牌時產生「X 贏得 N（其他人蓋牌）」', () => {
+    let s = seatPlayers(['宗良', '阿哲', '小芸']);
+    s = applyAction(s, { type: 'START_HAND' }, { randUnit: mulberry32(3), now: 1e6 });
+    // Fold until one remains
+    let guard = 0;
+    while (s.phase === PHASE.PREFLOP && guard++ < 12) {
+      const actor = s.actor;
+      const live = s.seats.filter((p) => p && !p.folded).length;
+      if (live <= 1) break;
+      s = applyAction(s, { type: 'FOLD', seat: actor }, { now: 1e6 + guard });
+    }
+    assert.equal(s.phase, PHASE.HAND_OVER);
+    const note = foldWinCenterNote(s);
+    assert.ok(note);
+    assert.match(note, /贏得/);
+    assert.match(note, /其他人蓋牌/);
+    assert.ok(s.winnerPayouts);
+    // Street bet markers cleared so UI chips leave the felt
+    for (const p of s.seats.filter(Boolean)) {
+      assert.equal(p.bet, 0, `seat ${p.seat} still has street bet`);
+    }
+  });
+
+  it('攤牌獲勝不產生蓋牌文案', () => {
+    let s = seatPlayers(['宗良', '阿哲']);
+    s = applyAction(s, { type: 'START_HAND' }, { randUnit: mulberry32(8), now: 1e6 });
+    s = applyAction(s, { type: 'CALL', seat: s.actor }, { now: 1e6 + 1 });
+    s = applyAction(s, { type: 'CHECK', seat: s.actor }, { now: 1e6 + 2 });
+    // Check down to showdown
+    let guard2 = 0;
+    while (
+      [PHASE.FLOP, PHASE.TURN, PHASE.RIVER].includes(s.phase) &&
+      guard2++ < 20
+    ) {
+      s = applyAction(s, { type: 'CHECK', seat: s.actor }, { now: 1e6 + 10 + guard2 });
+    }
+    if (s.phase === PHASE.SHOWDOWN && s.showdown?.pending?.length) {
+      while (s.showdown?.pending?.length) {
+        const seat = s.showdown.pending[0];
+        s = applyAction(s, { type: 'MUCK', seat }, { now: Date.now() });
+      }
+    }
+    assert.ok(s.phase === PHASE.HAND_OVER || s.phase === PHASE.SHOWDOWN);
+    if (s.phase === PHASE.HAND_OVER) {
+      assert.equal(foldWinCenterNote(s), null);
+    }
   });
 });

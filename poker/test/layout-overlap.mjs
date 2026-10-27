@@ -21,6 +21,9 @@ const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
+  '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json',
+  '.json': 'application/json',
 };
 
 function startServer() {
@@ -51,6 +54,7 @@ function overlap(a, b, pad = 0) {
 
 async function checkViewport(browser, url, vp, seatCount) {
   const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
 
@@ -83,9 +87,9 @@ async function checkViewport(browser, url, vp, seatCount) {
         requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))),
       ),
   );
-  await page.waitForTimeout(180);
+  await page.waitForTimeout(220);
 
-  const report = await page.evaluate(() => {
+  const report = await page.evaluate((seatCount) => {
     const issues = [];
     const board = document.getElementById('board');
     const kids = [...board.children].map((el) => {
@@ -119,35 +123,64 @@ async function checkViewport(browser, url, vp, seatCount) {
     const bets = [...document.querySelectorAll('#bets .bet')].map(box);
     const plates = [...document.querySelectorAll('.seat .plate, .meinfo')].map(box);
     const boardBox = box(board);
+    const potEl = document.querySelector('.pot');
+    const potBox = potEl ? box(potEl) : null;
+    const noteEl = document.querySelector('.table-note');
+    const noteBox = noteEl ? box(noteEl) : null;
 
+    // Short Safari toolbars: require clear overlap (pad 0); taller phones keep 3px buffer
+    const betPlatePad = window.innerHeight < 700 ? 0 : 3;
     bets.forEach((b, i) => {
       plates.forEach((p, j) => {
-        if (overlaps(b, p) || near(b, p, 3)) {
+        if (overlaps(b, p) || (betPlatePad > 0 && near(b, p, betPlatePad))) {
           issues.push(`bet[${i}] overlaps/covers plate[${j}]`);
         }
       });
       if (overlaps(b, boardBox)) issues.push(`bet[${i}] overlaps board`);
+      if (potBox && (overlaps(b, potBox) || near(b, potBox, 2))) {
+        issues.push(`bet[${i}] overlaps pot`);
+      }
+      if (noteBox && overlaps(b, noteBox)) {
+        issues.push(`bet[${i}] overlaps center note`);
+      }
     });
+    const betBetPad = window.innerHeight < 700 ? 0 : 2;
     for (let i = 0; i < bets.length; i++) {
       for (let j = i + 1; j < bets.length; j++) {
-        if (overlaps(bets[i], bets[j]) || near(bets[i], bets[j], 2)) {
+        if (overlaps(bets[i], bets[j]) || (betBetPad > 0 && near(bets[i], bets[j], betBetPad))) {
           issues.push(`bet[${i}] overlaps bet[${j}]`);
         }
       }
     }
 
-    // Dealer button must be fully visible and clear of plates / bets / cards
+    // Dealer button must be fully visible and clear of plates / bets / pot / note / cards
     const dealerEl = document.getElementById('dealer');
+    const st0 = window.__poker?.getState?.();
+    const viewer0 = window.__poker?.getViewer?.();
+    const buttonSeat = st0?.button;
+    const dealerPlateEl =
+      buttonSeat == null
+        ? null
+        : buttonSeat === viewer0
+          ? document.querySelector('.meinfo')
+          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate`);
     if (dealerEl && getComputedStyle(dealerEl).display !== 'none') {
       const dBox = box(dealerEl);
       const tableBox = box(document.querySelector('.table'));
-      // Fully inside the table (not clipped by overflow)
-      if (
-        dBox.left < tableBox.left - 1 ||
-        dBox.top < tableBox.top - 1 ||
-        dBox.right > tableBox.right + 1 ||
-        dBox.bottom > tableBox.bottom + 1
-      ) {
+      const stageEl = document.querySelector('.stage');
+      const stageBox = stageEl ? box(stageEl) : tableBox;
+      // Prefer inside .table; hero-dealer may sit beside meinfo just below the felt
+      const inTable =
+        dBox.left >= tableBox.left - 1 &&
+        dBox.top >= tableBox.top - 1 &&
+        dBox.right <= tableBox.right + 1 &&
+        dBox.bottom <= tableBox.bottom + 1;
+      const inStage =
+        dBox.left >= stageBox.left - 1 &&
+        dBox.top >= stageBox.top - 1 &&
+        dBox.right <= stageBox.right + 1 &&
+        dBox.bottom <= stageBox.bottom + 1;
+      if (!inTable && !(buttonSeat === viewer0 && inStage)) {
         issues.push('dealer button clipped outside .table');
       }
       const edgeGap = (a, b) => {
@@ -158,22 +191,106 @@ async function checkViewport(browser, url, vp, seatCount) {
         if (oy > 0) return Math.max(a.left - b.right, b.left - a.right);
         return 99;
       };
-      plates.forEach((p, j) => {
-        // ≥8px edge gap so plate drop-shadow does not visually cover D
-        if (edgeGap(dBox, p) < 8) {
-          issues.push(`dealer too close to plate[${j}] (gap=${edgeGap(dBox, p).toFixed(1)})`);
+      const dC = {
+        x: (dBox.left + dBox.right) / 2,
+        y: (dBox.top + dBox.bottom) / 2,
+      };
+      // Edge distance to a plate AABB (0 if center is inside / touching)
+      const distToPlate = (p) => {
+        const dx = Math.max(p.left - dC.x, 0, dC.x - p.right);
+        const dy = Math.max(p.top - dC.y, 0, dC.y - p.bottom);
+        return Math.hypot(dx, dy);
+      };
+
+      // D must be nearer (by edge distance) to the button seat's plate than to any other
+      if (dealerPlateEl) {
+        const own = box(dealerPlateEl);
+        const ownDist = distToPlate(own);
+        const allPlates = [...document.querySelectorAll('.seat .plate, .meinfo')];
+        allPlates.forEach((el, j) => {
+          if (el === dealerPlateEl) return;
+          const otherDist = distToPlate(box(el));
+          if (otherDist <= ownDist + 1) {
+            issues.push(
+              `dealer nearer to plate[${j}] (${otherDist.toFixed(1)}) than button plate (${ownDist.toFixed(1)})`,
+            );
+          }
+          // Other plates keep a clear edge gap
+          if (edgeGap(dBox, box(el)) < 8) {
+            issues.push(`dealer too close to other plate[${j}] (gap=${edgeGap(dBox, box(el)).toFixed(1)})`);
+          }
+        });
+        // Own plate: may sit tight (gap can be small) but must not heavily cover the plate
+        if (overlaps(dBox, own) && edgeGap(dBox, own) < -4) {
+          issues.push('dealer heavily overlaps own nameplate');
         }
-      });
+        // Must stay close to own plate (not drifted toward table center)
+        if (ownDist > 28) {
+          issues.push(`dealer too far from own nameplate (edgeDist=${ownDist.toFixed(1)})`);
+        }
+      } else {
+        issues.push('missing dealer nameplate for button seat');
+      }
+
       bets.forEach((b, i) => {
         if (overlaps(dBox, b) || near(dBox, b, 2)) {
           issues.push(`dealer overlaps bet[${i}]`);
         }
       });
       if (overlaps(dBox, boardBox)) issues.push('dealer overlaps board');
+      if (potBox && (overlaps(dBox, potBox) || near(dBox, potBox, 2))) {
+        issues.push('dealer overlaps pot');
+      }
+      if (noteBox && (overlaps(dBox, noteBox) || near(dBox, noteBox, 2))) {
+        issues.push('dealer overlaps center note');
+      }
       for (const card of document.querySelectorAll(
         '#heroHole .card, .mini-hole .card, #board .card',
       )) {
         if (overlaps(dBox, box(card))) issues.push('dealer overlaps card');
+      }
+    }
+
+    // 「莊家」 tag on the button seat nameplate (and HU also keeps 小盲)
+    if (st0 && buttonSeat != null) {
+      const tagRoot =
+        buttonSeat === viewer0
+          ? document.getElementById('heroName')
+          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate .nm`);
+      const tagText = tagRoot?.textContent?.replace(/\s+/g, '') || '';
+      if (!tagText.includes('莊家')) {
+        issues.push(`missing 莊家 tag on button seat ${buttonSeat} (got "${tagText}")`);
+      }
+      // Tag must not appear on non-button seats
+      for (const el of document.querySelectorAll('.seat .plate .nm, #heroName')) {
+        const seatEl = el.closest('.seat');
+        const seat =
+          seatEl?.dataset?.seat != null
+            ? +seatEl.dataset.seat
+            : el.id === 'heroName'
+              ? viewer0
+              : null;
+        if (seat == null || seat === buttonSeat) continue;
+        if ((el.textContent || '').includes('莊家')) {
+          issues.push(`莊家 tag on non-button seat ${seat}`);
+        }
+      }
+      if (seatCount === 2 && st0.sbSeat === buttonSeat) {
+        if (!tagText.includes('小盲')) {
+          issues.push('HU dealer missing 小盲 tag alongside 莊家');
+        }
+      }
+    }
+
+    // Center note must stay one line and clear of pot
+    if (noteEl && noteBox) {
+      const cs = getComputedStyle(noteEl);
+      if (cs.whiteSpace !== 'nowrap') issues.push('center note not white-space:nowrap');
+      if (noteEl.scrollHeight > noteEl.clientHeight + 2) {
+        issues.push('center note wraps to multiple lines');
+      }
+      if (potBox && (overlaps(noteBox, potBox) || near(noteBox, potBox, 2))) {
+        issues.push('center note overlaps pot');
       }
     }
 
@@ -254,25 +371,365 @@ async function checkViewport(browser, url, vp, seatCount) {
       }
     }
 
+    // Fixed 6 slots: 5 opponent seats (filled or 空位) + hero at bottom
+    const oppSeats = [...document.querySelectorAll('#seats .seat')];
+    if (oppSeats.length !== 5) {
+      issues.push(`expected 5 ring seats (filled+empty), got ${oppSeats.length}`);
+    }
+    const emptySeats = oppSeats.filter((el) => el.classList.contains('is-empty'));
+    const expectEmpty = Math.max(0, 5 - (seatCount - 1));
+    if (emptySeats.length !== expectEmpty) {
+      issues.push(`empty seats ${emptySeats.length} != ${expectEmpty} (players=${seatCount})`);
+    }
+    for (const el of emptySeats) {
+      const t = el.textContent.replace(/\s+/g, '');
+      if (!t.includes('空位')) issues.push('empty seat missing 空位 label');
+    }
+
+    // Hero hole cards must not overlap opponent plates/bets, dealer, or action panel
+    const holeCards = [...document.querySelectorAll('#heroHole .card')].map(box);
+    const actBox = document.getElementById('act')
+      ? box(document.getElementById('act'))
+      : null;
+    const oppPlates = [...document.querySelectorAll('.seat .plate')].map(box);
+    const oppBets = [...document.querySelectorAll('#bets .bet:not([data-hero="1"])')].map(box);
+    for (const hc of holeCards) {
+      oppPlates.forEach((p, j) => {
+        if (overlaps(hc, p) || near(hc, p, 2)) issues.push(`hero hole overlaps plate[${j}]`);
+      });
+      oppBets.forEach((b, i) => {
+        if (overlaps(hc, b) || near(hc, b, 2)) issues.push(`hero hole overlaps bet[${i}]`);
+      });
+      if (dealerEl && overlaps(hc, box(dealerEl))) issues.push('hero hole overlaps dealer');
+      if (actBox && overlaps(hc, actBox)) issues.push('hero hole overlaps action panel');
+    }
+
     return {
       issues,
       boardGaps: kids.slice(0, -1).map((k, i) => +(kids[i + 1].left - k.right).toFixed(1)),
       betCount: bets.length,
       metaText: meta.textContent,
+      emptySeats: emptySeats.length,
     };
-  });
+  }, seatCount);
 
   const shot = join(ART, `poker-layout-${vp.name}-seats${seatCount}.png`);
   await page.screenshot({ path: shot, fullPage: true });
+
+  // Rotate button through every occupied seat with viewer pinned, so D walks
+  // every visual ring position; re-assert D nearest + 莊家 each hand.
+  const rotationIssues = [];
+  const seenButtons = new Set();
+  const pinnedViewer = await page.evaluate(() => window.__poker?.getViewer?.());
+  const firstBtn = await page.evaluate(() => window.__poker?.getState?.()?.button);
+  if (firstBtn != null) seenButtons.add(firstBtn);
+  for (let hand = 1; hand < seatCount; hand++) {
+    // Fold out current hand by jumping viewer to the current actor
+    for (let step = 0; step < 60; step++) {
+      const phase = await page.evaluate(() => window.__poker?.getState?.()?.phase || '');
+      if (phase === 'hand_over') break;
+      const actor = await page.evaluate(() => window.__poker?.getState?.()?.actor);
+      if (actor != null) {
+        await page.evaluate((a) => window.__poker?.setViewer?.(a), actor);
+        await page.waitForTimeout(50);
+      }
+      let acted = false;
+      for (const sel of [
+        '#btnFold:not([disabled])',
+        '#btnCheck:not([disabled])',
+        '#btnCall:not([disabled])',
+        '#btnMuck:not([disabled])',
+      ]) {
+        if (await page.locator(sel).count()) {
+          await page.locator(sel).first().click();
+          acted = true;
+          await page.waitForTimeout(70);
+          break;
+        }
+      }
+      if (!acted) await page.waitForTimeout(40);
+    }
+    await page.evaluate((v) => window.__poker?.setViewer?.(v), pinnedViewer);
+    await page.waitForTimeout(120);
+    // Next hand
+    const next = page.locator('#btnNext');
+    if (await next.count()) {
+      await next.click();
+    } else {
+      // Fallback: dispatch next hand via API
+      const advanced = await page.evaluate(() => {
+        const st = window.__poker?.getState?.();
+        if (st?.phase !== 'hand_over') return false;
+        window.__poker.dispatch({ type: 'ACK_HAND' });
+        window.__poker.dispatch({ type: 'NEXT_HAND' });
+        return true;
+      });
+      if (!advanced) {
+        rotationIssues.push(`hand ${hand}: missing #btnNext after hand_over`);
+        break;
+      }
+    }
+    await page.waitForTimeout(120);
+    await page.evaluate((v) => window.__poker?.setViewer?.(v), pinnedViewer);
+    await page.waitForTimeout(200);
+    await page.evaluate(
+      () =>
+        new Promise((r) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))),
+        ),
+    );
+    await page.waitForTimeout(180);
+
+    const rot = await page.evaluate((seatCount) => {
+      const issues = [];
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+      };
+      const overlaps = (a, b) => {
+        const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        return ox > 0 && oy > 0;
+      };
+      const near = (a, b, pad) => {
+        const ox =
+          Math.min(a.right + pad, b.right + pad) - Math.max(a.left - pad, b.left - pad);
+        const oy =
+          Math.min(a.bottom + pad, b.bottom + pad) - Math.max(a.top - pad, b.top - pad);
+        return ox > 0 && oy > 0;
+      };
+      const st = window.__poker?.getState?.();
+      const viewer = window.__poker?.getViewer?.();
+      const buttonSeat = st?.button;
+      const dealerEl = document.getElementById('dealer');
+      if (!dealerEl || getComputedStyle(dealerEl).display === 'none') {
+        return { issues: ['missing dealer'], button: buttonSeat };
+      }
+      const dBox = box(dealerEl);
+      const dC = {
+        x: (dBox.left + dBox.right) / 2,
+        y: (dBox.top + dBox.bottom) / 2,
+      };
+      const dealerPlateEl =
+        buttonSeat === viewer
+          ? document.querySelector('.meinfo')
+          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate`);
+      if (!dealerPlateEl) {
+        issues.push(`no plate for button ${buttonSeat}`);
+        return { issues, button: buttonSeat };
+      }
+      const own = box(dealerPlateEl);
+      const distToPlate = (p) => {
+        const dx = Math.max(p.left - dC.x, 0, dC.x - p.right);
+        const dy = Math.max(p.top - dC.y, 0, dC.y - p.bottom);
+        return Math.hypot(dx, dy);
+      };
+      const ownDist = distToPlate(own);
+      if (ownDist > 28) {
+        issues.push(`button=${buttonSeat}: D too far from own plate (${ownDist.toFixed(1)})`);
+      }
+      for (const el of document.querySelectorAll('.seat .plate, .meinfo')) {
+        if (el === dealerPlateEl) continue;
+        const od = distToPlate(box(el));
+        if (od <= ownDist + 1) {
+          issues.push(
+            `button=${buttonSeat}: D nearer other plate (${od.toFixed(1)}) than own (${ownDist.toFixed(1)})`,
+          );
+        }
+      }
+      const pot = document.querySelector('.pot');
+      if (pot && (overlaps(dBox, box(pot)) || near(dBox, box(pot), 2))) {
+        issues.push(`button=${buttonSeat}: D overlaps pot`);
+      }
+      for (const bet of document.querySelectorAll('#bets .bet')) {
+        if (overlaps(dBox, box(bet)) || near(dBox, box(bet), 2)) {
+          issues.push(`button=${buttonSeat}: D overlaps bet`);
+        }
+      }
+      const tagRoot =
+        buttonSeat === viewer
+          ? document.getElementById('heroName')
+          : document.querySelector(`.seat[data-seat="${buttonSeat}"] .plate .nm`);
+      const tagText = tagRoot?.textContent?.replace(/\s+/g, '') || '';
+      if (!tagText.includes('莊家')) {
+        issues.push(`button=${buttonSeat}: missing 莊家 (got "${tagText}")`);
+      }
+      if (seatCount === 2 && st.sbSeat === buttonSeat && !tagText.includes('小盲')) {
+        issues.push(`button=${buttonSeat}: HU missing 小盲 with 莊家`);
+      }
+      return { issues, button: buttonSeat };
+    }, seatCount);
+
+    if (rot.button != null) seenButtons.add(rot.button);
+    rotationIssues.push(...rot.issues);
+  }
+
+  if (seenButtons.size < seatCount) {
+    rotationIssues.push(
+      `only saw ${seenButtons.size}/${seatCount} button seats: [${[...seenButtons]}]`,
+    );
+  }
+
   await page.close();
 
   return {
     viewport: vp.name,
     seatCount,
     errors,
-    issues: report.issues,
+    issues: [...report.issues, ...rotationIssues],
     boardGaps: report.boardGaps,
     betCount: report.betCount,
+    buttonSeatsSeen: [...seenButtons],
+    screenshot: shot,
+  };
+}
+
+/** Fold until hand-over; assert no street bets, one-line note, pot/D/note clear. */
+async function checkHandOver(browser, url, vp, seatCount) {
+  const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
+
+  const rows = page.locator('#playerRows .p-row');
+  const nRows = await rows.count();
+  for (let i = 0; i < nRows; i++) {
+    const row = rows.nth(i);
+    const input = row.locator('input');
+    const disabled = await input.isDisabled();
+    const wantOn = i < seatCount;
+    if (wantOn === disabled) {
+      await row.locator('button[data-toggle]').click();
+    }
+  }
+
+  await page.locator('#timerToggle').uncheck().catch(() => {});
+  await page.click('#btnStart');
+  await page.waitForSelector('#passScreen.is-on', { timeout: 10000 });
+  await page.click('#btnPassOk');
+  await page.waitForTimeout(200);
+
+  // Keep folding until hand_over (or safety cap)
+  for (let step = 0; step < 40; step++) {
+    const phase = await page.evaluate(() => window.__poker?.getState?.()?.phase || '');
+    if (phase === 'hand_over') break;
+    // Clear pass / hand-off overlays
+    const passOn = await page.locator('#passScreen.is-on').count();
+    if (passOn) {
+      await page.click('#btnPassOk').catch(() => {});
+      await page.waitForTimeout(80);
+      continue;
+    }
+    const fold = page.locator('#btnFold:not([disabled])');
+    if (await fold.count()) {
+      await fold.click();
+      await page.waitForTimeout(120);
+      continue;
+    }
+    const check = page.locator('#btnCheck:not([disabled])');
+    if (await check.count()) {
+      await check.click();
+      await page.waitForTimeout(80);
+      continue;
+    }
+    const call = page.locator('#btnCall:not([disabled])');
+    if (await call.count()) {
+      await call.click();
+      await page.waitForTimeout(80);
+      continue;
+    }
+    await page.waitForTimeout(80);
+  }
+
+  await page.evaluate(
+    () =>
+      new Promise((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))),
+      ),
+  );
+  await page.waitForTimeout(400);
+
+  const report = await page.evaluate(() => {
+    const issues = [];
+    const box = (el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+    };
+    const overlaps = (a, b) => {
+      const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      return ox > 0 && oy > 0;
+    };
+    const near = (a, b, pad) => {
+      const ox =
+        Math.min(a.right + pad, b.right + pad) - Math.max(a.left - pad, b.left - pad);
+      const oy =
+        Math.min(a.bottom + pad, b.bottom + pad) - Math.max(a.top - pad, b.top - pad);
+      return ox > 0 && oy > 0;
+    };
+
+    const st = window.__poker?.getState?.();
+    if (st?.phase !== 'hand_over') {
+      issues.push(`expected hand_over, got ${st?.phase || 'none'}`);
+    }
+
+    const bets = [...document.querySelectorAll('#bets .bet')];
+    if (bets.length > 0) {
+      issues.push(`hand-over still has ${bets.length} street bet chip(s) on felt`);
+    }
+
+    const potEl = document.querySelector('.pot');
+    const potBox = potEl ? box(potEl) : null;
+    const dealerEl = document.getElementById('dealer');
+    const dBox =
+      dealerEl && getComputedStyle(dealerEl).display !== 'none' ? box(dealerEl) : null;
+    const noteEl = document.querySelector('.table-note');
+    const noteBox = noteEl ? box(noteEl) : null;
+
+    if (st?.lastHandSummary?.foldWin || (st?.winners?.length === 1 && st.winners[0]?.hand == null)) {
+      if (!noteEl) issues.push('fold-win missing center note');
+    }
+
+    if (noteEl && noteBox) {
+      const cs = getComputedStyle(noteEl);
+      if (cs.whiteSpace !== 'nowrap') issues.push('hand-over note not nowrap');
+      // One visual line: client height ≈ line-height + padding
+      if (noteEl.scrollHeight > noteEl.clientHeight + 2) {
+        issues.push('hand-over note wraps');
+      }
+      if (noteEl.getClientRects().length > 1) {
+        issues.push('hand-over note has multiple client rects');
+      }
+      if (potBox && (overlaps(noteBox, potBox) || near(noteBox, potBox, 2))) {
+        issues.push('hand-over note overlaps pot');
+      }
+      if (dBox && (overlaps(noteBox, dBox) || near(noteBox, dBox, 2))) {
+        issues.push('hand-over note overlaps dealer');
+      }
+    }
+
+    if (potBox && dBox && (overlaps(potBox, dBox) || near(potBox, dBox, 2))) {
+      issues.push('hand-over dealer overlaps pot');
+    }
+
+    return { issues, betCount: bets.length, note: noteEl?.textContent || null };
+  });
+
+  const shot = join(ART, `poker-layout-handover-${vp.name}-seats${seatCount}.png`);
+  await page.screenshot({ path: shot, fullPage: true });
+  await page.close();
+
+  return {
+    kind: 'hand-over',
+    viewport: vp.name,
+    seatCount,
+    errors,
+    issues: report.issues,
+    betCount: report.betCount,
+    note: report.note,
     screenshot: shot,
   };
 }
@@ -366,6 +823,7 @@ async function measureScreenReach(page, screenId, ctaSel) {
 
 async function checkScrollScreens(browser, url, vp) {
   const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   const issues = [];
@@ -468,6 +926,7 @@ async function checkScrollScreens(browser, url, vp) {
 /** Bet/raise panel: 3×2 presets, ± steppers, no table overlap, no page scroll. */
 async function checkBetPanel(browser, url, vp) {
   const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   const issues = [];
@@ -613,6 +1072,8 @@ async function main() {
 
   const viewports = [
     { name: 'phone', w: 390, h: 844 },
+    { name: 'phone-se', w: 375, h: 667 },
+    { name: 'safari-toolbars', w: 390, h: 664 },
     { name: 'desktop', w: 1280, h: 800 },
   ];
   const scrollViewports = [
@@ -633,6 +1094,12 @@ async function main() {
       results.push(await checkViewport(browser, url, vp, seats));
     }
   }
+  const handOverResults = [];
+  for (const vp of viewports) {
+    for (let seats = 2; seats <= 6; seats++) {
+      handOverResults.push(await checkHandOver(browser, url, vp, seats));
+    }
+  }
   const scrollResults = [];
   for (const vp of scrollViewports) {
     scrollResults.push(await checkScrollScreens(browser, url, vp));
@@ -646,17 +1113,25 @@ async function main() {
   server.close();
 
   const failed = results.filter((r) => r.issues.length || r.errors.length);
+  const handOverFailed = handOverResults.filter((r) => r.issues.length || r.errors.length);
   const scrollFailed = scrollResults.filter((r) => r.issues.length || r.errors.length);
   const betFailed = betPanelResults.filter((r) => r.issues.length || r.errors.length);
   const summary = {
-    ok: failed.length === 0 && scrollFailed.length === 0 && betFailed.length === 0,
+    ok:
+      failed.length === 0 &&
+      handOverFailed.length === 0 &&
+      scrollFailed.length === 0 &&
+      betFailed.length === 0,
     checked: results.length,
     failed: failed.length,
+    handOverChecked: handOverResults.length,
+    handOverFailed: handOverFailed.length,
     scrollChecked: scrollResults.length,
     scrollFailed: scrollFailed.length,
     betPanelChecked: betPanelResults.length,
     betPanelFailed: betFailed.length,
     results,
+    handOverResults,
     scrollResults,
     betPanelResults,
   };

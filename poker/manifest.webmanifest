@@ -1,0 +1,26 @@
+{
+  "name": "週五牌局 · 德州撲克",
+  "short_name": "週五牌局",
+  "description": "單機熱座德州撲克",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#10261d",
+  "theme_color": "#10261d",
+  "lang": "zh-Hant-TW",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

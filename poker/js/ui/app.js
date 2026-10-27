@@ -15,6 +15,14 @@ import {
 import { cardHtml, cardBackPair, fmtChips } from './cards-dom.js';
 import { onTick } from './ticker.js';
 import { mapSeatsClockwise } from './seating.js';
+import {
+  playDealAnimation,
+  playWinnerFx,
+  cancelDealFx,
+  cancelWinFx,
+  prefersReducedMotion,
+  foldWinCenterNote,
+} from './fx.js';
 
 const DEFAULT_NAMES = ['宗良', '阿哲', '小芸', '志明', '小美', '老K'];
 
@@ -28,6 +36,13 @@ let lastActor = null;
 let raiseTo = 0;
 let toastTimer = 0;
 let dealAnimKey = '';
+/** Hand number waiting for deal FX after pass confirm. */
+let pendingDealHand = 0;
+let lastDealPlayed = 0;
+let winFxKey = '';
+/** @type {DOMRect | null} */
+let prevDealerRect = null;
+let dealFxBusy = false;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let raiseHoldTimer = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
@@ -115,6 +130,21 @@ function dispatch(action, env = {}) {
 }
 
 function afterState() {
+  // New hand → queue deal presentation (engine already final)
+  if (
+    state.handNumber > lastDealPlayed &&
+    state.phase === PHASE.PREFLOP &&
+    state.handNumber !== pendingDealHand
+  ) {
+    cancelWinFx();
+    winFxKey = '';
+    pendingDealHand = state.handNumber;
+  }
+  // Hand over: stop pass gate so winner FX / summary are visible
+  if (state.phase === PHASE.HAND_OVER || state.phase === PHASE.SESSION_OVER) {
+    needsPass = false;
+    $('#passScreen')?.classList.remove('is-on');
+  }
   // Hot-seat: when actor changes to another seated player mid-hand, show pass screen
   if (
     state.actor != null &&
@@ -156,10 +186,24 @@ async function boot() {
       ]);
     }
   } catch (_) { /* ignore */ }
+  set(40, '載入圖示');
+  try {
+    await Promise.all(
+      ['assets/icon-192.png', 'assets/icon-180.png', 'assets/icon-512.png'].map(
+        (src) =>
+          new Promise((resolve) => {
+            const img = new Image();
+            img.onload = img.onerror = () => resolve();
+            img.src = src;
+          }),
+      ),
+    );
+  } catch (_) { /* ignore */ }
   set(55, '載入介面');
   await new Promise((r) => requestAnimationFrame(() => r()));
   // Warm layout
   $('#app').classList.remove('hidden');
+  setupFullscreenButton();
   set(85, '準備牌桌');
   await new Promise((r) => setTimeout(r, 180));
   set(100, '完成');
@@ -167,6 +211,42 @@ async function boot() {
   $('#boot').classList.add('is-done');
   setTimeout(() => $('#boot').classList.add('hidden'), 480);
   openLobby();
+}
+
+function setupFullscreenButton() {
+  const btn = $('#btnFullscreen');
+  if (!btn) return;
+  const doc = document;
+  const el = doc.documentElement;
+  const can =
+    (doc.fullscreenEnabled || doc.webkitFullscreenEnabled) &&
+    (el.requestFullscreen || el.webkitRequestFullscreen);
+  if (!can) {
+    btn.classList.add('hidden');
+    return;
+  }
+  btn.classList.remove('hidden');
+  const isFs = () => !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+  const sync = () => {
+    const on = isFs();
+    btn.setAttribute('aria-pressed', String(on));
+    btn.textContent = on ? '離開全螢幕' : '全螢幕';
+  };
+  btn.onclick = async () => {
+    try {
+      if (isFs()) {
+        await (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc);
+      } else {
+        await (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+      }
+    } catch (_) {
+      toast('無法進入全螢幕');
+    }
+    sync();
+  };
+  doc.addEventListener('fullscreenchange', sync);
+  doc.addEventListener('webkitfullscreenchange', sync);
+  sync();
 }
 
 /* ─── Lobby ─── */
@@ -299,13 +379,18 @@ function hidePass() {
   lastActor = state.actor;
   dealAnimKey = `${state.handNumber}-${viewerSeat}`;
   render();
+  maybePlayDealFx();
 }
 
 $('#btnPassOk').onclick = () => hidePass();
 
 /* ─── Render ─── */
 function render() {
-  if (needsPass) {
+  if (
+    needsPass &&
+    state.phase !== PHASE.HAND_OVER &&
+    state.phase !== PHASE.SESSION_OVER
+  ) {
     showPass();
   }
   const v = view();
@@ -348,13 +433,21 @@ function renderTable(v) {
 
   const anim = dealAnimKey === `${v.handNumber}-${viewerSeat}`;
 
-  // Clockwise table order with hero rotated to bottom (matches engine seat order)
+  // Fixed 6 slots; viewer at bottom-center; empty seats keep placeholders
   const occupied = [];
   for (let seat = 0; seat < 6; seat++) {
     if (v.seats[seat]) occupied.push(seat);
   }
-  const { seatToPos } = mapSeatsClockwise(occupied, viewerSeat);
+  const { seatToPos, emptySlots } = mapSeatsClockwise(occupied, viewerSeat);
   const opponents = occupied.filter((s) => s !== viewerSeat);
+
+  for (const pos of emptySlots) {
+    const el = document.createElement('div');
+    el.className = `seat pos-${pos} is-empty`;
+    el.dataset.empty = '1';
+    el.innerHTML = `<div class="av" aria-label="空位"><span>空位</span></div>`;
+    seatsRoot.appendChild(el);
+  }
 
   for (const seat of opponents) {
     const p = v.seats[seat];
@@ -368,25 +461,30 @@ function renderTable(v) {
       p.hole && p.hole.length
         ? `<div class="mini-hole">${p.hole.map((c) => cardHtml(c)).join('')}</div>`
         : '';
+    const wonAmt = state.winnerPayouts?.[seat];
+    const isWin = wonAmt != null && (v.isHandOver || v.isShowdown);
     const el = document.createElement('div');
-    el.className = `seat pos-${pos}${folded}${actor}`;
+    el.className = `seat pos-${pos}${folded}${actor}${isWin ? ' is-winner' : ''}`;
     el.dataset.seat = String(seat);
     // Street bet amount lives on the chip marker — omit state line while bet>0
     // so the plate is shorter and never fights the chip for the same “10”.
     const stateText =
       p.bet > 0
         ? ''
-        : p.lastAction || (p.sittingOut ? '坐出' : '　');
+        : p.lastAction || (p.sittingOut ? '主出' : '　');
     el.innerHTML = `
       <div class="av"><span>${esc(p.name.slice(0, 1))}</span>${backs}</div>
-      <div class="plate">
+      <div class="plate${isWin ? ' is-winner' : ''}">
         <b class="nm">${esc(p.name)}${role}</b>
         <span class="ch">${fmtChips(p.chips)}</span>
         ${stateText ? `<span class="state">${esc(stateText)}</span>` : ''}
-      </div>${holeShow}`;
+      </div>${holeShow}${
+        isWin ? `<div class="win-badge">WIN +${fmtChips(wonAmt)}</div>` : ''
+      }`;
     seatsRoot.appendChild(el);
 
-    if (p.bet > 0) {
+    // Hide street bets once the hand is decided — chips slide to winner via FX
+    if (p.bet > 0 && !v.isHandOver && !v.isShowdown) {
       const b = document.createElement('div');
       b.className = 'bet is-in';
       b.dataset.forSeat = String(seat);
@@ -412,11 +510,44 @@ function renderTable(v) {
   } else {
     hole.innerHTML = '';
   }
-  $('#heroName').textContent = hero ? `${hero.name}（你）` : '';
+  {
+    const nameEl = $('#heroName');
+    if (nameEl) {
+      if (hero) {
+        const role = roleTag(v, viewerSeat);
+        nameEl.innerHTML = `${esc(hero.name)}（你）${role}`;
+      } else {
+        nameEl.textContent = '';
+      }
+    }
+  }
   $('#heroChips').textContent = hero ? fmtChips(hero.chips) : '';
+  const mePlate = $('#mePlate');
+  const heroWon = state.winnerPayouts?.[viewerSeat];
+  const heroIsWin = heroWon != null && (v.isHandOver || v.isShowdown);
+  mePlate?.classList.toggle('is-winner', !!heroIsWin);
+  document.querySelectorAll('#meRoot > .win-badge').forEach((n) => n.remove());
+  if (heroIsWin && mePlate) {
+    const badge = document.createElement('div');
+    badge.className = 'win-badge';
+    badge.textContent = `WIN +${fmtChips(heroWon)}`;
+    $('#meRoot')?.appendChild(badge);
+  }
 
-  // Hero street bet
-  if (hero?.bet > 0) {
+  // Fold-win center note (persistent until next hand)
+  document.querySelectorAll('.table-note').forEach((n) => n.remove());
+  {
+    const note = foldWinCenterNote(state);
+    if (note && (v.isHandOver || v.isShowdown)) {
+      const el = document.createElement('div');
+      el.className = 'table-note';
+      el.textContent = note;
+      document.querySelector('.table')?.appendChild(el);
+    }
+  }
+
+  // Hero street bet (omit after hand decided)
+  if (hero?.bet > 0 && !v.isHandOver && !v.isShowdown) {
     const b = document.createElement('div');
     b.className = 'bet is-in';
     b.dataset.forSeat = String(viewerSeat);
@@ -429,64 +560,113 @@ function renderTable(v) {
   requestAnimationFrame(() => {
     layoutBets();
     layoutDealer();
+    const d = $('#dealer');
+    if (d && getComputedStyle(d).display !== 'none') {
+      prevDealerRect = d.getBoundingClientRect();
+    }
+    maybePlayWinnerFx(v);
   });
 }
 
-/** Safe chip-rail anchors (% of .table) — inward from seats, clear of board band. */
+function maybePlayDealFx() {
+  if (needsPass || dealFxBusy) return;
+  if (!pendingDealHand || pendingDealHand !== state.handNumber) return;
+  if (state.phase !== PHASE.PREFLOP) return;
+  if (prefersReducedMotion()) {
+    lastDealPlayed = state.handNumber;
+    pendingDealHand = 0;
+    return;
+  }
+  dealFxBusy = true;
+  const hand = state.handNumber;
+  const prev = prevDealerRect;
+  pendingDealHand = 0;
+  lastDealPlayed = hand;
+  requestAnimationFrame(() => {
+    playDealAnimation({
+      state,
+      viewerSeat,
+      prevDealer: prev,
+      onDone: () => {
+        dealFxBusy = false;
+        document.documentElement.classList.remove('is-dealing');
+      },
+    });
+  });
+}
+
+function maybePlayWinnerFx(v) {
+  if (needsPass) return;
+  if (!(v.isHandOver || v.isShowdown) || !state.winners?.length) return;
+  const key = `${state.handNumber}:${JSON.stringify(state.winnerPayouts || state.winners)}`;
+  if (key === winFxKey) return;
+  winFxKey = key;
+  playWinnerFx({ state, viewerSeat, holdMs: 2000 });
+}
+
+/** Safe chip-rail anchors (% of .table) — inward from seats, clear of pot (~28%) / board. */
 const BET_ANCHOR_PHONE = {
-  0: [50, 24],
-  1: [70, 40],
-  2: [70, 60],
-  3: [30, 60],
-  4: [30, 40],
-  hero: [50, 70],
+  0: [50, 22],
+  // Inward of side nameplates, above the board band (~45%+ on phones)
+  1: [64, 31],
+  2: [64, 39],
+  3: [36, 39],
+  4: [36, 31],
+  // Below board band (board ~52–60% on short phones)
+  hero: [50, 72],
 };
 const BET_ANCHOR_DESKTOP = {
   0: [50, 22],
-  1: [68, 34],
-  2: [70, 64],
-  3: [30, 64],
-  4: [32, 34],
+  // Above board band (~46–58% on desktop felt)
+  1: [64, 32],
+  2: [64, 42],
+  3: [36, 42],
+  4: [36, 32],
   hero: [50, 72],
 };
 
 /** Dealer «D» anchors — near the button seat but inward; nudged clear of plates. */
 const DEALER_ANCHOR_PHONE = {
-  0: [58, 19],
-  1: [80, 38],
-  2: [80, 66],
-  3: [20, 66],
-  4: [20, 38],
-  hero: [64, 84],
+  0: [62, 16],
+  1: [78, 34],
+  2: [78, 54],
+  3: [22, 54],
+  4: [22, 34],
+  hero: [58, 70],
 };
 const DEALER_ANCHOR_DESKTOP = {
-  0: [58, 18],
-  1: [82, 36],
-  2: [80, 70],
-  3: [20, 70],
-  4: [18, 36],
-  hero: [62, 86],
+  0: [58, 20],
+  1: [76, 34],
+  2: [74, 58],
+  3: [26, 58],
+  4: [24, 34],
+  hero: [60, 74],
 };
 
 /**
  * Position each .bet on a safe rail toward the pot, then nudge away from
- * plates / board / other bets if anything still collides.
+ * plates / board / pot / other bets if anything still collides.
  */
 function layoutBets() {
   const table = document.querySelector('.table');
   const board = $('#board');
+  const potEl = document.querySelector('.pot');
   if (!table) return;
   const t = table.getBoundingClientRect();
   if (t.width < 8 || t.height < 8) return;
   const desktop = window.matchMedia('(min-width: 1024px)').matches;
   const anchors = desktop ? BET_ANCHOR_DESKTOP : BET_ANCHOR_PHONE;
   const boardBox = board?.getBoundingClientRect();
+  const potBox = potEl?.getBoundingClientRect();
   const plates = [...document.querySelectorAll('.seat .plate, .meinfo')].map((el) =>
+    el.getBoundingClientRect(),
+  );
+  const holeBoxes = [...document.querySelectorAll('#heroHole .card')].map((el) =>
     el.getBoundingClientRect(),
   );
   const bets = [...document.querySelectorAll('#bets .bet')];
 
-  /** @type {{el:HTMLElement, x:number, y:number, w:number, h:number}[]} */
+  /** @type {{el:HTMLElement, x:number, y:number, w:number, h:number, hero:boolean}[]} */
   const placed = [];
 
   for (const bet of bets) {
@@ -495,11 +675,19 @@ function layoutBets() {
     bet.style.left = `${px}%`;
     bet.style.top = `${py}%`;
     const br = bet.getBoundingClientRect();
-    placed.push({ el: bet, x: br.left, y: br.top, w: br.width, h: br.height });
+    placed.push({
+      el: bet,
+      x: br.left,
+      y: br.top,
+      w: br.width,
+      h: br.height,
+      hero: bet.dataset.hero === '1',
+    });
   }
 
-  const pad = 6;
-  for (let pass = 0; pass < 10; pass++) {
+  const pad = 8;
+  const potPad = 6;
+  for (let pass = 0; pass < 18; pass++) {
     for (const p of placed) {
       const box = () => ({
         left: p.x - pad,
@@ -508,10 +696,24 @@ function layoutBets() {
         bottom: p.y + p.h + pad,
       });
       for (const pl of plates) {
-        const d = overlapDelta(box(), pl);
+        const d = separationDelta(box(), pl, 4) || overlapDelta(box(), pl);
         if (d) {
           p.x += d.dx;
           p.y += d.dy;
+        }
+      }
+      if (!p.hero) {
+        for (const hc of holeBoxes) {
+          const d = overlapDelta(box(), {
+            left: hc.left - 4,
+            top: hc.top - 4,
+            right: hc.right + 4,
+            bottom: hc.bottom + 4,
+          });
+          if (d) {
+            p.x += d.dx;
+            p.y += d.dy;
+          }
         }
       }
       if (boardBox) {
@@ -523,8 +725,38 @@ function layoutBets() {
         };
         const d = overlapDelta(box(), inflated);
         if (d) {
-          p.x += d.dx;
-          p.y += d.dy;
+          if (p.hero) {
+            // Hero bets live under the board — never slide upward into the pot
+            p.y += Math.max(Math.abs(d.dy), d.dy, 4);
+            p.x += d.dx;
+          } else {
+            p.x += d.dx;
+            p.y += d.dy;
+          }
+        }
+      }
+      // Clear pot: prefer vertical/horizontal slide that does not walk onto plates
+      if (potBox) {
+        const inflated = {
+          left: potBox.left - potPad,
+          top: potBox.top - potPad,
+          right: potBox.right + potPad,
+          bottom: potBox.bottom + potPad,
+        };
+        const d = overlapDelta(box(), inflated);
+        if (d) {
+          const pcx = (potBox.left + potBox.right) / 2;
+          const pcy = (potBox.top + potBox.bottom) / 2;
+          const bcx = p.x + p.w / 2;
+          const bcy = p.y + p.h / 2;
+          const awayX = bcx >= pcx ? 1 : -1;
+          const awayY = p.hero ? 1 : bcy >= pcy ? 1 : -1;
+          if (d.dx !== 0 && Math.abs(d.dx) <= Math.abs(d.dy) + 1 && !p.hero) {
+            p.x += awayX * Math.abs(d.dx);
+          } else {
+            p.y += awayY * Math.abs(d.dy || d.dx);
+            if (p.hero) p.x += awayX * Math.min(8, Math.abs(d.dx));
+          }
         }
       }
       for (const q of placed) {
@@ -544,7 +776,71 @@ function layoutBets() {
       p.y = clamp(p.y, t.top + 2, t.bottom - p.h - 2);
       p.el.style.left = `${((p.x + p.w / 2 - t.left) / t.width) * 100}%`;
       p.el.style.top = `${((p.y + p.h / 2 - t.top) / t.height) * 100}%`;
-      // refresh size in case wrapping changed (shouldn't)
+      const br = p.el.getBoundingClientRect();
+      p.x = br.left;
+      p.y = br.top;
+      p.w = br.width;
+      p.h = br.height;
+    }
+  }
+
+  // Final separation: plates first (priority), then pot, board, peers
+  for (let fin = 0; fin < 12; fin++) {
+    for (const p of placed) {
+      const a0 = () => ({ left: p.x, top: p.y, right: p.x + p.w, bottom: p.y + p.h });
+      for (const pl of plates) {
+        const d = separationDelta(a0(), pl, 8);
+        if (d) {
+          p.x += d.dx;
+          p.y += d.dy;
+        }
+      }
+      if (potBox) {
+        const inflated = {
+          left: potBox.left - potPad,
+          top: potBox.top - potPad,
+          right: potBox.right + potPad,
+          bottom: potBox.bottom + potPad,
+        };
+        const d = overlapDelta(a0(), inflated);
+        if (d) {
+          const pcx = (potBox.left + potBox.right) / 2;
+          const pcy = (potBox.top + potBox.bottom) / 2;
+          const bcx = p.x + p.w / 2;
+          const bcy = p.y + p.h / 2;
+          p.x += (bcx >= pcx ? 1 : -1) * Math.max(2, Math.abs(d.dx));
+          p.y += (bcy >= pcy ? 1 : -1) * Math.max(2, Math.abs(d.dy));
+        }
+      }
+      if (boardBox) {
+        const inflated = {
+          left: boardBox.left - 4,
+          top: boardBox.top - 4,
+          right: boardBox.right + 4,
+          bottom: boardBox.bottom + 4,
+        };
+        const d = overlapDelta(a0(), inflated);
+        if (d) {
+          p.x += d.dx;
+          p.y += d.dy;
+        }
+      }
+      for (const q of placed) {
+        if (q === p) continue;
+        const d = separationDelta(
+          a0(),
+          { left: q.x, top: q.y, right: q.x + q.w, bottom: q.y + q.h },
+          4,
+        );
+        if (d) {
+          p.x += d.dx * 0.75;
+          p.y += d.dy * 0.75;
+        }
+      }
+      p.x = clamp(p.x, t.left + 2, t.right - p.w - 2);
+      p.y = clamp(p.y, t.top + 2, t.bottom - p.h - 2);
+      p.el.style.left = `${((p.x + p.w / 2 - t.left) / t.width) * 100}%`;
+      p.el.style.top = `${((p.y + p.h / 2 - t.top) / t.height) * 100}%`;
       const br = p.el.getBoundingClientRect();
       p.x = br.left;
       p.y = br.top;
@@ -555,8 +851,9 @@ function layoutBets() {
 }
 
 /**
- * Place the dealer button fully visible: start near the button seat,
- * then nudge clear of plates, bets, board, and hole cards.
+ * Place the dealer «D» tight against the button seat's nameplate, on the
+ * side facing table center. Score candidate spots around the plate's inward
+ * perimeter so D never drifts toward another seat. Bet chips yield to D.
  */
 function layoutDealer() {
   const table = document.querySelector('.table');
@@ -565,106 +862,518 @@ function layoutDealer() {
   const t = table.getBoundingClientRect();
   if (t.width < 8 || t.height < 8) return;
 
-  const desktop = window.matchMedia('(min-width: 1024px)').matches;
-  const anchors = desktop ? DEALER_ANCHOR_DESKTOP : DEALER_ANCHOR_PHONE;
   const key = dealer.dataset.pos || 'hero';
-  const [px, py] = anchors[key] || anchors.hero;
-  dealer.style.left = `${px}%`;
-  dealer.style.top = `${py}%`;
-
   const seatId = dealer.dataset.forSeat;
   const anchorEl =
     key === 'hero'
       ? document.querySelector('.meinfo')
       : document.querySelector(`.seat[data-seat="${seatId}"] .plate`);
+  if (!anchorEl) return;
 
-  const soft = [
-    ...document.querySelectorAll(
-      '.seat .plate, .meinfo, #board, #board .card, #board .slot, #heroHole .card, .mini-hole .card, .seat .av',
-    ),
-  ].map((el) => el.getBoundingClientRect());
-  const betRects = [...document.querySelectorAll('#bets .bet')].map((el) =>
-    el.getBoundingClientRect(),
+  const ar = anchorEl.getBoundingClientRect();
+  const ax = ar.left + ar.width / 2;
+  const ay = ar.top + ar.height / 2;
+  const cx = t.left + t.width / 2;
+  const cy = t.top + t.height * 0.4;
+  const toCx = cx - ax;
+  const toCy = cy - ay;
+  const toLen = Math.hypot(toCx, toCy) || 1;
+  const ux = toCx / toLen;
+  const uy = toCy / toLen;
+
+  dealer.style.left = '50%';
+  dealer.style.top = '50%';
+  const br0 = dealer.getBoundingClientRect();
+  const dw = br0.width;
+  const dh = br0.height;
+  const gap = 4;
+
+  const otherPlates = [...document.querySelectorAll('.seat .plate, .meinfo')].filter(
+    (el) => el !== anchorEl,
   );
-
-  // Prefer toward pot from the plate (radial), with a small side bias so D
-  // does not sit under the plate or on top of the street-bet chips.
-  if (anchorEl) {
-    const ar = anchorEl.getBoundingClientRect();
-    const ax = ar.left + ar.width / 2;
-    const ay = ar.top + ar.height / 2;
-    const cx = t.left + t.width / 2;
-    const cy = t.top + t.height * 0.42;
-    const rx = cx - ax;
-    const ry = cy - ay;
-    const len = Math.hypot(rx, ry) || 1;
-    const tx = -ry / len;
-    const ty = rx / len;
-    const br0 = dealer.getBoundingClientRect();
-    // Strong radial offset keeps D on the felt even for top seats (avoids clamp-to-rim)
-    const radial = Math.max(ar.height, ar.width) * 0.55 + br0.height + 12;
-    const tangential = br0.width * 0.85 + 6;
-    let x = ax + (rx / len) * radial + tx * tangential;
-    let y = ay + (ry / len) * radial + ty * tangential;
-    dealer.style.left = `${((x - t.left) / t.width) * 100}%`;
-    dealer.style.top = `${((y - t.top) / t.height) * 100}%`;
+  const potEl = document.querySelector('.pot');
+  const boardEl = $('#board');
+  const noteEl = document.querySelector('.table-note');
+  const softRects = [
+    potEl,
+    boardEl,
+    noteEl,
+    ...document.querySelectorAll(
+      '#board .card, #board .slot, #heroHole .card, .mini-hole .card, .seat .av, #bets .bet',
+    ),
+  ]
+    .filter(Boolean)
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      const isBet = el.classList?.contains('bet');
+      const pad =
+        el === potEl || el === noteEl ? 6 : el === boardEl ? 2 : isBet ? 4 : 1;
+      return {
+        left: r.left - pad,
+        top: r.top - pad,
+        right: r.right + pad,
+        bottom: r.bottom + pad,
+      };
+    });
+  for (const pl of otherPlates) {
+    const r = pl.getBoundingClientRect();
+    softRects.push({
+      left: r.left - 8,
+      top: r.top - 8,
+      right: r.right + 8,
+      bottom: r.bottom + 8,
+    });
   }
 
-  const softPad = 4;
-  const betPad = 6;
-  const plateGap = 10; // clear plate drop-shadow
-  for (let pass = 0; pass < 20; pass++) {
-    const br = dealer.getBoundingClientRect();
-    let x = br.left;
-    let y = br.top;
-    const w = br.width;
-    const h = br.height;
-    const mk = (p) => ({
-      left: x - p,
-      top: y - p,
-      right: x + w + p,
-      bottom: y + h + p,
-    });
+  const overlaps = (a, b) => {
+    const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    return ox > 0 && oy > 0;
+  };
+  const edgeDist = (px, py, r) => {
+    const dx = Math.max(r.left - px, 0, px - r.right);
+    const dy = Math.max(r.top - py, 0, py - r.bottom);
+    return Math.hypot(dx, dy);
+  };
+
+  // Candidates: tight ring on the plate's inward edge (not deep toward pot).
+  // Depth is only gap + button radius past the plate AABB — keeps D clearly
+  // on the button seat even when the pot sits just inside.
+  /** @type {{x:number,y:number,score:number}[]} */
+  const candidates = [];
+  const edgeDepth = gap + Math.max(dw, dh) / 2;
+  const rings = [edgeDepth, edgeDepth + 5];
+  for (const rad of rings) {
+    for (let i = 0; i < 32; i++) {
+      const ang = (i / 32) * Math.PI * 2;
+      const dx = Math.cos(ang);
+      const dy = Math.sin(ang);
+      // Inward hemisphere only (dot with table-center direction >= -0.1)
+      if (dx * ux + dy * uy < -0.1) continue;
+      // Distance to plate AABB edge along (dx,dy), then + rad
+      const tx = dx === 0 ? Infinity : (ar.width / 2) / Math.abs(dx);
+      const ty = dy === 0 ? Infinity : (ar.height / 2) / Math.abs(dy);
+      const toEdge = Math.min(tx, ty);
+      const x = ax + dx * (toEdge + rad);
+      const y = ay + dy * (toEdge + rad);
+      candidates.push({ x, y, score: 0 });
+    }
+  }
+  // Explicit inward-edge slides (clear pot while staying on the plate lip)
+  {
+    const px = -uy;
+    const py = ux;
+    // Anchor on the inward face of the plate
+    const faceX = ax + ux * (Math.min(
+      ux === 0 ? Infinity : (ar.width / 2) / Math.abs(ux),
+      uy === 0 ? Infinity : (ar.height / 2) / Math.abs(uy),
+    ) + edgeDepth);
+    const faceY = ay + uy * (Math.min(
+      ux === 0 ? Infinity : (ar.width / 2) / Math.abs(ux),
+      uy === 0 ? Infinity : (ar.height / 2) / Math.abs(uy),
+    ) + edgeDepth);
+    candidates.push({ x: faceX, y: faceY, score: 0 });
+    for (const side of [-1, 1]) {
+      for (const lat of [8, 14, 22, 30, 40]) {
+        candidates.push({
+          x: faceX + px * side * lat,
+          y: faceY + py * side * lat,
+          score: 0,
+        });
+      }
+    }
+  }
+
+  // Hero plate sits below the felt — allow D into that band only for hero.
+  // Opponent D must stay on the felt so it never floats in the chrome.
+  const stage = document.querySelector('.stage')?.getBoundingClientRect() || t;
+  const minX =
+    key === 'hero' ? Math.min(t.left, stage.left) + dw / 2 + 4 : t.left + dw / 2 + 4;
+  const maxX =
+    key === 'hero' ? Math.max(t.right, stage.right) - dw / 2 - 4 : t.right - dw / 2 - 4;
+  const minY = t.top + dh / 2 + 4;
+  const maxY =
+    key === 'hero'
+      ? Math.max(t.bottom, ar.bottom + dh / 2 + 8) - dh / 2 - 2
+      : t.bottom - dh / 2 - 2;
+
+  // Hero hole cards sit above meinfo; for hero, don't treat them as hard blocks on
+  // lateral candidates (left/right of the plate still read as "this seat's D").
+  const softForHeroSide = softRects.filter((r) => {
+    if (key !== 'hero') return true;
+    // drop obstacles that are mostly above the plate (hole cards)
+    return r.bottom > ar.top - 4;
+  });
+
+  let best = null;
+  let bestScore = Infinity;
+  for (const c of candidates) {
+    let x = clamp(c.x, minX, maxX);
+    let y = clamp(c.y, minY, maxY);
+    const box = {
+      left: x - dw / 2,
+      top: y - dh / 2,
+      right: x + dw / 2,
+      bottom: y + dh / 2,
+    };
+    // Must not cover own plate
+    if (overlaps(box, ar)) continue;
+    const soft = key === 'hero' && Math.abs(x - ax) > Math.abs(y - ay) ? softForHeroSide : softRects;
+    let blocked = false;
     for (const ob of soft) {
-      const d = overlapDelta(mk(softPad), ob);
-      if (d) {
-        x += d.dx;
-        y += d.dy;
+      if (overlaps(box, ob)) {
+        blocked = true;
+        break;
       }
     }
-    for (const pl of document.querySelectorAll('.seat .plate, .meinfo')) {
+    if (blocked) continue;
+    const own = edgeDist(x, y, ar);
+    if (own > 14) continue;
+    // Clearly nearer to own plate than to any other (never drift toward a neighbor).
+    // When glued tight to own plate (own < 8), a smaller margin still reads as "this seat".
+    const otherMargin = own < 8 ? 10 : 14;
+    let nearestOther = Infinity;
+    let nearerOther = false;
+    for (const pl of otherPlates) {
       const pr = pl.getBoundingClientRect();
-      const dBox = { left: x, top: y, right: x + w, bottom: y + h };
-      const push = separationDelta(dBox, pr, plateGap);
-      if (push) {
-        x += push.dx;
-        y += push.dy;
+      const od = edgeDist(x, y, pr);
+      nearestOther = Math.min(nearestOther, od);
+      if (od <= own + otherMargin) {
+        nearerOther = true;
+        break;
       }
     }
-    for (const ob of betRects) {
-      const d = overlapDelta(mk(betPad), ob);
-      if (d) {
-        x += d.dx;
-        y += d.dy;
+    if (nearerOther) continue;
+    // Prefer inward + close to plate + far from neighbors
+    const inward = (x - ax) * ux + (y - ay) * uy;
+    const lateral = Math.abs((x - ax) * -uy + (y - ay) * ux);
+    const score = own * 4 + Math.max(0, -inward) * 5 + Math.max(0, 36 - nearestOther) + lateral * 0.5;
+    if (score < bestScore) {
+      bestScore = score;
+      best = { x, y };
+    }
+  }
+
+  // Fallback: glue to the inward edge, or the side farther from other seats
+  if (!best) {
+    const plateAlong = (Math.abs(ux) * ar.width + Math.abs(uy) * ar.height) / 2;
+    const rad = plateAlong + Math.max(dw, dh) / 2 + gap;
+    const fallbacks =
+      key === 'hero'
+        ? [
+            { x: ar.left - dw / 2 - gap, y: ay },
+            { x: ar.right + dw / 2 + gap, y: ay },
+            { x: ax, y: ar.top - dh / 2 - gap },
+          ]
+        : [
+            { x: ax + ux * rad, y: ay + uy * rad },
+            // Along plate edge, perpendicular to inward (both directions)
+            { x: ax - uy * rad, y: ay + ux * rad },
+            { x: ax + uy * rad, y: ay - ux * rad },
+            { x: ax + ux * (rad * 0.7) - uy * (rad * 0.5), y: ay + uy * (rad * 0.7) + ux * (rad * 0.5) },
+            { x: ax + ux * (rad * 0.7) + uy * (rad * 0.5), y: ay + uy * (rad * 0.7) - ux * (rad * 0.5) },
+          ];
+    let fbBest = null;
+    let fbScore = Infinity;
+    for (const f of fallbacks) {
+      const x = clamp(f.x, minX, maxX);
+      const y = clamp(f.y, minY, maxY);
+      const own = edgeDist(x, y, ar);
+      let nearestOther = Infinity;
+      for (const pl of otherPlates) {
+        nearestOther = Math.min(nearestOther, edgeDist(x, y, pl.getBoundingClientRect()));
+      }
+      if (nearestOther <= own + 8) continue;
+      const inward = (x - ax) * ux + (y - ay) * uy;
+      const score = own * 2 + Math.max(0, -inward) * 3 + Math.max(0, 30 - nearestOther);
+      if (score < fbScore) {
+        fbScore = score;
+        fbBest = { x, y };
       }
     }
-    // Keep inside felt; if clamp would fight plate separation, prefer inward
-    const cx = t.left + t.width / 2;
-    const cy = t.top + t.height * 0.42;
-    const nx = clamp(x, t.left + 4, t.right - w - 4);
-    const ny = clamp(y, t.top + 4, t.bottom - h - 4);
-    if (nx !== x || ny !== y) {
-      // Pulled by rim — bias toward table center
-      x = nx + (cx - (nx + w / 2)) * 0.08;
-      y = ny + (cy - (ny + h / 2)) * 0.08;
-      x = clamp(x, t.left + 4, t.right - w - 4);
-      y = clamp(y, t.top + 4, t.bottom - h - 4);
+    best = fbBest || {
+      x: clamp(ax + ux * rad, minX, maxX),
+      y: clamp(ay + uy * rad, minY, maxY),
+    };
+    // Never rest on top of the button's own nameplate
+    for (let k = 0; k < 8; k++) {
+      const box = {
+        left: best.x - dw / 2,
+        top: best.y - dh / 2,
+        right: best.x + dw / 2,
+        bottom: best.y + dh / 2,
+      };
+      if (!overlaps(box, ar)) break;
+      best = {
+        x: clamp(best.x + ux * 6, minX, maxX),
+        y: clamp(best.y + uy * 6, minY, maxY),
+      };
+    }
+  }
+
+  // Final: if D still grazes the pot or center note, park on the plate's
+  // inward lip just clear of those AABBs — stay on the button seat edge.
+  {
+    const blockers = [];
+    if (potEl) blockers.push({ el: potEl, pad: 4 });
+    if (noteEl) blockers.push({ el: noteEl, pad: 4 });
+    const lip = edgeDepth;
+    const faceDist = Math.min(
+      ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
+      uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
+    );
+    const faceX = ax + ux * (faceDist + lip);
+    const faceY = ay + uy * (faceDist + lip);
+    const px = -uy;
+    const py = ux;
+    const touches = (x, y, rect, pad) => {
+      const box = {
+        left: x - dw / 2,
+        top: y - dh / 2,
+        right: x + dw / 2,
+        bottom: y + dh / 2,
+      };
+      return !!overlapDelta(box, {
+        left: rect.left - pad,
+        top: rect.top - pad,
+        right: rect.right + pad,
+        bottom: rect.bottom + pad,
+      });
+    };
+    const blocked = (x, y) =>
+      blockers.some(({ el, pad }) => touches(x, y, el.getBoundingClientRect(), pad));
+    if (blocked(best.x, best.y)) {
+      const options = [];
+      for (const { el, pad } of blockers) {
+        const r = el.getBoundingClientRect();
+        if (Math.abs(uy) >= Math.abs(ux)) {
+          options.push(
+            { x: r.left - pad - dw / 2 - 1, y: faceY },
+            { x: r.right + pad + dw / 2 + 1, y: faceY },
+          );
+        } else {
+          options.push(
+            { x: faceX, y: r.top - pad - dh / 2 - 1 },
+            { x: faceX, y: r.bottom + pad + dh / 2 + 1 },
+          );
+        }
+      }
+      for (const side of [-1, 1]) {
+        for (const lat of [16, 24, 32, 44, 56]) {
+          options.push({ x: faceX + px * side * lat, y: faceY + py * side * lat });
+        }
+      }
+      let pick = null;
+      let pickScore = Infinity;
+      for (const o of options) {
+        const x = clamp(o.x, minX, maxX);
+        const y = clamp(o.y, minY, maxY);
+        // Reject outer-rail / behind-plate spots
+        if ((x - ax) * ux + (y - ay) * uy < 4) continue;
+        if (blocked(x, y)) continue;
+        if (
+          overlaps(
+            { left: x - dw / 2, top: y - dh / 2, right: x + dw / 2, bottom: y + dh / 2 },
+            ar,
+          )
+        ) {
+          continue;
+        }
+        const own = edgeDist(x, y, ar);
+        if (own > 20) continue;
+        let nearest = Infinity;
+        for (const pl of otherPlates) {
+          nearest = Math.min(nearest, edgeDist(x, y, pl.getBoundingClientRect()));
+        }
+        if (nearest <= own + 4) continue;
+        // Prefer glued to own plate, far from neighbors, and away from street
+        // bets (top-seat pot escape to the right crowds SB/BB chips).
+        let betNear = 0;
+        for (const bet of document.querySelectorAll('#bets .bet')) {
+          const br = bet.getBoundingClientRect();
+          const bcx = (br.left + br.right) / 2;
+          const bcy = (br.top + br.bottom) / 2;
+          betNear += 1 / (1 + Math.hypot(x - bcx, y - bcy));
+        }
+        const score =
+          own * 2.5 +
+          Math.abs(x - ax) * 0.8 +
+          Math.abs(y - ay) * 0.3 +
+          Math.max(0, 40 - nearest) * 1.5 +
+          betNear * 40;
+        if (score < pickScore) {
+          pickScore = score;
+          pick = { x, y };
+        }
+      }
+      if (pick) best = pick;
+    }
+  }
+
+  // Hard rule: if D drifted outward (proj < 0), snap to the inward lip.
+  // Hero is special — inward is up into the hole cards, so park D on the
+  // left/right of meinfo instead of the top lip.
+  {
+    if (key === 'hero') {
+      // Inward from meinfo is up into hole cards — always use left/right lip
+      const holeBoxes = [...document.querySelectorAll('#heroHole .card')].map((el) =>
+        el.getBoundingClientRect(),
+      );
+      const hitsHole = (x, y) =>
+        holeBoxes.some((h) =>
+          overlaps(
+            { left: x - dw / 2, top: y - dh / 2, right: x + dw / 2, bottom: y + dh / 2 },
+            { left: h.left - 2, top: h.top - 2, right: h.right + 2, bottom: h.bottom + 2 },
+          ),
+        );
+      const leftX = ar.left - dw / 2 - gap;
+      const rightX = ar.right + dw / 2 + gap;
+      const sideY = clamp(ay, minY, maxY);
+      const leftOk = !hitsHole(leftX, sideY);
+      const rightOk = !hitsHole(rightX, sideY);
+      if (leftOk && (!rightOk || Math.abs(leftX - ax) <= Math.abs(rightX - ax))) {
+        best = { x: clamp(leftX, minX, maxX), y: sideY };
+      } else if (rightOk) {
+        best = { x: clamp(rightX, minX, maxX), y: sideY };
+      }
     } else {
-      x = nx;
-      y = ny;
+      const toEdge = Math.min(
+        ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
+        uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
+      );
+      const lip = toEdge + Math.max(dw, dh) / 2 + 3;
+      const proj = (best.x - ax) * ux + (best.y - ay) * uy;
+      if (proj < Math.max(6, toEdge * 0.35)) {
+        const latX = (best.x - ax) * -uy + (best.y - ay) * ux;
+        const clampedLat = clamp(latX, -ar.width * 0.35, ar.width * 0.35);
+        best = {
+          x: clamp(ax + ux * lip - uy * clampedLat, minX, maxX),
+          y: clamp(ay + uy * lip + ux * clampedLat, minY, maxY),
+        };
+      }
     }
-    dealer.style.left = `${((x + w / 2 - t.left) / t.width) * 100}%`;
-    dealer.style.top = `${((y + h / 2 - t.top) / t.height) * 100}%`;
+  }
+
+  dealer.style.left = `${((best.x - t.left) / t.width) * 100}%`;
+  dealer.style.top = `${((best.y - t.top) / t.height) * 100}%`;
+
+  // Street bets: snap back to rail anchors, then resolve D/pot/board/plates/peers.
+  // (Heavy D-nudging previously walked chips into plate↔board dead zones.)
+  const potBox = potEl?.getBoundingClientRect();
+  const boardBox = boardEl?.getBoundingClientRect();
+  const plateRects = [...document.querySelectorAll('.seat .plate, .meinfo')].map((el) =>
+    el.getBoundingClientRect(),
+  );
+  const desktop = window.matchMedia('(min-width: 1024px)').matches;
+  const anchors = desktop ? BET_ANCHOR_DESKTOP : BET_ANCHOR_PHONE;
+  const betEls = [...document.querySelectorAll('#bets .bet')];
+  const peerGap = window.innerHeight < 700 ? 4 : 6;
+
+  /** @type {{el:HTMLElement,x:number,y:number,w:number,h:number,hero:boolean,ax:number,ay:number}[]} */
+  const placed = [];
+  for (const bet of betEls) {
+    const key = bet.dataset.hero === '1' ? 'hero' : bet.dataset.pos;
+    const [axPct, ayPct] = anchors[key] || anchors.hero;
+    const ax = t.left + (axPct / 100) * t.width;
+    const ay = t.top + (ayPct / 100) * t.height;
+    bet.style.left = `${axPct}%`;
+    bet.style.top = `${ayPct}%`;
+    const br = bet.getBoundingClientRect();
+    placed.push({
+      el: bet,
+      x: br.left,
+      y: br.top,
+      w: br.width,
+      h: br.height,
+      hero: bet.dataset.hero === '1',
+      ax,
+      ay,
+    });
+  }
+
+  const commit = (p) => {
+    p.x = clamp(p.x, t.left + 2, t.right - p.w - 2);
+    p.y = clamp(p.y, t.top + 2, t.bottom - p.h - 2);
+    p.el.style.left = `${((p.x + p.w / 2 - t.left) / t.width) * 100}%`;
+    p.el.style.top = `${((p.y + p.h / 2 - t.top) / t.height) * 100}%`;
+    const br = p.el.getBoundingClientRect();
+    p.x = br.left;
+    p.y = br.top;
+    p.w = br.width;
+    p.h = br.height;
+  };
+
+  for (let pass = 0; pass < 18; pass++) {
+    const finalD = dealer.getBoundingClientRect();
+    let moved = false;
+    for (const p of placed) {
+      const a0 = () => ({ left: p.x, top: p.y, right: p.x + p.w, bottom: p.y + p.h });
+      const bump = (ob, pad, heroBoard = false) => {
+        const d = separationDelta(a0(), ob, pad) || overlapDelta(a0(), ob);
+        if (!d) return false;
+        if (heroBoard) {
+          p.y += Math.max(Math.abs(d.dy), d.dy, 3);
+          p.x += d.dx;
+        } else {
+          p.x += d.dx;
+          p.y += d.dy;
+        }
+        return true;
+      };
+      // Pad 8 clears the layout assert's near(D, bet, 2) buffer
+      let hit = bump(finalD, 8);
+      if (potBox) hit = bump(potBox, 6) || hit;
+      if (boardBox) {
+        const inflated = {
+          left: boardBox.left - 4,
+          top: boardBox.top - 4,
+          right: boardBox.right + 4,
+          bottom: boardBox.bottom + 4,
+        };
+        if (!p.hero) {
+          const before = a0();
+          if (
+            before.bottom > inflated.top &&
+            before.top < inflated.bottom &&
+            before.right > inflated.left &&
+            before.left < inflated.right
+          ) {
+            p.y -= Math.max(4, before.bottom - inflated.top + 4);
+            hit = true;
+          } else {
+            hit = bump(inflated, 4) || hit;
+          }
+        } else {
+          hit = bump(inflated, 4, true) || hit;
+        }
+      }
+      // Pad ≥7: tall-phone layout asserts a 3px near-buffer around plates
+      for (const pl of plateRects) hit = bump(pl, 8) || hit;
+      for (const q of placed) {
+        if (q === p) continue;
+        const qb = { left: q.x, top: q.y, right: q.x + q.w, bottom: q.y + q.h };
+        const d = separationDelta(a0(), qb, peerGap) || overlapDelta(a0(), qb);
+        if (!d) continue;
+        const pcx = p.x + p.w / 2;
+        const pcy = p.y + p.h / 2;
+        const qcx = q.x + q.w / 2;
+        const qcy = q.y + q.h / 2;
+        if (Math.hypot(pcx - qcx, pcy - qcy) < 8) {
+          const dirY = p.ay <= q.ay ? -1 : 1;
+          p.y += dirY * (peerGap + 2);
+        } else {
+          p.x += d.dx * 0.7;
+          p.y += d.dy * 0.7;
+        }
+        hit = true;
+      }
+      // Re-clear D last so plate/board nudges cannot leave chips under the button
+      hit = bump(finalD, 8) || hit;
+      if (!hit) continue;
+      moved = true;
+      commit(p);
+    }
+    if (!moved) break;
   }
 }
 
@@ -714,6 +1423,8 @@ function overlapDelta(a, b) {
 function roleTag(v, seat) {
   const tags = [];
   if (seat === v.room.hostSeat) tags.push('<span class="tag host">房主</span>');
+  // Button / dealer — shown even when HU (dealer is also SB)
+  if (state.button === seat) tags.push('<span class="tag dealer-tag">莊家</span>');
   if (state.sbSeat === seat) tags.push('<span class="tag">小盲</span>');
   else if (state.bbSeat === seat) tags.push('<span class="tag">大盲</span>');
   return tags.join('');
@@ -1087,10 +1798,17 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
-// Expose for headless e2e
+// Expose for headless e2e / layout tests
 window.__poker = {
   getState: () => state,
   getViewer: () => viewerSeat,
+  /** Pin the hot-seat viewer (skips pass gate) and re-render. */
+  setViewer(seat) {
+    viewerSeat = seat;
+    needsPass = false;
+    $('#passScreen')?.classList.remove('is-on');
+    render();
+  },
   dispatch,
   view,
   applyAction,

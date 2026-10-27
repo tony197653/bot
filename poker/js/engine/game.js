@@ -74,6 +74,8 @@ export function createInitialState(opts = {}) {
     log: [],
     streetLog: [],
     winners: null,
+    /** @type {Record<number, number>|null} per-seat chips won this hand */
+    winnerPayouts: null,
     showdown: null,
     lastHandSummary: null,
     rngSeedUsed: null,
@@ -243,6 +245,7 @@ function startHand(s, env) {
   s.board = [];
   s.pots = [];
   s.winners = null;
+  s.winnerPayouts = null;
   s.showdown = null;
   s.lastHandSummary = null;
   s.log = [];
@@ -596,18 +599,43 @@ function awardUncontested(s, seat) {
   const p = s.seats[seat];
   p.chips += total;
   p.lastAction = `贏得 ${total}`;
-  pushLog(s, 'result', `${p.name} 贏得 ${total}（無人攤牌）`);
+  pushLog(s, 'result', `${p.name} 贏得 ${total}（其他人蓋牌）`);
   s.winners = [{ seats: [seat], amount: total, hand: null }];
+  s.winnerPayouts = { [seat]: total };
   s.pots = [];
+  // Street bets are already in contributed/pots — clear markers so UI chips leave the felt
+  for (const sp of seatedPlayers(s)) sp.bet = 0;
+  s.currentBet = 0;
   s.actor = null;
   s.deadline = null;
   s.phase = PHASE.HAND_OVER;
   s.lastHandSummary = {
     winners: s.winners,
+    winnerPayouts: s.winnerPayouts,
     board: cloneCards(s.board),
+    foldWin: true,
   };
   // Clear holes for next
   return s;
+}
+
+/**
+ * Center-table note when everyone else folded (Traditional Chinese).
+ * @param {object} s
+ * @returns {string|null}
+ */
+export function foldWinCenterNote(s) {
+  if (!s?.winners?.length) return null;
+  const foldWin =
+    s.lastHandSummary?.foldWin === true ||
+    s.winners.every((w) => w.hand == null && !w.handZh);
+  if (!foldWin) return null;
+  if (s.winners.length !== 1 || s.winners[0].seats?.length !== 1) return null;
+  const seat = s.winners[0].seats[0];
+  const name = s.seats[seat]?.name;
+  if (!name) return null;
+  const amt = s.winnerPayouts?.[seat] ?? s.winners[0].amount;
+  return `${name} 贏得 ${Number(amt).toLocaleString('zh-TW')}（其他人蓋牌）`;
 }
 
 function goShowdown(s) {
@@ -668,7 +696,12 @@ function goShowdown(s) {
   }
 
   s.winners = winnerRecords;
+  s.winnerPayouts = Object.fromEntries(
+    [...awards.entries()].map(([seat, v]) => [seat, v.amount]),
+  );
   s.pots = [];
+  for (const sp of seatedPlayers(s)) sp.bet = 0;
+  s.currentBet = 0;
 
   // Non-winners may muck/show; winners already auto-shown
   const winnerSeats = new Set([...awards.keys()]);
@@ -741,8 +774,10 @@ function finishShowdown(s) {
   s.phase = PHASE.HAND_OVER;
   s.lastHandSummary = {
     winners: s.winners,
+    winnerPayouts: s.winnerPayouts,
     board: cloneCards(s.board),
     revealed: s.showdown?.revealed ?? {},
+    foldWin: false,
   };
   return s;
 }

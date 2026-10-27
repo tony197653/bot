@@ -4,7 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#10261d">
-<link rel="icon" href="data:,">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="週五牌局">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 <title>週五牌局 · 德州撲克</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,6 +46,7 @@
       <p id="roomMeta">無限注 <b>盲注 10／20</b>　第 0 手</p>
     </div>
     <div class="top-tools">
+      <button class="mute hidden" type="button" id="btnFullscreen" aria-pressed="false" title="全螢幕">全螢幕</button>
       <button class="mute" type="button" id="btnTimerCfg" title="測試時可關閉計時">計時關</button>
       <button class="mute" type="button" id="btnLobby">大廳</button>
       <button class="mute" type="button" id="btnMute" aria-pressed="false" aria-label="音效（里程碑 5）">
@@ -63,10 +70,11 @@
       <div id="bets"></div>
       <div id="seats"></div>
       <div class="dealer" id="dealer" title="莊家">D</div>
+      <div class="fx-layer" id="fxLayer" aria-hidden="true"></div>
     </div>
-    <div class="me">
+    <div class="me" id="meRoot">
       <div class="hole" id="heroHole" aria-label="你的手牌"></div>
-      <div class="meinfo">
+      <div class="meinfo" id="mePlate">
         <div class="timer" aria-label="剩餘秒數">
           <svg viewBox="0 0 46 46"><circle class="bg" cx="23" cy="23" r="20"/><circle class="fg" id="timerFg" cx="23" cy="23" r="20" style="stroke-dasharray:125.66;stroke-dashoffset:0"/></svg>
           <span id="timerSec">—</span>
