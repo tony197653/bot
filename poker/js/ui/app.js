@@ -98,7 +98,10 @@ async function boot() {
 /* ─── Lobby ─── */
 function openLobby() {
   const scr = $('#lobbyScreen');
+  scr.classList.remove('hidden');
   scr.classList.add('is-on');
+  $('#passScreen').classList.remove('is-on');
+  needsPass = false;
   const box = $('#playerRows');
   const seated = state.seats.map((p, i) => (p ? p.name : null));
   // Default fill 宗良 + friends if empty lobby
@@ -193,6 +196,7 @@ function bindLobby() {
     viewerSeat = state.actor ?? state.room.hostSeat;
     needsPass = true;
     $('#lobbyScreen').classList.remove('is-on');
+    $('#lobbyScreen').classList.add('hidden');
     showPass();
   };
 }
@@ -202,6 +206,11 @@ function showPass() {
   const p = state.seats[viewerSeat];
   if (!p) return;
   needsPass = true;
+  // Privacy: clear hole cards until the correct player confirms
+  $('#heroHole').innerHTML = '';
+  $('#heroName').textContent = '（換人中）';
+  $('#heroChips').textContent = '';
+  $('#passScreen').classList.remove('hidden');
   $('#passScreen').classList.add('is-on');
   $('#passName').textContent = p.name;
   $('#passHint').textContent =
@@ -447,6 +456,8 @@ function renderActions(v) {
 
   if (!myTurn) {
     act.classList.add('is-dim');
+    $('#showBtns').classList.add('hidden');
+    $('#showBtns').innerHTML = '';
     const waiting = v.seats[v.actor];
     $('#turnTitle').textContent = waiting ? `等待 ${waiting.name}` : '請稍候';
     $('#turnHint').textContent = '熱座模式：輪到別人時請交給對方。';
@@ -454,7 +465,11 @@ function renderActions(v) {
     $('#presets').classList.add('hidden');
     $('#btns').innerHTML = `<button type="button" class="call" id="btnHandOff">換人</button>`;
     $('#btnHandOff').onclick = () => {
-      if (state.actor != null) viewerSeat = state.actor;
+      if (state.phase === PHASE.SHOWDOWN && state.showdown?.pending?.length) {
+        viewerSeat = state.showdown.pending[0];
+      } else if (state.actor != null) {
+        viewerSeat = state.actor;
+      }
       showPass();
     };
     return;

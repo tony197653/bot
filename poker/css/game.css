@@ -218,9 +218,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .pass-name{font-family:var(--tf);font-size:26px;font-weight:700;color:var(--accent);margin:8px 0 18px}
 
 /* 工具列小鈕 */
-.top-tools{display:flex;gap:8px;align-items:center}
+.top-tools{display:flex;gap:6px;align-items:center;flex:none}
+.top-tools .mute{padding:0 10px;font-size:12.5px;height:40px}
+.top-tools .mute span{display:none}
+@media (min-width:1024px){
+  .top-tools .mute{padding:0 14px 0 12px;font-size:13.5px;height:44px}
+  .top-tools .mute span{display:inline}
+}
 .mute.is-off{opacity:.55}
 .chip-tag{font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--panelline);color:var(--mute)}
+.room p{overflow:hidden;text-overflow:ellipsis;max-width:100%}
 
 /* 自己座位動態位置 */
 .seat.is-actor .av{box-shadow:0 0 0 2px var(--accent),0 2px 6px #0003}

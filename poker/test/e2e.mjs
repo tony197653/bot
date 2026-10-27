@@ -52,7 +52,19 @@ async function playHands(page, label) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (msg) => {
-    if (msg.type() === 'error') errors.push(msg.text());
+    if (msg.type() === 'error') {
+      const t = msg.text();
+      if (/favicon|404 \(Not Found\)/i.test(t)) return;
+      errors.push(t);
+    }
+  });
+  page.on('response', (res) => {
+    if (res.status() >= 400 && !/favicon/i.test(res.url())) {
+      // Ignore font CDN blips; flag same-origin 404s for app assets
+      if (res.url().includes('127.0.0.1') && !res.url().includes('favicon')) {
+        errors.push(`HTTP ${res.status()} ${res.url()}`);
+      }
+    }
   });
 
   await page.goto('/', { waitUntil: 'networkidle' });
@@ -85,21 +97,25 @@ async function playHands(page, label) {
         }
         break;
       }
+      const visible = async (sel) =>
+        page.locator(sel).locator('visible=true').count().then((n) => n > 0);
+
       // Showdown muck
-      if (await page.locator('#btnMuck').count()) {
+      if (await visible('#btnMuck')) {
         await page.click('#btnMuck');
         await page.waitForTimeout(150);
         continue;
       }
-      if (await page.locator('#btnCheck').count()) {
+      if (await visible('#btnCheck')) {
         await page.click('#btnCheck');
-      } else if (await page.locator('#btnCall').count()) {
+      } else if (await visible('#btnCall')) {
         await page.click('#btnCall');
-      } else if (await page.locator('#btnHandOff').count()) {
+      } else if (await visible('#btnHandOff')) {
         await page.click('#btnHandOff');
-      } else if (await page.locator('#btnFold').count()) {
-        // Prefer call; if only fold somehow
+      } else if (await visible('#btnFold')) {
         await page.click('#btnFold');
+      } else if (await visible('#btnNext')) {
+        break;
       } else {
         await page.waitForTimeout(100);
       }
