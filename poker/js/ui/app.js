@@ -1057,8 +1057,16 @@ function layoutDealer() {
           right: px + br.width / 2 + pad,
           bottom: py + br.height / 2 + pad,
         };
-        const d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
+        let d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
         if (!d) return false;
+        // Stacked chips share a center — bias by index so both don't nudge the same way
+        if (opts.peerDir != null && Math.abs(d.dx) + Math.abs(d.dy) > 0) {
+          const ocx = (ob.left + ob.right) / 2;
+          const ocy = (ob.top + ob.bottom) / 2;
+          if (Math.abs(px - ocx) < 1.5 && Math.abs(py - ocy) < 1.5) {
+            d = { dx: opts.peerDir * Math.max(Math.abs(d.dx), pad + 2), dy: d.dy };
+          }
+        }
         if (opts.heroBoard) {
           // Hero bets sit under the board — only slide down / sideways
           py += Math.max(Math.abs(d.dy), d.dy, 3);
@@ -1083,7 +1091,10 @@ function layoutDealer() {
       for (const pl of plateRects) hit = pushAway(pl, 5) || hit;
       for (let j = 0; j < betEls.length; j++) {
         if (j === i) continue;
-        hit = pushAway(betEls[j].getBoundingClientRect(), 4) || hit;
+        hit =
+          pushAway(betEls[j].getBoundingClientRect(), 4, {
+            peerDir: i < j ? -1 : 1,
+          }) || hit;
       }
       if (!hit) continue;
       moved = true;
@@ -1101,7 +1112,7 @@ function layoutDealer() {
       for (const pl of plateRects) pushAway(pl, 5);
       for (let j = 0; j < betEls.length; j++) {
         if (j === i) continue;
-        pushAway(betEls[j].getBoundingClientRect(), 5);
+        pushAway(betEls[j].getBoundingClientRect(), 5, { peerDir: i < j ? -1 : 1 });
       }
       const left = clamp(px, t.left + br.width / 2 + 2, t.right - br.width / 2 - 2);
       const top = clamp(py, t.top + br.height / 2 + 2, t.bottom - br.height / 2 - 2);
@@ -1127,8 +1138,15 @@ function layoutDealer() {
           right: px + br.width / 2 + pad,
           bottom: py + br.height / 2 + pad,
         };
-        const d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
+        let d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
         if (!d) return false;
+        if (opts.peerDir != null) {
+          const ocx = (ob.left + ob.right) / 2;
+          const ocy = (ob.top + ob.bottom) / 2;
+          if (Math.abs(px - ocx) < 1.5 && Math.abs(py - ocy) < 1.5) {
+            d = { dx: opts.peerDir * Math.max(Math.abs(d.dx), pad + 2), dy: d.dy };
+          }
+        }
         if (opts.heroBoard) {
           py += Math.max(Math.abs(d.dy), d.dy, 3);
           px += d.dx;
@@ -1141,7 +1159,10 @@ function layoutDealer() {
       let hit = false;
       for (let j = 0; j < betEls.length; j++) {
         if (j === i) continue;
-        hit = pushAway(betEls[j].getBoundingClientRect(), 5) || hit;
+        hit =
+          pushAway(betEls[j].getBoundingClientRect(), 5, {
+            peerDir: i < j ? -1 : 1,
+          }) || hit;
       }
       if (boardBox) {
         hit =
