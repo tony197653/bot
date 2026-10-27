@@ -899,13 +899,15 @@ function layoutDealer() {
     boardEl,
     noteEl,
     ...document.querySelectorAll(
-      '#board .card, #board .slot, #heroHole .card, .mini-hole .card, .seat .av',
+      '#board .card, #board .slot, #heroHole .card, .mini-hole .card, .seat .av, #bets .bet',
     ),
   ]
     .filter(Boolean)
     .map((el) => {
       const r = el.getBoundingClientRect();
-      const pad = el === potEl || el === noteEl ? 6 : el === boardEl ? 2 : 1;
+      const isBet = el.classList?.contains('bet');
+      const pad =
+        el === potEl || el === noteEl ? 6 : el === boardEl ? 2 : isBet ? 4 : 1;
       return {
         left: r.left - pad,
         top: r.top - pad,
@@ -1103,66 +1105,55 @@ function layoutDealer() {
     }
   }
 
-  // Final: if D still grazes the pot, park on the plate's inward lip just
-  // clear of the pot AABB (left or right) — stay on the button seat edge.
-  if (potEl) {
-    const potR = potEl.getBoundingClientRect();
-    const potPad = 4;
-    const touchesPot = (x, y) => {
+  // Final: if D still grazes the pot or center note, park on the plate's
+  // inward lip just clear of those AABBs — stay on the button seat edge.
+  {
+    const blockers = [];
+    if (potEl) blockers.push({ el: potEl, pad: 4 });
+    if (noteEl) blockers.push({ el: noteEl, pad: 4 });
+    const lip = edgeDepth;
+    const faceDist = Math.min(
+      ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
+      uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
+    );
+    const faceX = ax + ux * (faceDist + lip);
+    const faceY = ay + uy * (faceDist + lip);
+    const px = -uy;
+    const py = ux;
+    const touches = (x, y, rect, pad) => {
       const box = {
         left: x - dw / 2,
         top: y - dh / 2,
         right: x + dw / 2,
         bottom: y + dh / 2,
       };
-      return (
-        !!separationDelta(
-          {
-            left: box.left - potPad,
-            top: box.top - potPad,
-            right: box.right + potPad,
-            bottom: box.bottom + potPad,
-          },
-          potR,
-          0,
-        ) || !!overlapDelta(box, {
-          left: potR.left - potPad,
-          top: potR.top - potPad,
-          right: potR.right + potPad,
-          bottom: potR.bottom + potPad,
-        })
-      );
+      return !!overlapDelta(box, {
+        left: rect.left - pad,
+        top: rect.top - pad,
+        right: rect.right + pad,
+        bottom: rect.bottom + pad,
+      });
     };
-    if (touchesPot(best.x, best.y)) {
-      // Inward lip Y/X from plate AABB
-      const lip = edgeDepth;
-      const faceDist = Math.min(
-        ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
-        uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
-      );
-      const faceX = ax + ux * (faceDist + lip);
-      const faceY = ay + uy * (faceDist + lip);
-      const px = -uy;
-      const py = ux;
-      // Clear pot on either side of the lip; pick nearer to plate center
-      const leftClearX = potR.left - potPad - dw / 2 - 1;
-      const rightClearX = potR.right + potPad + dw / 2 + 1;
-      // Project clear X onto the lip line (face + t * tangent)
+    const blocked = (x, y) =>
+      blockers.some(({ el, pad }) => touches(x, y, el.getBoundingClientRect(), pad));
+    if (blocked(best.x, best.y)) {
       const options = [];
-      for (const clearX of [leftClearX, rightClearX]) {
-        // For mostly-vertical inward (top/bottom seats), slide in X on the lip
+      for (const { el, pad } of blockers) {
+        const r = el.getBoundingClientRect();
         if (Math.abs(uy) >= Math.abs(ux)) {
-          options.push({ x: clearX, y: faceY });
+          options.push(
+            { x: r.left - pad - dw / 2 - 1, y: faceY },
+            { x: r.right + pad + dw / 2 + 1, y: faceY },
+          );
         } else {
-          // Side seats: slide in Y
-          const clearY =
-            clearX < potR.left ? potR.top - potPad - dh / 2 - 1 : potR.bottom + potPad + dh / 2 + 1;
-          options.push({ x: faceX, y: clearY });
+          options.push(
+            { x: faceX, y: r.top - pad - dh / 2 - 1 },
+            { x: faceX, y: r.bottom + pad + dh / 2 + 1 },
+          );
         }
       }
-      // Also try pure tangent offsets from face
       for (const side of [-1, 1]) {
-        for (const lat of [16, 24, 32, 44]) {
+        for (const lat of [16, 24, 32, 44, 56]) {
           options.push({ x: faceX + px * side * lat, y: faceY + py * side * lat });
         }
       }
@@ -1171,18 +1162,22 @@ function layoutDealer() {
       for (const o of options) {
         const x = clamp(o.x, minX, maxX);
         const y = clamp(o.y, minY, maxY);
-        if (touchesPot(x, y)) continue;
-        if (overlaps(
-          { left: x - dw / 2, top: y - dh / 2, right: x + dw / 2, bottom: y + dh / 2 },
-          ar,
-        )) continue;
+        if (blocked(x, y)) continue;
+        if (
+          overlaps(
+            { left: x - dw / 2, top: y - dh / 2, right: x + dw / 2, bottom: y + dh / 2 },
+            ar,
+          )
+        ) {
+          continue;
+        }
         const own = edgeDist(x, y, ar);
         if (own > 20) continue;
         let nearest = Infinity;
         for (const pl of otherPlates) {
           nearest = Math.min(nearest, edgeDist(x, y, pl.getBoundingClientRect()));
         }
-        if (nearest <= own + 4) continue; // still must be nearer to own
+        if (nearest <= own + 4) continue;
         const score = own * 3 + Math.abs(x - ax) * 0.3 + Math.abs(y - ay) * 0.3;
         if (score < pickScore) {
           pickScore = score;
@@ -1259,7 +1254,8 @@ function layoutDealer() {
         }
         return true;
       };
-      let hit = bump(finalD, 5);
+      // Pad 8 clears the layout assert's near(D, bet, 2) buffer
+      let hit = bump(finalD, 8);
       if (potBox) hit = bump(potBox, 6) || hit;
       if (boardBox) {
         hit =
