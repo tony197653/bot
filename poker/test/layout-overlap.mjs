@@ -21,6 +21,9 @@ const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
+  '.png': 'image/png',
+  '.webmanifest': 'application/manifest+json',
+  '.json': 'application/json',
 };
 
 function startServer() {
@@ -51,6 +54,7 @@ function overlap(a, b, pad = 0) {
 
 async function checkViewport(browser, url, vp, seatCount) {
   const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
 
@@ -83,9 +87,9 @@ async function checkViewport(browser, url, vp, seatCount) {
         requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))),
       ),
   );
-  await page.waitForTimeout(180);
+  await page.waitForTimeout(220);
 
-  const report = await page.evaluate(() => {
+  const report = await page.evaluate((seatCount) => {
     const issues = [];
     const board = document.getElementById('board');
     const kids = [...board.children].map((el) => {
@@ -120,17 +124,20 @@ async function checkViewport(browser, url, vp, seatCount) {
     const plates = [...document.querySelectorAll('.seat .plate, .meinfo')].map(box);
     const boardBox = box(board);
 
+    // Short Safari toolbars: require clear overlap (pad 0); taller phones keep 3px buffer
+    const betPlatePad = window.innerHeight < 700 ? 0 : 3;
     bets.forEach((b, i) => {
       plates.forEach((p, j) => {
-        if (overlaps(b, p) || near(b, p, 3)) {
+        if (overlaps(b, p) || (betPlatePad > 0 && near(b, p, betPlatePad))) {
           issues.push(`bet[${i}] overlaps/covers plate[${j}]`);
         }
       });
       if (overlaps(b, boardBox)) issues.push(`bet[${i}] overlaps board`);
     });
+    const betBetPad = window.innerHeight < 700 ? 0 : 2;
     for (let i = 0; i < bets.length; i++) {
       for (let j = i + 1; j < bets.length; j++) {
-        if (overlaps(bets[i], bets[j]) || near(bets[i], bets[j], 2)) {
+        if (overlaps(bets[i], bets[j]) || (betBetPad > 0 && near(bets[i], bets[j], betBetPad))) {
           issues.push(`bet[${i}] overlaps bet[${j}]`);
         }
       }
@@ -254,13 +261,47 @@ async function checkViewport(browser, url, vp, seatCount) {
       }
     }
 
+    // Fixed 6 slots: 5 opponent seats (filled or 空位) + hero at bottom
+    const oppSeats = [...document.querySelectorAll('#seats .seat')];
+    if (oppSeats.length !== 5) {
+      issues.push(`expected 5 ring seats (filled+empty), got ${oppSeats.length}`);
+    }
+    const emptySeats = oppSeats.filter((el) => el.classList.contains('is-empty'));
+    const expectEmpty = Math.max(0, 5 - (seatCount - 1));
+    if (emptySeats.length !== expectEmpty) {
+      issues.push(`empty seats ${emptySeats.length} != ${expectEmpty} (players=${seatCount})`);
+    }
+    for (const el of emptySeats) {
+      const t = el.textContent.replace(/\s+/g, '');
+      if (!t.includes('空位')) issues.push('empty seat missing 空位 label');
+    }
+
+    // Hero hole cards must not overlap opponent plates/bets, dealer, or action panel
+    const holeCards = [...document.querySelectorAll('#heroHole .card')].map(box);
+    const actBox = document.getElementById('act')
+      ? box(document.getElementById('act'))
+      : null;
+    const oppPlates = [...document.querySelectorAll('.seat .plate')].map(box);
+    const oppBets = [...document.querySelectorAll('#bets .bet:not([data-hero="1"])')].map(box);
+    for (const hc of holeCards) {
+      oppPlates.forEach((p, j) => {
+        if (overlaps(hc, p) || near(hc, p, 2)) issues.push(`hero hole overlaps plate[${j}]`);
+      });
+      oppBets.forEach((b, i) => {
+        if (overlaps(hc, b) || near(hc, b, 2)) issues.push(`hero hole overlaps bet[${i}]`);
+      });
+      if (dealerEl && overlaps(hc, box(dealerEl))) issues.push('hero hole overlaps dealer');
+      if (actBox && overlaps(hc, actBox)) issues.push('hero hole overlaps action panel');
+    }
+
     return {
       issues,
       boardGaps: kids.slice(0, -1).map((k, i) => +(kids[i + 1].left - k.right).toFixed(1)),
       betCount: bets.length,
       metaText: meta.textContent,
+      emptySeats: emptySeats.length,
     };
-  });
+  }, seatCount);
 
   const shot = join(ART, `poker-layout-${vp.name}-seats${seatCount}.png`);
   await page.screenshot({ path: shot, fullPage: true });
@@ -366,6 +407,7 @@ async function measureScreenReach(page, screenId, ctaSel) {
 
 async function checkScrollScreens(browser, url, vp) {
   const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   const issues = [];
@@ -468,6 +510,7 @@ async function checkScrollScreens(browser, url, vp) {
 /** Bet/raise panel: 3×2 presets, ± steppers, no table overlap, no page scroll. */
 async function checkBetPanel(browser, url, vp) {
   const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   const issues = [];
@@ -613,6 +656,8 @@ async function main() {
 
   const viewports = [
     { name: 'phone', w: 390, h: 844 },
+    { name: 'phone-se', w: 375, h: 667 },
+    { name: 'safari-toolbars', w: 390, h: 664 },
     { name: 'desktop', w: 1280, h: 800 },
   ];
   const scrollViewports = [

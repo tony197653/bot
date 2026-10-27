@@ -15,6 +15,14 @@ import {
 import { cardHtml, cardBackPair, fmtChips } from './cards-dom.js';
 import { onTick } from './ticker.js';
 import { mapSeatsClockwise } from './seating.js';
+import {
+  playDealAnimation,
+  playWinnerFx,
+  cancelDealFx,
+  cancelWinFx,
+  prefersReducedMotion,
+  foldWinCenterNote,
+} from './fx.js';
 
 const DEFAULT_NAMES = ['宗良', '阿哲', '小芸', '志明', '小美', '老K'];
 
@@ -28,6 +36,13 @@ let lastActor = null;
 let raiseTo = 0;
 let toastTimer = 0;
 let dealAnimKey = '';
+/** Hand number waiting for deal FX after pass confirm. */
+let pendingDealHand = 0;
+let lastDealPlayed = 0;
+let winFxKey = '';
+/** @type {DOMRect | null} */
+let prevDealerRect = null;
+let dealFxBusy = false;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let raiseHoldTimer = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
@@ -115,6 +130,21 @@ function dispatch(action, env = {}) {
 }
 
 function afterState() {
+  // New hand → queue deal presentation (engine already final)
+  if (
+    state.handNumber > lastDealPlayed &&
+    state.phase === PHASE.PREFLOP &&
+    state.handNumber !== pendingDealHand
+  ) {
+    cancelWinFx();
+    winFxKey = '';
+    pendingDealHand = state.handNumber;
+  }
+  // Hand over: stop pass gate so winner FX / summary are visible
+  if (state.phase === PHASE.HAND_OVER || state.phase === PHASE.SESSION_OVER) {
+    needsPass = false;
+    $('#passScreen')?.classList.remove('is-on');
+  }
   // Hot-seat: when actor changes to another seated player mid-hand, show pass screen
   if (
     state.actor != null &&
@@ -156,10 +186,24 @@ async function boot() {
       ]);
     }
   } catch (_) { /* ignore */ }
+  set(40, '載入圖示');
+  try {
+    await Promise.all(
+      ['assets/icon-192.png', 'assets/icon-180.png', 'assets/icon-512.png'].map(
+        (src) =>
+          new Promise((resolve) => {
+            const img = new Image();
+            img.onload = img.onerror = () => resolve();
+            img.src = src;
+          }),
+      ),
+    );
+  } catch (_) { /* ignore */ }
   set(55, '載入介面');
   await new Promise((r) => requestAnimationFrame(() => r()));
   // Warm layout
   $('#app').classList.remove('hidden');
+  setupFullscreenButton();
   set(85, '準備牌桌');
   await new Promise((r) => setTimeout(r, 180));
   set(100, '完成');
@@ -167,6 +211,42 @@ async function boot() {
   $('#boot').classList.add('is-done');
   setTimeout(() => $('#boot').classList.add('hidden'), 480);
   openLobby();
+}
+
+function setupFullscreenButton() {
+  const btn = $('#btnFullscreen');
+  if (!btn) return;
+  const doc = document;
+  const el = doc.documentElement;
+  const can =
+    (doc.fullscreenEnabled || doc.webkitFullscreenEnabled) &&
+    (el.requestFullscreen || el.webkitRequestFullscreen);
+  if (!can) {
+    btn.classList.add('hidden');
+    return;
+  }
+  btn.classList.remove('hidden');
+  const isFs = () => !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+  const sync = () => {
+    const on = isFs();
+    btn.setAttribute('aria-pressed', String(on));
+    btn.textContent = on ? '離開全螢幕' : '全螢幕';
+  };
+  btn.onclick = async () => {
+    try {
+      if (isFs()) {
+        await (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc);
+      } else {
+        await (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+      }
+    } catch (_) {
+      toast('無法進入全螢幕');
+    }
+    sync();
+  };
+  doc.addEventListener('fullscreenchange', sync);
+  doc.addEventListener('webkitfullscreenchange', sync);
+  sync();
 }
 
 /* ─── Lobby ─── */
@@ -299,13 +379,18 @@ function hidePass() {
   lastActor = state.actor;
   dealAnimKey = `${state.handNumber}-${viewerSeat}`;
   render();
+  maybePlayDealFx();
 }
 
 $('#btnPassOk').onclick = () => hidePass();
 
 /* ─── Render ─── */
 function render() {
-  if (needsPass) {
+  if (
+    needsPass &&
+    state.phase !== PHASE.HAND_OVER &&
+    state.phase !== PHASE.SESSION_OVER
+  ) {
     showPass();
   }
   const v = view();
@@ -348,13 +433,21 @@ function renderTable(v) {
 
   const anim = dealAnimKey === `${v.handNumber}-${viewerSeat}`;
 
-  // Clockwise table order with hero rotated to bottom (matches engine seat order)
+  // Fixed 6 slots; viewer at bottom-center; empty seats keep placeholders
   const occupied = [];
   for (let seat = 0; seat < 6; seat++) {
     if (v.seats[seat]) occupied.push(seat);
   }
-  const { seatToPos } = mapSeatsClockwise(occupied, viewerSeat);
+  const { seatToPos, emptySlots } = mapSeatsClockwise(occupied, viewerSeat);
   const opponents = occupied.filter((s) => s !== viewerSeat);
+
+  for (const pos of emptySlots) {
+    const el = document.createElement('div');
+    el.className = `seat pos-${pos} is-empty`;
+    el.dataset.empty = '1';
+    el.innerHTML = `<div class="av" aria-label="空位"><span>空位</span></div>`;
+    seatsRoot.appendChild(el);
+  }
 
   for (const seat of opponents) {
     const p = v.seats[seat];
@@ -368,22 +461,26 @@ function renderTable(v) {
       p.hole && p.hole.length
         ? `<div class="mini-hole">${p.hole.map((c) => cardHtml(c)).join('')}</div>`
         : '';
+    const wonAmt = state.winnerPayouts?.[seat];
+    const isWin = wonAmt != null && (v.isHandOver || v.isShowdown);
     const el = document.createElement('div');
-    el.className = `seat pos-${pos}${folded}${actor}`;
+    el.className = `seat pos-${pos}${folded}${actor}${isWin ? ' is-winner' : ''}`;
     el.dataset.seat = String(seat);
     // Street bet amount lives on the chip marker — omit state line while bet>0
     // so the plate is shorter and never fights the chip for the same “10”.
     const stateText =
       p.bet > 0
         ? ''
-        : p.lastAction || (p.sittingOut ? '坐出' : '　');
+        : p.lastAction || (p.sittingOut ? '主出' : '　');
     el.innerHTML = `
       <div class="av"><span>${esc(p.name.slice(0, 1))}</span>${backs}</div>
-      <div class="plate">
+      <div class="plate${isWin ? ' is-winner' : ''}">
         <b class="nm">${esc(p.name)}${role}</b>
         <span class="ch">${fmtChips(p.chips)}</span>
         ${stateText ? `<span class="state">${esc(stateText)}</span>` : ''}
-      </div>${holeShow}`;
+      </div>${holeShow}${
+        isWin ? `<div class="win-badge">WIN +${fmtChips(wonAmt)}</div>` : ''
+      }`;
     seatsRoot.appendChild(el);
 
     if (p.bet > 0) {
@@ -414,6 +511,29 @@ function renderTable(v) {
   }
   $('#heroName').textContent = hero ? `${hero.name}（你）` : '';
   $('#heroChips').textContent = hero ? fmtChips(hero.chips) : '';
+  const mePlate = $('#mePlate');
+  const heroWon = state.winnerPayouts?.[viewerSeat];
+  const heroIsWin = heroWon != null && (v.isHandOver || v.isShowdown);
+  mePlate?.classList.toggle('is-winner', !!heroIsWin);
+  document.querySelectorAll('#meRoot > .win-badge').forEach((n) => n.remove());
+  if (heroIsWin && mePlate) {
+    const badge = document.createElement('div');
+    badge.className = 'win-badge';
+    badge.textContent = `WIN +${fmtChips(heroWon)}`;
+    $('#meRoot')?.appendChild(badge);
+  }
+
+  // Fold-win center note (persistent until next hand)
+  document.querySelectorAll('.table-note').forEach((n) => n.remove());
+  {
+    const note = foldWinCenterNote(state);
+    if (note && (v.isHandOver || v.isShowdown)) {
+      const el = document.createElement('div');
+      el.className = 'table-note';
+      el.textContent = note;
+      document.querySelector('.table')?.appendChild(el);
+    }
+  }
 
   // Hero street bet
   if (hero?.bet > 0) {
@@ -429,43 +549,84 @@ function renderTable(v) {
   requestAnimationFrame(() => {
     layoutBets();
     layoutDealer();
+    const d = $('#dealer');
+    if (d && getComputedStyle(d).display !== 'none') {
+      prevDealerRect = d.getBoundingClientRect();
+    }
+    maybePlayWinnerFx(v);
   });
+}
+
+function maybePlayDealFx() {
+  if (needsPass || dealFxBusy) return;
+  if (!pendingDealHand || pendingDealHand !== state.handNumber) return;
+  if (state.phase !== PHASE.PREFLOP) return;
+  if (prefersReducedMotion()) {
+    lastDealPlayed = state.handNumber;
+    pendingDealHand = 0;
+    return;
+  }
+  dealFxBusy = true;
+  const hand = state.handNumber;
+  const prev = prevDealerRect;
+  pendingDealHand = 0;
+  lastDealPlayed = hand;
+  requestAnimationFrame(() => {
+    playDealAnimation({
+      state,
+      viewerSeat,
+      prevDealer: prev,
+      onDone: () => {
+        dealFxBusy = false;
+        document.documentElement.classList.remove('is-dealing');
+      },
+    });
+  });
+}
+
+function maybePlayWinnerFx(v) {
+  if (needsPass) return;
+  if (!(v.isHandOver || v.isShowdown) || !state.winners?.length) return;
+  const key = `${state.handNumber}:${JSON.stringify(state.winnerPayouts || state.winners)}`;
+  if (key === winFxKey) return;
+  winFxKey = key;
+  playWinnerFx({ state, viewerSeat, holdMs: 2000 });
 }
 
 /** Safe chip-rail anchors (% of .table) — inward from seats, clear of board band. */
 const BET_ANCHOR_PHONE = {
-  0: [50, 24],
-  1: [70, 40],
-  2: [70, 60],
-  3: [30, 60],
-  4: [30, 40],
-  hero: [50, 70],
+  0: [50, 30],
+  1: [62, 40],
+  2: [60, 48],
+  3: [40, 48],
+  4: [38, 40],
+  hero: [50, 54],
 };
 const BET_ANCHOR_DESKTOP = {
-  0: [50, 22],
-  1: [68, 34],
-  2: [70, 64],
-  3: [30, 64],
-  4: [32, 34],
-  hero: [50, 72],
+  0: [50, 24],
+  1: [66, 36],
+  2: [66, 56],
+  3: [34, 56],
+  4: [34, 36],
+  hero: [50, 62],
 };
 
 /** Dealer «D» anchors — near the button seat but inward; nudged clear of plates. */
 const DEALER_ANCHOR_PHONE = {
-  0: [58, 19],
-  1: [80, 38],
-  2: [80, 66],
-  3: [20, 66],
-  4: [20, 38],
-  hero: [64, 84],
+  0: [62, 16],
+  1: [78, 34],
+  2: [78, 54],
+  3: [22, 54],
+  4: [22, 34],
+  hero: [58, 70],
 };
 const DEALER_ANCHOR_DESKTOP = {
-  0: [58, 18],
-  1: [82, 36],
-  2: [80, 70],
-  3: [20, 70],
-  4: [18, 36],
-  hero: [62, 86],
+  0: [58, 20],
+  1: [76, 34],
+  2: [74, 58],
+  3: [26, 58],
+  4: [24, 34],
+  hero: [60, 74],
 };
 
 /**
@@ -484,9 +645,12 @@ function layoutBets() {
   const plates = [...document.querySelectorAll('.seat .plate, .meinfo')].map((el) =>
     el.getBoundingClientRect(),
   );
+  const holeBoxes = [...document.querySelectorAll('#heroHole .card')].map((el) =>
+    el.getBoundingClientRect(),
+  );
   const bets = [...document.querySelectorAll('#bets .bet')];
 
-  /** @type {{el:HTMLElement, x:number, y:number, w:number, h:number}[]} */
+  /** @type {{el:HTMLElement, x:number, y:number, w:number, h:number, hero:boolean}[]} */
   const placed = [];
 
   for (const bet of bets) {
@@ -495,11 +659,18 @@ function layoutBets() {
     bet.style.left = `${px}%`;
     bet.style.top = `${py}%`;
     const br = bet.getBoundingClientRect();
-    placed.push({ el: bet, x: br.left, y: br.top, w: br.width, h: br.height });
+    placed.push({
+      el: bet,
+      x: br.left,
+      y: br.top,
+      w: br.width,
+      h: br.height,
+      hero: bet.dataset.hero === '1',
+    });
   }
 
-  const pad = 6;
-  for (let pass = 0; pass < 10; pass++) {
+  const pad = 8;
+  for (let pass = 0; pass < 18; pass++) {
     for (const p of placed) {
       const box = () => ({
         left: p.x - pad,
@@ -508,18 +679,33 @@ function layoutBets() {
         bottom: p.y + p.h + pad,
       });
       for (const pl of plates) {
-        const d = overlapDelta(box(), pl);
+        const d = separationDelta(box(), pl, 4) || overlapDelta(box(), pl);
         if (d) {
           p.x += d.dx;
           p.y += d.dy;
         }
       }
+      // Opponent bets must clear hero hole cards
+      if (!p.hero) {
+        for (const hc of holeBoxes) {
+          const d = overlapDelta(box(), {
+            left: hc.left - 4,
+            top: hc.top - 4,
+            right: hc.right + 4,
+            bottom: hc.bottom + 4,
+          });
+          if (d) {
+            p.x += d.dx;
+            p.y += d.dy;
+          }
+        }
+      }
       if (boardBox) {
         const inflated = {
-          left: boardBox.left - 8,
-          top: boardBox.top - 8,
-          right: boardBox.right + 8,
-          bottom: boardBox.bottom + 8,
+          left: boardBox.left - 10,
+          top: boardBox.top - 10,
+          right: boardBox.right + 10,
+          bottom: boardBox.bottom + 10,
         };
         const d = overlapDelta(box(), inflated);
         if (d) {
@@ -545,6 +731,55 @@ function layoutBets() {
       p.el.style.left = `${((p.x + p.w / 2 - t.left) / t.width) * 100}%`;
       p.el.style.top = `${((p.y + p.h / 2 - t.top) / t.height) * 100}%`;
       // refresh size in case wrapping changed (shouldn't)
+      const br = p.el.getBoundingClientRect();
+      p.x = br.left;
+      p.y = br.top;
+      p.w = br.width;
+      p.h = br.height;
+    }
+  }
+
+  // Final separation: plates, peer bets, and board (no pot-bias that walks onto board)
+  for (let fin = 0; fin < 10; fin++) {
+    for (const p of placed) {
+      const a0 = () => ({ left: p.x, top: p.y, right: p.x + p.w, bottom: p.y + p.h });
+      for (const pl of plates) {
+        const d = separationDelta(a0(), pl, 5);
+        if (d) {
+          p.x += d.dx;
+          p.y += d.dy;
+        }
+      }
+      if (boardBox) {
+        const inflated = {
+          left: boardBox.left - 6,
+          top: boardBox.top - 6,
+          right: boardBox.right + 6,
+          bottom: boardBox.bottom + 6,
+        };
+        const d = overlapDelta(a0(), inflated);
+        if (d) {
+          p.x += d.dx;
+          p.y += d.dy;
+        }
+      }
+      for (const q of placed) {
+        if (q === p) continue;
+        const d = separationDelta(a0(), {
+          left: q.x,
+          top: q.y,
+          right: q.x + q.w,
+          bottom: q.y + q.h,
+        }, 4);
+        if (d) {
+          p.x += d.dx * 0.75;
+          p.y += d.dy * 0.75;
+        }
+      }
+      p.x = clamp(p.x, t.left + 2, t.right - p.w - 2);
+      p.y = clamp(p.y, t.top + 2, t.bottom - p.h - 2);
+      p.el.style.left = `${((p.x + p.w / 2 - t.left) / t.width) * 100}%`;
+      p.el.style.top = `${((p.y + p.h / 2 - t.top) / t.height) * 100}%`;
       const br = p.el.getBoundingClientRect();
       p.x = br.left;
       p.y = br.top;
@@ -610,10 +845,10 @@ function layoutDealer() {
     dealer.style.top = `${((y - t.top) / t.height) * 100}%`;
   }
 
-  const softPad = 4;
+  const softPad = 8;
   const betPad = 6;
   const plateGap = 10; // clear plate drop-shadow
-  for (let pass = 0; pass < 20; pass++) {
+  for (let pass = 0; pass < 28; pass++) {
     const br = dealer.getBoundingClientRect();
     let x = br.left;
     let y = br.top;
@@ -665,6 +900,26 @@ function layoutDealer() {
     }
     dealer.style.left = `${((x + w / 2 - t.left) / t.width) * 100}%`;
     dealer.style.top = `${((y + h / 2 - t.top) / t.height) * 100}%`;
+  }
+
+  // Escape: if still on the board, park beside the button seat outside the board band
+  const boardEl = $('#board');
+  if (boardEl && anchorEl) {
+    for (let k = 0; k < 10; k++) {
+      const br = dealer.getBoundingClientRect();
+      const bb = boardEl.getBoundingClientRect();
+      const ox = Math.min(br.right, bb.right) - Math.max(br.left, bb.left);
+      const oy = Math.min(br.bottom, bb.bottom) - Math.max(br.top, bb.top);
+      if (!(ox > 0 && oy > 0)) break;
+      const ar = anchorEl.getBoundingClientRect();
+      const side = ar.left + ar.width / 2 < t.left + t.width / 2 ? -1 : 1;
+      let x = ar.left + ar.width / 2 + side * (ar.width * 0.7 + br.width);
+      let y = Math.min(ar.top - br.height - 6, bb.top - br.height - 8);
+      x = clamp(x, t.left + 4, t.right - br.width - 4);
+      y = clamp(y, t.top + 4, t.bottom - br.height - 4);
+      dealer.style.left = `${((x + br.width / 2 - t.left) / t.width) * 100}%`;
+      dealer.style.top = `${((y + br.height / 2 - t.top) / t.height) * 100}%`;
+    }
   }
 }
 

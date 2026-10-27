@@ -10,7 +10,9 @@
   --ring:#d6ab45; --ringbg:#ffffff22; --track:#2b4a3a;
   --tf:"Noto Serif TC","Noto Serif CJK TC",serif;
   --uf:"Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif;
-  --cw:40px; --ch:56px; --hw:66px; --hh:92px;
+  --cw:40px; --ch:56px;
+  /* 手牌約縮小 15%，避免蓋到底左／底右座位 */
+  --hw:56px; --hh:78px;
 }
 *{box-sizing:border-box;margin:0}
 html,body{
@@ -49,7 +51,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 
 /* 牌桌 */
 .stage{position:relative;min-height:0}
-.table{position:absolute;inset:40px 30px 26px}
+.table{position:absolute;inset:36px 26px 88px}
 .felt{position:absolute;inset:0;border-radius:999px;
   background:radial-gradient(70% 60% at 50% 42%,var(--felt),var(--felt2) 70%,var(--felt3));
   border:14px solid var(--rim);
@@ -72,13 +74,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .card .rk{position:absolute;left:5px;top:3px;font-family:"Noto Serif TC","Noto Serif CJK TC",serif;font-weight:700;font-size:18px;line-height:1}
 .card .sm{position:absolute;left:5px;top:23px;width:12px;height:12px}
 .card .big{position:absolute;right:5px;bottom:5px;width:24px;height:24px}
-.card.hero{width:var(--hw);height:var(--hh);border-radius:9px}
-.card.hero .rk{font-size:26px;left:7px;top:5px}
-.card.hero .sm{left:8px;top:34px;width:16px;height:16px}
-.card.hero .big{width:36px;height:36px;right:7px;bottom:7px}
+.card.hero{width:var(--hw);height:var(--hh);border-radius:8px;flex:0 0 var(--hw)}
+.card.hero .rk{font-size:20px;left:5px;top:4px}
+.card.hero .sm{left:6px;top:26px;width:12px;height:12px}
+.card.hero .big{width:28px;height:28px;right:5px;bottom:5px}
 
-/* 座位 */
-.seat{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;width:86px}
+/* 座位（六固定位：底中＝自己；其餘順時針） */
+.seat{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;width:86px;z-index:3}
+.seat.is-empty{pointer-events:none;opacity:.42}
+.seat.is-empty .av{
+  background:transparent;color:var(--tmute);font-size:12px;font-weight:500;font-family:var(--uf);
+  box-shadow:0 0 0 1.5px #c9a24a44;border:1.5px dashed #cfe3d255}
+.seat.is-empty .plate{display:none}
 .av{position:relative;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
   background:var(--plate);color:var(--plateink);font-family:var(--tf);font-weight:700;font-size:18px;
   box-shadow:0 0 0 2px var(--plateline),0 2px 6px #0003;z-index:1}
@@ -99,6 +106,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 
 .s1{--x:13%;--y:71%} .s2{--x:13%;--y:30%} .s3{--x:50%;--y:9%} .s4{--x:87%;--y:30%} .s5{--x:87%;--y:71%}
 
+/* 固定六位：上／左上／右上／左下／右下（底中為 .me） */
+.seat.pos-0{--x:50%;--y:8%}
+.seat.pos-1{--x:88%;--y:30%}
+.seat.pos-2{--x:86%;--y:62%}
+.seat.pos-3{--x:14%;--y:62%}
+.seat.pos-4{--x:12%;--y:30%}
+
 .bet{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:6px;
   padding:3px 9px 3px 4px;border-radius:12px;background:#0a1812cc;color:var(--tink);font-size:12.5px;font-weight:700;
   white-space:nowrap;z-index:4;pointer-events:none;box-shadow:0 1px 4px #0005}
@@ -113,13 +127,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   background:#fffdf6;color:#2a2a2a;font:700 13px/26px "Noto Sans TC",sans-serif;text-align:center;
   box-shadow:0 0 0 2px var(--gold),0 2px 4px #0005;z-index:6;pointer-events:none}
 
-/* 自己 */
-.me{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);display:flex;align-items:flex-end;gap:12px;z-index:2}
-.hole{display:flex;gap:6px}
-.hole .card:first-child{transform:rotate(-5deg) translateY(4px)}
-.hole .card:last-child{transform:rotate(5deg) translateY(4px)}
+/* 自己：手牌在名牌正上方（底中），不蓋左右座位與動作列 */
+.me{position:absolute;left:50%;bottom:max(6px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:2px;z-index:5;pointer-events:none}
+.me .meinfo,.me .hole{pointer-events:auto}
+.hole{display:flex;gap:4px;justify-content:center;margin-bottom:2px;position:relative;z-index:2}
+.hole .card:first-child{transform:rotate(-4deg) translateY(2px)}
+.hole .card:last-child{transform:rotate(4deg) translateY(2px)}
 .meinfo{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:30px;background:var(--plate);
-  box-shadow:0 0 0 1.5px var(--ring),0 4px 14px #0004;margin-bottom:6px}
+  box-shadow:0 0 0 1.5px var(--ring),0 4px 14px #0004;position:relative;z-index:1}
+.meinfo.is-winner,.plate.is-winner,.seat.is-winner .plate{
+  box-shadow:0 0 0 2px var(--gold),0 0 18px #d6ab4588,0 4px 14px #0004}
 .timer{position:relative;width:46px;height:46px;flex:none}
 .timer svg{width:100%;height:100%;transform:rotate(-90deg)}
 .timer circle{fill:none;stroke-width:4}
@@ -177,6 +195,17 @@ input[type=range]::-moz-range-thumb{
 
 /* 矮手機：壓緊動作列，避免蓋住牌桌或逼出捲動 */
 @media (max-width:1023px) and (max-height:720px){
+  .table{inset:28px 22px 78px}
+  .seat.pos-0{--y:5%}
+  .seat.pos-1{--y:26%}
+  .seat.pos-2{--y:56%}
+  .seat.pos-3{--y:56%}
+  .seat.pos-4{--y:26%}
+  .board{top:60%;gap:8px;transform:translate(-50%,-50%) scale(.92)}
+  .pot{top:36%}
+  .bet{font-size:11px;padding:2px 7px 2px 3px}
+  .chips{width:16px;height:16px}
+  .chips i{width:16px;height:16px}
   .act{padding-top:8px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
   .turn{margin-bottom:6px}
   .presets{gap:5px 6px;margin:6px 0 8px}
@@ -185,11 +214,13 @@ input[type=range]::-moz-range-thumb{
   .presets button .preset-amt{font-size:10px}
   .btns button{height:48px;font-size:15px}
   .raise-step{width:44px;height:44px}
+  .me{bottom:4px}
+  .hole .card.hero{width:50px;height:70px;flex-basis:50px}
 }
 
 /* 電腦版 */
 @media (min-width:1024px){
-  :root{--cw:62px;--ch:86px;--hw:80px;--hh:112px}
+  :root{--cw:62px;--ch:86px;--hw:68px;--hh:95px}
   .app{grid-template-columns:1fr 330px;grid-template-rows:auto 1fr auto;column-gap:26px;row-gap:14px;padding:16px 26px 22px;height:100vh;height:100dvh}
   .top{grid-column:1 / -1;min-height:56px;align-items:center}
   .room{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
@@ -197,7 +228,7 @@ input[type=range]::-moz-range-thumb{
   .room p{font-size:14px;white-space:normal}
   .room p .meta-b{display:inline}
   .stage{grid-column:1;grid-row:2 / 4}
-  .table{inset:58px 70px 70px}
+  .table{inset:58px 70px 100px}
   .felt{border-width:18px}
   .felt .logo{display:block;font-size:18px;top:73%}
   .seat{width:118px}
@@ -211,9 +242,14 @@ input[type=range]::-moz-range-thumb{
   .pot{top:36%} .pot .amt{font-size:30px} .pot .lbl,.pot .sub{font-size:13px} .pot .sub{display:block}
   .board{top:54%;gap:10px}
   .card .rk{font-size:23px;left:6px;top:5px} .card .sm{top:30px;left:7px;width:15px;height:15px} .card .big{width:32px;height:32px}
-  .card.hero .rk{font-size:30px} .card.hero .sm{top:40px;width:18px;height:18px} .card.hero .big{width:42px;height:42px}
+  .card.hero .rk{font-size:24px} .card.hero .sm{top:32px;width:14px;height:14px} .card.hero .big{width:34px;height:34px}
   .dealer{--x:61%;--y:84%;width:30px;height:30px;line-height:30px;font-size:14px}
-  .me{bottom:6px}
+  .me{bottom:10px}
+  .seat.pos-0{--x:50%;--y:9%}
+  .seat.pos-1{--x:88%;--y:30%}
+  .seat.pos-2{--x:84%;--y:64%}
+  .seat.pos-3{--x:16%;--y:64%}
+  .seat.pos-4{--x:12%;--y:30%}
   .side{display:flex;flex-direction:column;gap:14px;grid-column:2;grid-row:2;min-height:0}
   .act{grid-column:2;grid-row:3;margin:0;padding:16px 18px;border-radius:16px;border:1px solid var(--panelline)}
   .info,.log{background:var(--panel);border:1px solid var(--panelline);border-radius:16px;padding:14px 18px}
@@ -375,18 +411,31 @@ input[type=range]::-moz-range-thumb{
   .s0{--x:50%;--y:9%} /* unused hero seat on table */
 }
 
-/* 對手座位（自己在 .me）。下注籌碼改由 JS 依座位往桌心偏移，避免蓋住名牌／公牌 */
-.seat.pos-0{--x:50%;--y:6%}
-.seat.pos-1{--x:92%;--y:24%}
-.seat.pos-2{--x:92%;--y:76%}
-.seat.pos-3{--x:8%;--y:76%}
-.seat.pos-4{--x:8%;--y:24%}
+/* FX 層：只做 transform/opacity，不改 layout */
+.fx-layer{position:absolute;inset:0;z-index:8;pointer-events:none;overflow:visible}
+.fx-chip-fly{position:absolute;left:0;top:0;will-change:transform,opacity;
+  display:inline-flex;align-items:center;gap:6px;padding:3px 8px 3px 4px;border-radius:12px;
+  background:#0a1812cc;color:var(--tink);font-size:12px;font-weight:700}
+.fx-deal-card{position:absolute;left:0;top:0;width:28px;height:40px;border-radius:4px;
+  border:1.5px solid var(--card);
+  background:repeating-linear-gradient(45deg,var(--back1) 0 3px,var(--back2) 3px 6px);
+  box-shadow:0 2px 6px #0005;will-change:transform,opacity}
+.win-badge{position:absolute;left:50%;bottom:calc(100% + 4px);transform:translateX(-50%);
+  z-index:9;padding:4px 10px;border-radius:999px;background:var(--gold);color:var(--accentink);
+  font-size:12px;font-weight:800;letter-spacing:.02em;white-space:nowrap;
+  box-shadow:0 4px 14px #0005;pointer-events:none}
+.me .win-badge{bottom:auto;top:-2px}
+.table-note{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:7;
+  max-width:min(92%,320px);padding:8px 14px;border-radius:12px;text-align:center;
+  background:#0c1d16ee;border:1px solid var(--gold);color:var(--ink);font-size:13.5px;font-weight:600;
+  line-height:1.35;box-shadow:0 8px 24px #0005;pointer-events:none}
+html.is-dealing .bet{opacity:0}
+html.is-dealing #heroHole .card,html.is-dealing .backs{opacity:0}
+@media (prefers-reduced-motion:reduce){
+  .card.is-deal,.hero-deal:first-child,.hero-deal:last-child,.bet.is-in{animation:none!important}
+}
+
 @media (min-width:1024px){
-  .seat.pos-0{--x:50%;--y:7%}
-  .seat.pos-1{--x:91%;--y:26%}
-  .seat.pos-2{--x:86%;--y:78%}
-  .seat.pos-3{--x:14%;--y:78%}
-  .seat.pos-4{--x:9%;--y:26%}
   .board{gap:10px;top:54%}
 }
 

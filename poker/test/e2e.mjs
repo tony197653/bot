@@ -24,6 +24,7 @@ const MIME = {
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
 };
 
 function startServer() {
@@ -153,6 +154,7 @@ async function main() {
   ]) {
     const page = await browser.newPage();
     await page.setViewportSize({ width: vp.width, height: vp.height });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     // Base URL
     page.goto = page.goto.bind(page);
     const origGoto = page.goto.bind(page);
