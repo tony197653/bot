@@ -984,12 +984,18 @@ function layoutDealer() {
     }
   }
 
-  // Hero plate sits below the felt — allow D into that band
+  // Hero plate sits below the felt — allow D into that band only for hero.
+  // Opponent D must stay on the felt so it never floats in the chrome.
   const stage = document.querySelector('.stage')?.getBoundingClientRect() || t;
-  const minX = Math.min(t.left, stage.left) + dw / 2 + 4;
-  const maxX = Math.max(t.right, stage.right) - dw / 2 - 4;
+  const minX =
+    key === 'hero' ? Math.min(t.left, stage.left) + dw / 2 + 4 : t.left + dw / 2 + 4;
+  const maxX =
+    key === 'hero' ? Math.max(t.right, stage.right) - dw / 2 - 4 : t.right - dw / 2 - 4;
   const minY = t.top + dh / 2 + 4;
-  const maxY = Math.max(t.bottom, ar.bottom + dh / 2 + 8) - dh / 2 - 2;
+  const maxY =
+    key === 'hero'
+      ? Math.max(t.bottom, ar.bottom + dh / 2 + 8) - dh / 2 - 2
+      : t.bottom - dh / 2 - 2;
 
   // Hero hole cards sit above meinfo; for hero, don't treat them as hard blocks on
   // lateral candidates (left/right of the plate still read as "this seat's D").
@@ -1178,7 +1184,13 @@ function layoutDealer() {
           nearest = Math.min(nearest, edgeDist(x, y, pl.getBoundingClientRect()));
         }
         if (nearest <= own + 4) continue;
-        const score = own * 3 + Math.abs(x - ax) * 0.3 + Math.abs(y - ay) * 0.3;
+        // Prefer still centered on the button plate and far from neighbors
+        // (left pot-escape under the top seat otherwise reads as 老K's D).
+        const score =
+          own * 2 +
+          Math.abs(x - ax) * 1.2 +
+          Math.abs(y - ay) * 0.4 +
+          Math.max(0, 48 - nearest) * 2;
         if (score < pickScore) {
           pickScore = score;
           pick = { x, y };
