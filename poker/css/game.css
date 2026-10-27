@@ -58,9 +58,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   box-shadow:inset 0 0 0 2px var(--rimline),inset 0 8px 24px #0004,0 0 0 2px var(--rim2),0 14px 34px #0005}
 .felt .logo{display:none;position:absolute;left:50%;top:70%;transform:translate(-50%,-50%);font-family:var(--tf);font-weight:700;font-size:15px;letter-spacing:.3em;white-space:nowrap}
 
-.pot{position:absolute;left:50%;top:35%;transform:translate(-50%,-50%);text-align:center;color:var(--tink);white-space:nowrap}
+.pot{position:absolute;left:50%;top:28%;transform:translate(-50%,-50%);text-align:center;color:var(--tink);white-space:nowrap;z-index:5}
 .pot .lbl{font-size:12px;color:var(--tmute)}
-.pot .amt{font-family:var(--tf);font-weight:700;font-size:24px;line-height:1.1}
+.pot .amt{font-family:var(--tf);font-weight:700;font-size:22px;line-height:1.1}
 .pot .sub{display:none;font-size:11.5px;color:var(--tmute)}
 .board{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);display:flex;flex-direction:row;
   flex-wrap:nowrap;align-items:center;justify-content:center;gap:12px;width:max-content;max-width:none;z-index:2}
@@ -113,8 +113,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .seat.pos-3{--x:14%;--y:62%}
 .seat.pos-4{--x:12%;--y:30%}
 
-.bet{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:6px;
-  padding:3px 9px 3px 4px;border-radius:12px;background:#0a1812cc;color:var(--tink);font-size:12.5px;font-weight:700;
+.bet{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:4px;
+  padding:2px 7px 2px 3px;border-radius:12px;background:#0a1812cc;color:var(--tink);font-size:12px;font-weight:700;
   white-space:nowrap;z-index:4;pointer-events:none;box-shadow:0 1px 4px #0005}
 .bet .amt{position:relative;z-index:1;min-width:1.1em;text-align:left;line-height:1}
 .chips{position:relative;flex:none;width:20px;height:20px;overflow:visible}
@@ -202,7 +202,7 @@ input[type=range]::-moz-range-thumb{
   .seat.pos-3{--y:56%}
   .seat.pos-4{--y:26%}
   .board{top:60%;gap:8px;transform:translate(-50%,-50%) scale(.92)}
-  .pot{top:36%}
+  .pot{top:30%}
   .bet{font-size:11px;padding:2px 7px 2px 3px}
   .chips{width:16px;height:16px}
   .chips i{width:16px;height:16px}
@@ -239,7 +239,7 @@ input[type=range]::-moz-range-thumb{
   .s1{--x:17%;--y:80%} .s2{--x:12%;--y:30%} .s3{--x:50%;--y:8%} .s4{--x:88%;--y:30%} .s5{--x:83%;--y:80%}
   .b1{--x:29%;--y:68%} .b2{--x:25%;--y:39%} .b3{--x:50%;--y:24%} .b5{--x:71%;--y:68%}
   .bet{font-size:14px}
-  .pot{top:36%} .pot .amt{font-size:30px} .pot .lbl,.pot .sub{font-size:13px} .pot .sub{display:block}
+  .pot{top:30%} .pot .amt{font-size:28px} .pot .lbl,.pot .sub{font-size:13px} .pot .sub{display:block}
   .board{top:54%;gap:10px}
   .card .rk{font-size:23px;left:6px;top:5px} .card .sm{top:30px;left:7px;width:15px;height:15px} .card .big{width:32px;height:32px}
   .card.hero .rk{font-size:24px} .card.hero .sm{top:32px;width:14px;height:14px} .card.hero .big{width:34px;height:34px}
@@ -426,7 +426,7 @@ input[type=range]::-moz-range-thumb{
   box-shadow:0 4px 14px #0005;pointer-events:none}
 .me .win-badge{bottom:auto;top:-2px}
 /* Fold-win note sits in the empty board-card band — one line, clear of pot / D */
-.table-note{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);z-index:7;
+.table-note{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);z-index:7;
   max-width:min(96%,440px);padding:6px 14px;border-radius:10px;text-align:center;
   background:#0c1d16ee;border:1px solid var(--gold);color:var(--ink);
   font-size:clamp(10.5px,2.9vw,13px);font-weight:600;line-height:1.2;

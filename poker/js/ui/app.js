@@ -594,22 +594,23 @@ function maybePlayWinnerFx(v) {
   playWinnerFx({ state, viewerSeat, holdMs: 2000 });
 }
 
-/** Safe chip-rail anchors (% of .table) — clear of pot (~35%) and board (~52%). */
+/** Safe chip-rail anchors (% of .table) — inward from seats, clear of pot (~28%) / board. */
 const BET_ANCHOR_PHONE = {
-  0: [50, 22],
-  1: [70, 36],
-  2: [70, 58],
-  3: [30, 58],
-  4: [30, 36],
-  hero: [50, 66],
+  0: [50, 26],
+  1: [66, 36],
+  2: [66, 50],
+  3: [34, 50],
+  4: [34, 36],
+  // Below board band (board ~52–60% on short phones)
+  hero: [50, 70],
 };
 const BET_ANCHOR_DESKTOP = {
-  0: [50, 18],
-  1: [72, 32],
-  2: [72, 60],
-  3: [28, 60],
-  4: [28, 32],
-  hero: [50, 68],
+  0: [50, 22],
+  1: [68, 34],
+  2: [68, 54],
+  3: [32, 54],
+  4: [32, 34],
+  hero: [50, 70],
 };
 
 /** Dealer «D» anchors — near the button seat but inward; nudged clear of plates. */
@@ -632,7 +633,7 @@ const DEALER_ANCHOR_DESKTOP = {
 
 /**
  * Position each .bet on a safe rail toward the pot, then nudge away from
- * plates / board / other bets if anything still collides.
+ * plates / board / pot / other bets if anything still collides.
  */
 function layoutBets() {
   const table = document.querySelector('.table');
@@ -673,7 +674,7 @@ function layoutBets() {
   }
 
   const pad = 8;
-  const potPad = 10;
+  const potPad = 6;
   for (let pass = 0; pass < 18; pass++) {
     for (const p of placed) {
       const box = () => ({
@@ -689,7 +690,6 @@ function layoutBets() {
           p.y += d.dy;
         }
       }
-      // Opponent bets must clear hero hole cards
       if (!p.hero) {
         for (const hc of holeBoxes) {
           const d = overlapDelta(box(), {
@@ -706,18 +706,24 @@ function layoutBets() {
       }
       if (boardBox) {
         const inflated = {
-          left: boardBox.left - 10,
-          top: boardBox.top - 10,
-          right: boardBox.right + 10,
-          bottom: boardBox.bottom + 10,
+          left: boardBox.left - 8,
+          top: boardBox.top - 8,
+          right: boardBox.right + 8,
+          bottom: boardBox.bottom + 8,
         };
         const d = overlapDelta(box(), inflated);
         if (d) {
-          p.x += d.dx;
-          p.y += d.dy;
+          if (p.hero) {
+            // Hero bets live under the board — never slide upward into the pot
+            p.y += Math.max(Math.abs(d.dy), d.dy, 4);
+            p.x += d.dx;
+          } else {
+            p.x += d.dx;
+            p.y += d.dy;
+          }
         }
       }
-      // Never cover pot label / amount
+      // Clear pot: prefer vertical/horizontal slide that does not walk onto plates
       if (potBox) {
         const inflated = {
           left: potBox.left - potPad,
@@ -725,10 +731,20 @@ function layoutBets() {
           right: potBox.right + potPad,
           bottom: potBox.bottom + potPad,
         };
-        const d = separationDelta(box(), inflated, 4) || overlapDelta(box(), inflated);
+        const d = overlapDelta(box(), inflated);
         if (d) {
-          p.x += d.dx;
-          p.y += d.dy;
+          const pcx = (potBox.left + potBox.right) / 2;
+          const pcy = (potBox.top + potBox.bottom) / 2;
+          const bcx = p.x + p.w / 2;
+          const bcy = p.y + p.h / 2;
+          const awayX = bcx >= pcx ? 1 : -1;
+          const awayY = p.hero ? 1 : bcy >= pcy ? 1 : -1;
+          if (d.dx !== 0 && Math.abs(d.dx) <= Math.abs(d.dy) + 1 && !p.hero) {
+            p.x += awayX * Math.abs(d.dx);
+          } else {
+            p.y += awayY * Math.abs(d.dy || d.dx);
+            if (p.hero) p.x += awayX * Math.min(8, Math.abs(d.dx));
+          }
         }
       }
       for (const q of placed) {
@@ -748,7 +764,6 @@ function layoutBets() {
       p.y = clamp(p.y, t.top + 2, t.bottom - p.h - 2);
       p.el.style.left = `${((p.x + p.w / 2 - t.left) / t.width) * 100}%`;
       p.el.style.top = `${((p.y + p.h / 2 - t.top) / t.height) * 100}%`;
-      // refresh size in case wrapping changed (shouldn't)
       const br = p.el.getBoundingClientRect();
       p.x = br.left;
       p.y = br.top;
@@ -757,25 +772,12 @@ function layoutBets() {
     }
   }
 
-  // Final separation: plates, peer bets, board, and pot
-  for (let fin = 0; fin < 10; fin++) {
+  // Final separation: plates first (priority), then pot, board, peers
+  for (let fin = 0; fin < 12; fin++) {
     for (const p of placed) {
       const a0 = () => ({ left: p.x, top: p.y, right: p.x + p.w, bottom: p.y + p.h });
       for (const pl of plates) {
         const d = separationDelta(a0(), pl, 5);
-        if (d) {
-          p.x += d.dx;
-          p.y += d.dy;
-        }
-      }
-      if (boardBox) {
-        const inflated = {
-          left: boardBox.left - 6,
-          top: boardBox.top - 6,
-          right: boardBox.right + 6,
-          bottom: boardBox.bottom + 6,
-        };
-        const d = overlapDelta(a0(), inflated);
         if (d) {
           p.x += d.dx;
           p.y += d.dy;
@@ -788,7 +790,24 @@ function layoutBets() {
           right: potBox.right + potPad,
           bottom: potBox.bottom + potPad,
         };
-        const d = separationDelta(a0(), inflated, 6);
+        const d = overlapDelta(a0(), inflated);
+        if (d) {
+          const pcx = (potBox.left + potBox.right) / 2;
+          const pcy = (potBox.top + potBox.bottom) / 2;
+          const bcx = p.x + p.w / 2;
+          const bcy = p.y + p.h / 2;
+          p.x += (bcx >= pcx ? 1 : -1) * Math.max(2, Math.abs(d.dx));
+          p.y += (bcy >= pcy ? 1 : -1) * Math.max(2, Math.abs(d.dy));
+        }
+      }
+      if (boardBox) {
+        const inflated = {
+          left: boardBox.left - 4,
+          top: boardBox.top - 4,
+          right: boardBox.right + 4,
+          bottom: boardBox.bottom + 4,
+        };
+        const d = overlapDelta(a0(), inflated);
         if (d) {
           p.x += d.dx;
           p.y += d.dy;
@@ -796,12 +815,11 @@ function layoutBets() {
       }
       for (const q of placed) {
         if (q === p) continue;
-        const d = separationDelta(a0(), {
-          left: q.x,
-          top: q.y,
-          right: q.x + q.w,
-          bottom: q.y + q.h,
-        }, 4);
+        const d = separationDelta(
+          a0(),
+          { left: q.x, top: q.y, right: q.x + q.w, bottom: q.y + q.h },
+          4,
+        );
         if (d) {
           p.x += d.dx * 0.75;
           p.y += d.dy * 0.75;
@@ -876,10 +894,10 @@ function layoutDealer() {
     dealer.style.top = `${((y - t.top) / t.height) * 100}%`;
   }
 
-  const softPad = 8;
+  const softPad = 10;
   const betPad = 6;
   const plateGap = 10; // clear plate drop-shadow
-  for (let pass = 0; pass < 28; pass++) {
+  for (let pass = 0; pass < 32; pass++) {
     const br = dealer.getBoundingClientRect();
     let x = br.left;
     let y = br.top;
@@ -933,19 +951,45 @@ function layoutDealer() {
     dealer.style.top = `${((y + h / 2 - t.top) / t.height) * 100}%`;
   }
 
-  // Escape: if still on the board, park beside the button seat outside the board band
+  // Escape: if still on the board or pot, park beside the button seat clear of both
   const boardEl = $('#board');
-  if (boardEl && anchorEl) {
-    for (let k = 0; k < 10; k++) {
+  const potEl = document.querySelector('.pot');
+  if (anchorEl) {
+    for (let k = 0; k < 12; k++) {
       const br = dealer.getBoundingClientRect();
-      const bb = boardEl.getBoundingClientRect();
-      const ox = Math.min(br.right, bb.right) - Math.max(br.left, bb.left);
-      const oy = Math.min(br.bottom, bb.bottom) - Math.max(br.top, bb.top);
-      if (!(ox > 0 && oy > 0)) break;
+      const hits = [];
+      if (boardEl) hits.push(boardEl.getBoundingClientRect());
+      if (potEl) {
+        const pb = potEl.getBoundingClientRect();
+        hits.push({
+          left: pb.left - 8,
+          top: pb.top - 8,
+          right: pb.right + 8,
+          bottom: pb.bottom + 8,
+        });
+      }
+      let blocked = false;
+      for (const bb of hits) {
+        const ox = Math.min(br.right, bb.right) - Math.max(br.left, bb.left);
+        const oy = Math.min(br.bottom, bb.bottom) - Math.max(br.top, bb.top);
+        if (ox > 0 && oy > 0) {
+          blocked = true;
+          break;
+        }
+      }
+      if (!blocked) break;
       const ar = anchorEl.getBoundingClientRect();
       const side = ar.left + ar.width / 2 < t.left + t.width / 2 ? -1 : 1;
-      let x = ar.left + ar.width / 2 + side * (ar.width * 0.7 + br.width);
-      let y = Math.min(ar.top - br.height - 6, bb.top - br.height - 8);
+      const bb0 = boardEl?.getBoundingClientRect();
+      let x = ar.left + ar.width / 2 + side * (ar.width * 0.75 + br.width);
+      let y = bb0
+        ? Math.min(ar.top - br.height - 6, bb0.top - br.height - 8)
+        : ar.top - br.height - 8;
+      // If still near pot band, park above pot
+      if (potEl) {
+        const pb = potEl.getBoundingClientRect();
+        if (y + br.height > pb.top - 4) y = pb.top - br.height - 10;
+      }
       x = clamp(x, t.left + 4, t.right - br.width - 4);
       y = clamp(y, t.top + 4, t.bottom - br.height - 4);
       dealer.style.left = `${((x + br.width / 2 - t.left) / t.width) * 100}%`;
