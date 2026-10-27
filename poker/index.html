@@ -84,8 +84,12 @@
   <section class="act" id="act" aria-label="你的動作">
     <div class="turn"><b id="turnTitle">準備中</b><span id="turnHint"></span></div>
     <div class="raise hidden" id="raiseWrap">
-      <input type="range" id="raiseRange" min="0" max="0" value="0" aria-label="加注金額">
-      <output id="raiseOut">0</output>
+      <button type="button" class="raise-step" id="raiseMinus" aria-label="減少一大盲">－</button>
+      <div class="raise-track">
+        <input type="range" id="raiseRange" min="0" max="0" value="0" aria-label="加注金額">
+      </div>
+      <button type="button" class="raise-step" id="raisePlus" aria-label="增加一大盲">＋</button>
+      <output id="raiseOut" class="raise-out" for="raiseRange">0</output>
     </div>
     <div class="presets hidden" id="presets"></div>
     <div class="show-btns hidden" id="showBtns"></div>
