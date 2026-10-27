@@ -414,7 +414,7 @@ export function placeTableNote() {
         }
       }
       if (!hit) break;
-      bottom = (bottom ?? parseFloat(getComputedStyle(note).bottom) || 88) + 14;
+      bottom = (bottom ?? (parseFloat(getComputedStyle(note).bottom) || 88)) + 14;
       note.style.bottom = `${bottom}px`;
     }
     return { ok: true, issues: [] };
