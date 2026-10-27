@@ -244,7 +244,10 @@ function render() {
 
 function renderTop(v) {
   $('#roomTitle').textContent = v.room.name;
-  $('#roomMeta').innerHTML = `無限注 <b>盲注 ${v.config.smallBlind}／${v.config.bigBlind}</b>　第 ${v.handNumber} 手　房號 ${v.room.code}`;
+  // Two spans: on phone .meta-b wraps to a second line so nothing truncates
+  $('#roomMeta').innerHTML =
+    `<span class="meta-a">無限注 <b>盲注 ${v.config.smallBlind}／${v.config.bigBlind}</b></span>` +
+    `<span class="meta-b">　第 ${v.handNumber} 手　房號 ${v.room.code}</span>`;
   $('#btnTimerCfg').textContent = v.config.timerEnabled ? '計時開' : '計時關';
   $('#btnTimerCfg').onclick = () => {
     dispatch({ type: 'SET_TIMER', enabled: !state.config.timerEnabled });
@@ -297,6 +300,7 @@ function renderTable(v) {
         : '';
     const el = document.createElement('div');
     el.className = `seat pos-${pos}${folded}${actor}`;
+    el.dataset.seat = String(seat);
     el.innerHTML = `
       <div class="av"><span>${esc(p.name.slice(0, 1))}</span>${backs}</div>
       <div class="plate">
@@ -308,8 +312,10 @@ function renderTable(v) {
 
     if (p.bet > 0) {
       const b = document.createElement('div');
-      b.className = `bet bp-${pos} is-in`;
-      b.innerHTML = `<span class="chips"><i class="a"></i><i class="b"></i><i class="c"></i></span><span>${fmtChips(p.bet)}</span>`;
+      b.className = 'bet is-in';
+      b.dataset.forSeat = String(seat);
+      b.dataset.pos = String(pos);
+      b.innerHTML = `<span class="chips"><i class="a"></i><i class="b"></i><i class="c"></i></span><span class="amt">${fmtChips(p.bet)}</span>`;
       betsRoot.appendChild(b);
     }
   }
@@ -349,12 +355,135 @@ function renderTable(v) {
   // Hero street bet
   if (hero?.bet > 0) {
     const b = document.createElement('div');
-    b.className = 'bet bp-3 is-in';
-    b.style.setProperty('--x', '50%');
-    b.style.setProperty('--y', '78%');
-    b.innerHTML = `<span class="chips"><i class="a"></i><i class="b"></i><i class="c"></i></span><span>${fmtChips(hero.bet)}</span>`;
+    b.className = 'bet is-in';
+    b.dataset.forSeat = String(viewerSeat);
+    b.dataset.hero = '1';
+    b.innerHTML = `<span class="chips"><i class="a"></i><i class="b"></i><i class="c"></i></span><span class="amt">${fmtChips(hero.bet)}</span>`;
     betsRoot.appendChild(b);
   }
+
+  // Place bets after layout so they clear name plates / board / each other
+  requestAnimationFrame(() => layoutBets());
+}
+
+/** Safe chip-rail anchors (% of .table) — inward from seats, clear of board band. */
+const BET_ANCHOR_PHONE = {
+  0: [50, 26],
+  1: [62, 36],
+  2: [62, 62],
+  3: [38, 62],
+  4: [38, 36],
+  hero: [50, 68],
+};
+const BET_ANCHOR_DESKTOP = {
+  0: [50, 22],
+  1: [68, 34],
+  2: [70, 64],
+  3: [30, 64],
+  4: [32, 34],
+  hero: [50, 72],
+};
+
+/**
+ * Position each .bet on a safe rail toward the pot, then nudge away from
+ * plates / board / other bets if anything still collides.
+ */
+function layoutBets() {
+  const table = document.querySelector('.table');
+  const board = $('#board');
+  if (!table) return;
+  const t = table.getBoundingClientRect();
+  if (t.width < 8 || t.height < 8) return;
+  const desktop = window.matchMedia('(min-width: 1024px)').matches;
+  const anchors = desktop ? BET_ANCHOR_DESKTOP : BET_ANCHOR_PHONE;
+  const boardBox = board?.getBoundingClientRect();
+  const plates = [...document.querySelectorAll('.seat .plate, .meinfo')].map((el) =>
+    el.getBoundingClientRect(),
+  );
+  const bets = [...document.querySelectorAll('#bets .bet')];
+
+  /** @type {{el:HTMLElement, x:number, y:number, w:number, h:number}[]} */
+  const placed = [];
+
+  for (const bet of bets) {
+    const key = bet.dataset.hero === '1' ? 'hero' : bet.dataset.pos;
+    const [px, py] = anchors[key] || anchors.hero;
+    bet.style.left = `${px}%`;
+    bet.style.top = `${py}%`;
+    const br = bet.getBoundingClientRect();
+    placed.push({ el: bet, x: br.left, y: br.top, w: br.width, h: br.height });
+  }
+
+  const pad = 6;
+  for (let pass = 0; pass < 10; pass++) {
+    for (const p of placed) {
+      const box = () => ({
+        left: p.x - pad,
+        top: p.y - pad,
+        right: p.x + p.w + pad,
+        bottom: p.y + p.h + pad,
+      });
+      for (const pl of plates) {
+        const d = overlapDelta(box(), pl);
+        if (d) {
+          p.x += d.dx;
+          p.y += d.dy;
+        }
+      }
+      if (boardBox) {
+        const inflated = {
+          left: boardBox.left - 8,
+          top: boardBox.top - 8,
+          right: boardBox.right + 8,
+          bottom: boardBox.bottom + 8,
+        };
+        const d = overlapDelta(box(), inflated);
+        if (d) {
+          p.x += d.dx;
+          p.y += d.dy;
+        }
+      }
+      for (const q of placed) {
+        if (q === p) continue;
+        const d = overlapDelta(box(), {
+          left: q.x - pad,
+          top: q.y - pad,
+          right: q.x + q.w + pad,
+          bottom: q.y + q.h + pad,
+        });
+        if (d) {
+          p.x += d.dx * 0.6;
+          p.y += d.dy * 0.6;
+        }
+      }
+      p.x = clamp(p.x, t.left + 2, t.right - p.w - 2);
+      p.y = clamp(p.y, t.top + 2, t.bottom - p.h - 2);
+      p.el.style.left = `${((p.x + p.w / 2 - t.left) / t.width) * 100}%`;
+      p.el.style.top = `${((p.y + p.h / 2 - t.top) / t.height) * 100}%`;
+      // refresh size in case wrapping changed (shouldn't)
+      const br = p.el.getBoundingClientRect();
+      p.x = br.left;
+      p.y = br.top;
+      p.w = br.width;
+      p.h = br.height;
+    }
+  }
+}
+
+/** @returns {{dx:number,dy:number}|null} */
+function overlapDelta(a, b) {
+  const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+  const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+  if (ox <= 0 || oy <= 0) return null;
+  const acx = (a.left + a.right) / 2;
+  const acy = (a.top + a.bottom) / 2;
+  const bcx = (b.left + b.right) / 2;
+  const bcy = (b.top + b.bottom) / 2;
+  // Prefer pushing toward table center-ish (down from top seats, inward from sides)
+  if (ox < oy) {
+    return { dx: (acx >= bcx ? 1 : -1) * (ox + 2), dy: 0 };
+  }
+  return { dx: 0, dy: (acy >= bcy ? 1 : -1) * (oy + 2) };
 }
 
 function roleTag(v, seat) {

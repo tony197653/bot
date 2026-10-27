@@ -10,7 +10,7 @@
   --ring:#d6ab45; --ringbg:#ffffff22; --track:#2b4a3a;
   --tf:"Noto Serif TC","Noto Serif CJK TC",serif;
   --uf:"Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif;
-  --cw:46px; --ch:64px; --hw:66px; --hh:92px;
+  --cw:42px; --ch:58px; --hw:66px; --hh:92px;
 }
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none}
@@ -24,11 +24,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left))}
 
 /* 頂部 */
-.top{display:flex;align-items:center;gap:10px;height:48px}
+.top{display:flex;align-items:flex-start;gap:10px;min-height:48px;padding-bottom:2px}
 .room{flex:1;min-width:0}
 .room h1{font-family:var(--tf);font-weight:700;font-size:19px;line-height:1.2;letter-spacing:.02em;white-space:nowrap}
-.room p{font-size:12.5px;color:var(--mute);white-space:nowrap}
+.room p{font-size:12.5px;color:var(--mute);white-space:normal;overflow:visible;text-overflow:unset;
+  line-height:1.35;max-width:100%}
 .room p b{font-weight:500;color:var(--ink)}
+.room p .meta-a,.room p .meta-b{display:inline}
+@media (max-width:1023px){
+  .room p .meta-b{display:block}
+  .top-tools{padding-top:2px}
+}
 .mute{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 14px 0 12px;border-radius:22px;
   background:var(--btn);color:var(--btnink);border:1px solid var(--panelline);font-size:13.5px;font-weight:500}
 .mute svg{width:20px;height:20px}
@@ -46,11 +52,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .pot .lbl{font-size:12px;color:var(--tmute)}
 .pot .amt{font-family:var(--tf);font-weight:700;font-size:24px;line-height:1.1}
 .pot .sub{display:none;font-size:11.5px;color:var(--tmute)}
-.board{position:absolute;left:50%;top:53%;transform:translate(-50%,-50%);display:flex;gap:5px}
-.slot{width:var(--cw);height:var(--ch);border-radius:7px;border:1.5px dashed var(--tmute);opacity:.45}
+.board{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);display:flex;flex-direction:row;
+  flex-wrap:nowrap;align-items:center;justify-content:center;gap:10px;width:max-content;max-width:none;z-index:2}
+.slot{display:block;flex:0 0 var(--cw);width:var(--cw);min-width:var(--cw);height:var(--ch);
+  border-radius:7px;border:1.5px dashed var(--tmute);opacity:.45;box-sizing:border-box}
 
-.card{position:relative;width:var(--cw);height:var(--ch);border-radius:7px;background:var(--card);
-  box-shadow:0 0 0 1px var(--cardline),0 3px 6px #0003;flex:none}
+.card{position:relative;flex:0 0 var(--cw);width:var(--cw);min-width:var(--cw);height:var(--ch);border-radius:7px;background:var(--card);
+  box-shadow:0 0 0 1px var(--cardline),0 3px 6px #0003}
 .card.red{color:var(--red)} .card.blk{color:var(--blk)}
 .card svg{display:block;width:100%;height:100%;fill:currentColor}
 .card .rk{position:absolute;left:5px;top:3px;font-family:"Noto Serif TC","Noto Serif CJK TC",serif;font-weight:700;font-size:18px;line-height:1}
@@ -82,14 +90,15 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 
 .s1{--x:13%;--y:71%} .s2{--x:13%;--y:30%} .s3{--x:50%;--y:9%} .s4{--x:87%;--y:30%} .s5{--x:87%;--y:71%}
 
-.bet{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:flex;align-items:center;gap:5px;
-  padding:2px 8px 2px 3px;border-radius:12px;background:#0000002e;color:var(--tink);font-size:12.5px;font-weight:700;white-space:nowrap}
-.chips{position:relative;width:20px;height:20px}
+.bet{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:6px;
+  padding:3px 9px 3px 4px;border-radius:12px;background:#0a1812cc;color:var(--tink);font-size:12.5px;font-weight:700;
+  white-space:nowrap;z-index:4;pointer-events:none;box-shadow:0 1px 4px #0005}
+.bet .amt{position:relative;z-index:1;min-width:1.1em;text-align:left;line-height:1}
+.chips{position:relative;flex:none;width:20px;height:20px;overflow:visible}
 .chips i{position:absolute;left:0;width:20px;height:20px;border-radius:50%;
   background:radial-gradient(circle,var(--c) 0 44%,transparent 45%),repeating-conic-gradient(var(--c) 0 30deg,var(--chipB) 30deg 45deg);
   box-shadow:0 0 0 1px #0003,0 1px 2px #0004}
 .chips .a{--c:var(--chipA);top:2px}.chips .b{--c:var(--chipC);top:-1px}.chips .c{--c:var(--chipA);top:-4px}
-.b1{--x:35%;--y:80%} .b2{--x:26%;--y:43.5%} .b3{--x:50%;--y:23%} .b5{--x:65%;--y:80%}
 
 .dealer{position:absolute;left:var(--x,50%);top:var(--y,79.5%);transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;
   background:#fffdf6;color:#2a2a2a;font:700 13px/26px "Noto Sans TC",sans-serif;text-align:center;box-shadow:0 0 0 2px var(--gold),0 2px 4px #0005}
@@ -135,10 +144,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 @media (min-width:1024px){
   :root{--cw:62px;--ch:86px;--hw:80px;--hh:112px}
   .app{grid-template-columns:1fr 330px;grid-template-rows:auto 1fr auto;column-gap:26px;row-gap:14px;padding:16px 26px 22px;height:100vh;height:100dvh}
-  .top{grid-column:1 / -1;height:56px}
-  .room{display:flex;align-items:baseline;gap:16px}
+  .top{grid-column:1 / -1;min-height:56px;align-items:center}
+  .room{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
   .room h1{font-size:24px}
-  .room p{font-size:14px}
+  .room p{font-size:14px;white-space:normal}
+  .room p .meta-b{display:inline}
   .stage{grid-column:1;grid-row:2 / 4}
   .table{inset:58px 70px 70px}
   .felt{border-width:18px}
@@ -152,7 +162,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
   .b1{--x:29%;--y:68%} .b2{--x:25%;--y:39%} .b3{--x:50%;--y:24%} .b5{--x:71%;--y:68%}
   .bet{font-size:14px}
   .pot{top:36%} .pot .amt{font-size:30px} .pot .lbl,.pot .sub{font-size:13px} .pot .sub{display:block}
-  .board{top:54%;gap:8px}
+  .board{top:54%;gap:10px}
   .card .rk{font-size:23px;left:6px;top:5px} .card .sm{top:30px;left:7px;width:15px;height:15px} .card .big{width:32px;height:32px}
   .card.hero .rk{font-size:30px} .card.hero .sm{top:40px;width:18px;height:18px} .card.hero .big{width:42px;height:42px}
   .dealer{--x:61%;--y:84%;width:30px;height:30px;line-height:30px;font-size:14px}
@@ -227,9 +237,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 }
 .mute.is-off{opacity:.55}
 .chip-tag{font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid var(--panelline);color:var(--mute)}
-.room p{overflow:hidden;text-overflow:ellipsis;max-width:100%}
 
 /* 自己座位動態位置 */
+.seat{z-index:3}
 .seat.is-actor .av{box-shadow:0 0 0 2px var(--accent),0 2px 6px #0003}
 .seat.is-actor .plate{box-shadow:0 0 0 1.5px var(--accent),0 3px 10px #0003}
 .me .hole .card{will-change:transform;transition:transform .35s cubic-bezier(.22,1,.36,1)}
@@ -268,32 +278,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
   .s0{--x:50%;--y:9%} /* unused hero seat on table */
 }
 
-/* 六人座位：對手用 s1–s5，自己在 .me；大廳座位索引對應 */
-.seat.pos-0{--x:50%;--y:9%}
-.seat.pos-1{--x:87%;--y:30%}
-.seat.pos-2{--x:87%;--y:71%}
-.seat.pos-3{--x:13%;--y:71%}
-.seat.pos-4{--x:13%;--y:30%}
-.seat.pos-5{--x:50%;--y:9%}
-.bet.bp-0{--x:50%;--y:23%}
-.bet.bp-1{--x:72%;--y:39%}
-.bet.bp-2{--x:65%;--y:80%}
-.bet.bp-3{--x:35%;--y:80%}
-.bet.bp-4{--x:26%;--y:43.5%}
-.bet.bp-5{--x:50%;--y:23%}
+/* 對手座位（自己在 .me）。下注籌碼改由 JS 依座位往桌心偏移，避免蓋住名牌／公牌 */
+.seat.pos-0{--x:50%;--y:7%}
+.seat.pos-1{--x:90%;--y:26%}
+.seat.pos-2{--x:90%;--y:74%}
+.seat.pos-3{--x:10%;--y:74%}
+.seat.pos-4{--x:10%;--y:26%}
 @media (min-width:1024px){
-  .seat.pos-0{--x:50%;--y:8%}
-  .seat.pos-1{--x:88%;--y:30%}
-  .seat.pos-2{--x:83%;--y:80%}
-  .seat.pos-3{--x:17%;--y:80%}
-  .seat.pos-4{--x:12%;--y:30%}
-  .seat.pos-5{--x:50%;--y:8%}
-  .bet.bp-0{--x:50%;--y:24%}
-  .bet.bp-1{--x:74%;--y:39%}
-  .bet.bp-2{--x:71%;--y:68%}
-  .bet.bp-3{--x:29%;--y:68%}
-  .bet.bp-4{--x:25%;--y:39%}
-  .bet.bp-5{--x:50%;--y:24%}
+  .seat.pos-0{--x:50%;--y:7%}
+  .seat.pos-1{--x:91%;--y:26%}
+  .seat.pos-2{--x:86%;--y:78%}
+  .seat.pos-3{--x:14%;--y:78%}
+  .seat.pos-4{--x:9%;--y:26%}
+  .board{gap:10px;top:54%}
 }
 
 .hidden{display:none!important}
