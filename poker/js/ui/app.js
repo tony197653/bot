@@ -301,12 +301,18 @@ function renderTable(v) {
     const el = document.createElement('div');
     el.className = `seat pos-${pos}${folded}${actor}`;
     el.dataset.seat = String(seat);
+    // Street bet amount lives on the chip marker — omit state line while bet>0
+    // so the plate is shorter and never fights the chip for the same “10”.
+    const stateText =
+      p.bet > 0
+        ? ''
+        : p.lastAction || (p.sittingOut ? '坐出' : '　');
     el.innerHTML = `
       <div class="av"><span>${esc(p.name.slice(0, 1))}</span>${backs}</div>
       <div class="plate">
         <b class="nm">${esc(p.name)}${role}</b>
         <span class="ch">${fmtChips(p.chips)}</span>
-        <span class="state">${esc(p.lastAction || (p.sittingOut ? '坐出' : '　'))}</span>
+        ${stateText ? `<span class="state">${esc(stateText)}</span>` : ''}
       </div>${holeShow}`;
     seatsRoot.appendChild(el);
 
@@ -368,12 +374,12 @@ function renderTable(v) {
 
 /** Safe chip-rail anchors (% of .table) — inward from seats, clear of board band. */
 const BET_ANCHOR_PHONE = {
-  0: [50, 26],
-  1: [62, 36],
-  2: [62, 62],
-  3: [38, 62],
-  4: [38, 36],
-  hero: [50, 68],
+  0: [50, 24],
+  1: [70, 40],
+  2: [70, 60],
+  3: [30, 60],
+  4: [30, 40],
+  hero: [50, 70],
 };
 const BET_ANCHOR_DESKTOP = {
   0: [50, 22],

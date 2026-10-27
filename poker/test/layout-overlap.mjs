@@ -100,33 +100,32 @@ async function checkViewport(browser, url, vp, seatCount) {
       const r = el.getBoundingClientRect();
       return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
     };
-    const hits = (a, b) => {
-      const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-      const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-      return ox > 1 && oy > 1;
+    const near = (a, b, pad) => {
+      const ox =
+        Math.min(a.right + pad, b.right + pad) - Math.max(a.left - pad, b.left - pad);
+      const oy =
+        Math.min(a.bottom + pad, b.bottom + pad) - Math.max(a.top - pad, b.top - pad);
+      return ox > 0 && oy > 0;
     };
+    const overlaps = (a, b) => near(a, b, 0);
 
     const bets = [...document.querySelectorAll('#bets .bet')].map(box);
     const plates = [...document.querySelectorAll('.seat .plate, .meinfo')].map(box);
     const boardBox = box(board);
-    // inflate board slightly — bets must clear the card row
-    const boardInfl = {
-      left: boardBox.left - 2,
-      right: boardBox.right + 2,
-      top: boardBox.top - 2,
-      bottom: boardBox.bottom + 2,
-    };
 
     bets.forEach((b, i) => {
       plates.forEach((p, j) => {
-        if (hits(b, p)) issues.push(`bet[${i}] overlaps plate[${j}]`);
+        if (overlaps(b, p) || near(b, p, 3)) {
+          issues.push(`bet[${i}] overlaps/covers plate[${j}]`);
+        }
       });
-      if (hits(b, boardInfl)) issues.push(`bet[${i}] overlaps board`);
-      // chip must not cover amount inside bet
+      if (overlaps(b, boardBox)) issues.push(`bet[${i}] overlaps board`);
     });
     for (let i = 0; i < bets.length; i++) {
       for (let j = i + 1; j < bets.length; j++) {
-        if (hits(bets[i], bets[j])) issues.push(`bet[${i}] overlaps bet[${j}]`);
+        if (overlaps(bets[i], bets[j]) || near(bets[i], bets[j], 2)) {
+          issues.push(`bet[${i}] overlaps bet[${j}]`);
+        }
       }
     }
 

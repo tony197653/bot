@@ -10,7 +10,7 @@
   --ring:#d6ab45; --ringbg:#ffffff22; --track:#2b4a3a;
   --tf:"Noto Serif TC","Noto Serif CJK TC",serif;
   --uf:"Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif;
-  --cw:42px; --ch:58px; --hw:66px; --hh:92px;
+  --cw:40px; --ch:56px; --hw:66px; --hh:92px;
 }
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none}
@@ -53,9 +53,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .pot .amt{font-family:var(--tf);font-weight:700;font-size:24px;line-height:1.1}
 .pot .sub{display:none;font-size:11.5px;color:var(--tmute)}
 .board{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);display:flex;flex-direction:row;
-  flex-wrap:nowrap;align-items:center;justify-content:center;gap:10px;width:max-content;max-width:none;z-index:2}
+  flex-wrap:nowrap;align-items:center;justify-content:center;gap:12px;width:max-content;max-width:none;z-index:2}
 .slot{display:block;flex:0 0 var(--cw);width:var(--cw);min-width:var(--cw);height:var(--ch);
-  border-radius:7px;border:1.5px dashed var(--tmute);opacity:.45;box-sizing:border-box}
+  border-radius:7px;border:1.5px dashed var(--tmute);opacity:.55;box-sizing:border-box;margin:0}
 
 .card{position:relative;flex:0 0 var(--cw);width:var(--cw);min-width:var(--cw);height:var(--ch);border-radius:7px;background:var(--card);
   box-shadow:0 0 0 1px var(--cardline),0 3px 6px #0003}
@@ -70,7 +70,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .card.hero .big{width:36px;height:36px;right:7px;bottom:7px}
 
 /* 座位 */
-.seat{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;width:92px}
+.seat{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;width:86px}
 .av{position:relative;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;
   background:var(--plate);color:var(--plateink);font-family:var(--tf);font-weight:700;font-size:18px;
   box-shadow:0 0 0 2px var(--plateline),0 2px 6px #0003;z-index:1}
@@ -78,8 +78,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .backs i{display:block;width:18px;height:25px;border-radius:3px;border:1.5px solid var(--card);
   background:repeating-linear-gradient(45deg,var(--back1) 0 3px,var(--back2) 3px 6px);box-shadow:0 1px 3px #0004}
 .backs i+i{margin-left:-10px;transform:rotate(10deg)}
-.plate{margin-top:-6px;padding:8px 6px 5px;width:100%;border-radius:10px;background:var(--plate);
+.plate{margin-top:-6px;padding:7px 6px 5px;width:100%;border-radius:10px;background:var(--plate);
   box-shadow:0 0 0 1px var(--plateline),0 3px 10px #0003;text-align:center;line-height:1.25}
+.plate:not(:has(.state)){padding-bottom:7px}
 .nm{display:flex;justify-content:center;align-items:center;gap:4px;font-size:13px;font-weight:700;color:var(--plateink);white-space:nowrap}
 .tag{font-size:10px;font-weight:500;padding:0 4px;border-radius:4px;border:1px solid var(--platemute);color:var(--platemute);line-height:15px}
 .tag.host{background:var(--gold);border-color:var(--gold);color:var(--accentink)}
@@ -279,11 +280,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 }
 
 /* 對手座位（自己在 .me）。下注籌碼改由 JS 依座位往桌心偏移，避免蓋住名牌／公牌 */
-.seat.pos-0{--x:50%;--y:7%}
-.seat.pos-1{--x:90%;--y:26%}
-.seat.pos-2{--x:90%;--y:74%}
-.seat.pos-3{--x:10%;--y:74%}
-.seat.pos-4{--x:10%;--y:26%}
+.seat.pos-0{--x:50%;--y:6%}
+.seat.pos-1{--x:92%;--y:24%}
+.seat.pos-2{--x:92%;--y:76%}
+.seat.pos-3{--x:8%;--y:76%}
+.seat.pos-4{--x:8%;--y:24%}
 @media (min-width:1024px){
   .seat.pos-0{--x:50%;--y:7%}
   .seat.pos-1{--x:91%;--y:26%}
