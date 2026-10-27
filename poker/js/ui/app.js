@@ -1168,15 +1168,8 @@ function layoutDealer() {
       for (const o of options) {
         const x = clamp(o.x, minX, maxX);
         const y = clamp(o.y, minY, maxY);
-        // Must clear the plate along the inward normal (not outer rail)
-        {
-          const faceDist0 = Math.min(
-            ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
-            uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
-          );
-          const proj = (x - ax) * ux + (y - ay) * uy;
-          if (proj < faceDist0 + edgeDepth - 4) continue;
-        }
+        // Reject outer-rail / behind-plate spots
+        if ((x - ax) * ux + (y - ay) * uy < 4) continue;
         if (blocked(x, y)) continue;
         if (
           overlaps(
@@ -1217,22 +1210,21 @@ function layoutDealer() {
     }
   }
 
-  // Hard rule: D's projection along the inward normal must clear the plate
-  // AABB (keeps diagonal/side seats from parking D on the outer rail).
+  // Hard rule: if D drifted outward (proj < 0), snap to the inward lip.
+  // Keep the lip shallow so own-plate edgeDist stays well under the 28px assert.
   {
-    const faceDist = Math.min(
+    const toEdge = Math.min(
       ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
       uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
     );
-    const minInward = faceDist + edgeDepth - 2;
+    const lip = toEdge + Math.max(dw, dh) / 2 + 3;
     const proj = (best.x - ax) * ux + (best.y - ay) * uy;
-    if (proj < minInward) {
-      // Preserve lateral offset along the plate, but push out to the lip
+    if (proj < Math.max(6, toEdge * 0.35)) {
       const latX = (best.x - ax) * -uy + (best.y - ay) * ux;
-      const clampedLat = clamp(latX, -ar.width * 0.45, ar.width * 0.45);
+      const clampedLat = clamp(latX, -ar.width * 0.35, ar.width * 0.35);
       best = {
-        x: clamp(ax + ux * minInward - uy * clampedLat, minX, maxX),
-        y: clamp(ay + uy * minInward + ux * clampedLat, minY, maxY),
+        x: clamp(ax + ux * lip - uy * clampedLat, minX, maxX),
+        y: clamp(ay + uy * lip + ux * clampedLat, minY, maxY),
       };
     }
   }
