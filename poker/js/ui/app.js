@@ -1168,11 +1168,14 @@ function layoutDealer() {
       for (const o of options) {
         const x = clamp(o.x, minX, maxX);
         const y = clamp(o.y, minY, maxY);
-        // Primary inward face only (not outer rail of a side seat)
-        if (Math.abs(ux) >= Math.abs(uy)) {
-          if (ux > 0 ? x < ar.right + gap - 1 : x > ar.left - gap + 1) continue;
-        } else if (uy > 0 ? y < ar.bottom + gap - 1 : y > ar.top - gap + 1) {
-          continue;
+        // Must clear the plate along the inward normal (not outer rail)
+        {
+          const faceDist0 = Math.min(
+            ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
+            uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
+          );
+          const proj = (x - ax) * ux + (y - ay) * uy;
+          if (proj < faceDist0 + edgeDepth - 4) continue;
         }
         if (blocked(x, y)) continue;
         if (
@@ -1214,24 +1217,22 @@ function layoutDealer() {
     }
   }
 
-  // Hard rule: D must sit on the primary inward face of the plate
-  // (right of a left seat, below a top seat, etc.) — not merely "somewhere
-  // toward center" which can park D on the outer rail of a side seat.
+  // Hard rule: D's projection along the inward normal must clear the plate
+  // AABB (keeps diagonal/side seats from parking D on the outer rail).
   {
-    const onInwardFace = (x, y) => {
-      if (Math.abs(ux) >= Math.abs(uy)) {
-        return ux > 0 ? x >= ar.right + gap - 1 : x <= ar.left - gap + 1;
-      }
-      return uy > 0 ? y >= ar.bottom + gap - 1 : y <= ar.top - gap + 1;
-    };
-    if (!onInwardFace(best.x, best.y)) {
-      const faceDist = Math.min(
-        ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
-        uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
-      );
+    const faceDist = Math.min(
+      ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
+      uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
+    );
+    const minInward = faceDist + edgeDepth - 2;
+    const proj = (best.x - ax) * ux + (best.y - ay) * uy;
+    if (proj < minInward) {
+      // Preserve lateral offset along the plate, but push out to the lip
+      const latX = (best.x - ax) * -uy + (best.y - ay) * ux;
+      const clampedLat = clamp(latX, -ar.width * 0.45, ar.width * 0.45);
       best = {
-        x: clamp(ax + ux * (faceDist + edgeDepth), minX, maxX),
-        y: clamp(ay + uy * (faceDist + edgeDepth), minY, maxY),
+        x: clamp(ax + ux * minInward - uy * clampedLat, minX, maxX),
+        y: clamp(ay + uy * minInward + ux * clampedLat, minY, maxY),
       };
     }
   }
