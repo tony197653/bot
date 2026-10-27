@@ -357,9 +357,10 @@ input[type=range]::-moz-range-thumb{
 @media (max-width:1023px) and (max-height:700px){
   :root{--hw:52px;--hh:72px;--cw:40px;--ch:56px;--bar-h:72px}
   .seat.pos-0{--y:11%}
-  .seat.pos-1,.seat.pos-4{--x:84%;--y:30%}
-  .seat.pos-2,.seat.pos-3{--y:66%}
-  .seat.pos-3{--x:16%}
+  .seat.pos-1{--x:84%;--y:30%}
+  .seat.pos-2{--x:84%;--y:66%}
+  .seat.pos-3{--x:16%;--y:66%}
+  .seat.pos-4{--x:16%;--y:30%}
   .pot{top:40%}
   .board{top:54%}
 }
@@ -486,7 +487,7 @@ input[type=range]::-moz-range-thumb{
   font-size:12px;font-weight:800;letter-spacing:.02em;white-space:nowrap;
   box-shadow:0 4px 14px #0005;pointer-events:none}
 /* Hero: float above the whole me cluster (cards + plate), never over hole cards */
-.me .win-badge{top:auto;bottom:calc(100% + 6px);z-index:10}
+.me .win-badge{top:auto;bottom:calc(100% + 12px);z-index:10}
 .table-note{position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);z-index:7;
   max-width:min(96%,440px);padding:6px 14px;border-radius:10px;text-align:center;
   background:#0c1d16ee;border:1px solid var(--gold);color:var(--ink);

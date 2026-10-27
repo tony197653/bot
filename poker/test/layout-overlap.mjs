@@ -216,7 +216,7 @@ function auditTableLayoutInPage({ seatCount, opts = {} }) {
     }
     const plateEl = seatEl.querySelector('.plate, .plateA, .meinfo') || seatEl;
     const ownPlate = box(plateEl);
-    // Chrome = plate + backs (not reveal-hole)
+    // Chrome = plate + backs (not reveal-hole). Hero bets sit above hole cards (mockup A).
     let L = ownPlate.left,
       T = ownPlate.top,
       R = ownPlate.right,
@@ -230,32 +230,51 @@ function auditTableLayoutInPage({ seatCount, opts = {} }) {
         B = Math.max(B, q.bottom);
       }
     });
+    const holeEl = isHero ? document.querySelector('#heroHole') : null;
+    const holeBox =
+      holeEl && holeEl.children.length
+        ? (() => {
+            const r = holeEl.getBoundingClientRect();
+            return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+          })()
+        : null;
     const betBox = box(bet);
     // Off-screen unplaced bets
     if (betBox.left < -500 || betBox.top < -500) {
       issues.push(`bet seat ${seatId ?? 'hero'} unplaced (off-screen)`);
       continue;
     }
-    const g = edgeGap(betBox, { left: L, top: T, right: R, bottom: B });
+    const target = holeBox || { left: L, top: T, right: R, bottom: B };
+    const g = edgeGap(betBox, target);
     const gap = Math.round(g * 10) / 10;
-    const hi = isHero ? 48 : 14;
+    const hi = isHero ? 20 : 14;
     if (gap < 6 || gap > hi) {
-      issues.push(`bet seat ${seatId ?? 'hero'} plate gap ${gap}px (want 6–${hi})`);
-    }
-    // Nearest nameplate must be the owner's
-    let nearest = { seat: null, gap: Infinity };
-    for (const pl of plates) {
-      const pg = edgeGap(betBox, box(pl));
-      const sid =
-        pl.closest?.('.seat[data-seat]')?.dataset?.seat ??
-        (pl.classList?.contains('meinfo') || pl.closest?.('#meRoot') ? 'hero' : null);
-      if (pg < nearest.gap) nearest = { seat: sid, gap: pg };
-    }
-    const ownerKey = isHero ? 'hero' : String(seatId);
-    if (nearest.seat != null && nearest.seat !== ownerKey) {
       issues.push(
-        `bet seat ${ownerKey} nearest plate is seat ${nearest.seat} (gap ${nearest.gap.toFixed(1)}), not owner`,
+        `bet seat ${seatId ?? 'hero'} ${holeBox ? 'hole' : 'plate'} gap ${gap}px (want 6–${hi})`,
       );
+    }
+    // Nearest nameplate must be the owner's (non-hero). Hero bets sit above hole cards
+    // toward felt centre, so they can be nearer an opponent plate than meinfo.
+    if (!isHero) {
+      const rectDist = (a, b) => {
+        const dx = Math.max(a.left - b.right, b.left - a.right, 0);
+        const dy = Math.max(a.top - b.bottom, b.top - a.bottom, 0);
+        return Math.hypot(dx, dy);
+      };
+      let nearest = { seat: null, dist: Infinity };
+      for (const pl of plates) {
+        const pd = rectDist(betBox, box(pl));
+        const sid =
+          pl.closest?.('.seat[data-seat]')?.dataset?.seat ??
+          (pl.classList?.contains('meinfo') || pl.closest?.('#meRoot') ? 'hero' : null);
+        if (pd < nearest.dist) nearest = { seat: sid, dist: pd };
+      }
+      const ownerKey = String(seatId);
+      if (nearest.seat != null && nearest.seat !== ownerKey) {
+        issues.push(
+          `bet seat ${ownerKey} nearest plate is seat ${nearest.seat} (dist ${nearest.dist.toFixed(1)}), not owner`,
+        );
+      }
     }
   }
 
