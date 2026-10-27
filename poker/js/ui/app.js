@@ -1087,13 +1087,8 @@ function layoutDealer() {
       }
       if (!hit) continue;
       moved = true;
-      // Tiny rail bias away from center so board/pot stay clear after D yields
-      const awayCx = px - cx;
-      const awayCy = py - cy;
-      const tlen = Math.hypot(awayCx, awayCy) || 1;
-      px += (awayCx / tlen) * 0.8;
-      py += (awayCy / tlen) * 0.8;
-      // Re-clear board / plates after rail bias
+      // Re-clear board / plates / peers without a center pull (that collapsed
+      // neighboring street bets on short phones).
       if (boardBox) {
         const inflated = {
           left: boardBox.left - 4,
@@ -1104,6 +1099,69 @@ function layoutDealer() {
         pushAway(inflated, 4, { heroBoard: isHero });
       }
       for (const pl of plateRects) pushAway(pl, 5);
+      for (let j = 0; j < betEls.length; j++) {
+        if (j === i) continue;
+        pushAway(betEls[j].getBoundingClientRect(), 5);
+      }
+      const left = clamp(px, t.left + br.width / 2 + 2, t.right - br.width / 2 - 2);
+      const top = clamp(py, t.top + br.height / 2 + 2, t.bottom - br.height / 2 - 2);
+      bet.style.left = `${((left - t.left) / t.width) * 100}%`;
+      bet.style.top = `${((top - t.top) / t.height) * 100}%`;
+    }
+    if (!moved) break;
+  }
+
+  // Final peer pass: after D yields, ensure street bets still clear each other
+  for (let pass = 0; pass < 8; pass++) {
+    let moved = false;
+    for (let i = 0; i < betEls.length; i++) {
+      const bet = betEls[i];
+      const isHero = bet.dataset.hero === '1';
+      const br = bet.getBoundingClientRect();
+      let px = (br.left + br.right) / 2;
+      let py = (br.top + br.bottom) / 2;
+      const pushAway = (ob, pad, opts = {}) => {
+        const box = {
+          left: px - br.width / 2 - pad,
+          top: py - br.height / 2 - pad,
+          right: px + br.width / 2 + pad,
+          bottom: py + br.height / 2 + pad,
+        };
+        const d = separationDelta(box, ob, pad) || overlapDelta(box, ob);
+        if (!d) return false;
+        if (opts.heroBoard) {
+          py += Math.max(Math.abs(d.dy), d.dy, 3);
+          px += d.dx;
+        } else {
+          px += d.dx;
+          py += d.dy;
+        }
+        return true;
+      };
+      let hit = false;
+      for (let j = 0; j < betEls.length; j++) {
+        if (j === i) continue;
+        hit = pushAway(betEls[j].getBoundingClientRect(), 5) || hit;
+      }
+      if (boardBox) {
+        hit =
+          pushAway(
+            {
+              left: boardBox.left - 4,
+              top: boardBox.top - 4,
+              right: boardBox.right + 4,
+              bottom: boardBox.bottom + 4,
+            },
+            4,
+            { heroBoard: isHero },
+          ) || hit;
+      }
+      if (potBox) hit = pushAway(potBox, 6) || hit;
+      for (const pl of plateRects) hit = pushAway(pl, 5) || hit;
+      const finalD = dealer.getBoundingClientRect();
+      hit = pushAway(finalD, 5) || hit;
+      if (!hit) continue;
+      moved = true;
       const left = clamp(px, t.left + br.width / 2 + 2, t.right - br.width / 2 - 2);
       const top = clamp(py, t.top + br.height / 2 + 2, t.bottom - br.height / 2 - 2);
       bet.style.left = `${((left - t.left) / t.width) * 100}%`;
