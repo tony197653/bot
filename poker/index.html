@@ -94,26 +94,30 @@
 </div>
 
 <div class="screen" id="lobbyScreen" role="dialog" aria-labelledby="lobbyTitle">
-  <div class="sheet">
-    <h2 id="lobbyTitle">開一桌熱座牌局</h2>
-    <p class="lead">單機傳裝置輪流操作。規則引擎在本機執行，之後里程碑可同步到 Firebase。</p>
-    <label for="roomNameInput">牌局名稱</label>
-    <input id="roomNameInput" type="text" maxlength="40" value="週五牌局">
-    <div class="row">
-      <div>
-        <label for="bbInput">大盲</label>
-        <input id="bbInput" type="number" min="2" step="2" value="20">
+  <div class="sheet sheet-lobby">
+    <div class="sheet-body">
+      <h2 id="lobbyTitle">開一桌熱座牌局</h2>
+      <p class="lead">單機傳裝置輪流操作。規則引擎在本機執行，之後里程碑可同步到 Firebase。</p>
+      <label for="roomNameInput">牌局名稱</label>
+      <input id="roomNameInput" type="text" maxlength="40" value="週五牌局">
+      <div class="row">
+        <div>
+          <label for="bbInput">大盲</label>
+          <input id="bbInput" type="number" min="2" step="2" value="20">
+        </div>
+        <div>
+          <label for="stackInput">起始籌碼（≥100×大盲）</label>
+          <input id="stackInput" type="number" min="200" step="100" value="2000">
+        </div>
       </div>
-      <div>
-        <label for="stackInput">起始籌碼（≥100×大盲）</label>
-        <input id="stackInput" type="number" min="200" step="100" value="2000">
-      </div>
+      <label><input type="checkbox" id="timerToggle"> 啟用 30 秒行動計時（測試可關）</label>
+      <p class="lead" style="margin-top:14px;margin-bottom:0">玩家（2–6 人）</p>
+      <div class="players-edit" id="playerRows"></div>
     </div>
-    <label><input type="checkbox" id="timerToggle"> 啟用 30 秒行動計時（測試可關）</label>
-    <p class="lead" style="margin-top:14px;margin-bottom:0">玩家（2–6 人）</p>
-    <div class="players-edit" id="playerRows"></div>
-    <div class="actions">
-      <button type="button" class="primary" id="btnStart">開始牌局</button>
+    <div class="sheet-foot">
+      <div class="actions">
+        <button type="button" class="primary" id="btnStart">開始牌局</button>
+      </div>
     </div>
   </div>
 </div>

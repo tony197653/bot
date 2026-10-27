@@ -13,7 +13,15 @@
   --cw:40px; --ch:56px; --hw:66px; --hh:92px;
 }
 *{box-sizing:border-box;margin:0}
-html,body{height:100%;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none}
+html,body{
+  height:100%;
+  height:100dvh;
+  max-width:100%;
+  overflow-x:hidden;
+  overflow-x:clip;
+  overflow-y:hidden; /* overlays (.screen) own vertical scroll */
+  overscroll-behavior-x:none;
+}
 body{font-family:var(--uf);color:var(--ink);background:radial-gradient(120% 80% at 50% 30%,var(--page2),var(--page));
   font-variant-numeric:tabular-nums;touch-action:pan-y pinch-zoom;-webkit-tap-highlight-color:transparent}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
@@ -201,14 +209,35 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
   transition:width .25s cubic-bezier(.22,.61,.36,1)}
 .boot-pct{margin-top:10px;font-size:13px;color:var(--mute)}
 
-/* 大廳 / 換人 / 遮罩 */
-.screen{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:20px;
+/* 大廳 / 換人 / 戰績：可直向捲動（iOS Safari 動態工具列用 dvh/svh，不用 100vh），仍鎖橫向 */
+.screen{
+  position:fixed;inset:0;z-index:40;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  width:100%;
+  height:100%;
+  height:100svh;
+  height:100dvh;
+  max-height:100svh;
+  max-height:100dvh;
+  padding:max(12px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px))
+    max(12px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  overflow-x:hidden;overflow-x:clip;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:none;overscroll-behavior-y:contain;
   background:radial-gradient(120% 80% at 50% 30%,#183a2bcc,#10261dee);backdrop-filter:blur(6px);
-  opacity:0;pointer-events:none;transition:opacity .35s cubic-bezier(.22,.61,.36,1)}
+  opacity:0;pointer-events:none;transition:opacity .35s cubic-bezier(.22,.61,.36,1);
+  touch-action:pan-y pinch-zoom;
+}
 .screen.is-on{opacity:1;pointer-events:auto}
-.sheet{width:min(420px,100%);background:var(--panel);border:1px solid var(--panelline);border-radius:18px;
-  padding:22px 20px 18px;box-shadow:0 18px 40px #0006;transform:translateY(12px) scale(.98);
-  transition:transform .4s cubic-bezier(.22,1,.36,1)}
+.sheet{
+  width:min(420px,100%);
+  margin-top:auto;margin-bottom:auto; /* 矮內容置中；過高時可從頂捲 */
+  background:var(--panel);border:1px solid var(--panelline);border-radius:18px;
+  padding:22px 20px 18px;box-shadow:0 18px 40px #0006;
+  transform:translateY(12px) scale(.98);
+  transition:transform .4s cubic-bezier(.22,1,.36,1);
+  flex:0 0 auto;min-width:0;max-width:100%;
+}
 .screen.is-on .sheet{transform:none}
 .sheet h2{font-family:var(--tf);font-size:22px;margin-bottom:6px}
 .sheet .lead{color:var(--mute);font-size:14px;margin-bottom:16px;line-height:1.5}
@@ -222,6 +251,30 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
   min-height:48px;border-radius:12px;background:var(--btn);border:1px solid var(--panelline);
   color:var(--btnink);font-weight:700;font-size:16px;padding:0 14px}
 .sheet .actions .primary{background:var(--accent);color:var(--accentink);border-color:var(--accent)}
+
+/* 大廳：表單區可捲、開始鈕 sticky／固定在可視底 */
+.sheet-lobby{
+  display:flex;flex-direction:column;
+  width:min(420px,100%);max-width:100%;
+  max-height:100%;
+  padding:22px 20px 0;
+  overflow:hidden;
+}
+.sheet-body{
+  flex:1 1 auto;min-height:0;min-width:0;padding-bottom:8px;
+  overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:none;touch-action:pan-y pinch-zoom;
+}
+.sheet-foot{
+  position:sticky;bottom:0;z-index:2;flex:none;
+  margin:0 -20px;
+  padding:14px 20px max(14px,env(safe-area-inset-bottom,0px));
+  background:linear-gradient(180deg,#0c1d1600 0%,var(--panel) 28%,var(--panel) 100%);
+  border-radius:0 0 18px 18px;
+}
+.sheet-foot .actions{margin-top:0}
+.sheet-foot .primary{width:100%}
+
 .players-edit{display:grid;gap:8px;margin-top:8px}
 .players-edit .p-row{display:grid;grid-template-columns:36px 1fr auto;gap:8px;align-items:center}
 .players-edit .p-row .av{width:36px;height:36px;font-size:15px}
@@ -273,9 +326,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;heigh
 .show-btns button{min-height:48px;border-radius:12px;background:var(--btn);border:1px solid var(--panelline);font-weight:700}
 .show-btns .primary{background:var(--accent);color:var(--accentink);border-color:var(--accent);grid-column:1/-1}
 
-/* 手機垂直鎖定：避免橫向位移 */
+/* 手機垂直鎖定：避免橫向位移（直向仍由 .screen / .sheet-body 捲動） */
 @media (max-width:1023px){
-  html,body{width:100%;max-width:100vw;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none}
+  html,body{width:100%;max-width:100vw;overflow-x:hidden;overflow-x:clip;overflow-y:hidden;overscroll-behavior-x:none}
   .app{width:100%;max-width:100vw;overflow-x:hidden}
   .s0{--x:50%;--y:9%} /* unused hero seat on table */
 }
