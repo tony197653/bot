@@ -905,7 +905,7 @@ function layoutDealer() {
     .filter(Boolean)
     .map((el) => {
       const r = el.getBoundingClientRect();
-      const pad = el === potEl || el === noteEl ? 4 : el === boardEl ? 2 : 1;
+      const pad = el === potEl || el === noteEl ? 6 : el === boardEl ? 2 : 1;
       return {
         left: r.left - pad,
         top: r.top - pad,
@@ -934,27 +934,52 @@ function layoutDealer() {
     return Math.hypot(dx, dy);
   };
 
-  // Candidates: ring around the plate, biased to the inward (table-center) half
+  // Candidates: tight ring on the plate's inward edge (not deep toward pot).
+  // Depth is only gap + button radius past the plate AABB — keeps D clearly
+  // on the button seat even when the pot sits just inside.
   /** @type {{x:number,y:number,score:number}[]} */
   const candidates = [];
-  const rings = [gap + Math.max(dw, dh) / 2, gap + Math.max(dw, dh) / 2 + 8];
+  const edgeDepth = gap + Math.max(dw, dh) / 2;
+  const rings = [edgeDepth, edgeDepth + 5];
   for (const rad of rings) {
-    for (let i = 0; i < 24; i++) {
-      const ang = (i / 24) * Math.PI * 2;
+    for (let i = 0; i < 32; i++) {
+      const ang = (i / 32) * Math.PI * 2;
       const dx = Math.cos(ang);
       const dy = Math.sin(ang);
-      // Inward hemisphere only (dot with table-center direction >= -0.15)
-      if (dx * ux + dy * uy < -0.15) continue;
-      const x = ax + dx * (rad + (Math.abs(dx) * ar.width + Math.abs(dy) * ar.height) / 2);
-      const y = ay + dy * (rad + (Math.abs(dx) * ar.width + Math.abs(dy) * ar.height) / 2);
+      // Inward hemisphere only (dot with table-center direction >= -0.1)
+      if (dx * ux + dy * uy < -0.1) continue;
+      // Distance to plate AABB edge along (dx,dy), then + rad
+      const tx = dx === 0 ? Infinity : (ar.width / 2) / Math.abs(dx);
+      const ty = dy === 0 ? Infinity : (ar.height / 2) / Math.abs(dy);
+      const toEdge = Math.min(tx, ty);
+      const x = ax + dx * (toEdge + rad);
+      const y = ay + dy * (toEdge + rad);
       candidates.push({ x, y, score: 0 });
     }
   }
-  // Also try the pure inward radial spot
+  // Explicit inward-edge slides (clear pot while staying on the plate lip)
   {
-    const plateAlong = (Math.abs(ux) * ar.width + Math.abs(uy) * ar.height) / 2;
-    const rad = plateAlong + Math.max(dw, dh) / 2 + gap;
-    candidates.push({ x: ax + ux * rad, y: ay + uy * rad, score: 0 });
+    const px = -uy;
+    const py = ux;
+    // Anchor on the inward face of the plate
+    const faceX = ax + ux * (Math.min(
+      ux === 0 ? Infinity : (ar.width / 2) / Math.abs(ux),
+      uy === 0 ? Infinity : (ar.height / 2) / Math.abs(uy),
+    ) + edgeDepth);
+    const faceY = ay + uy * (Math.min(
+      ux === 0 ? Infinity : (ar.width / 2) / Math.abs(ux),
+      uy === 0 ? Infinity : (ar.height / 2) / Math.abs(uy),
+    ) + edgeDepth);
+    candidates.push({ x: faceX, y: faceY, score: 0 });
+    for (const side of [-1, 1]) {
+      for (const lat of [8, 14, 22, 30, 40]) {
+        candidates.push({
+          x: faceX + px * side * lat,
+          y: faceY + py * side * lat,
+          score: 0,
+        });
+      }
+    }
   }
 
   // Hero plate sits below the felt — allow D into that band
@@ -995,15 +1020,17 @@ function layoutDealer() {
     }
     if (blocked) continue;
     const own = edgeDist(x, y, ar);
-    if (own > 22) continue;
-    // Clearly nearer to own plate than to any other (never drift toward a neighbor)
+    if (own > 14) continue;
+    // Clearly nearer to own plate than to any other (never drift toward a neighbor).
+    // When glued tight to own plate (own < 8), a smaller margin still reads as "this seat".
+    const otherMargin = own < 8 ? 10 : 14;
     let nearestOther = Infinity;
     let nearerOther = false;
     for (const pl of otherPlates) {
       const pr = pl.getBoundingClientRect();
       const od = edgeDist(x, y, pr);
       nearestOther = Math.min(nearestOther, od);
-      if (od <= own + 12) {
+      if (od <= own + otherMargin) {
         nearerOther = true;
         break;
       }
@@ -1011,7 +1038,8 @@ function layoutDealer() {
     if (nearerOther) continue;
     // Prefer inward + close to plate + far from neighbors
     const inward = (x - ax) * ux + (y - ay) * uy;
-    const score = own * 3 + Math.max(0, -inward) * 4 + Math.max(0, 28 - nearestOther);
+    const lateral = Math.abs((x - ax) * -uy + (y - ay) * ux);
+    const score = own * 4 + Math.max(0, -inward) * 5 + Math.max(0, 36 - nearestOther) + lateral * 0.5;
     if (score < bestScore) {
       bestScore = score;
       best = { x, y };
@@ -1072,6 +1100,96 @@ function layoutDealer() {
         x: clamp(best.x + ux * 6, minX, maxX),
         y: clamp(best.y + uy * 6, minY, maxY),
       };
+    }
+  }
+
+  // Final: if D still grazes the pot, park on the plate's inward lip just
+  // clear of the pot AABB (left or right) — stay on the button seat edge.
+  if (potEl) {
+    const potR = potEl.getBoundingClientRect();
+    const potPad = 4;
+    const touchesPot = (x, y) => {
+      const box = {
+        left: x - dw / 2,
+        top: y - dh / 2,
+        right: x + dw / 2,
+        bottom: y + dh / 2,
+      };
+      return (
+        !!separationDelta(
+          {
+            left: box.left - potPad,
+            top: box.top - potPad,
+            right: box.right + potPad,
+            bottom: box.bottom + potPad,
+          },
+          potR,
+          0,
+        ) || !!overlapDelta(box, {
+          left: potR.left - potPad,
+          top: potR.top - potPad,
+          right: potR.right + potPad,
+          bottom: potR.bottom + potPad,
+        })
+      );
+    };
+    if (touchesPot(best.x, best.y)) {
+      // Inward lip Y/X from plate AABB
+      const lip = edgeDepth;
+      const faceDist = Math.min(
+        ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
+        uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
+      );
+      const faceX = ax + ux * (faceDist + lip);
+      const faceY = ay + uy * (faceDist + lip);
+      const px = -uy;
+      const py = ux;
+      // Clear pot on either side of the lip; pick nearer to plate center
+      const leftClearX = potR.left - potPad - dw / 2 - 1;
+      const rightClearX = potR.right + potPad + dw / 2 + 1;
+      // Project clear X onto the lip line (face + t * tangent)
+      const options = [];
+      for (const clearX of [leftClearX, rightClearX]) {
+        // For mostly-vertical inward (top/bottom seats), slide in X on the lip
+        if (Math.abs(uy) >= Math.abs(ux)) {
+          options.push({ x: clearX, y: faceY });
+        } else {
+          // Side seats: slide in Y
+          const clearY =
+            clearX < potR.left ? potR.top - potPad - dh / 2 - 1 : potR.bottom + potPad + dh / 2 + 1;
+          options.push({ x: faceX, y: clearY });
+        }
+      }
+      // Also try pure tangent offsets from face
+      for (const side of [-1, 1]) {
+        for (const lat of [16, 24, 32, 44]) {
+          options.push({ x: faceX + px * side * lat, y: faceY + py * side * lat });
+        }
+      }
+      let pick = null;
+      let pickScore = Infinity;
+      for (const o of options) {
+        const x = clamp(o.x, minX, maxX);
+        const y = clamp(o.y, minY, maxY);
+        if (touchesPot(x, y)) continue;
+        if (overlaps(
+          { left: x - dw / 2, top: y - dh / 2, right: x + dw / 2, bottom: y + dh / 2 },
+          ar,
+        )) continue;
+        const own = edgeDist(x, y, ar);
+        if (own > 20) continue;
+        let nearest = Infinity;
+        for (const pl of otherPlates) {
+          nearest = Math.min(nearest, edgeDist(x, y, pl.getBoundingClientRect()));
+        }
+        if (nearest <= own + 4) continue; // still must be nearer to own
+        const score = own * 3 + Math.abs(x - ax) * 0.3 + Math.abs(y - ay) * 0.3;
+        if (score < pickScore) {
+          pickScore = score;
+          pick = { x, y };
+        }
+      }
+      if (pick) best = pick;
     }
   }
 
