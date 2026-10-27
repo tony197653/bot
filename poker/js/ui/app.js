@@ -1168,7 +1168,12 @@ function layoutDealer() {
       for (const o of options) {
         const x = clamp(o.x, minX, maxX);
         const y = clamp(o.y, minY, maxY);
-        if ((x - ax) * ux + (y - ay) * uy < 2) continue; // must face table center
+        // Primary inward face only (not outer rail of a side seat)
+        if (Math.abs(ux) >= Math.abs(uy)) {
+          if (ux > 0 ? x < ar.right + gap - 1 : x > ar.left - gap + 1) continue;
+        } else if (uy > 0 ? y < ar.bottom + gap - 1 : y > ar.top - gap + 1) {
+          continue;
+        }
         if (blocked(x, y)) continue;
         if (
           overlaps(
@@ -1209,10 +1214,17 @@ function layoutDealer() {
     }
   }
 
-  // Hard rule: D must sit on the inward side of the plate (facing table center)
+  // Hard rule: D must sit on the primary inward face of the plate
+  // (right of a left seat, below a top seat, etc.) — not merely "somewhere
+  // toward center" which can park D on the outer rail of a side seat.
   {
-    const inwardDot = (best.x - ax) * ux + (best.y - ay) * uy;
-    if (inwardDot < 2) {
+    const onInwardFace = (x, y) => {
+      if (Math.abs(ux) >= Math.abs(uy)) {
+        return ux > 0 ? x >= ar.right + gap - 1 : x <= ar.left - gap + 1;
+      }
+      return uy > 0 ? y >= ar.bottom + gap - 1 : y <= ar.top - gap + 1;
+    };
+    if (!onInwardFace(best.x, best.y)) {
       const faceDist = Math.min(
         ux === 0 ? Infinity : ar.width / 2 / Math.abs(ux),
         uy === 0 ? Infinity : ar.height / 2 / Math.abs(uy),
