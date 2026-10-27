@@ -399,17 +399,18 @@ export function placeTableNote() {
     el.getBoundingClientRect(),
   );
   const midX = t.left + t.width / 2;
-  let leftBound = t.left + t.width * 0.18;
-  let rightBound = t.right - t.width * 0.18;
+  let leftBound = t.left + t.width * 0.22;
+  let rightBound = t.right - t.width * 0.22;
   for (const r of reveals) {
     const cx = (r.left + r.right) / 2;
-    if (cx < midX) leftBound = Math.max(leftBound, r.right + 8);
-    else rightBound = Math.min(rightBound, r.left - 8);
+    if (cx < midX - 4) leftBound = Math.max(leftBound, r.right + 10);
+    else if (cx > midX + 4) rightBound = Math.min(rightBound, r.left - 10);
   }
-  const freeW = Math.max(96, Math.min(200, rightBound - leftBound));
+  // Keep a tight centre column so side-seat hero-sized reveals stay clear
+  const freeW = Math.max(88, Math.min(160, rightBound - leftBound));
   note.style.maxWidth = `${freeW}px`;
 
-  const overlapsBox = (box, pad = 4) => {
+  const overlapsBox = (box, pad = 6) => {
     for (const o of obstacles) {
       const ox = Math.min(box.right, o.right) - Math.max(box.left, o.left);
       const oy = Math.min(box.bottom, o.bottom) - Math.max(box.top, o.top);
@@ -418,37 +419,35 @@ export function placeTableNote() {
     return false;
   };
 
-  // Candidates: just under pot, then slightly lower, then above board band
+  // Candidates: just under pot (prefer), then slightly lower; never into the side-card band
   const potBottom = potBox ? potBox.bottom : t.top + t.height * 0.42;
-  const yStarts = [
-    potBottom + 8,
-    potBottom + 18,
-    potBottom + 28,
-    t.top + t.height * 0.46,
-    t.top + t.height * 0.5,
-  ];
+  const yStarts = [potBottom + 6, potBottom + 14, potBottom + 22, potBottom + 32];
 
   let placed = false;
-  for (const y of yStarts) {
-    // Force layout with current max-width so height is accurate
-    note.style.left = '50%';
-    note.style.top = `${((y - t.top) / t.height) * 100}%`;
-    note.style.transform = 'translate(-50%, 0)';
-    const nb = note.getBoundingClientRect();
-    const box = {
-      left: midX - nb.width / 2,
-      right: midX + nb.width / 2,
-      top: y,
-      bottom: y + nb.height,
-    };
-    if (!overlapsBox(box, 2)) {
-      placed = true;
-      break;
+  for (const maxW of [freeW, Math.min(freeW, 120), 100, 88]) {
+    if (placed) break;
+    note.style.maxWidth = `${maxW}px`;
+    for (const y of yStarts) {
+      note.classList.remove('is-bar');
+      note.style.left = '50%';
+      note.style.top = `${((y - t.top) / t.height) * 100}%`;
+      note.style.transform = 'translate(-50%, 0)';
+      const nb = note.getBoundingClientRect();
+      const box = {
+        left: midX - nb.width / 2,
+        right: midX + nb.width / 2,
+        top: y,
+        bottom: y + nb.height,
+      };
+      if (!overlapsBox(box, 6)) {
+        placed = true;
+        break;
+      }
     }
   }
 
   if (!placed) {
-    // Bar fallback above 下一手
+    // Bar fallback above 下一手 — guaranteed clear of felt cards
     note.classList.add('is-bar');
     note.style.left = '';
     note.style.top = '';

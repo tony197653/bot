@@ -655,10 +655,17 @@ function auditRevealLayoutInPage({ seatCount }) {
   const timerEl = document.querySelector('#mePlate .timer, .meinfo .timer');
   if (timerEl) {
     const timing = document.querySelector('#mePlate')?.classList.contains('is-timing');
+    const cs = getComputedStyle(timerEl);
     const visible =
-      getComputedStyle(timerEl).display !== 'none' && getComputedStyle(timerEl).visibility !== 'hidden';
+      !timerEl.hasAttribute('hidden') &&
+      cs.display !== 'none' &&
+      cs.visibility !== 'hidden' &&
+      parseFloat(cs.opacity || '1') > 0.05;
     if (!timing && visible) {
       issues.push('hero timer visible while not .is-timing (stray ⊖ on nameplate)');
+    }
+    if (!timing && !timerEl.hasAttribute('hidden')) {
+      issues.push('hero timer missing hidden attr while idle');
     }
   }
 

@@ -246,18 +246,22 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .meinfo .av{width:36px;height:36px;font-size:16px;left:3px;top:3px}
 .meinfo b{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:400;color:var(--plateink)}
 .meinfo strong{display:block;font-size:13px;font-weight:700;color:#ffd77a}
-/* Timer ring: hidden unless hero is on the clock (avoids stray ⊖ on plate border) */
-.timer{display:none}
+/* Timer ring: off the plate unless hero is on the clock (idle ⊖ must not sit on the border) */
+.meinfo .timer,.timer{
+  display:none!important;visibility:hidden;pointer-events:none;
+  width:0!important;height:0!important;overflow:hidden;opacity:0;
+}
 .meinfo.is-timing .timer{
-  display:grid;position:absolute;right:4px;top:50%;transform:translateY(-50%);
-  width:28px;height:28px;place-items:center;z-index:2;
+  display:grid!important;visibility:visible;opacity:1;pointer-events:none;
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);
+  width:26px!important;height:26px!important;place-items:center;z-index:2;overflow:visible;
 }
 .timer svg{width:100%;height:100%;transform:rotate(-90deg)}
 .timer circle{fill:none;stroke-width:3}
 .timer .bg{stroke:var(--ringbg)}
 .timer .fg{stroke:var(--ring);stroke-linecap:round;stroke-dasharray:75.4;stroke-dashoffset:0}
-.timer span{position:absolute;inset:0;display:grid;place-items:center;font-weight:700;font-size:10px}
-.meinfo.is-timing{padding-right:36px}
+.timer span{position:absolute;inset:0;display:grid;place-items:center;font-weight:700;font-size:10px;color:var(--plateink)}
+.meinfo.is-timing{padding-right:38px}
 
 /* ── Bottom action bar (3 buttons) ── */
 .act{

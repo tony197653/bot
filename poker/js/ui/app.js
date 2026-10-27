@@ -1901,18 +1901,21 @@ function updateTimerDisplay(leftMs) {
   const el = $('#timerSec');
   const fg = $('#timerFg');
   const plate = $('#mePlate');
+  const ring = plate?.querySelector('.timer');
   if (leftMs == null) {
-    el.textContent = '—';
-    fg.style.strokeDashoffset = '0';
+    if (el) el.textContent = '';
+    if (fg) fg.style.strokeDashoffset = '0';
     plate?.classList.remove('is-timing');
+    ring?.setAttribute('hidden', '');
     return;
   }
   plate?.classList.add('is-timing');
+  ring?.removeAttribute('hidden');
   const sec = Math.ceil(leftMs / 1000);
-  el.textContent = String(sec);
+  if (el) el.textContent = String(sec);
   const total = state.config.actionTimeoutMs;
   const circ = 75.4;
-  fg.style.strokeDashoffset = String(circ * (1 - leftMs / total));
+  if (fg) fg.style.strokeDashoffset = String(circ * (1 - leftMs / total));
 }
 
 /* ─── Keyboard (desktop) ─── */
