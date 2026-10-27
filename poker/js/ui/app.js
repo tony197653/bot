@@ -1898,24 +1898,13 @@ onTick(() => {
 });
 
 function updateTimerDisplay(leftMs) {
-  const el = $('#timerSec');
-  const fg = $('#timerFg');
+  // Nameplate no longer hosts a timer ring (☰ shows 計時). Keep hook for deadline ticks.
   const plate = $('#mePlate');
-  const ring = plate?.querySelector('.timer');
   if (leftMs == null) {
-    if (el) el.textContent = '';
-    if (fg) fg.style.strokeDashoffset = '0';
     plate?.classList.remove('is-timing');
-    ring?.setAttribute('hidden', '');
     return;
   }
   plate?.classList.add('is-timing');
-  ring?.removeAttribute('hidden');
-  const sec = Math.ceil(leftMs / 1000);
-  if (el) el.textContent = String(sec);
-  const total = state.config.actionTimeoutMs;
-  const circ = 75.4;
-  if (fg) fg.style.strokeDashoffset = String(circ * (1 - leftMs / total));
 }
 
 /* ─── Keyboard (desktop) ─── */

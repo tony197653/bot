@@ -502,10 +502,15 @@ input[type=range]::-moz-range-thumb{
   font-size:clamp(10px,2.6vw,12px);font-weight:600;line-height:1.25;
   white-space:normal;overflow:visible;word-break:keep-all;
   box-shadow:0 8px 24px #0005;pointer-events:none}
-/* Fallback: sit in the action bar above 下一手 when felt is too crowded */
+/* Above 下一手 — used whenever opponent cards are revealed (safe of felt cards) */
 .table-note.is-bar{
-  position:fixed;left:50%;top:auto;bottom:calc(var(--bar-h) + 8px);
-  transform:translateX(-50%);z-index:16;max-width:min(92vw,360px);
+  position:absolute;left:50%;right:auto;top:auto;bottom:calc(100% + 8px);
+  transform:translateX(-50%);z-index:16;max-width:min(92%,360px);
+  /* parent becomes .act when moved — see placeTableNote */
+}
+.act > .table-note.is-bar{
+  position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);
+  max-width:min(92%,360px);width:max-content;
 }
 
 .card.is-deal{animation:dealIn .45s cubic-bezier(.22,1,.36,1) both}

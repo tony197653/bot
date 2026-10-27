@@ -651,22 +651,16 @@ function auditRevealLayoutInPage({ seatCount }) {
     }
   }
 
-  // Timer ring must not sit on the plate border when not actively timing
+  // No timer ring on the hero nameplate (idle ⊖ sat on the gold border)
   const timerEl = document.querySelector('#mePlate .timer, .meinfo .timer');
   if (timerEl) {
-    const timing = document.querySelector('#mePlate')?.classList.contains('is-timing');
     const cs = getComputedStyle(timerEl);
     const visible =
       !timerEl.hasAttribute('hidden') &&
       cs.display !== 'none' &&
       cs.visibility !== 'hidden' &&
       parseFloat(cs.opacity || '1') > 0.05;
-    if (!timing && visible) {
-      issues.push('hero timer visible while not .is-timing (stray ⊖ on nameplate)');
-    }
-    if (!timing && !timerEl.hasAttribute('hidden')) {
-      issues.push('hero timer missing hidden attr while idle');
-    }
+    if (visible) issues.push('hero nameplate must not show a timer ring');
   }
 
   // No stray chips at table top-left (unplaced bets / FX)
