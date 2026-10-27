@@ -123,6 +123,10 @@ async function checkViewport(browser, url, vp, seatCount) {
     const bets = [...document.querySelectorAll('#bets .bet')].map(box);
     const plates = [...document.querySelectorAll('.seat .plate, .meinfo')].map(box);
     const boardBox = box(board);
+    const potEl = document.querySelector('.pot');
+    const potBox = potEl ? box(potEl) : null;
+    const noteEl = document.querySelector('.table-note');
+    const noteBox = noteEl ? box(noteEl) : null;
 
     // Short Safari toolbars: require clear overlap (pad 0); taller phones keep 3px buffer
     const betPlatePad = window.innerHeight < 700 ? 0 : 3;
@@ -133,6 +137,12 @@ async function checkViewport(browser, url, vp, seatCount) {
         }
       });
       if (overlaps(b, boardBox)) issues.push(`bet[${i}] overlaps board`);
+      if (potBox && (overlaps(b, potBox) || near(b, potBox, 2))) {
+        issues.push(`bet[${i}] overlaps pot`);
+      }
+      if (noteBox && overlaps(b, noteBox)) {
+        issues.push(`bet[${i}] overlaps center note`);
+      }
     });
     const betBetPad = window.innerHeight < 700 ? 0 : 2;
     for (let i = 0; i < bets.length; i++) {
@@ -143,7 +153,7 @@ async function checkViewport(browser, url, vp, seatCount) {
       }
     }
 
-    // Dealer button must be fully visible and clear of plates / bets / cards
+    // Dealer button must be fully visible and clear of plates / bets / pot / note / cards
     const dealerEl = document.getElementById('dealer');
     if (dealerEl && getComputedStyle(dealerEl).display !== 'none') {
       const dBox = box(dealerEl);
@@ -177,10 +187,28 @@ async function checkViewport(browser, url, vp, seatCount) {
         }
       });
       if (overlaps(dBox, boardBox)) issues.push('dealer overlaps board');
+      if (potBox && (overlaps(dBox, potBox) || near(dBox, potBox, 2))) {
+        issues.push('dealer overlaps pot');
+      }
+      if (noteBox && (overlaps(dBox, noteBox) || near(dBox, noteBox, 2))) {
+        issues.push('dealer overlaps center note');
+      }
       for (const card of document.querySelectorAll(
         '#heroHole .card, .mini-hole .card, #board .card',
       )) {
         if (overlaps(dBox, box(card))) issues.push('dealer overlaps card');
+      }
+    }
+
+    // Center note must stay one line and clear of pot
+    if (noteEl && noteBox) {
+      const cs = getComputedStyle(noteEl);
+      if (cs.whiteSpace !== 'nowrap') issues.push('center note not white-space:nowrap');
+      if (noteEl.scrollHeight > noteEl.clientHeight + 2) {
+        issues.push('center note wraps to multiple lines');
+      }
+      if (potBox && (overlaps(noteBox, potBox) || near(noteBox, potBox, 2))) {
+        issues.push('center note overlaps pot');
       }
     }
 
@@ -314,6 +342,156 @@ async function checkViewport(browser, url, vp, seatCount) {
     issues: report.issues,
     boardGaps: report.boardGaps,
     betCount: report.betCount,
+    screenshot: shot,
+  };
+}
+
+/** Fold until hand-over; assert no street bets, one-line note, pot/D/note clear. */
+async function checkHandOver(browser, url, vp, seatCount) {
+  const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
+
+  const rows = page.locator('#playerRows .p-row');
+  const nRows = await rows.count();
+  for (let i = 0; i < nRows; i++) {
+    const row = rows.nth(i);
+    const input = row.locator('input');
+    const disabled = await input.isDisabled();
+    const wantOn = i < seatCount;
+    if (wantOn === disabled) {
+      await row.locator('button[data-toggle]').click();
+    }
+  }
+
+  await page.locator('#timerToggle').uncheck().catch(() => {});
+  await page.click('#btnStart');
+  await page.waitForSelector('#passScreen.is-on', { timeout: 10000 });
+  await page.click('#btnPassOk');
+  await page.waitForTimeout(200);
+
+  // Keep folding until hand_over (or safety cap)
+  for (let step = 0; step < 40; step++) {
+    const phase = await page.evaluate(() => window.__poker?.getState?.()?.phase || '');
+    if (phase === 'hand_over') break;
+    // Clear pass / hand-off overlays
+    const passOn = await page.locator('#passScreen.is-on').count();
+    if (passOn) {
+      await page.click('#btnPassOk').catch(() => {});
+      await page.waitForTimeout(80);
+      continue;
+    }
+    const fold = page.locator('#btnFold:not([disabled])');
+    if (await fold.count()) {
+      await fold.click();
+      await page.waitForTimeout(120);
+      continue;
+    }
+    const check = page.locator('#btnCheck:not([disabled])');
+    if (await check.count()) {
+      await check.click();
+      await page.waitForTimeout(80);
+      continue;
+    }
+    const call = page.locator('#btnCall:not([disabled])');
+    if (await call.count()) {
+      await call.click();
+      await page.waitForTimeout(80);
+      continue;
+    }
+    await page.waitForTimeout(80);
+  }
+
+  await page.evaluate(
+    () =>
+      new Promise((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))),
+      ),
+  );
+  await page.waitForTimeout(400);
+
+  const report = await page.evaluate(() => {
+    const issues = [];
+    const box = (el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+    };
+    const overlaps = (a, b) => {
+      const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      return ox > 0 && oy > 0;
+    };
+    const near = (a, b, pad) => {
+      const ox =
+        Math.min(a.right + pad, b.right + pad) - Math.max(a.left - pad, b.left - pad);
+      const oy =
+        Math.min(a.bottom + pad, b.bottom + pad) - Math.max(a.top - pad, b.top - pad);
+      return ox > 0 && oy > 0;
+    };
+
+    const st = window.__poker?.getState?.();
+    if (st?.phase !== 'hand_over') {
+      issues.push(`expected hand_over, got ${st?.phase || 'none'}`);
+    }
+
+    const bets = [...document.querySelectorAll('#bets .bet')];
+    if (bets.length > 0) {
+      issues.push(`hand-over still has ${bets.length} street bet chip(s) on felt`);
+    }
+
+    const potEl = document.querySelector('.pot');
+    const potBox = potEl ? box(potEl) : null;
+    const dealerEl = document.getElementById('dealer');
+    const dBox =
+      dealerEl && getComputedStyle(dealerEl).display !== 'none' ? box(dealerEl) : null;
+    const noteEl = document.querySelector('.table-note');
+    const noteBox = noteEl ? box(noteEl) : null;
+
+    if (st?.lastHandSummary?.foldWin || (st?.winners?.length === 1 && st.winners[0]?.hand == null)) {
+      if (!noteEl) issues.push('fold-win missing center note');
+    }
+
+    if (noteEl && noteBox) {
+      const cs = getComputedStyle(noteEl);
+      if (cs.whiteSpace !== 'nowrap') issues.push('hand-over note not nowrap');
+      // One visual line: client height ≈ line-height + padding
+      if (noteEl.scrollHeight > noteEl.clientHeight + 2) {
+        issues.push('hand-over note wraps');
+      }
+      if (noteEl.getClientRects().length > 1) {
+        issues.push('hand-over note has multiple client rects');
+      }
+      if (potBox && (overlaps(noteBox, potBox) || near(noteBox, potBox, 2))) {
+        issues.push('hand-over note overlaps pot');
+      }
+      if (dBox && (overlaps(noteBox, dBox) || near(noteBox, dBox, 2))) {
+        issues.push('hand-over note overlaps dealer');
+      }
+    }
+
+    if (potBox && dBox && (overlaps(potBox, dBox) || near(potBox, dBox, 2))) {
+      issues.push('hand-over dealer overlaps pot');
+    }
+
+    return { issues, betCount: bets.length, note: noteEl?.textContent || null };
+  });
+
+  const shot = join(ART, `poker-layout-handover-${vp.name}-seats${seatCount}.png`);
+  await page.screenshot({ path: shot, fullPage: true });
+  await page.close();
+
+  return {
+    kind: 'hand-over',
+    viewport: vp.name,
+    seatCount,
+    errors,
+    issues: report.issues,
+    betCount: report.betCount,
+    note: report.note,
     screenshot: shot,
   };
 }
@@ -678,6 +856,12 @@ async function main() {
       results.push(await checkViewport(browser, url, vp, seats));
     }
   }
+  const handOverResults = [];
+  for (const vp of viewports) {
+    for (let seats = 2; seats <= 6; seats++) {
+      handOverResults.push(await checkHandOver(browser, url, vp, seats));
+    }
+  }
   const scrollResults = [];
   for (const vp of scrollViewports) {
     scrollResults.push(await checkScrollScreens(browser, url, vp));
@@ -691,17 +875,25 @@ async function main() {
   server.close();
 
   const failed = results.filter((r) => r.issues.length || r.errors.length);
+  const handOverFailed = handOverResults.filter((r) => r.issues.length || r.errors.length);
   const scrollFailed = scrollResults.filter((r) => r.issues.length || r.errors.length);
   const betFailed = betPanelResults.filter((r) => r.issues.length || r.errors.length);
   const summary = {
-    ok: failed.length === 0 && scrollFailed.length === 0 && betFailed.length === 0,
+    ok:
+      failed.length === 0 &&
+      handOverFailed.length === 0 &&
+      scrollFailed.length === 0 &&
+      betFailed.length === 0,
     checked: results.length,
     failed: failed.length,
+    handOverChecked: handOverResults.length,
+    handOverFailed: handOverFailed.length,
     scrollChecked: scrollResults.length,
     scrollFailed: scrollFailed.length,
     betPanelChecked: betPanelResults.length,
     betPanelFailed: betFailed.length,
     results,
+    handOverResults,
     scrollResults,
     betPanelResults,
   };

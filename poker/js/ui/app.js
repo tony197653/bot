@@ -483,7 +483,8 @@ function renderTable(v) {
       }`;
     seatsRoot.appendChild(el);
 
-    if (p.bet > 0) {
+    // Hide street bets once the hand is decided — chips slide to winner via FX
+    if (p.bet > 0 && !v.isHandOver && !v.isShowdown) {
       const b = document.createElement('div');
       b.className = 'bet is-in';
       b.dataset.forSeat = String(seat);
@@ -535,8 +536,8 @@ function renderTable(v) {
     }
   }
 
-  // Hero street bet
-  if (hero?.bet > 0) {
+  // Hero street bet (omit after hand decided)
+  if (hero?.bet > 0 && !v.isHandOver && !v.isShowdown) {
     const b = document.createElement('div');
     b.className = 'bet is-in';
     b.dataset.forSeat = String(viewerSeat);
@@ -593,22 +594,22 @@ function maybePlayWinnerFx(v) {
   playWinnerFx({ state, viewerSeat, holdMs: 2000 });
 }
 
-/** Safe chip-rail anchors (% of .table) — inward from seats, clear of board band. */
+/** Safe chip-rail anchors (% of .table) — clear of pot (~35%) and board (~52%). */
 const BET_ANCHOR_PHONE = {
-  0: [50, 30],
-  1: [62, 40],
-  2: [60, 48],
-  3: [40, 48],
-  4: [38, 40],
-  hero: [50, 54],
+  0: [50, 22],
+  1: [70, 36],
+  2: [70, 58],
+  3: [30, 58],
+  4: [30, 36],
+  hero: [50, 66],
 };
 const BET_ANCHOR_DESKTOP = {
-  0: [50, 24],
-  1: [66, 36],
-  2: [66, 56],
-  3: [34, 56],
-  4: [34, 36],
-  hero: [50, 62],
+  0: [50, 18],
+  1: [72, 32],
+  2: [72, 60],
+  3: [28, 60],
+  4: [28, 32],
+  hero: [50, 68],
 };
 
 /** Dealer «D» anchors — near the button seat but inward; nudged clear of plates. */
@@ -636,12 +637,14 @@ const DEALER_ANCHOR_DESKTOP = {
 function layoutBets() {
   const table = document.querySelector('.table');
   const board = $('#board');
+  const potEl = document.querySelector('.pot');
   if (!table) return;
   const t = table.getBoundingClientRect();
   if (t.width < 8 || t.height < 8) return;
   const desktop = window.matchMedia('(min-width: 1024px)').matches;
   const anchors = desktop ? BET_ANCHOR_DESKTOP : BET_ANCHOR_PHONE;
   const boardBox = board?.getBoundingClientRect();
+  const potBox = potEl?.getBoundingClientRect();
   const plates = [...document.querySelectorAll('.seat .plate, .meinfo')].map((el) =>
     el.getBoundingClientRect(),
   );
@@ -670,6 +673,7 @@ function layoutBets() {
   }
 
   const pad = 8;
+  const potPad = 10;
   for (let pass = 0; pass < 18; pass++) {
     for (const p of placed) {
       const box = () => ({
@@ -713,6 +717,20 @@ function layoutBets() {
           p.y += d.dy;
         }
       }
+      // Never cover pot label / amount
+      if (potBox) {
+        const inflated = {
+          left: potBox.left - potPad,
+          top: potBox.top - potPad,
+          right: potBox.right + potPad,
+          bottom: potBox.bottom + potPad,
+        };
+        const d = separationDelta(box(), inflated, 4) || overlapDelta(box(), inflated);
+        if (d) {
+          p.x += d.dx;
+          p.y += d.dy;
+        }
+      }
       for (const q of placed) {
         if (q === p) continue;
         const d = overlapDelta(box(), {
@@ -739,7 +757,7 @@ function layoutBets() {
     }
   }
 
-  // Final separation: plates, peer bets, and board (no pot-bias that walks onto board)
+  // Final separation: plates, peer bets, board, and pot
   for (let fin = 0; fin < 10; fin++) {
     for (const p of placed) {
       const a0 = () => ({ left: p.x, top: p.y, right: p.x + p.w, bottom: p.y + p.h });
@@ -758,6 +776,19 @@ function layoutBets() {
           bottom: boardBox.bottom + 6,
         };
         const d = overlapDelta(a0(), inflated);
+        if (d) {
+          p.x += d.dx;
+          p.y += d.dy;
+        }
+      }
+      if (potBox) {
+        const inflated = {
+          left: potBox.left - potPad,
+          top: potBox.top - potPad,
+          right: potBox.right + potPad,
+          bottom: potBox.bottom + potPad,
+        };
+        const d = separationDelta(a0(), inflated, 6);
         if (d) {
           p.x += d.dx;
           p.y += d.dy;
@@ -815,7 +846,7 @@ function layoutDealer() {
 
   const soft = [
     ...document.querySelectorAll(
-      '.seat .plate, .meinfo, #board, #board .card, #board .slot, #heroHole .card, .mini-hole .card, .seat .av',
+      '.seat .plate, .meinfo, #board, #board .card, #board .slot, #heroHole .card, .mini-hole .card, .seat .av, .pot, .table-note',
     ),
   ].map((el) => el.getBoundingClientRect());
   const betRects = [...document.querySelectorAll('#bets .bet')].map((el) =>

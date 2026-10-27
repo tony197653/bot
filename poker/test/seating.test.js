@@ -177,6 +177,10 @@ describe('蓋牌獲勝中央文案', () => {
     assert.match(note, /贏得/);
     assert.match(note, /其他人蓋牌/);
     assert.ok(s.winnerPayouts);
+    // Street bet markers cleared so UI chips leave the felt
+    for (const p of s.seats.filter(Boolean)) {
+      assert.equal(p.bet, 0, `seat ${p.seat} still has street bet`);
+    }
   });
 
   it('攤牌獲勝不產生蓋牌文案', () => {

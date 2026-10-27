@@ -603,6 +603,9 @@ function awardUncontested(s, seat) {
   s.winners = [{ seats: [seat], amount: total, hand: null }];
   s.winnerPayouts = { [seat]: total };
   s.pots = [];
+  // Street bets are already in contributed/pots — clear markers so UI chips leave the felt
+  for (const sp of seatedPlayers(s)) sp.bet = 0;
+  s.currentBet = 0;
   s.actor = null;
   s.deadline = null;
   s.phase = PHASE.HAND_OVER;
@@ -697,6 +700,8 @@ function goShowdown(s) {
     [...awards.entries()].map(([seat, v]) => [seat, v.amount]),
   );
   s.pots = [];
+  for (const sp of seatedPlayers(s)) sp.bet = 0;
+  s.currentBet = 0;
 
   // Non-winners may muck/show; winners already auto-shown
   const winnerSeats = new Set([...awards.keys()]);

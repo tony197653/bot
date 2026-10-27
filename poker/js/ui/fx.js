@@ -292,6 +292,34 @@ export async function playWinnerFx({ state, viewerSeat, holdMs = 2000 }) {
   const potEl = $('.pot') || table;
   const from = centerOf(potEl, table);
 
+  // Any leftover street-bet chips: fly a clone to the winner, then remove the marker
+  const leftoverBets = [...document.querySelectorAll('#bets .bet')];
+  if (leftoverBets.length && amounts.size) {
+    const firstSeat = amounts.keys().next().value;
+    const winPos = seatVisualPos(firstSeat, viewerSeat);
+    const winAnchor = seatAnchorEl(winPos, viewerSeat) || potEl;
+    const toWin = centerOf(winAnchor, table);
+    for (const bet of leftoverBets) {
+      const start = centerOf(bet, table);
+      const fly = document.createElement('div');
+      fly.className = 'fx-chip-fly';
+      fly.innerHTML = bet.innerHTML;
+      layer.appendChild(fly);
+      if (!prefersReducedMotion()) {
+        animateEl(
+          fly,
+          [
+            { transform: `translate(${start.x}px, ${start.y}px) translate(-50%,-50%)`, opacity: 1 },
+            { transform: `translate(${toWin.x}px, ${toWin.y}px) translate(-50%,-50%) scale(.7)`, opacity: 0.2 },
+          ],
+          { duration: 420, easing: 'cubic-bezier(.18,.75,.22,1)', fill: 'forwards' },
+          signal,
+        ).catch(() => {});
+      }
+      bet.remove();
+    }
+  }
+
   for (const [seat, amt] of amounts) {
     const pos = seatVisualPos(seat, viewerSeat);
     const anchor = seatAnchorEl(pos, viewerSeat);
