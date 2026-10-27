@@ -74,9 +74,14 @@ async function checkViewport(browser, url, vp, seatCount) {
   await page.waitForSelector('#passScreen.is-on', { timeout: 10000 });
   await page.click('#btnPassOk');
   await page.waitForTimeout(200);
-  // Allow bet layout rAF + nudge passes
-  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-  await page.waitForTimeout(150);
+  // Allow bet + dealer layout rAF + nudge passes
+  await page.evaluate(
+    () =>
+      new Promise((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))),
+      ),
+  );
+  await page.waitForTimeout(180);
 
   const report = await page.evaluate(() => {
     const issues = [];
@@ -126,6 +131,38 @@ async function checkViewport(browser, url, vp, seatCount) {
         if (overlaps(bets[i], bets[j]) || near(bets[i], bets[j], 2)) {
           issues.push(`bet[${i}] overlaps bet[${j}]`);
         }
+      }
+    }
+
+    // Dealer button must be fully visible and clear of plates / bets / cards
+    const dealerEl = document.getElementById('dealer');
+    if (dealerEl && getComputedStyle(dealerEl).display !== 'none') {
+      const dBox = box(dealerEl);
+      const tableBox = box(document.querySelector('.table'));
+      // Fully inside the table (not clipped by overflow)
+      if (
+        dBox.left < tableBox.left - 1 ||
+        dBox.top < tableBox.top - 1 ||
+        dBox.right > tableBox.right + 1 ||
+        dBox.bottom > tableBox.bottom + 1
+      ) {
+        issues.push('dealer button clipped outside .table');
+      }
+      plates.forEach((p, j) => {
+        if (overlaps(dBox, p) || near(dBox, p, 2)) {
+          issues.push(`dealer overlaps/covers plate[${j}]`);
+        }
+      });
+      bets.forEach((b, i) => {
+        if (overlaps(dBox, b) || near(dBox, b, 2)) {
+          issues.push(`dealer overlaps bet[${i}]`);
+        }
+      });
+      if (overlaps(dBox, boardBox)) issues.push('dealer overlaps board');
+      for (const card of document.querySelectorAll(
+        '#heroHole .card, .mini-hole .card, #board .card',
+      )) {
+        if (overlaps(dBox, box(card))) issues.push('dealer overlaps card');
       }
     }
 

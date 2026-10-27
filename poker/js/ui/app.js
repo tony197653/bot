@@ -323,24 +323,11 @@ function renderTable(v) {
     }
   }
 
-  // Dealer button
+  // Dealer button — final % set in layoutDealer() after seats/bets paint
   const dealer = $('#dealer');
   const btnPos = seatToPos.get(v.button);
-  if (btnPos === 'hero' || v.button === viewerSeat) {
-    dealer.style.setProperty('--x', '58%');
-    dealer.style.setProperty('--y', '86%');
-  } else {
-    const map = {
-      0: [50, 18],
-      1: [80, 34],
-      2: [78, 74],
-      3: [22, 74],
-      4: [20, 34],
-    };
-    const [x, y] = map[btnPos] || [50, 50];
-    dealer.style.setProperty('--x', x + '%');
-    dealer.style.setProperty('--y', y + '%');
-  }
+  dealer.dataset.pos = btnPos === 'hero' || v.button === viewerSeat ? 'hero' : String(btnPos);
+  dealer.dataset.forSeat = String(v.button);
 
   // Hero
   const hero = v.seats[viewerSeat];
@@ -365,8 +352,11 @@ function renderTable(v) {
     betsRoot.appendChild(b);
   }
 
-  // Place bets after layout so they clear name plates / board / each other
-  requestAnimationFrame(() => layoutBets());
+  // Place bets + dealer after layout so they clear plates / board / cards
+  requestAnimationFrame(() => {
+    layoutBets();
+    layoutDealer();
+  });
 }
 
 /** Safe chip-rail anchors (% of .table) — inward from seats, clear of board band. */
@@ -385,6 +375,24 @@ const BET_ANCHOR_DESKTOP = {
   3: [30, 64],
   4: [32, 34],
   hero: [50, 72],
+};
+
+/** Dealer «D» anchors — near the button seat but inward; nudged clear of plates. */
+const DEALER_ANCHOR_PHONE = {
+  0: [58, 19],
+  1: [80, 38],
+  2: [80, 66],
+  3: [20, 66],
+  4: [20, 38],
+  hero: [64, 84],
+};
+const DEALER_ANCHOR_DESKTOP = {
+  0: [58, 18],
+  1: [82, 36],
+  2: [80, 70],
+  3: [20, 70],
+  4: [18, 36],
+  hero: [62, 86],
 };
 
 /**
@@ -470,6 +478,96 @@ function layoutBets() {
       p.w = br.width;
       p.h = br.height;
     }
+  }
+}
+
+/**
+ * Place the dealer button fully visible: start near the button seat,
+ * then nudge clear of plates, bets, board, and hole cards.
+ */
+function layoutDealer() {
+  const table = document.querySelector('.table');
+  const dealer = $('#dealer');
+  if (!table || !dealer) return;
+  const t = table.getBoundingClientRect();
+  if (t.width < 8 || t.height < 8) return;
+
+  const desktop = window.matchMedia('(min-width: 1024px)').matches;
+  const anchors = desktop ? DEALER_ANCHOR_DESKTOP : DEALER_ANCHOR_PHONE;
+  const key = dealer.dataset.pos || 'hero';
+  const [px, py] = anchors[key] || anchors.hero;
+  dealer.style.left = `${px}%`;
+  dealer.style.top = `${py}%`;
+
+  const seatId = dealer.dataset.forSeat;
+  const anchorEl =
+    key === 'hero'
+      ? document.querySelector('.meinfo')
+      : document.querySelector(`.seat[data-seat="${seatId}"] .plate`);
+
+  const soft = [
+    ...document.querySelectorAll(
+      '.seat .plate, .meinfo, #board, #board .card, #board .slot, #heroHole .card, .mini-hole .card, .seat .av',
+    ),
+  ].map((el) => el.getBoundingClientRect());
+  const betRects = [...document.querySelectorAll('#bets .bet')].map((el) =>
+    el.getBoundingClientRect(),
+  );
+
+  // Prefer beside the plate (tangent), especially when button seat also posted a bet
+  if (anchorEl) {
+    const ar = anchorEl.getBoundingClientRect();
+    const ax = ar.left + ar.width / 2;
+    const ay = ar.top + ar.height / 2;
+    const cx = t.left + t.width / 2;
+    const cy = t.top + t.height * 0.42;
+    const rx = cx - ax;
+    const ry = cy - ay;
+    const len = Math.hypot(rx, ry) || 1;
+    const tx = -ry / len;
+    const ty = rx / len;
+    const br0 = dealer.getBoundingClientRect();
+    const side = betRects.length ? 1 : 0.75;
+    let x = ax + tx * (ar.width * 0.5 + br0.width) * side;
+    let y = ay + ty * (ar.height * 0.35 + br0.height * 0.45) * side;
+    x += (rx / len) * (betRects.length ? 8 : 14);
+    y += (ry / len) * (betRects.length ? 8 : 14);
+    dealer.style.left = `${((x - t.left) / t.width) * 100}%`;
+    dealer.style.top = `${((y - t.top) / t.height) * 100}%`;
+  }
+
+  const pad = 4;
+  const betPad = 6;
+  for (let pass = 0; pass < 14; pass++) {
+    const br = dealer.getBoundingClientRect();
+    let x = br.left;
+    let y = br.top;
+    const w = br.width;
+    const h = br.height;
+    const mk = (p) => ({
+      left: x - p,
+      top: y - p,
+      right: x + w + p,
+      bottom: y + h + p,
+    });
+    for (const ob of soft) {
+      const d = overlapDelta(mk(pad), ob);
+      if (d) {
+        x += d.dx;
+        y += d.dy;
+      }
+    }
+    for (const ob of betRects) {
+      const d = overlapDelta(mk(betPad), ob);
+      if (d) {
+        x += d.dx;
+        y += d.dy;
+      }
+    }
+    x = clamp(x, t.left + 2, t.right - w - 2);
+    y = clamp(y, t.top + 2, t.bottom - h - 2);
+    dealer.style.left = `${((x + w / 2 - t.left) / t.width) * 100}%`;
+    dealer.style.top = `${((y + h / 2 - t.top) / t.height) * 100}%`;
   }
 }
 
