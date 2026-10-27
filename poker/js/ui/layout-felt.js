@@ -388,7 +388,7 @@ export function placeTableNote() {
   const revealHoles = [...document.querySelectorAll('.reveal-hole')];
 
   // When opponent cards are revealed, park the note in a fixed strip above #act
-  // (above 下一手) so it cannot graze side-seat cards or the hero plate.
+  // (above 下一手), narrow + clear of hero plate AND every revealed card.
   if (revealHoles.length > 0) {
     const tableEl = document.querySelector('.table');
     if (tableEl && note.parentElement !== tableEl) tableEl.appendChild(note);
@@ -396,26 +396,36 @@ export function placeTableNote() {
     note.style.left = '';
     note.style.top = '';
     note.style.transform = '';
-    note.style.maxWidth = '';
-    // Nudge up further if it still hits the hero plate / hole cards
-    const heroBits = [
-      ...document.querySelectorAll('#meRoot .meinfo, #heroHole .card, #meRoot .win-badge'),
+    note.style.maxWidth = '150px';
+    const blockers = [
+      ...document.querySelectorAll(
+        '#meRoot .meinfo, #heroHole .card, #meRoot .win-badge, .reveal-hole, .reveal-hole .card',
+      ),
     ].map((el) => el.getBoundingClientRect());
-    let bottom = null;
-    for (let i = 0; i < 8; i++) {
-      const nb = note.getBoundingClientRect();
-      let hit = false;
-      for (const o of heroBits) {
+    const hits = (nb, pad = 8) => {
+      for (const o of blockers) {
         const ox = Math.min(nb.right, o.right) - Math.max(nb.left, o.left);
         const oy = Math.min(nb.bottom, o.bottom) - Math.max(nb.top, o.top);
-        if (ox > 2 && oy > 2) {
-          hit = true;
-          break;
-        }
+        if (ox > pad && oy > pad) return true;
       }
-      if (!hit) break;
-      bottom = (bottom ?? (parseFloat(getComputedStyle(note).bottom) || 88)) + 14;
+      return false;
+    };
+    // Prefer just above the action bar; only rise if something collides
+    let bottom = parseFloat(getComputedStyle(note).bottom) || 88;
+    note.style.bottom = `${bottom}px`;
+    for (let i = 0; i < 16; i++) {
+      if (!hits(note.getBoundingClientRect(), 8)) break;
+      bottom += 12;
       note.style.bottom = `${bottom}px`;
+    }
+    // If still colliding after rising (crowded mid-felt), shrink further
+    if (hits(note.getBoundingClientRect(), 8)) {
+      note.style.maxWidth = '120px';
+      for (let i = 0; i < 10; i++) {
+        if (!hits(note.getBoundingClientRect(), 8)) break;
+        bottom += 10;
+        note.style.bottom = `${bottom}px`;
+      }
     }
     return { ok: true, issues: [] };
   }
