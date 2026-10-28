@@ -649,9 +649,18 @@ function renderTable(v) {
   const potEl = document.querySelector('.pot');
   if (dealingSetup) {
     potEl?.classList.add('is-pending');
-    $('#potAmt').textContent = '0';
+    if (potEl) {
+      potEl.style.opacity = '';
+      potEl.style.visibility = '';
+    }
+    // Keep amount blank while pending — never show a stuck "0" chip label
+    $('#potAmt').textContent = '';
   } else {
     potEl?.classList.remove('is-pending');
+    if (potEl) {
+      potEl.style.opacity = '';
+      potEl.style.visibility = '';
+    }
     $('#potAmt').textContent = fmtChips(v.potTotal);
   }
   if ($('#potSub')) $('#potSub').textContent = '';

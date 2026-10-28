@@ -77,73 +77,123 @@ async function configureLobby(page, seatCount, timerOn = true) {
   } else if (await t.isChecked()) await t.uncheck();
 }
 
-async function sampleDeal(page, { label, maxMs = 4500 }) {
+async function sampleDeal(page, { label, maxMs = 5000, stepMs = 150 }) {
   const bursts = [];
   const checklist = {
     label,
     sawDeck: false,
+    deckLeafCount: 0,
     sawFlyingCard: false,
     sawOpaqueFlight: false,
     sawBlindStay: false,
     potBeforeBlind: false,
+    potShowedZero: false,
+    potFinalOk: false,
+    strayAtOrigin: false,
+    straySamples: [],
     actLocked: false,
     passAfterDeal: false,
     heroBacksNoFace: false,
     samples: 0,
   };
-  const deadline = Date.now() + maxMs;
-  while (Date.now() < deadline) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < maxMs) {
     const snap = await page.evaluate(() => {
+      const table = document.querySelector('.table');
+      const tBox = table?.getBoundingClientRect();
       const dealing = document.documentElement.classList.contains('is-dealing');
       const deck = document.querySelector('.fx-deck');
+      const deckLeaves = deck ? deck.querySelectorAll('i').length : 0;
       const cards = [...document.querySelectorAll('.fx-deal-card')];
-      const chips = document.querySelectorAll('.fx-chip-fly').length;
+      const chips = [...document.querySelectorAll('.fx-chip-fly')];
       const betsVisible = [...document.querySelectorAll('#bets .bet:not(.is-pending)')].length;
-      const potPending = document.querySelector('.pot')?.classList.contains('is-pending');
+      const pot = document.querySelector('.pot');
+      const potPending = pot?.classList.contains('is-pending');
+      const potVis = pot ? getComputedStyle(pot).visibility !== 'hidden' && parseFloat(getComputedStyle(pot).opacity) > 0.05 : false;
+      const potAmt = document.querySelector('#potAmt')?.textContent?.trim() || '';
       const actLocked = document.getElementById('act')?.classList.contains('is-deal-locked');
       const passOn = !!document.querySelector('#passScreen.is-on');
-      const heroFace = !!document.querySelector('#heroHole .card:not(.is-back):not(.is-flipping) .rk, #heroHole .card.hero:not(.is-back) .rk');
+      const heroFace = !!document.querySelector(
+        '#heroHole .card:not(.is-back):not(.is-flipping) .rk, #heroHole .card.hero:not(.is-back) .rk',
+      );
       const heroBack = document.querySelectorAll('#heroHole .card.is-back').length;
-      const opaque = cards.every((c) => {
-        const op = parseFloat(getComputedStyle(c).opacity);
-        return op >= 0.99;
-      });
+      const opaque =
+        cards.length === 0
+          ? null
+          : cards.every((c) => parseFloat(getComputedStyle(c).opacity) >= 0.99);
+
+      // Any FX node whose center is near viewport/table origin (stray 0,0)
+      const strays = [];
+      for (const el of [...cards, ...chips, deck].filter(Boolean)) {
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) continue;
+        const op = parseFloat(getComputedStyle(el).opacity);
+        if (op < 0.05) continue;
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        // Screen top-left OR relative to table top-left without being on-deck
+        const nearScreenOrigin = cx < 40 && cy < 60;
+        const nearTableOrigin =
+          tBox && cx < tBox.left + 36 && cy < tBox.top + 36 && !(deck && el === deck);
+        if (nearScreenOrigin || nearTableOrigin) {
+          strays.push({
+            cls: el.className,
+            cx: Math.round(cx),
+            cy: Math.round(cy),
+            w: Math.round(r.width),
+            h: Math.round(r.height),
+          });
+        }
+      }
+
       return {
         dealing,
         hasDeck: !!deck,
+        deckLeaves,
         fxCards: cards.length,
-        fxChips: chips,
+        fxChips: chips.length,
         betsVisible,
         potPending: !!potPending,
+        potVis,
+        potAmt,
         actLocked: !!actLocked,
         passOn,
         heroFace,
         heroBack,
-        opaque: cards.length ? opaque : null,
+        opaque,
+        strays,
         t: performance.now(),
       };
     });
-    if (snap.hasDeck) checklist.sawDeck = true;
+
+    if (snap.hasDeck) {
+      checklist.sawDeck = true;
+      checklist.deckLeafCount = Math.max(checklist.deckLeafCount, snap.deckLeaves);
+    }
     if (snap.fxCards > 0) {
       checklist.sawFlyingCard = true;
       if (snap.opaque) checklist.sawOpaqueFlight = true;
     }
     if (snap.betsVisible > 0 && snap.dealing) checklist.sawBlindStay = true;
-    if (!snap.potPending && snap.betsVisible === 0 && snap.dealing && snap.fxCards === 0 && snap.t < 800) {
-      checklist.potBeforeBlind = true;
+    if (snap.potVis && snap.betsVisible === 0 && snap.dealing) checklist.potBeforeBlind = true;
+    if (snap.potVis && snap.potAmt === '0') checklist.potShowedZero = true;
+    if (snap.potVis && snap.potAmt && snap.potAmt !== '0') checklist.potFinalOk = true;
+    if (snap.strays?.length) {
+      checklist.strayAtOrigin = true;
+      checklist.straySamples.push({ t: snap.t, strays: snap.strays });
     }
     if (snap.actLocked) checklist.actLocked = true;
     if (snap.passOn) {
       checklist.passAfterDeal = true;
       if (snap.heroBack >= 2 && !snap.heroFace) checklist.heroBacksNoFace = true;
     }
-    if (snap.dealing || snap.fxCards || snap.fxChips) {
+    if (snap.dealing || snap.fxCards || snap.fxChips || snap.hasDeck) {
       const buf = await page.screenshot({ type: 'png' });
       bursts.push({ ...snap, buf });
       checklist.samples += 1;
     }
-    if (snap.passOn && bursts.length >= 8) break;
-    await page.waitForTimeout(80);
+    if (snap.passOn && bursts.length >= 10) break;
+    await page.waitForTimeout(stepMs);
   }
   return { bursts, checklist };
 }

@@ -7,7 +7,7 @@
 
 import { dealOrderFromSb, seatVisualPos } from './seating.js';
 import { fmtChips } from './cards-dom.js';
-import { foldWinCenterNote as foldWinNoteFromEngine } from '../engine/index.js';
+import { foldWinCenterNote as foldWinNoteFromEngine, totalPot } from '../engine/index.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 
@@ -340,6 +340,40 @@ function revealPending(el) {
   el.style.opacity = '1';
 }
 
+/** Spec E2: reveal pot only after BB lands; amount is real total (never stuck at 0). */
+async function showPotAfterBlinds(state, signal) {
+  const pot = document.querySelector('.pot');
+  const potAmt = document.querySelector('#potAmt');
+  const target = totalPot(state);
+  if (potAmt) potAmt.textContent = '0';
+  if (pot) {
+    pot.classList.remove('is-pending');
+    pot.style.visibility = 'visible';
+    pot.style.opacity = '0';
+    trackAnim(
+      pot.animate(
+        [
+          { opacity: 0, transform: 'translate(-50%,-50%) scale(.9)' },
+          { opacity: 1, transform: 'translate(-50%,-50%) scale(1)' },
+        ],
+        { duration: DEAL_FX.potInMs, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' },
+      ),
+    );
+  }
+  if (potAmt) {
+    try {
+      await countText(potAmt, 0, target, DEAL_FX.potCountMs, signal);
+    } catch {
+      potAmt.textContent = fmtChips(target);
+    }
+    // Guarantee final amount even if rAF count was skipped
+    potAmt.textContent = fmtChips(target);
+  }
+  if (pot) {
+    pot.style.opacity = '1';
+  }
+}
+
 function snapDealFinal({ occupied, viewerSeat, state }) {
   // Reveal all cards, bets, pot; remove FX; keep act locked
   document.querySelectorAll('.backs i.is-pending, #heroHole .card.is-pending').forEach(revealPending);
@@ -355,7 +389,7 @@ function snapDealFinal({ occupied, viewerSeat, state }) {
     pot.style.transform = '';
   }
   const potAmt = document.querySelector('#potAmt');
-  if (potAmt) potAmt.textContent = fmtChips(state.potTotal ?? 0);
+  if (potAmt) potAmt.textContent = fmtChips(totalPot(state));
   for (const seat of occupied) {
     const pos = seatVisualPos(seat, viewerSeat);
     const stack = stackElForSeat(seat, viewerSeat, pos);
@@ -477,24 +511,34 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
       );
     }
 
-    // B) Deck enter
+    // B) Deck enter — 3 offset leaves so it reads as a STACK, never a flat card
     const deck = document.createElement('div');
     deck.className = 'fx-deck';
     deck.setAttribute('aria-hidden', 'true');
     deck.style.width = `${dSize.w}px`;
     deck.style.height = `${dSize.h}px`;
+    // Spec §5.1: offsets (0,0), (-1,-1.5), (-2,-3) — exaggerate slightly for phone readability
+    const leafOff = [
+      [0, 0],
+      [-1.5, -2],
+      [-3, -4],
+    ];
     for (let i = 0; i < 3; i++) {
       const leaf = document.createElement('i');
-      leaf.style.transform = `translate(${-i}px, ${-i * 1.5}px)`;
+      leaf.style.transform = `translate(${leafOff[i][0]}px, ${leafOff[i][1]}px)`;
+      leaf.style.zIndex = String(3 - i);
       deck.appendChild(leaf);
     }
+    // Position BEFORE append so nothing flashes at layer (0,0)
+    const deckAt = `translate(${deckOrigin.x}px, ${deckOrigin.y}px) translate(-50%,-50%)`;
+    deck.style.transform = `${deckAt} scale(.92)`;
+    deck.style.opacity = '0';
     layer.appendChild(deck);
-    deck.style.transform = `translate(${deckOrigin.x}px, ${deckOrigin.y}px) translate(-50%,-50%)`;
     trackAnim(
       deck.animate(
         [
           { transform: `translate(${deckOrigin.x}px, ${deckOrigin.y + 8}px) translate(-50%,-50%) scale(.92)`, opacity: 0 },
-          { transform: `translate(${deckOrigin.x}px, ${deckOrigin.y}px) translate(-50%,-50%) scale(1)`, opacity: 1 },
+          { transform: `${deckAt} scale(1)`, opacity: 1 },
         ],
         { duration: DEAL_FX.deckInMs, fill: 'forwards', easing: 'cubic-bezier(.2,.8,.2,1)' },
       ),
@@ -623,6 +667,9 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
       chip.className = 'fx-chip-fly';
       chip.style.zIndex = '3';
       chip.innerHTML = `<span class="chips${blue}"><i class="a"></i></span>`;
+      // Pin at origin BEFORE append — never flash at fx-layer (0,0)
+      chip.style.transform = `translate(${from.x}px, ${from.y}px) translate(-50%,-50%) scale(.85)`;
+      chip.style.opacity = '0';
       layer.appendChild(chip);
       const anim = trackAnim(
         chip.animate(
@@ -677,50 +724,17 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
       blindJobs.push(
         (async () => {
           await runBlind(state.bbSeat, DEAL_FX.blindBbAt);
-          // Spec E2: pot only after BB settle completes
+          // Spec E2: pot only after BB settle completes — never flash amount 0
           await wait(DEAL_FX.blindSettleMs, signal);
-          const pot = document.querySelector('.pot');
-          const potAmt = document.querySelector('#potAmt');
-          if (pot) {
-            pot.classList.remove('is-pending');
-            pot.style.opacity = '1';
-            trackAnim(
-              pot.animate(
-                [
-                  { opacity: 0, transform: 'translate(-50%,-50%) scale(.9)' },
-                  { opacity: 1, transform: 'translate(-50%,-50%) scale(1)' },
-                ],
-                { duration: DEAL_FX.potInMs, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' },
-              ),
-            );
-          }
-          if (potAmt) {
-            const target = state.potTotal ?? 0;
-            potAmt.textContent = '0';
-            countText(potAmt, 0, target, DEAL_FX.potCountMs, signal).catch(() => {});
-          }
+          await showPotAfterBlinds(state, signal);
         })(),
       );
     } else if (state.sbSeat != null) {
       // HU: SB is button; still show pot after SB blind settle
       blindJobs.push(
         (async () => {
-          await wait(DEAL_FX.blindSbAt + DEAL_FX.blindMs, signal);
-          const pot = document.querySelector('.pot');
-          if (pot) {
-            pot.classList.remove('is-pending');
-            trackAnim(
-              pot.animate(
-                [
-                  { opacity: 0, transform: 'translate(-50%,-50%) scale(.9)' },
-                  { opacity: 1, transform: 'translate(-50%,-50%) scale(1)' },
-                ],
-                { duration: DEAL_FX.potInMs, fill: 'forwards' },
-              ),
-            );
-          }
-          const potAmt = document.querySelector('#potAmt');
-          if (potAmt) countText(potAmt, 0, state.potTotal ?? 0, DEAL_FX.potCountMs, signal).catch(() => {});
+          await wait(DEAL_FX.blindSbAt + DEAL_FX.blindMs + DEAL_FX.blindSettleMs, signal);
+          await showPotAfterBlinds(state, signal);
         })(),
       );
     }
@@ -755,8 +769,15 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
       card.className = 'fx-deal-card';
       card.style.width = `${tw}px`;
       card.style.height = `${to.h || (isHero ? 72 : 28)}px`;
-      card.style.opacity = '0';
       card.innerHTML = '<span class="fx-shadow"></span>';
+      // CRITICAL: pin at deck origin BEFORE append.
+      // fill:'forwards' alone leaves the node at layer (0,0) during `delay`,
+      // which painted a huge hero-sized card over the header (週五牌局).
+      const atDeck =
+        `translate(${from.x}px, ${from.y}px) translate(-50%,-50%) ` +
+        `rotate(${thetaStart}deg) scale(${s0})`;
+      card.style.transform = atDeck;
+      card.style.opacity = '1';
       layer.appendChild(card);
 
       const frames = arcKeyframes(from, to, {
@@ -769,19 +790,18 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
         lift: 0.08,
         overshoot: 2,
       });
-      // Start invisible until delay via fill backwards + first frame opacity 1
-      card.style.opacity = '1';
 
       cardJobs.push(
         (async () => {
           // Re-query target at flight start in case DOM shifted
           const liveTarget = targetCardEl(pos, round) || target;
+          // fill:'both' = apply first keyframe during delay (stay on deck), keep end after
           const anim = trackAnim(
             card.animate(frames, {
               delay,
               duration: F,
               easing: 'cubic-bezier(.2, .75, .25, 1)',
-              fill: 'forwards',
+              fill: 'both',
             }),
           );
           const sh = card.querySelector('.fx-shadow');
@@ -791,7 +811,7 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
                 delay,
                 duration: F,
                 easing: 'linear',
-                fill: 'forwards',
+                fill: 'both',
               }),
             );
           }
