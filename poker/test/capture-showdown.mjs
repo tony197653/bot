@@ -121,16 +121,18 @@ async function sampleShowdown(page, { maxMs = 16000, stepMs = 100, untilPause = 
         pauseButtons = document.querySelectorAll('#pauseScreen button.pause-ready, #pauseScreen .pause-ok-mark').length > 0;
       }
       const toastOn = !!document.querySelector('#toast.is-on');
-      // Chip overlapping stack text?
+      // Settled chip covering stack text? (ignore mid-flight crossings)
       let chipOverStack = false;
       for (const chip of chips) {
         const cr = chip.getBoundingClientRect();
-        if (cr.width < 2 || parseFloat(getComputedStyle(chip).opacity) < 0.2) continue;
+        const op = parseFloat(getComputedStyle(chip).opacity);
+        if (cr.width < 2 || op < 0.85) continue;
         for (const st of document.querySelectorAll('.ch, .st, #heroChips')) {
           const sr = st.getBoundingClientRect();
           const ox = Math.max(0, Math.min(cr.right, sr.right) - Math.max(cr.left, sr.left));
           const oy = Math.max(0, Math.min(cr.bottom, sr.bottom) - Math.max(cr.top, sr.top));
-          if (ox > 8 && oy > 8) chipOverStack = true;
+          // Require substantial coverage of the stack glyphs
+          if (ox > sr.width * 0.45 && oy > sr.height * 0.45) chipOverStack = true;
         }
       }
       const strays = [];

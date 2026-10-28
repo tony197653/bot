@@ -309,12 +309,12 @@ function chipLandPoint(pos, table) {
   const plateBox = plate ? centerOf(plate, table) : base;
   if (pos === 'hero') {
     // Right of hero stack digits, clear of the number
-    return { x: base.x + Math.max(42, (base.w || 0) + 20), y: base.y + 2 };
+    return { x: base.x + Math.max(48, (base.w || 0) + 28), y: base.y + 4 };
   }
-  // Just below the nameplate cluster (not on the .ch text)
+  // Below-left of nameplate so amount isn't sitting on ".ch" digits
   return {
-    x: plateBox.x,
-    y: plateBox.y + Math.max(36, (plateBox.h || 0) * 0.55 + 16),
+    x: plateBox.x - Math.min(24, (plateBox.w || 40) * 0.2),
+    y: plateBox.y + Math.max(44, (plateBox.h || 0) * 0.62 + 20),
   };
 }
 
