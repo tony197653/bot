@@ -579,18 +579,53 @@ function auditRevealLayoutInPage({ seatCount }) {
     if (cards.length < 2) {
       issues.push(`reveal cards do not fit at seat ${seat} (expected 2 cards)`);
     }
-    const holeBox = box(hole);
     if (plate) {
       const pb = box(plate);
-      // Reveals must sit above the nameplate (bottom of cards ≤ top of plate + 2px)
-      if (holeBox.bottom > pb.top + 2) {
-        issues.push(
-          `seat ${seat} reveal covers nameplate (reveal.bottom=${holeBox.bottom.toFixed(1)} plate.top=${pb.top.toFixed(1)})`,
-        );
-      }
+      // Reveals may sit above OR rail-beside the plate — never overlap it
       for (const card of cards) {
         if (overlaps(box(card), pb)) {
           issues.push(`seat ${seat} reveal card overlaps nameplate`);
+        }
+      }
+      if (overlaps(box(hole), pb)) {
+        issues.push(`seat ${seat} reveal-hole overlaps nameplate`);
+      }
+    }
+
+    // Reveals / WIN must never cover community cards or the pot
+    const boardCards = [...document.querySelectorAll('#board .card')];
+    const potEl = document.querySelector('.pot');
+    const winBadge = seatEl.querySelector('.win-badge');
+    for (const card of cards) {
+      const cb = box(card);
+      for (const bc of boardCards) {
+        if (overlaps(cb, box(bc))) {
+          issues.push(`seat ${seat} reveal overlaps board card`);
+        }
+      }
+      if (potEl && overlaps(cb, box(potEl))) {
+        issues.push(`seat ${seat} reveal overlaps pot`);
+      }
+    }
+    if (winBadge) {
+      const wb = box(winBadge);
+      for (const bc of boardCards) {
+        if (overlaps(wb, box(bc))) {
+          issues.push(`seat ${seat} WIN badge overlaps board card`);
+        }
+      }
+      if (potEl && overlaps(wb, box(potEl))) {
+        issues.push(`seat ${seat} WIN badge overlaps pot`);
+      }
+      for (const other of document.querySelectorAll('.seat[data-seat]')) {
+        if (other === seatEl) continue;
+        const op = other.querySelector('.plate, .plateA');
+        if (op && overlaps(wb, box(op))) {
+          issues.push(`seat ${seat} WIN badge overlaps other nameplate`);
+        }
+        const oh = other.querySelector('.reveal-hole');
+        if (oh && overlaps(wb, box(oh))) {
+          issues.push(`seat ${seat} WIN badge overlaps other reveal`);
         }
       }
     }
@@ -879,6 +914,37 @@ async function checkRaisePanel(browser, url, vp) {
   };
 }
 
+async function forceAllRevealPresentation(page, seatCount) {
+  return page.evaluate((n) => {
+    const api = window.__poker;
+    if (!api?.forcePresentationShowdown) return { ok: false, error: 'no forcePresentationShowdown' };
+    try {
+      // Ensure lobby seat count already matches; inject all-reveal with board
+      api.forcePresentationShowdown('allReveal');
+      api.cancelAutoNext?.();
+      // Skip FX wait: force faces + glow for layout audit
+      const st = api.getState();
+      const occ = st.seats.map((p, i) => (p ? i : null)).filter((x) => x != null);
+      for (const seat of occ) {
+        if (typeof api.debugFlipSeat === 'function') api.debugFlipSeat(seat);
+      }
+      // Mark every seat flipped via public helpers if present
+      if (api.setState) {
+        /* faces come from revealUiArmed path after force */
+      }
+      return {
+        ok: true,
+        phase: api.getState().phase,
+        occupied: occ.length,
+        board: (api.getState().board || []).length,
+        want: n,
+      };
+    } catch (e) {
+      return { ok: false, error: String(e.message || e) };
+    }
+  }, seatCount);
+}
+
 async function checkShowdownReveal(browser, url, vp, seatCount) {
   const page = await browser.newPage({ viewport: { width: vp.w, height: vp.h } });
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -891,11 +957,33 @@ async function checkShowdownReveal(browser, url, vp, seatCount) {
   await configureLobby(page, seatCount);
   await startTable(page);
 
-  const setup = await forceAllSeatsRevealed(page);
+  // Prefer deterministic all-reveal (with board) so we can assert vs community cards
+  let setup = await forceAllRevealPresentation(page, seatCount);
+  if (!setup.ok) {
+    setup = await forceAllSeatsRevealed(page);
+  }
   if (!setup.ok) issues.push(`showdown setup: ${setup.error || 'failed'}`);
+  await page.evaluate(() => {
+    window.__poker?.cancelAutoNext?.();
+    // Ensure reveal faces are painted: re-enter after force by flipping seats in DOM path
+    const api = window.__poker;
+    const st = api?.getState?.();
+    if (!st || !api) return;
+    // Trigger render with faces: set viewer and rely on revealed map + armed UI
+    api.setViewer?.(api.getViewer?.() ?? 0);
+  });
+  // Wait for showdown FX / hold so reveals + optional WIN badges settle
+  await page.waitForTimeout(1200);
   await page.evaluate(() => window.__poker?.cancelAutoNext?.());
   await waitFrames(page, 3);
-  await page.waitForTimeout(280);
+  await page.waitForTimeout(200);
+  // Re-run rail-side layout after FX badges mount
+  await page.evaluate(() => {
+    // force a layout pass via resize-ish re-render
+    window.__poker?.setViewer?.(window.__poker.getViewer());
+  });
+  await waitFrames(page, 2);
+  await page.waitForTimeout(120);
 
   const reveal = await page.evaluate(auditRevealLayoutInPage, { seatCount });
   issues.push(...reveal.issues);

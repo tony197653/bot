@@ -494,4 +494,218 @@ export function placeTableNote() {
   return { ok: issues.length === 0, issues };
 }
 
+function overlapsPad(a, b, pad = 0) {
+  const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+  const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+  return ox > pad && oy > pad;
+}
+
+function seatPosClass(seatEl) {
+  const m = [...seatEl.classList].find((c) => /^pos-\d$/.test(c));
+  return m ? Number(m.slice(4)) : 0;
+}
+
+/**
+ * Park opponent reveal-holes (+ WIN badges) clear of the board, pot, plates,
+ * and each other. Side seats prefer the rail-outward side of the nameplate;
+ * top seat stays above. Never changes bet-chip placement.
+ */
+export function placeShowdownReveals() {
+  const stage = document.querySelector('.stage');
+  const table = document.querySelector('.table');
+  if (!stage || !table) return { ok: false, issues: ['no stage'] };
+
+  const holes = [...document.querySelectorAll('.seat[data-seat] .reveal-hole')];
+  if (!holes.length) return { ok: true, issues: [] };
+
+  const stageBox = stage.getBoundingClientRect();
+  const pad = 2;
+  const gap = 4;
+
+  /** @type {{ hole: HTMLElement, seat: HTMLElement, pos: number, w: number, h: number, left: number, top: number, badge: HTMLElement|null }[]} */
+  const items = [];
+
+  for (const hole of holes) {
+    const seat = hole.closest('.seat');
+    if (!seat) continue;
+    const plate = seat.querySelector('.plateA, .plate');
+    if (!plate) continue;
+    // Clear prior nudges so measurement uses natural size
+    hole.style.left = '';
+    hole.style.top = '';
+    hole.style.right = '';
+    hole.style.bottom = '';
+    hole.style.transform = '';
+    hole.style.margin = '';
+    hole.style.position = 'absolute';
+
+    const pb = plate.getBoundingClientRect();
+    // Force layout with absolute so width is measurable beside the plate
+    hole.style.left = '0';
+    hole.style.top = '0';
+    const hb = hole.getBoundingClientRect();
+    const w = Math.max(hb.width, 1);
+    const h = Math.max(hb.height, 1);
+    const pos = seatPosClass(seat);
+
+    let left;
+    let top;
+    if (pos === 1 || pos === 2) {
+      // Right rail — outside to the right of the plate
+      left = pb.right + 6;
+      top = (pb.top + pb.bottom) / 2 - h / 2;
+      if (left + w > stageBox.right - pad) {
+        // Not enough room outside: keep hard against the right stage edge,
+        // and shift vertically away from the board (up for pos-1, down for pos-2)
+        left = stageBox.right - pad - w;
+        top = pos === 1 ? pb.top - 6 - h : pb.bottom + 4;
+      }
+    } else if (pos === 3 || pos === 4) {
+      // Left rail — outside to the left of the plate
+      left = pb.left - 6 - w;
+      top = (pb.top + pb.bottom) / 2 - h / 2;
+      if (left < stageBox.left + pad) {
+        left = stageBox.left + pad;
+        top = pos === 4 ? pb.top - 6 - h : pb.bottom + 4;
+      }
+    } else {
+      // Top — above the plate
+      left = (pb.left + pb.right) / 2 - w / 2;
+      top = pb.top - 6 - h;
+    }
+
+    const badge = seat.querySelector(':scope > .win-badge');
+    items.push({ hole, seat, pos, w, h, left, top, badge });
+  }
+
+  const clampItem = (it) => {
+    it.left = Math.min(
+      Math.max(it.left, stageBox.left + pad),
+      stageBox.right - pad - it.w,
+    );
+    it.top = Math.min(
+      Math.max(it.top, stageBox.top + pad),
+      stageBox.bottom - pad - it.h,
+    );
+  };
+
+  const staticObstacles = () => {
+    const list = [];
+    for (const el of document.querySelectorAll(
+      '#board .card, .pot, .seat .plateA, .seat .plate, .meinfo, #heroHole .card, #meRoot > .win-badge',
+    )) {
+      if (getComputedStyle(el).display === 'none') continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) continue;
+      list.push(r);
+    }
+    return list;
+  };
+
+  for (const it of items) clampItem(it);
+
+  // Iteratively separate from board / pot / plates / peers
+  for (let iter = 0; iter < 48; iter++) {
+    let moved = false;
+    const staticObs = staticObstacles();
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const box = {
+        left: it.left,
+        right: it.left + it.w,
+        top: it.top,
+        bottom: it.top + it.h,
+      };
+      let dx = 0;
+      let dy = 0;
+
+      const pushFrom = (obs) => {
+        if (!overlapsPad(box, obs, gap)) return;
+        const cx = (box.left + box.right) / 2;
+        const cy = (box.top + box.bottom) / 2;
+        const ox = (obs.left + obs.right) / 2;
+        const oy = (obs.top + obs.bottom) / 2;
+        let vx = cx - ox;
+        let vy = cy - oy;
+        // Bias side seats further toward the rail when stuck on the board
+        if (it.pos === 1 || it.pos === 2) vx += 1.2;
+        if (it.pos === 3 || it.pos === 4) vx -= 1.2;
+        if (it.pos === 0) vy -= 0.8;
+        if (it.pos === 2 || it.pos === 3) vy += 0.35;
+        if (it.pos === 1 || it.pos === 4) vy -= 0.35;
+        const n = Math.hypot(vx, vy) || 1;
+        dx += (vx / n) * 6;
+        dy += (vy / n) * 6;
+      };
+
+      for (const obs of staticObs) pushFrom(obs);
+
+      for (let j = 0; j < items.length; j++) {
+        if (i === j) continue;
+        const o = items[j];
+        pushFrom({
+          left: o.left,
+          right: o.left + o.w,
+          top: o.top,
+          bottom: o.top + o.h,
+        });
+        if (o.badge) {
+          const br = o.badge.getBoundingClientRect();
+          if (br.width > 0) pushFrom(br);
+        }
+      }
+
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+        it.left += dx;
+        it.top += dy;
+        clampItem(it);
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+
+  // Commit seat-local absolute coords + park WIN badge above each reveal
+  for (const it of items) {
+    const sb = it.seat.getBoundingClientRect();
+    it.hole.style.position = 'absolute';
+    it.hole.style.left = `${it.left - sb.left}px`;
+    it.hole.style.top = `${it.top - sb.top}px`;
+    it.hole.style.right = 'auto';
+    it.hole.style.bottom = 'auto';
+    it.hole.style.transform = 'none';
+    it.hole.style.margin = '0';
+    it.hole.style.zIndex = '5';
+
+    if (it.badge) {
+      const badgeH = it.badge.offsetHeight || 22;
+      const badgeW = it.badge.offsetWidth || 72;
+      it.badge.style.position = 'absolute';
+      it.badge.style.left = `${it.left - sb.left + it.w / 2}px`;
+      it.badge.style.top = `${it.top - sb.top - badgeH - 4}px`;
+      it.badge.style.bottom = 'auto';
+      it.badge.style.right = 'auto';
+      it.badge.style.transform = 'translateX(-50%)';
+      it.badge.style.zIndex = '6';
+      // If badge would clip stage top, flip below the cards
+      const badgeTop = it.top - badgeH - 4;
+      if (badgeTop < stageBox.top + pad) {
+        it.badge.style.top = `${it.top - sb.top + it.h + 4}px`;
+      }
+      // Keep badge horizontally in stage
+      const idealLeft = it.left + it.w / 2 - badgeW / 2;
+      if (idealLeft < stageBox.left + pad || idealLeft + badgeW > stageBox.right - pad) {
+        const clamped =
+          Math.min(
+            Math.max(it.left + it.w / 2, stageBox.left + pad + badgeW / 2),
+            stageBox.right - pad - badgeW / 2,
+          ) - sb.left;
+        it.badge.style.left = `${clamped}px`;
+      }
+    }
+  }
+
+  return { ok: true, issues: [] };
+}
+
 export { GAP as BET_GAP };

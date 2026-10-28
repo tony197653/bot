@@ -89,6 +89,8 @@ async function sampleShowdown(page, { maxMs = 16000, stepMs = 100, untilPause = 
     potWentZero: false,
     boardDealReplay: false,
     holdRing: false,
+    holdInsideBtn: null,
+    revealBoardOverlap: false,
     pauseModalOpaque: false,
     pauseButtons: false,
     nextHiddenWhilePaused: false,
@@ -110,7 +112,36 @@ async function sampleShowdown(page, { maxMs = 16000, stepMs = 100, untilPause = 
       const potAmt = document.querySelector('#potAmt')?.textContent?.trim() || '';
       const boardHtml = document.querySelector('#board')?.innerHTML || '';
       const holdRing = !!document.querySelector('#btnNext .hold-ring');
-      const btnNext = !!document.querySelector('#btnNext');
+      const btnNextEl = document.querySelector('#btnNext');
+      const btnNext = !!btnNextEl;
+      let holdInsideBtn = null;
+      if (btnNextEl && holdRing) {
+        const br = btnNextEl.getBoundingClientRect();
+        const ring = btnNextEl.querySelector('.hold-ring')?.getBoundingClientRect();
+        const cd = btnNextEl.querySelector('.btn-next-cd')?.getBoundingClientRect();
+        holdInsideBtn = !!(
+          ring &&
+          cd &&
+          ring.top >= br.top - 1 &&
+          ring.bottom <= br.bottom + 1 &&
+          ring.left >= br.left - 1 &&
+          ring.right <= br.right + 1 &&
+          cd.top >= br.top - 1 &&
+          cd.bottom <= br.bottom + 1 &&
+          cd.left >= br.left - 1 &&
+          cd.right <= br.right + 1
+        );
+      }
+      let revealBoardOverlap = false;
+      for (const card of document.querySelectorAll('.reveal-hole .card, .seat .win-badge')) {
+        const a = card.getBoundingClientRect();
+        for (const bc of document.querySelectorAll('#board .card')) {
+          const b = bc.getBoundingClientRect();
+          const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          if (ox > 0 && oy > 0) revealBoardOverlap = true;
+        }
+      }
       const pauseOn = !!document.querySelector('#pauseScreen.is-on');
       const pauseSheet = document.querySelector('#pauseScreen.is-on .pause-panel');
       let pauseModalOpaque = false;
@@ -169,6 +200,8 @@ async function sampleShowdown(page, { maxMs = 16000, stepMs = 100, untilPause = 
         chipFly: chips.length,
         boardHtml,
         holdRing,
+        holdInsideBtn,
+        revealBoardOverlap,
         btnNext,
         pauseOn,
         pauseModalOpaque,
@@ -188,6 +221,9 @@ async function sampleShowdown(page, { maxMs = 16000, stepMs = 100, untilPause = 
     checklist.chipFlyMax = Math.max(checklist.chipFlyMax, snap.chipFly);
     if (snap.potAmt === '0') checklist.potWentZero = true;
     if (snap.holdRing) checklist.holdRing = true;
+    if (snap.holdInsideBtn === true) checklist.holdInsideBtn = true;
+    if (snap.holdInsideBtn === false) checklist.holdInsideBtn = false;
+    if (snap.revealBoardOverlap) checklist.revealBoardOverlap = true;
     if (snap.pauseOn) {
       if (snap.pauseModalOpaque) checklist.pauseModalOpaque = true;
       if (snap.pauseButtons) checklist.pauseButtons = true;
@@ -446,10 +482,34 @@ async function main() {
     );
     results.push(
       await recordScenario(browser, url, {
-        name: 'showdown-1440',
+        name: 'split-1440',
         seats: 3,
         viewport: { width: 1440, height: 900 },
         kind: 'split',
+      }),
+    );
+    results.push(
+      await recordScenario(browser, url, {
+        name: 'sidepot-1440',
+        seats: 3,
+        viewport: { width: 1440, height: 900 },
+        kind: 'sidepot',
+      }),
+    );
+    results.push(
+      await recordScenario(browser, url, {
+        name: 'allreveal-390',
+        seats: 6,
+        viewport: { width: 390, height: 844 },
+        kind: 'allReveal',
+      }),
+    );
+    results.push(
+      await recordScenario(browser, url, {
+        name: 'allreveal-1440',
+        seats: 6,
+        viewport: { width: 1440, height: 900 },
+        kind: 'allReveal',
       }),
     );
   } finally {
@@ -467,6 +527,8 @@ async function main() {
       sidePotMultiChipFlights: results.some((r) => r.kind === 'sidepot' && r.chipFlyMax >= 1),
       potToZero: results.filter((r) => r.kind !== 'pause').every((r) => r.potWentZero || r.sawChipFly),
       holdRing: results.some((r) => r.holdRing),
+      holdInsideBtn: results.filter((r) => r.holdRing).every((r) => r.holdInsideBtn === true),
+      noRevealBoardOverlap: results.every((r) => !r.revealBoardOverlap),
       noBoardDealReplay: results.every((r) => !r.boardDealReplay),
       noStrays: results.every((r) => !r.strayAtOrigin),
       noChipOverStack: results.every((r) => !r.chipOverStack),
@@ -488,6 +550,8 @@ async function main() {
     `- Side pot chip flights: ${checklist.acceptance.sidePotMultiChipFlights}`,
     `- Pot → 0: ${checklist.acceptance.potToZero}`,
     `- Hold ring: ${checklist.acceptance.holdRing}`,
+    `- Hold countdown inside button: ${checklist.acceptance.holdInsideBtn}`,
+    `- No reveal/WIN vs board overlap: ${checklist.acceptance.noRevealBoardOverlap}`,
     `- No board dealIn replay: ${checklist.acceptance.noBoardDealReplay}`,
     `- No stray FX: ${checklist.acceptance.noStrays}`,
     `- Chips not covering stack text: ${checklist.acceptance.noChipOverStack}`,

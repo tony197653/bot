@@ -18,7 +18,12 @@ import {
 import { cardHtml, cardBackPair, heroBackPair, fmtChips, cardFaceInner } from './cards-dom.js';
 import { onTick } from './ticker.js';
 import { mapSeatsClockwise, seatVisualPos } from './seating.js';
-import { placeBets, placeDealer, placeTableNote } from './layout-felt.js';
+import {
+  placeBets,
+  placeDealer,
+  placeTableNote,
+  placeShowdownReveals,
+} from './layout-felt.js';
 import {
   playDealAnimation,
   playHeroFlip,
@@ -1116,6 +1121,7 @@ function renderTable(v) {
     placeBets();
     // Re-place D now that bets are parked, so D clears chips too
     placeDealer();
+    placeShowdownReveals();
     placeTableNote();
     const d = $('#dealer');
     if (d && getComputedStyle(d).display !== 'none') {
@@ -1262,6 +1268,7 @@ function maybePlayWinnerFx(v) {
     seatEl.classList.add('is-showing');
     if (prefersReducedMotion()) {
       host.innerHTML = cards.map((c) => cardHtml(c, { hero: true })).join('');
+      placeShowdownReveals();
       return;
     }
     host.innerHTML = cards
@@ -1276,6 +1283,7 @@ function maybePlayWinnerFx(v) {
         );
       })
       .join('');
+    placeShowdownReveals();
     const flips = [...host.querySelectorAll('.flip')];
     await Promise.all(
       flips.map((flip, i) =>
@@ -1297,6 +1305,7 @@ function maybePlayWinnerFx(v) {
       ),
     );
     host.innerHTML = cards.map((c) => cardHtml(c, { hero: true })).join('');
+    placeShowdownReveals();
   };
 
   playShowdownSequence({
@@ -1328,6 +1337,7 @@ function maybePlayWinnerFx(v) {
           }
         }
       }
+      placeShowdownReveals();
     },
     onStacksFinal: (payouts) => {
       displayChipsOverride = null;
@@ -2359,6 +2369,7 @@ function renderActions(v) {
         </svg>
         <span class="btn-next-label">下一手</span>
         <span class="btn-next-cd" id="holdCd">${holdLeft}</span>
+        <span class="hold-bar" aria-hidden="true"><i style="width:${holdPct}%"></i></span>
       </button>
       ${
         isHost
@@ -2598,14 +2609,14 @@ onTick(() => {
     const left = Math.max(0, Math.ceil((holdDeadline - Date.now()) / 1000));
     const holdCd = $('#holdCd');
     if (holdCd) holdCd.textContent = String(left);
+    const pct = Math.max(
+      0,
+      Math.min(100, ((holdDeadline - Date.now()) / holdMsForState()) * 100),
+    );
     const fg = document.querySelector('#btnNext .hold-ring-fg');
-    if (fg) {
-      const pct = Math.max(
-        0,
-        Math.min(100, ((holdDeadline - Date.now()) / holdMsForState()) * 100),
-      );
-      fg.setAttribute('stroke-dashoffset', String(100 - pct));
-    }
+    if (fg) fg.setAttribute('stroke-dashoffset', String(100 - pct));
+    const bar = document.querySelector('#btnNext .hold-bar > i');
+    if (bar) bar.style.width = `${pct}%`;
   }
   if (debugTimerFreezeMs != null) {
     updateActorTimerRing(debugTimerFreezeMs);
@@ -2803,7 +2814,7 @@ window.__poker = {
   },
   /**
    * Capture helper: inject a deterministic SHOWDOWN presentation.
-   * @param {'split'|'sidepot'|'heads'|'fold'} kind
+   * @param {'split'|'sidepot'|'heads'|'fold'|'allReveal'} kind
    */
   forcePresentationShowdown(kind = 'heads') {
     cancelDealFx();
@@ -2965,6 +2976,42 @@ window.__poker = {
         ranks: {},
         bestBySeat: {},
         revealOrder: [a, b, c],
+        foldWin: false,
+        revealDeadline: null,
+      };
+    } else if (kind === 'allReveal') {
+      // Every seated player shows — layout stress for 2–6 seats
+      const pot = 60 * seated.length;
+      s.board = [card(9, 0), card(9, 1), card(5, 2), card(3, 3), card(2, 0)];
+      const holes = [
+        [card(14, 2), card(7, 0)],
+        [card(14, 3), card(7, 1)],
+        [card(13, 2), card(13, 3)],
+        [card(12, 0), card(11, 1)],
+        [card(10, 2), card(8, 3)],
+        [card(6, 0), card(4, 1)],
+      ];
+      const revealed = {};
+      const share = Math.floor(pot / seated.length);
+      for (let i = 0; i < seated.length; i++) {
+        const seat = seated[i];
+        const p = s.seats[seat];
+        p.hole = holes[i % holes.length];
+        p.hasHole = true;
+        p.showChoice = 'auto';
+        p.contributed = share;
+        p.chips = seat === a ? 2000 - share + pot : 2000 - share;
+        revealed[seat] = { cards: p.hole, mode: 'both' };
+      }
+      s.winners = [{ seats: [a], amount: pot, handZh: '一對', shares: { [a]: pot } }];
+      s.winnerPayouts = { [a]: pot };
+      s.phase = 'showdown';
+      s.showdown = {
+        pending: [],
+        revealed,
+        ranks: {},
+        bestBySeat: {},
+        revealOrder: [...seated],
         foldWin: false,
         revealDeadline: null,
       };

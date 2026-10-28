@@ -140,6 +140,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .seat{
   position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);
   display:flex;flex-direction:column;align-items:center;width:108px;z-index:3;
+  overflow:visible;
 }
 .seat.is-empty{display:none!important}
 .seatA-backs,.backs{
@@ -218,19 +219,37 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   box-shadow:0 0 0 2px var(--gold),0 0 18px #d6ab4588,0 2px 8px #0005;
 }
 
-/* Fixed 6 slots — leave room for hero-sized reveals above every plate */
+/* Fixed 6 slots — leave room for hero-sized reveals beside/outside plates */
 .seat.pos-0{--x:50%;--y:14%}
 .seat.pos-1{--x:84%;--y:32%}
 .seat.pos-2{--x:84%;--y:64%}
 .seat.pos-3{--x:16%;--y:64%}
 .seat.pos-4{--x:16%;--y:32%}
 
-/* Revealed hole cards (hero-sized) ABOVE nameplate — no overlap with name/stack */
+/* Revealed hole cards (hero-sized). Side seats: rail-outward; top: above.
+   JS placeShowdownReveals() nudges clear of board/pot/peers. */
 .reveal-hole{
   display:flex;margin-bottom:6px;z-index:2;pointer-events:none;
 }
 .reveal-hole .card:first-child{transform:rotate(-5deg);margin-right:-14px}
 .reveal-hole .card:last-child{transform:rotate(5deg) translateY(2px)}
+.seat.pos-1 .reveal-hole,
+.seat.pos-2 .reveal-hole,
+.seat.pos-3 .reveal-hole,
+.seat.pos-4 .reveal-hole{
+  position:absolute;margin:0;top:50%;
+}
+.seat.pos-1 .reveal-hole,
+.seat.pos-2 .reveal-hole{
+  left:calc(100% + 6px);right:auto;transform:translateY(-50%);
+}
+.seat.pos-3 .reveal-hole,
+.seat.pos-4 .reveal-hole{
+  right:calc(100% + 6px);left:auto;transform:translateY(-50%);
+}
+.seat.pos-0 .reveal-hole{
+  position:relative;margin-bottom:6px;
+}
 
 /* Bet chips */
 .bet{
@@ -563,6 +582,17 @@ input[type=range]::-moz-range-thumb{
   box-shadow:0 4px 14px #0005;pointer-events:none}
 /* Hero: float above the whole me cluster (cards + plate), never over hole cards */
 .me .win-badge{top:auto;bottom:calc(100% + 12px);z-index:10}
+/* Side-seat WIN defaults (JS repositions above the rail-side reveal cluster) */
+.seat.pos-1 > .win-badge,
+.seat.pos-2 > .win-badge{
+  left:calc(100% + 6px + (var(--hw) * 2 - 14px) / 2);bottom:auto;
+  top:calc(50% - var(--hh) / 2 - 26px);transform:translateX(-50%);
+}
+.seat.pos-3 > .win-badge,
+.seat.pos-4 > .win-badge{
+  left:auto;right:calc(100% + 6px + (var(--hw) * 2 - 14px) / 2);bottom:auto;
+  top:calc(50% - var(--hh) / 2 - 26px);transform:translateX(50%);
+}
 /* Fold-win centre note — under pot, narrow centre column; JS may nudge clear of reveals */
 .table-note{position:absolute;left:50%;top:48%;transform:translate(-50%,0);z-index:7;
   max-width:min(46%,200px);width:max-content;padding:5px 10px;border-radius:10px;text-align:center;
@@ -600,18 +630,29 @@ input[type=range]::-moz-range-thumb{
 }
 body.is-playing .boot{display:none}
 
-/* Next-hand hold countdown ring */
-.btn-next-hold{
-  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+/* Next-hand hold — countdown stays INSIDE the button (row, not column stack) */
+.btns button.btn-next-hold{
+  flex-direction:row;gap:6px;overflow:hidden;position:relative;
+  padding:0 8px;line-height:1;
 }
 .btn-next-hold .hold-ring{
-  width:22px;height:22px;flex:none;transform:rotate(-90deg);
+  width:18px;height:18px;flex:none;transform:rotate(-90deg);
 }
 .btn-next-hold .hold-ring circle{fill:none;stroke-width:3;stroke-linecap:round}
 .btn-next-hold .hold-ring-bg{stroke:rgba(255,255,255,.2)}
 .btn-next-hold .hold-ring-fg{stroke:var(--gold);transition:stroke-dashoffset .2s linear}
+.btn-next-hold .btn-next-label{flex:none;white-space:nowrap}
 .btn-next-hold .btn-next-cd{
-  font-variant-numeric:tabular-nums;font-size:12px;opacity:.85;min-width:1.2em;
+  font-variant-numeric:tabular-nums;font-size:14px;font-weight:800;
+  opacity:.95;min-width:1em;line-height:1;
+}
+.btn-next-hold .hold-bar{
+  position:absolute;left:8px;right:8px;bottom:5px;height:3px;border-radius:2px;
+  background:rgba(255,255,255,.14);overflow:hidden;pointer-events:none;
+}
+.btn-next-hold .hold-bar > i{
+  display:block;height:100%;border-radius:inherit;background:var(--gold);
+  transition:width .2s linear;
 }
 
 /* Pause modal — above table/act/toast; opaque sheet like 換人 */
