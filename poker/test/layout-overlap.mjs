@@ -657,16 +657,23 @@ function auditRevealLayoutInPage({ seatCount }) {
     }
   }
 
-  // No timer ring on the hero nameplate (idle ⊖ sat on the gold border)
-  const timerEl = document.querySelector('#mePlate .timer, .meinfo .timer');
-  if (timerEl) {
-    const cs = getComputedStyle(timerEl);
-    const visible =
-      !timerEl.hasAttribute('hidden') &&
-      cs.display !== 'none' &&
-      cs.visibility !== 'hidden' &&
-      parseFloat(cs.opacity || '1') > 0.05;
-    if (visible) issues.push('hero nameplate must not show a timer ring');
+  // Avatar countdown ring (when present) must not cover name/stack text
+  for (const av of document.querySelectorAll('.av.is-timing')) {
+    const ring = av.querySelector('.av-ring');
+    if (!ring) continue;
+    const plate = av.closest('.plate, .plateA, .meinfo');
+    const nm = plate?.querySelector('.nm, b');
+    const st = plate?.querySelector('.ch, .st, strong');
+    const rb = ring.getBoundingClientRect();
+    for (const el of [nm, st].filter(Boolean)) {
+      const tb = el.getBoundingClientRect();
+      const ox = Math.min(rb.right, tb.right) - Math.max(rb.left, tb.left);
+      const oy = Math.min(rb.bottom, tb.bottom) - Math.max(rb.top, tb.top);
+      if (ox > 1 && oy > 1) {
+        issues.push('avatar timer ring overlaps nameplate text');
+        break;
+      }
+    }
   }
 
   // No stray chips at table top-left (unplaced bets / FX)

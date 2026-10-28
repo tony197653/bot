@@ -5,7 +5,7 @@
   --plate:rgba(10,18,14,.88); --plateline:rgba(214,180,90,.45); --plateink:#f3ead2; --platemute:#c9bf9f;
   --tink:#f3ead2; --tmute:#cfe3d2;
   --panel:#101b14; --panelline:rgba(214,180,90,.18); --btn:#24372c; --btnink:#f3ead2;
-  --accent:#e6bf5a; --accent2:#c99a2e; --accentink:#2a1d02; --gold:#d6b45a; --warn:#ff8d7a;
+  --accent:#e6bf5a; --accent2:#c99a2e; --accentink:#2a1d02; --gold:#d6b45a; --warn:#ff4d3a;
   --chipA:#c8343a; --chipB:#f4efe6; --chipC:#2f5fb3;
   --card:#fbf7ee; --cardline:#d9d0b8; --red:#c0262d; --blk:#1d1d1d; --back1:#9e2a2b; --back2:#7d1f22;
   --ring:#d6b45a; --ringbg:#ffffff22; --track:#33463a;
@@ -152,6 +152,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 }
 .backs i+i,.backs .back+.back{margin-left:-8px;transform:rotate(8deg)}
 .backs i:first-child,.backs .back:first-child{transform:rotate(-6deg)}
+/* Per-card pending (deal FX reveals one-by-one — do NOT hide whole .backs) */
+.backs i.is-pending,
+#heroHole .card.is-pending{opacity:0}
+.bet.is-pending{opacity:0;pointer-events:none}
+/* Pot must not flash amount "0" — hide fully until BB lands */
+.pot.is-pending{opacity:0!important;visibility:hidden;pointer-events:none}
 .plate,.plateA{
   position:relative;width:108px;height:40px;border-radius:20px;background:var(--plate);
   border:1px solid var(--plateline);
@@ -163,6 +169,33 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   display:flex;align-items:center;justify-content:center;
   background:linear-gradient(160deg,#3a4a40,#1c2620);border:2px solid var(--gold);
   font-family:var(--tf);font-weight:700;font-size:15px;color:var(--plateink);flex:none;
+  z-index:1;
+}
+/* While timing, drop the solid gold border so the shrinking ring is the only arc */
+.av.is-timing{border-color:rgba(255,255,255,.12)}
+/* Thin countdown ring around the acting seat's avatar (not over name/stack) */
+.av-ring{
+  position:absolute;inset:-3px;width:calc(100% + 6px);height:calc(100% + 6px);
+  pointer-events:none;transform:rotate(-90deg);opacity:0;
+  overflow:visible;
+}
+.av.is-timing .av-ring{opacity:1}
+.av-ring circle{fill:none;stroke-width:2.5;stroke-linecap:round}
+.av-ring .av-ring-bg{stroke:rgba(255,255,255,.18)}
+.av-ring .av-ring-fg{
+  stroke:var(--gold);
+  stroke-dasharray:100;
+  stroke-dashoffset:0;
+}
+.av.is-timing.is-urgent .av-ring-fg,
+.av.is-urgent .av-ring-fg{stroke:var(--warn);stroke-width:2.75}
+.av-ring-sec{
+  display:none;position:absolute;inset:0;place-items:center;
+  font-size:9px;font-weight:800;color:var(--gold);pointer-events:none;
+}
+@media (prefers-reduced-motion:reduce){
+  .av.is-timing .av-ring-sec{display:grid}
+  .av.is-urgent .av-ring-sec{color:var(--warn)}
 }
 .nm{
   display:flex;align-items:center;gap:4px;font-size:12px;line-height:15px;
@@ -234,9 +267,32 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   display:flex;flex-direction:column;align-items:center;gap:0;z-index:5;pointer-events:none;
 }
 .me .meinfo,.me .hole{pointer-events:auto}
-.hole{display:flex;justify-content:center;margin-bottom:6px;position:relative;z-index:2}
+.hole{display:flex;justify-content:center;margin-bottom:6px;position:relative;z-index:2;perspective:700px}
 .hole .card:first-child{transform:rotate(-5deg);margin-right:-14px}
 .hole .card:last-child{transform:rotate(5deg) translateY(2px)}
+/* Hero face-down (deal + 換人) — same size as face cards, no rank/suit in DOM */
+.card.hero.is-back{
+  background:repeating-linear-gradient(45deg,var(--back1) 0 4px,var(--back2) 4px 8px);
+  border:1.5px solid #f2e6d0;box-shadow:0 1px 3px rgba(0,0,0,.5);
+}
+.card.hero.is-flipping{background:transparent;box-shadow:none;border:none}
+.card.hero.is-flipping .flip{
+  position:relative;width:100%;height:100%;transform-style:preserve-3d;
+}
+.card.hero.is-flipping .face{
+  position:absolute;inset:0;border-radius:8px;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  box-shadow:0 2px 5px rgba(0,0,0,.45);
+}
+.card.hero.is-flipping .face.back{
+  background:repeating-linear-gradient(45deg,var(--back1) 0 4px,var(--back2) 4px 8px);
+  border:1.5px solid #f2e6d0;
+}
+.card.hero.is-flipping .face.front{
+  background:var(--card);border:1px solid rgba(0,0,0,.08);transform:rotateY(180deg);
+}
+.card.hero.is-flipping .face.front.red{color:var(--red)}
+.card.hero.is-flipping .face.front.blk{color:var(--blk)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 .meinfo{
   position:relative;display:flex;align-items:center;gap:0;
   min-width:132px;height:44px;padding:0 16px 0 46px;border-radius:22px;
@@ -246,22 +302,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .meinfo .av{width:36px;height:36px;font-size:16px;left:3px;top:3px}
 .meinfo b{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:400;color:var(--plateink)}
 .meinfo strong{display:block;font-size:13px;font-weight:700;color:#ffd77a}
-/* Timer ring: off the plate unless hero is on the clock (idle ⊖ must not sit on the border) */
-.meinfo .timer,.timer{
-  display:none!important;visibility:hidden;pointer-events:none;
-  width:0!important;height:0!important;overflow:hidden;opacity:0;
-}
-.meinfo.is-timing .timer{
-  display:grid!important;visibility:visible;opacity:1;pointer-events:none;
-  position:absolute;right:6px;top:50%;transform:translateY(-50%);
-  width:26px!important;height:26px!important;place-items:center;z-index:2;overflow:visible;
-}
-.timer svg{width:100%;height:100%;transform:rotate(-90deg)}
-.timer circle{fill:none;stroke-width:3}
-.timer .bg{stroke:var(--ringbg)}
-.timer .fg{stroke:var(--ring);stroke-linecap:round;stroke-dasharray:75.4;stroke-dashoffset:0}
-.timer span{position:absolute;inset:0;display:grid;place-items:center;font-weight:700;font-size:10px;color:var(--plateink)}
-.meinfo.is-timing{padding-right:38px}
 
 /* ── Bottom action bar (3 buttons) ── */
 .act{
@@ -288,6 +328,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .btns .call{line-height:1.1}
 .act.is-dim{opacity:.55}
 .act.is-dim .btns button:not(#btnHandOff){pointer-events:none}
+/* Deal / flip gate — visibly disabled action bar */
+.act.is-deal-locked{
+  opacity:.38;pointer-events:none;
+  transition:opacity .22s ease,transform .22s ease;
+}
+.act.is-deal-locked .btns button{
+  pointer-events:none;cursor:default;
+  /* Kill the gold raise gradient so all three read as disabled */
+  background:var(--btn)!important;color:var(--mute)!important;border:1px solid rgba(255,255,255,.06)!important;
+}
+.act.is-deal-locked .btns .fold{color:var(--mute)!important}
 .show-btns{display:flex;gap:8px;width:100%}
 .show-btns.hidden{display:none!important}
 .show-btns button{
@@ -481,14 +532,31 @@ input[type=range]::-moz-range-thumb{
 .summary .pos{color:#7dcea0}.summary .neg{color:var(--warn)}
 
 /* FX */
-.fx-layer{position:absolute;inset:0;z-index:8;pointer-events:none;overflow:visible}
-.fx-chip-fly{position:absolute;left:0;top:0;will-change:transform,opacity;
+.fx-layer{position:absolute;inset:0;z-index:8;pointer-events:none;overflow:visible;contain:layout paint}
+.fx-chip-fly{position:absolute;left:0;top:0;will-change:transform,opacity;z-index:3;
   display:inline-flex;align-items:center;gap:6px;padding:3px 8px 3px 4px;border-radius:12px;
   background:#0a1812cc;color:var(--tink);font-size:12px;font-weight:700}
-.fx-deal-card{position:absolute;left:0;top:0;width:28px;height:40px;border-radius:4px;
-  border:1.5px solid var(--card);
+.fx-deal-card{position:absolute;left:0;top:0;border-radius:4px;
+  border:1.5px solid #f2e6d0;
   background:repeating-linear-gradient(45deg,var(--back1) 0 3px,var(--back2) 3px 6px);
-  box-shadow:0 2px 6px #0005;will-change:transform,opacity}
+  box-shadow:0 1px 3px rgba(0,0,0,.5);will-change:transform;opacity:1;z-index:9}
+.fx-deal-card .fx-shadow{
+  position:absolute;inset:2px;border-radius:inherit;background:rgba(0,0,0,.55);
+  filter:blur(4px);z-index:-1;pointer-events:none;
+}
+.fx-deck{
+  position:absolute;left:0;top:0;z-index:8;pointer-events:none;will-change:transform,opacity;
+  /* room for offset leaves so the stack isn't clipped */
+  overflow:visible;
+}
+.fx-deck i{
+  position:absolute;left:0;top:0;width:100%;height:100%;border-radius:4px;border:1.5px solid #f2e6d0;
+  background:repeating-linear-gradient(45deg,var(--back1) 0 3px,var(--back2) 3px 6px);
+  box-shadow:0 2px 4px rgba(0,0,0,.45);
+}
+/* Bottom leaf slightly darker so the stack reads as depth */
+.fx-deck i:last-child{filter:brightness(.92)}
+.fx-deck i:first-child{box-shadow:0 2px 4px rgba(0,0,0,.45),0 0 0 0.5px rgba(255,255,255,.08)}
 .win-badge{position:absolute;left:50%;bottom:calc(100% + 4px);transform:translateX(-50%);
   z-index:9;padding:4px 10px;border-radius:999px;background:var(--gold);color:var(--accentink);
   font-size:12px;font-weight:800;letter-spacing:.02em;white-space:nowrap;
@@ -511,17 +579,24 @@ input[type=range]::-moz-range-thumb{
 
 .card.is-deal{animation:dealIn .45s cubic-bezier(.22,1,.36,1) both}
 @keyframes dealIn{from{opacity:0;transform:translateY(-18px) scale(.92)}to{opacity:1;transform:none}}
+/* heroInL/R kept for non-deal paths but NOT used after deal→換人→flip */
 .hero-deal:first-child{animation:heroInL .5s cubic-bezier(.22,1,.36,1) both}
 .hero-deal:last-child{animation:heroInR .5s .06s cubic-bezier(.22,1,.36,1) both}
 @keyframes heroInL{from{opacity:0;transform:rotate(-18deg) translateY(24px)}to{opacity:1;transform:rotate(-5deg)}}
 @keyframes heroInR{from{opacity:0;transform:rotate(18deg) translateY(24px)}to{opacity:1;transform:rotate(5deg) translateY(2px)}}
 .bet.is-in{animation:betPop .35s cubic-bezier(.22,1,.36,1)}
 @keyframes betPop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
-html.is-dealing .bet{opacity:0}
-html.is-dealing #heroHole .card,html.is-dealing .backs{opacity:0}
+/* During deal, bets/cards use .is-pending per-element — no wholesale hide */
 @media (prefers-reduced-motion:reduce){
   .card.is-deal,.hero-deal:first-child,.hero-deal:last-child,.bet.is-in{animation:none!important}
   .raise-panel{transition:none}
+}
+/* Pass screen entrance (J) after deal */
+#passScreen.is-on{
+  transition:opacity .26s ease,backdrop-filter .26s ease;
+}
+#passScreen.is-on .sheet{
+  transition:transform .26s cubic-bezier(.2,.8,.2,1);
 }
 body.is-playing .boot{display:none}
 

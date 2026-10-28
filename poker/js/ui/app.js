@@ -13,17 +13,20 @@ import {
   sessionSummary,
   REVEAL_MS,
 } from '../engine/index.js';
-import { cardHtml, cardBackPair, fmtChips } from './cards-dom.js';
+import { cardHtml, cardBackPair, heroBackPair, fmtChips } from './cards-dom.js';
 import { onTick } from './ticker.js';
 import { mapSeatsClockwise } from './seating.js';
 import { placeBets, placeDealer, placeTableNote } from './layout-felt.js';
 import {
   playDealAnimation,
+  playHeroFlip,
   playWinnerFx,
   cancelDealFx,
   cancelWinFx,
+  cancelHeroFlip,
   prefersReducedMotion,
   foldWinCenterNote,
+  DEAL_FX,
 } from './fx.js';
 
 const DEFAULT_NAMES = ['宗良', '阿哲', '小芸', '志明', '小美', '老K'];
@@ -38,13 +41,30 @@ let lastActor = null;
 let raiseTo = 0;
 let toastTimer = 0;
 let dealAnimKey = '';
-/** Hand number waiting for deal FX after pass confirm. */
+/** Hand number waiting for deal FX (plays before 換人). */
 let pendingDealHand = 0;
 let lastDealPlayed = 0;
 let winFxKey = '';
 /** @type {DOMRect | null} */
 let prevDealerRect = null;
 let dealFxBusy = false;
+/** True while the deal FX is presenting; hero holes stay face-down. */
+let dealPresenting = false;
+/** After deal FX finishes, show the 換人 overlay for the actor. */
+let awaitingDealThenPass = false;
+/** Pass overlay is showing after deal — keep hero backs; flip on confirm. */
+let passAfterDeal = false;
+/** Hero 3D flip in progress after 換人 confirm. */
+let heroFlipping = false;
+/**
+ * False from START_HAND until deal + 換人 confirm + hero flip complete.
+ * Gates action buttons and the 30s timer.
+ */
+let handUiReady = true;
+/** Last whole-second shown under reduced-motion timer. */
+let lastTimerSecShown = -1;
+/** When set, onTick keeps this remaining-ms on the ring (screenshot helper). */
+let debugTimerFreezeMs = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let raiseHoldTimer = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
@@ -165,10 +185,14 @@ function afterState() {
   }
   // Hot-seat: when actor changes to another seated player mid-hand, show pass screen
   // (Reveal phase uses bots for other seats — no pass for 亮牌／不亮.)
+  // Skip while a deal presentation is in flight (deal runs before 換人).
   if (
     state.actor != null &&
     state.actor !== viewerSeat &&
-    [PHASE.PREFLOP, PHASE.FLOP, PHASE.TURN, PHASE.RIVER].includes(state.phase)
+    [PHASE.PREFLOP, PHASE.FLOP, PHASE.TURN, PHASE.RIVER].includes(state.phase) &&
+    !dealPresenting &&
+    !awaitingDealThenPass &&
+    !dealFxBusy
   ) {
     needsPass = true;
   }
@@ -226,12 +250,21 @@ function scheduleAutoNextHand() {
       dispatch({ type: 'ACK_HAND' });
       dispatch({ type: 'NEXT_HAND' });
       viewerSeat = state.actor ?? state.room.hostSeat;
-      needsPass = true;
-      showPass();
+      startDealThenPass();
     } catch (_) {
       /* ignore */
     }
   }, 1600);
+}
+
+/** SVG countdown ring around an avatar (pathLength=100 for easy dashoffset). */
+function avWithRing(initial, { timing = false } = {}) {
+  const ring =
+    `<svg class="av-ring" viewBox="0 0 36 36" aria-hidden="true">` +
+    `<circle class="av-ring-bg" cx="18" cy="18" r="15"/>` +
+    `<circle class="av-ring-fg" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0"/>` +
+    `</svg><span class="av-ring-sec" aria-hidden="true"></span>`;
+  return `<div class="av${timing ? ' is-timing' : ''}">${ring}<span>${esc(initial)}</span></div>`;
 }
 
 function view() {
@@ -416,14 +449,33 @@ function bindLobby() {
       openLobby();
       return;
     }
+    // Mark deal-before-pass before dispatch so afterState won't flash 換人
     dispatch({ type: 'START_HAND' });
-    // First actor gets the device
     viewerSeat = state.actor ?? state.room.hostSeat;
-    needsPass = true;
     $('#lobbyScreen').classList.remove('is-on');
     $('#lobbyScreen').classList.add('hidden');
-    showPass();
+    startDealThenPass();
   };
+}
+
+/** Play deal FX on the open table, then show 換人 for the actor. */
+function startDealThenPass() {
+  awaitingDealThenPass = true;
+  dealPresenting = true;
+  passAfterDeal = false;
+  heroFlipping = false;
+  handUiReady = false;
+  needsPass = false;
+  $('#passScreen')?.classList.remove('is-on');
+  document.getElementById('act')?.classList.add('is-deal-locked');
+  pendingDealHand = state.handNumber;
+  // Capture previous D before this hand's placeDealer overwrites it
+  const d = $('#dealer');
+  if (d && getComputedStyle(d).display !== 'none' && prevDealerRect == null) {
+    // first hand: leave null so FX drops D from deck
+  }
+  render();
+  maybePlayDealFx();
 }
 
 /* ─── Pass screen ─── */
@@ -431,24 +483,89 @@ function showPass() {
   const p = state.seats[viewerSeat];
   if (!p) return;
   needsPass = true;
-  // Privacy: clear hole cards until the correct player confirms
-  $('#heroHole').innerHTML = '';
   $('#heroName').textContent = '（換人中）';
-  $('#heroChips').textContent = '';
+  // After deal: keep large face-down hero cards (spec §8.3). Mid-hand pass: clear for privacy.
+  if (passAfterDeal) {
+    const hole = $('#heroHole');
+    if (hole && !hole.querySelector('.card.is-back')) {
+      hole.innerHTML = heroBackPair({ pending: false });
+    }
+    // Keep chip readout for continuity under the dim overlay
+    $('#heroChips').textContent = fmtChips(p.chips);
+  } else {
+    $('#heroHole').innerHTML = '';
+    $('#heroChips').textContent = '';
+  }
   $('#passScreen').classList.remove('hidden');
   $('#passScreen').classList.add('is-on');
   $('#passName').textContent = p.name;
   $('#passHint').textContent =
     '請把裝置交給這位玩家。其他人請勿偷看手牌。';
+  document.getElementById('act')?.classList.add('is-deal-locked');
 }
 
 function hidePass() {
   needsPass = false;
+  dealPresenting = false;
+  awaitingDealThenPass = false;
   $('#passScreen').classList.remove('is-on');
   lastActor = state.actor;
   dealAnimKey = `${state.handNumber}-${viewerSeat}`;
+
+  if (passAfterDeal) {
+    passAfterDeal = false;
+    beginHeroFlipThenUnlock();
+    return;
+  }
+
+  handUiReady = true;
+  document.getElementById('act')?.classList.remove('is-deal-locked');
   render();
   maybePlayDealFx();
+}
+
+/** After 換人 confirm: 3D flip hero cards, then arm timer + enable actions. */
+function beginHeroFlipThenUnlock() {
+  heroFlipping = true;
+  handUiReady = false;
+  document.getElementById('act')?.classList.add('is-deal-locked');
+  const hero = state.seats[viewerSeat];
+  const cards = hero?.hole?.length === 2 ? hero.hole : [];
+  const hole = $('#heroHole');
+  playHeroFlip({
+    cards,
+    mountHtml: (html) => {
+      if (hole) hole.innerHTML = html;
+    },
+    onDone: () => {
+      heroFlipping = false;
+      // Restore act bar, then arm deadline (spec §4.3 M→N)
+      const act = document.getElementById('act');
+      if (act) {
+        act.getAnimations?.().forEach((a) => {
+          try {
+            a.cancel();
+          } catch {
+            /* ignore */
+          }
+        });
+        act.classList.remove('is-deal-locked');
+        act.style.opacity = '';
+        act.animate(
+          [
+            { opacity: 0.38, transform: 'translateY(6px)' },
+            { opacity: 1, transform: 'translateY(0)' },
+          ],
+          { duration: DEAL_FX.actRestoreMs, easing: 'ease-out' },
+        );
+      }
+      handUiReady = true;
+      if (state.config.timerEnabled) {
+        dispatch({ type: 'ARM_DEADLINE' });
+      }
+      render();
+    },
+  });
 }
 
 $('#btnPassOk').onclick = () => hidePass();
@@ -519,21 +636,39 @@ function setupMenu() {
 }
 
 function renderTable(v) {
+  // Freeze seat/bet/hero rebuild while deal WAAPI is running (spec §13.5)
+  if (dealFxBusy || heroFlipping) return;
+
+  const dealingSetup = dealPresenting || awaitingDealThenPass;
   const boardEl = $('#board');
   // Felt shows ONLY dealt community cards — no dashed placeholders
   boardEl.innerHTML = (v.board || [])
     .map((c) => cardHtml(c, { anim: true }))
     .join('');
 
-  $('#potAmt').textContent = fmtChips(v.potTotal);
+  const potEl = document.querySelector('.pot');
+  if (dealingSetup) {
+    potEl?.classList.add('is-pending');
+    if (potEl) {
+      potEl.style.opacity = '';
+      potEl.style.visibility = '';
+    }
+    // Keep amount blank while pending — never show a stuck "0" chip label
+    $('#potAmt').textContent = '';
+  } else {
+    potEl?.classList.remove('is-pending');
+    if (potEl) {
+      potEl.style.opacity = '';
+      potEl.style.visibility = '';
+    }
+    $('#potAmt').textContent = fmtChips(v.potTotal);
+  }
   if ($('#potSub')) $('#potSub').textContent = '';
 
   const seatsRoot = $('#seats');
   const betsRoot = $('#bets');
   seatsRoot.innerHTML = '';
   betsRoot.innerHTML = '';
-
-  const anim = dealAnimKey === `${v.handNumber}-${viewerSeat}`;
 
   const occupied = [];
   for (let seat = 0; seat < 6; seat++) {
@@ -561,16 +696,26 @@ function renderTable(v) {
     const wonAmt = state.winnerPayouts?.[seat];
     const isWin = wonAmt != null && (v.isHandOver || v.isShowdown);
     const showing = revealed ? ' is-showing' : '';
+    const timing =
+      handUiReady &&
+      !!v.config.timerEnabled &&
+      v.actor === seat &&
+      v.deadline != null &&
+      !v.isHandOver &&
+      !v.isShowdown;
+    // During deal intro, show pre-blind stack so chip-count can roll down
+    const stackShow =
+      dealingSetup && p.bet > 0 ? p.chips + p.bet : p.chips;
     const el = document.createElement('div');
     el.className = `seat pos-${pos}${folded}${actor}${showing}${isWin ? ' is-winner' : ''}`;
     el.dataset.seat = String(seat);
     el.innerHTML = `
       ${revealHtml || backs}
       <div class="plate plateA${isWin ? ' is-winner' : ''}">
-        <div class="av"><span>${esc(p.name.slice(0, 1))}</span></div>
+        ${avWithRing(p.name.slice(0, 1), { timing })}
         <div>
           <div class="nm">${esc(p.name)}${role}</div>
-          <span class="ch st">${fmtChips(p.chips)}</span>
+          <span class="ch st">${fmtChips(stackShow)}</span>
         </div>
       </div>${
         isWin ? `<div class="win-badge">WIN +${fmtChips(wonAmt)}</div>` : ''
@@ -579,7 +724,8 @@ function renderTable(v) {
 
     if (p.bet > 0 && !v.isHandOver && !v.isShowdown) {
       const b = document.createElement('div');
-      b.className = 'bet is-in';
+      // No betPop flash during deal — use is-pending until blind lands
+      b.className = dealingSetup ? 'bet is-pending' : 'bet is-in';
       b.dataset.forSeat = String(seat);
       b.dataset.pos = String(pos);
       if (pos === 0) b.dataset.ref = '1';
@@ -596,31 +742,63 @@ function renderTable(v) {
 
   const hero = v.seats[viewerSeat];
   const hole = $('#heroHole');
-  if (hero?.hole?.length) {
+  // Face-down large backs during deal / post-deal pass; faces only after flip
+  if (dealPresenting || passAfterDeal || (needsPass && passAfterDeal)) {
+    hole.innerHTML =
+      hero?.hole?.length || hero?.hasHole ? heroBackPair({ pending: dealPresenting }) : '';
+  } else if (needsPass && !passAfterDeal) {
+    hole.innerHTML = '';
+  } else if (hero?.hole?.length && handUiReady) {
     hole.innerHTML = hero.hole
-      .map((c) => cardHtml(c, { hero: true, anim }))
+      .map((c) => cardHtml(c, { hero: true, anim: false }))
       .join('');
+  } else if (hero?.hole?.length || hero?.hasHole) {
+    hole.innerHTML = heroBackPair({ pending: false });
   } else {
     hole.innerHTML = '';
   }
   {
     const nameEl = $('#heroName');
     if (nameEl) {
-      if (hero) {
+      if (hero && !needsPass) {
         const role = roleTag(v, viewerSeat);
         nameEl.innerHTML = `${esc(hero.name)}（你）${role}`;
+      } else if (needsPass) {
+        nameEl.textContent = '（換人中）';
       } else {
         nameEl.textContent = '';
       }
     }
-    const av = $('#heroAv');
-    if (av) av.textContent = hero ? hero.name.slice(0, 1) : '—';
   }
-  $('#heroChips').textContent = hero ? fmtChips(hero.chips) : '';
+  {
+    const stackShow =
+      hero && dealingSetup && hero.bet > 0 ? hero.chips + hero.bet : hero?.chips;
+    $('#heroChips').textContent =
+      hero && (!needsPass || passAfterDeal) ? fmtChips(stackShow ?? 0) : '';
+  }
   const mePlate = $('#mePlate');
   const heroWon = state.winnerPayouts?.[viewerSeat];
   const heroIsWin = heroWon != null && (v.isHandOver || v.isShowdown);
   mePlate?.classList.toggle('is-winner', !!heroIsWin);
+  const heroTiming =
+    handUiReady &&
+    !!v.config.timerEnabled &&
+    v.actor === viewerSeat &&
+    v.deadline != null &&
+    !v.isHandOver &&
+    !v.isShowdown &&
+    !needsPass &&
+    !dealPresenting;
+  {
+    const avHost = mePlate?.querySelector('.av') || null;
+    if (avHost && mePlate) {
+      const initial = hero ? hero.name.slice(0, 1) : '—';
+      avHost.outerHTML = avWithRing(initial, { timing: heroTiming });
+      // keep id for tests / a11y hooks
+      const newAv = mePlate.querySelector('.av');
+      if (newAv) newAv.id = 'heroAv';
+    }
+  }
   document.querySelectorAll('#meRoot > .win-badge').forEach((n) => n.remove());
   if (heroIsWin && mePlate) {
     const badge = document.createElement('div');
@@ -647,7 +825,7 @@ function renderTable(v) {
 
   if (hero?.bet > 0 && !v.isHandOver && !v.isShowdown) {
     const b = document.createElement('div');
-    b.className = 'bet is-in';
+    b.className = dealingSetup ? 'bet is-pending' : 'bet is-in';
     b.dataset.forSeat = String(viewerSeat);
     b.dataset.hero = '1';
     b.dataset.pos = 'hero';
@@ -657,6 +835,13 @@ function renderTable(v) {
   }
 
   requestAnimationFrame(() => {
+    // Snapshot previous D before placing for next-hand arc (not first hand)
+    const dBefore = $('#dealer');
+    const hadPrev =
+      dBefore &&
+      getComputedStyle(dBefore).display !== 'none' &&
+      prevDealerRect != null;
+
     // D first (gen.py has D static before bets); then bets clear of D
     placeDealer();
     placeBets();
@@ -665,7 +850,13 @@ function renderTable(v) {
     placeTableNote();
     const d = $('#dealer');
     if (d && getComputedStyle(d).display !== 'none') {
-      prevDealerRect = d.getBoundingClientRect();
+      // Keep prevDealerRect as the *previous* hand's rect for FX; update after deal ends
+      if (!dealingSetup) {
+        prevDealerRect = d.getBoundingClientRect();
+      } else if (!hadPrev && state.handNumber <= 1) {
+        // First hand: leave null so D drops from deck
+        prevDealerRect = null;
+      }
     }
     // Keep pot CSS-centred (clear any stray inline left/top from older layouts)
     const pot = document.querySelector('.pot');
@@ -678,29 +869,46 @@ function renderTable(v) {
   });
 }
 
+function finishDealPresentation(hand) {
+  dealFxBusy = false;
+  dealPresenting = false;
+  document.documentElement.classList.remove('is-dealing');
+  // Snapshot D at final seat for the *next* hand's arc
+  const d = $('#dealer');
+  if (d && getComputedStyle(d).display !== 'none') {
+    prevDealerRect = d.getBoundingClientRect();
+  }
+  if (awaitingDealThenPass && hand === state.handNumber) {
+    awaitingDealThenPass = false;
+    passAfterDeal = true;
+    needsPass = true;
+    showPass();
+    return;
+  }
+  render();
+}
+
 function maybePlayDealFx() {
   if (needsPass || dealFxBusy) return;
   if (!pendingDealHand || pendingDealHand !== state.handNumber) return;
   if (state.phase !== PHASE.PREFLOP) return;
-  if (prefersReducedMotion()) {
-    lastDealPlayed = state.handNumber;
-    pendingDealHand = 0;
-    return;
-  }
-  dealFxBusy = true;
   const hand = state.handNumber;
   const prev = prevDealerRect;
   pendingDealHand = 0;
   lastDealPlayed = hand;
+  dealFxBusy = true;
+  dealPresenting = true;
+  handUiReady = false;
+  document.getElementById('act')?.classList.add('is-deal-locked');
   requestAnimationFrame(() => {
-    playDealAnimation({
-      state,
-      viewerSeat,
-      prevDealer: prev,
-      onDone: () => {
-        dealFxBusy = false;
-        document.documentElement.classList.remove('is-dealing');
-      },
+    // Second rAF: layout settled after placeDealer/placeBets
+    requestAnimationFrame(() => {
+      playDealAnimation({
+        state,
+        viewerSeat,
+        prevDealer: prev,
+        onDone: () => finishDealPresentation(hand),
+      });
     });
   });
 }
@@ -1646,9 +1854,16 @@ function openRaisePanel(legal) {
 
 function renderActions(v) {
   const act = $('#act');
+  const gated = !handUiReady || dealPresenting || heroFlipping || passAfterDeal;
+  if (gated) act?.classList.add('is-deal-locked');
+  else if (!needsPass) act?.classList.remove('is-deal-locked');
+
   const legal = v.legal;
   const myTurn =
+    handUiReady &&
     !needsPass &&
+    !dealPresenting &&
+    !heroFlipping &&
     legal?.canAct &&
     v.actor === viewerSeat &&
     [PHASE.PREFLOP, PHASE.FLOP, PHASE.TURN, PHASE.RIVER].includes(v.phase);
@@ -1675,8 +1890,7 @@ function renderActions(v) {
       dispatch({ type: 'ACK_HAND' });
       dispatch({ type: 'NEXT_HAND' });
       viewerSeat = state.actor ?? viewerSeat;
-      needsPass = true;
-      showPass();
+      startDealThenPass();
     };
     $('#btnEnd').onclick = () => {
       if (autoNextTimer) {
@@ -1729,6 +1943,16 @@ function renderActions(v) {
 
   $('#showBtns').classList.add('hidden');
   $('#showCd')?.classList.add('hidden');
+
+  // During deal / flip / post-deal pass: show locked Fold/Call/Raise (not 換人)
+  if (!handUiReady || dealPresenting || heroFlipping || passAfterDeal) {
+    act.classList.add('is-deal-locked');
+    $('#btns').innerHTML = `
+      <button class="fold" type="button" disabled>蓋牌</button>
+      <button class="call" type="button" disabled>跟注</button>
+      <button class="raiseb" type="button" disabled>加注</button>`;
+    return;
+  }
 
   if (!myTurn) {
     act.classList.add('is-dim');
@@ -1883,28 +2107,82 @@ onTick(() => {
     const cd = $('#showCd');
     if (cd && !cd.classList.contains('hidden')) cd.textContent = `${left} 秒後自動不亮`;
   }
-  if (needsPass) return;
-  if (!state.config.timerEnabled || state.deadline == null || state.actor !== viewerSeat) {
-    updateTimerDisplay(null);
+  if (debugTimerFreezeMs != null) {
+    updateActorTimerRing(debugTimerFreezeMs);
+    return;
+  }
+  if (
+    !handUiReady ||
+    !state.config.timerEnabled ||
+    state.deadline == null ||
+    state.actor == null ||
+    dealPresenting ||
+    heroFlipping ||
+    needsPass ||
+    state.phase === PHASE.SHOWDOWN ||
+    state.phase === PHASE.HAND_OVER ||
+    state.phase === PHASE.LOBBY
+  ) {
+    updateActorTimerRing(null);
     return;
   }
   const left = Math.max(0, state.deadline - Date.now());
-  updateTimerDisplay(left);
-  if (left <= 0) {
+  updateActorTimerRing(left);
+  // Only the hot-seat viewer can fire their own timeout
+  if (!needsPass && state.actor === viewerSeat && left <= 0) {
     const seat = state.actor;
     dispatch({ type: 'TIMEOUT', seat });
     passToNextIfNeeded();
   }
 });
 
-function updateTimerDisplay(leftMs) {
-  // Nameplate no longer hosts a timer ring (☰ shows 計時). Keep hook for deadline ticks.
-  const plate = $('#mePlate');
-  if (leftMs == null) {
-    plate?.classList.remove('is-timing');
+/**
+ * Drive the thin gold→red ring around the acting seat's avatar.
+ * Uses stroke-dashoffset only (GPU-friendly). Reduced-motion: 1Hz number.
+ * @param {number|null} leftMs
+ */
+function updateActorTimerRing(leftMs) {
+  const total = state.config.actionTimeoutMs || 30000;
+  const actor = state.actor;
+  // Clear all rings first
+  document.querySelectorAll('.av.is-timing').forEach((av) => {
+    av.classList.remove('is-timing', 'is-urgent');
+    const fg = av.querySelector('.av-ring-fg');
+    if (fg) {
+      fg.style.strokeDashoffset = '0';
+      fg.style.stroke = '';
+    }
+    const sec = av.querySelector('.av-ring-sec');
+    if (sec) sec.textContent = '';
+  });
+  if (leftMs == null || actor == null) {
+    lastTimerSecShown = -1;
     return;
   }
-  plate?.classList.add('is-timing');
+  const av =
+    actor === viewerSeat
+      ? document.querySelector('#heroAv, #mePlate .av')
+      : document.querySelector(`.seat[data-seat="${actor}"] .av`);
+  if (!av) return;
+  av.classList.add('is-timing');
+  const urgent = leftMs <= 5000;
+  av.classList.toggle('is-urgent', urgent);
+  const pct = Math.max(0, Math.min(1, leftMs / total));
+  const fg = av.querySelector('.av-ring-fg');
+  const reduce = prefersReducedMotion();
+  const secLeft = Math.max(0, Math.ceil(leftMs / 1000));
+  if (reduce) {
+    if (secLeft === lastTimerSecShown) return;
+    lastTimerSecShown = secLeft;
+  }
+  if (fg) {
+    // pathLength=100 → offset 0 = full, 100 = empty
+    fg.style.strokeDashoffset = String(100 * (1 - pct));
+    // Inline stroke so urgent red wins immediately (no CSS transition lag)
+    fg.style.stroke = urgent ? 'var(--warn)' : 'var(--gold)';
+  }
+  const secEl = av.querySelector('.av-ring-sec');
+  if (secEl) secEl.textContent = String(secLeft);
 }
 
 /* ─── Keyboard (desktop) ─── */
@@ -1945,9 +2223,33 @@ window.__poker = {
   setViewer(seat) {
     viewerSeat = seat;
     needsPass = false;
+    dealPresenting = false;
+    awaitingDealThenPass = false;
+    passAfterDeal = false;
+    heroFlipping = false;
+    dealFxBusy = false;
+    handUiReady = true;
+    cancelDealFx();
+    cancelHeroFlip();
     $('#passScreen')?.classList.remove('is-on');
+    document.getElementById('act')?.classList.remove('is-deal-locked');
     render();
   },
+  /** Test helper: force actor timer ring to a remaining-ms value (frozen until null). */
+  debugTimerRing(leftMs) {
+    debugTimerFreezeMs = leftMs == null ? null : leftMs;
+    updateActorTimerRing(leftMs);
+  },
+  get handUiReady() {
+    return handUiReady;
+  },
+  get dealPresenting() {
+    return dealPresenting;
+  },
+  get passAfterDeal() {
+    return passAfterDeal;
+  },
+  prefersReducedMotion,
   /** Cancel auto-advance so layout audits can inspect showdown DOM. */
   cancelAutoNext() {
     if (autoNextTimer) {

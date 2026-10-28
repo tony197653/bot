@@ -36,8 +36,33 @@ export function cardHtml(card, opts = {}) {
   return `<div class="${cls}" role="img" aria-label="${label}"><span class="rk">${RANK_SHOW[card.r] === '10' ? '10' : RANK_SHOW[card.r]}</span>${svgIcon(path, 'sm')}${svgIcon(path, 'big')}</div>`;
 }
 
+/** Small opponent card-back pair (seat rail). */
 export function cardBackPair() {
-  return `<div class="backs"><i></i><i></i></div>`;
+  return `<div class="backs"><i class="is-pending"></i><i class="is-pending"></i></div>`;
+}
+
+/**
+ * Hero-sized face-down hole cards (no face DOM — privacy until 換人 confirm).
+ * @param {{ pending?: boolean }} [opts]
+ */
+export function heroBackPair(opts = {}) {
+  const pend = opts.pending !== false ? ' is-pending' : '';
+  return (
+    `<div class="card hero is-back${pend}" aria-hidden="true"></div>` +
+    `<div class="card hero is-back${pend}" aria-hidden="true"></div>`
+  );
+}
+
+/**
+ * Face markup only (no outer .card) for 3D flip front face.
+ * @param {{r:number,s:number}} card
+ */
+export function cardFaceInner(card) {
+  const red = card.s === 1 || card.s === 2;
+  const path = SUIT_PATH[card.s];
+  const rk = RANK_SHOW[card.r] === '10' ? '10' : RANK_SHOW[card.r];
+  return `<span class="rk">${rk}</span>${svgIcon(path, 'sm')}${svgIcon(path, 'big')}` +
+    `<span class="sr-only">${SUIT_ZH[card.s]} ${rk}</span>`;
 }
 
 export function fmtChips(n) {
