@@ -5,7 +5,7 @@
   --plate:rgba(10,18,14,.88); --plateline:rgba(214,180,90,.45); --plateink:#f3ead2; --platemute:#c9bf9f;
   --tink:#f3ead2; --tmute:#cfe3d2;
   --panel:#101b14; --panelline:rgba(214,180,90,.18); --btn:#24372c; --btnink:#f3ead2;
-  --accent:#e6bf5a; --accent2:#c99a2e; --accentink:#2a1d02; --gold:#d6b45a; --warn:#ff8d7a;
+  --accent:#e6bf5a; --accent2:#c99a2e; --accentink:#2a1d02; --gold:#d6b45a; --warn:#ff4d3a;
   --chipA:#c8343a; --chipB:#f4efe6; --chipC:#2f5fb3;
   --card:#fbf7ee; --cardline:#d9d0b8; --red:#c0262d; --blk:#1d1d1d; --back1:#9e2a2b; --back2:#7d1f22;
   --ring:#d6b45a; --ringbg:#ffffff22; --track:#33463a;
@@ -165,22 +165,24 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   font-family:var(--tf);font-weight:700;font-size:15px;color:var(--plateink);flex:none;
   z-index:1;
 }
+/* While timing, drop the solid gold border so the shrinking ring is the only arc */
+.av.is-timing{border-color:rgba(255,255,255,.12)}
 /* Thin countdown ring around the acting seat's avatar (not over name/stack) */
 .av-ring{
-  position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);
+  position:absolute;inset:-3px;width:calc(100% + 6px);height:calc(100% + 6px);
   pointer-events:none;transform:rotate(-90deg);opacity:0;
   overflow:visible;
 }
 .av.is-timing .av-ring{opacity:1}
-.av-ring circle{fill:none;stroke-width:2.25;stroke-linecap:round}
-.av-ring .av-ring-bg{stroke:rgba(255,255,255,.14)}
+.av-ring circle{fill:none;stroke-width:2.5;stroke-linecap:round}
+.av-ring .av-ring-bg{stroke:rgba(255,255,255,.18)}
 .av-ring .av-ring-fg{
   stroke:var(--gold);
   stroke-dasharray:100;
   stroke-dashoffset:0;
-  transition:stroke .2s ease;
 }
-.av.is-urgent .av-ring-fg{stroke:var(--warn)}
+.av.is-timing.is-urgent .av-ring-fg,
+.av.is-urgent .av-ring-fg{stroke:var(--warn);stroke-width:2.75}
 .av-ring-sec{
   display:none;position:absolute;inset:0;place-items:center;
   font-size:9px;font-weight:800;color:var(--gold);pointer-events:none;

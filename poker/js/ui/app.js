@@ -51,6 +51,8 @@ let dealPresenting = false;
 let awaitingDealThenPass = false;
 /** Last whole-second shown under reduced-motion timer. */
 let lastTimerSecShown = -1;
+/** When set, onTick keeps this remaining-ms on the ring (screenshot helper). */
+let debugTimerFreezeMs = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let raiseHoldTimer = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
@@ -1958,6 +1960,10 @@ onTick(() => {
     const cd = $('#showCd');
     if (cd && !cd.classList.contains('hidden')) cd.textContent = `${left} 秒後自動不亮`;
   }
+  if (debugTimerFreezeMs != null) {
+    updateActorTimerRing(debugTimerFreezeMs);
+    return;
+  }
   if (
     !state.config.timerEnabled ||
     state.deadline == null ||
@@ -1992,7 +1998,10 @@ function updateActorTimerRing(leftMs) {
   document.querySelectorAll('.av.is-timing').forEach((av) => {
     av.classList.remove('is-timing', 'is-urgent');
     const fg = av.querySelector('.av-ring-fg');
-    if (fg) fg.style.strokeDashoffset = '0';
+    if (fg) {
+      fg.style.strokeDashoffset = '0';
+      fg.style.stroke = '';
+    }
     const sec = av.querySelector('.av-ring-sec');
     if (sec) sec.textContent = '';
   });
@@ -2019,6 +2028,8 @@ function updateActorTimerRing(leftMs) {
   if (fg) {
     // pathLength=100 → offset 0 = full, 100 = empty
     fg.style.strokeDashoffset = String(100 * (1 - pct));
+    // Inline stroke so urgent red wins immediately (no CSS transition lag)
+    fg.style.stroke = urgent ? 'var(--warn)' : 'var(--gold)';
   }
   const secEl = av.querySelector('.av-ring-sec');
   if (secEl) secEl.textContent = String(secLeft);
@@ -2068,8 +2079,9 @@ window.__poker = {
     $('#passScreen')?.classList.remove('is-on');
     render();
   },
-  /** Test helper: force actor timer ring to a remaining-ms value. */
+  /** Test helper: force actor timer ring to a remaining-ms value (frozen until null). */
   debugTimerRing(leftMs) {
+    debugTimerFreezeMs = leftMs == null ? null : leftMs;
     updateActorTimerRing(leftMs);
   },
   prefersReducedMotion,
