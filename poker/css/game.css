@@ -226,30 +226,23 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .seat.pos-3{--x:16%;--y:64%}
 .seat.pos-4{--x:16%;--y:32%}
 
-/* Revealed hole cards (hero-sized). Side seats: rail-outward; top: above.
-   JS placeShowdownReveals() nudges clear of board/pot/peers. */
+/* Opponent revealed holes (~80% of hero) — JS parks them inward of plates,
+   clear of the board band / viewport edges / peers. */
 .reveal-hole{
   display:flex;margin-bottom:6px;z-index:2;pointer-events:none;
+  position:absolute;left:0;top:0;
 }
-.reveal-hole .card:first-child{transform:rotate(-5deg);margin-right:-14px}
+.seat .reveal-hole .card{
+  width:calc(var(--hw) * 0.8);height:calc(var(--hh) * 0.8);
+  flex:0 0 calc(var(--hw) * 0.8);min-width:calc(var(--hw) * 0.8);
+  border-radius:7px;
+}
+.seat .reveal-hole .card .rk{font-size:19px;left:5px;top:2px}
+.seat .reveal-hole .card .sm{left:5px;top:22px;width:13px;height:13px}
+.seat .reveal-hole .card .big{width:26px;height:26px;right:4px;bottom:3px}
+.reveal-hole .card:first-child{transform:rotate(-5deg);margin-right:-11px}
 .reveal-hole .card:last-child{transform:rotate(5deg) translateY(2px)}
-.seat.pos-1 .reveal-hole,
-.seat.pos-2 .reveal-hole,
-.seat.pos-3 .reveal-hole,
-.seat.pos-4 .reveal-hole{
-  position:absolute;margin:0;top:50%;
-}
-.seat.pos-1 .reveal-hole,
-.seat.pos-2 .reveal-hole{
-  left:calc(100% + 6px);right:auto;transform:translateY(-50%);
-}
-.seat.pos-3 .reveal-hole,
-.seat.pos-4 .reveal-hole{
-  right:calc(100% + 6px);left:auto;transform:translateY(-50%);
-}
-.seat.pos-0 .reveal-hole{
-  position:relative;margin-bottom:6px;
-}
+.seat.pos-0 .reveal-hole{position:absolute;margin:0}
 
 /* Bet chips */
 .bet{
@@ -582,17 +575,8 @@ input[type=range]::-moz-range-thumb{
   box-shadow:0 4px 14px #0005;pointer-events:none}
 /* Hero: float above the whole me cluster (cards + plate), never over hole cards */
 .me .win-badge{top:auto;bottom:calc(100% + 12px);z-index:10}
-/* Side-seat WIN defaults (JS repositions above the rail-side reveal cluster) */
-.seat.pos-1 > .win-badge,
-.seat.pos-2 > .win-badge{
-  left:calc(100% + 6px + (var(--hw) * 2 - 14px) / 2);bottom:auto;
-  top:calc(50% - var(--hh) / 2 - 26px);transform:translateX(-50%);
-}
-.seat.pos-3 > .win-badge,
-.seat.pos-4 > .win-badge{
-  left:auto;right:calc(100% + 6px + (var(--hw) * 2 - 14px) / 2);bottom:auto;
-  top:calc(50% - var(--hh) / 2 - 26px);transform:translateX(50%);
-}
+/* Opponent WIN — JS parks above/below the reveal pair (never on the cards) */
+.seat > .win-badge{bottom:auto;top:0;left:50%;transform:translateX(-50%)}
 /* Fold-win centre note — under pot, narrow centre column; JS may nudge clear of reveals */
 .table-note{position:absolute;left:50%;top:48%;transform:translate(-50%,0);z-index:7;
   max-width:min(46%,200px);width:max-content;padding:5px 10px;border-radius:10px;text-align:center;

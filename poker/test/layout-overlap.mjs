@@ -25,6 +25,7 @@ const MIME = {
 };
 
 const TABLE_VIEWPORTS = [
+  { name: 'phone-360', w: 360, h: 780 },
   { name: 'phone-se', w: 375, h: 667 },
   { name: 'phone', w: 390, h: 844 },
   { name: 'phone-plus', w: 430, h: 932 },
@@ -524,6 +525,7 @@ async function forceAllSeatsRevealed(page) {
 
 function auditRevealLayoutInPage({ seatCount }) {
   const issues = [];
+  const MIN_GAP = 6;
   const box = (el) => {
     const r = el.getBoundingClientRect();
     return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: r.width, h: r.height };
@@ -532,6 +534,18 @@ function auditRevealLayoutInPage({ seatCount }) {
     const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
     const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
     return ox > 0 && oy > 0;
+  };
+  /** Negative = overlap depth; positive = clear gap on the separating axis */
+  const gapBetween = (a, b) => {
+    const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    if (ox > 0 && oy > 0) return -Math.min(ox, oy);
+    if (ox > 0) return Math.max(a.top - b.bottom, b.top - a.bottom);
+    if (oy > 0) return Math.max(a.left - b.right, b.left - a.right);
+    return Math.hypot(
+      Math.max(a.left - b.right, b.left - a.right, 0),
+      Math.max(a.top - b.bottom, b.top - a.bottom, 0),
+    );
   };
 
   const heroRef = document.querySelector('#heroHole .card.hero');
@@ -543,8 +557,12 @@ function auditRevealLayoutInPage({ seatCount }) {
   const cs = getComputedStyle(document.documentElement);
   const hw = parseFloat(cs.getPropertyValue('--hw')) || ref.w;
   const hh = parseFloat(cs.getPropertyValue('--hh')) || ref.h;
-  const stage = document.querySelector('.stage');
-  const stageBox = stage ? box(stage) : null;
+  // Opponent reveals may be ~80% of hero; accept 72%–102%
+  const minW = hw * 0.72;
+  const maxW = hw * 1.02;
+  const minH = hh * 0.72;
+  const maxH = hh * 1.02;
+  const view = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
 
   const revealCards = [...document.querySelectorAll('.reveal-hole .card')];
   const expectedOpponents = seatCount - 1;
@@ -560,10 +578,13 @@ function auditRevealLayoutInPage({ seatCount }) {
     );
   }
 
+  const holeBoxes = [];
+  const plateBoxes = [];
   for (const seatEl of document.querySelectorAll('.seat[data-seat]')) {
     const seat = seatEl.dataset.seat;
     const hole = seatEl.querySelector('.reveal-hole');
     const plate = seatEl.querySelector('.plate, .plateA');
+    if (plate) plateBoxes.push({ seat, b: box(plate), el: plate });
     if (!hole) {
       issues.push(`reveal cards do not fit at seat ${seat} (no reveal-hole)`);
       continue;
@@ -579,20 +600,27 @@ function auditRevealLayoutInPage({ seatCount }) {
     if (cards.length < 2) {
       issues.push(`reveal cards do not fit at seat ${seat} (expected 2 cards)`);
     }
+    const hb = box(hole);
+    holeBoxes.push({ seat, b: hb, el: hole });
+
     if (plate) {
       const pb = box(plate);
-      // Reveals may sit above OR rail-beside the plate — never overlap it
       for (const card of cards) {
         if (overlaps(box(card), pb)) {
           issues.push(`seat ${seat} reveal card overlaps nameplate`);
         }
       }
-      if (overlaps(box(hole), pb)) {
+      if (overlaps(hb, pb)) {
         issues.push(`seat ${seat} reveal-hole overlaps nameplate`);
+      }
+      const g = gapBetween(hb, pb);
+      if (g < MIN_GAP) {
+        issues.push(
+          `seat ${seat} reveal–nameplate gap ${g.toFixed(1)}px < ${MIN_GAP} (viewport=${window.innerWidth}x${window.innerHeight})`,
+        );
       }
     }
 
-    // Reveals / WIN must never cover community cards or the pot
     const boardCards = [...document.querySelectorAll('#board .card')];
     const potEl = document.querySelector('.pot');
     const winBadge = seatEl.querySelector('.win-badge');
@@ -606,6 +634,22 @@ function auditRevealLayoutInPage({ seatCount }) {
       if (potEl && overlaps(cb, box(potEl))) {
         issues.push(`seat ${seat} reveal overlaps pot`);
       }
+      // Fully inside viewport
+      if (
+        cb.left < view.left - 0.5 ||
+        cb.top < view.top - 0.5 ||
+        cb.right > view.right + 0.5 ||
+        cb.bottom > view.bottom + 0.5
+      ) {
+        issues.push(
+          `seat ${seat} reveal card clipped by viewport=${window.innerWidth}x${window.innerHeight}`,
+        );
+      }
+      if (cb.w < minW - 1 || cb.w > maxW + 1 || cb.h < minH - 1 || cb.h > maxH + 1) {
+        issues.push(
+          `seat ${seat} reveal card size ${cb.w.toFixed(1)}×${cb.h.toFixed(1)} not in ~80%–100% of hero ${hw.toFixed(0)}×${hh.toFixed(0)}`,
+        );
+      }
     }
     if (winBadge) {
       const wb = box(winBadge);
@@ -616,6 +660,23 @@ function auditRevealLayoutInPage({ seatCount }) {
       }
       if (potEl && overlaps(wb, box(potEl))) {
         issues.push(`seat ${seat} WIN badge overlaps pot`);
+      }
+      // WIN must never cover any card (own reveal or hero)
+      for (const card of cards) {
+        if (overlaps(wb, box(card))) {
+          issues.push(`seat ${seat} WIN badge covers own reveal card`);
+        }
+      }
+      if (overlaps(wb, hb)) {
+        issues.push(`seat ${seat} WIN badge overlaps own reveal-hole`);
+      }
+      for (const c of document.querySelectorAll('#heroHole .card')) {
+        if (overlaps(wb, box(c))) {
+          issues.push(`seat ${seat} WIN badge overlaps hero card`);
+        }
+      }
+      if (plate && overlaps(wb, box(plate))) {
+        issues.push(`seat ${seat} WIN badge overlaps own nameplate`);
       }
       for (const other of document.querySelectorAll('.seat[data-seat]')) {
         if (other === seatEl) continue;
@@ -628,27 +689,37 @@ function auditRevealLayoutInPage({ seatCount }) {
           issues.push(`seat ${seat} WIN badge overlaps other reveal`);
         }
       }
-    }
-    for (const card of cards) {
-      const b = box(card);
-      if (Math.abs(b.w - ref.w) > 1 || Math.abs(b.h - ref.h) > 1) {
-        if (Math.abs(b.w - hw) > 1 || Math.abs(b.h - hh) > 1) {
-          issues.push(
-            `seat ${seat} reveal card size ${b.w.toFixed(1)}×${b.h.toFixed(1)} != hero ${ref.w.toFixed(1)}×${ref.h.toFixed(1)}`,
-          );
-        }
+      if (
+        wb.left < view.left - 0.5 ||
+        wb.top < view.top - 0.5 ||
+        wb.right > view.right + 0.5 ||
+        wb.bottom > view.bottom + 0.5
+      ) {
+        issues.push(`seat ${seat} WIN badge clipped by viewport`);
       }
-      if (stageBox) {
-        const out =
-          b.left < stageBox.left - 1 ||
-          b.top < stageBox.top - 1 ||
-          b.right > stageBox.right + 1 ||
-          b.bottom > stageBox.bottom + 1;
-        if (out) {
-          issues.push(
-            `reveal cards do not fit at seat ${seat} viewport=${window.innerWidth}x${window.innerHeight} (clipped outside stage)`,
-          );
-        }
+    }
+  }
+
+  // ≥6px between any two reveal groups
+  for (let i = 0; i < holeBoxes.length; i++) {
+    for (let j = i + 1; j < holeBoxes.length; j++) {
+      const g = gapBetween(holeBoxes[i].b, holeBoxes[j].b);
+      if (g < MIN_GAP) {
+        issues.push(
+          `reveal seats ${holeBoxes[i].seat}/${holeBoxes[j].seat} gap ${g.toFixed(1)}px < ${MIN_GAP}`,
+        );
+      }
+    }
+  }
+  // ≥6px between reveals and *other* nameplates
+  for (const h of holeBoxes) {
+    for (const p of plateBoxes) {
+      if (p.seat === h.seat) continue;
+      const g = gapBetween(h.b, p.b);
+      if (g < MIN_GAP) {
+        issues.push(
+          `reveal seat ${h.seat} vs nameplate ${p.seat} gap ${g.toFixed(1)}px < ${MIN_GAP}`,
+        );
       }
     }
   }
