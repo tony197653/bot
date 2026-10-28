@@ -1,5 +1,5 @@
 /**
- * Presentation-only table FX: hand-start deal (~2s) and winner celebration.
+ * Presentation-only table FX: hand-start deal (~3s) and winner celebration.
  * Engine state is always final; these never mutate game rules.
  */
 
@@ -8,6 +8,16 @@ import { fmtChips } from './cards-dom.js';
 import { foldWinCenterNote as foldWinNoteFromEngine } from '../engine/index.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
+
+/** Deal sequence timing (ms) — total ≈ 3s for 6-max with stagger. */
+export const DEAL_FX = Object.freeze({
+  dealerMs: 400,
+  blindMs: 360,
+  blindStaggerMs: 140,
+  cardFlightMs: 300,
+  cardStaggerMs: 145,
+  settleMs: 120,
+});
 
 export function prefersReducedMotion() {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -149,17 +159,20 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
 
   const skip = () => ac.abort();
   const onSkip = (e) => {
+    // Tap anywhere skips to the final dealt state
+    if (e.target?.closest?.('#passScreen, .screen.is-on, .menu-pop, .raise-panel')) return;
     e.preventDefault();
     skip();
   };
   document.addEventListener('pointerdown', onSkip, { capture: true });
 
+  const t0 = performance.now();
   try {
     const occupied = state.seats.map((p, i) => (p ? i : null)).filter((x) => x != null);
     const dealer = $('#dealer');
     const tBox = table.getBoundingClientRect();
 
-    // 1) Dealer button slides to new seat (~350ms)
+    // 1) Dealer button slides to new button seat
     if (dealer && prevDealer) {
       const dest = dealer.getBoundingClientRect();
       const dx = prevDealer.left + prevDealer.width / 2 - (dest.left + dest.width / 2);
@@ -168,106 +181,131 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
       await animateEl(
         dealer,
         [
-          { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`, offset: 0 },
-          { transform: 'translate(-50%, -50%)', offset: 1 },
+          { transform: `translate(${dx}px, ${dy}px)` },
+          { transform: 'translate(0px, 0px)' },
         ],
-        { duration: 320, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'none' },
+        { duration: DEAL_FX.dealerMs, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'none' },
         signal,
       );
     } else {
-      await wait(120, signal);
+      await wait(Math.min(180, DEAL_FX.dealerMs), signal);
     }
 
-    // 2) Blind chips slide out
-    const potPt = {
-      x: tBox.width * 0.5,
-      y: tBox.height * 0.42,
-    };
-    async function flyBlind(seat, delay) {
+    // 2) SB then BB chips slide from seat → bet rail (staggered)
+    const potPt = { x: tBox.width * 0.5, y: tBox.height * 0.42 };
+    function flyBlind(seat) {
       const pos = seatVisualPos(seat, viewerSeat);
       const anchor = seatAnchorEl(pos, viewerSeat);
-      if (!anchor) return;
+      if (!anchor) return Promise.resolve();
       const from = centerOf(anchor, table);
       const chip = document.createElement('div');
       chip.className = 'fx-chip-fly';
-      chip.innerHTML = '<span class="chips"><i class="a"></i><i class="b"></i><i class="c"></i></span>';
+      const blue = seat === state.sbSeat ? ' is-blue' : '';
+      chip.innerHTML = `<span class="chips${blue}"><i class="a"></i></span>`;
       chip.style.transform = `translate(${from.x}px, ${from.y}px) translate(-50%,-50%)`;
       layer.appendChild(chip);
-      await wait(delay, signal);
-      const bet = document.querySelector(`.bet[data-for-seat="${seat}"]`);
+      const bet =
+        document.querySelector(`.bet[data-for-seat="${seat}"]`) ||
+        (seat === viewerSeat ? document.querySelector('#bets .bet[data-hero="1"]') : null);
       const to = bet ? centerOf(bet, table) : potPt;
-      await animateEl(
+      return animateEl(
         chip,
         [
-          { transform: `translate(${from.x}px, ${from.y}px) translate(-50%,-50%) scale(.85)`, opacity: 0.2 },
+          { transform: `translate(${from.x}px, ${from.y}px) translate(-50%,-50%) scale(.8)`, opacity: 0.15 },
           { transform: `translate(${to.x}px, ${to.y}px) translate(-50%,-50%) scale(1)`, opacity: 1 },
         ],
-        { duration: 280, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' },
+        { duration: DEAL_FX.blindMs, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' },
         signal,
-      );
-      chip.remove();
+      ).then(() => chip.remove());
     }
-    if (state.sbSeat != null) await flyBlind(state.sbSeat, 0);
-    if (state.bbSeat != null && state.bbSeat !== state.sbSeat) await flyBlind(state.bbSeat, 40);
+    const blindJobs = [];
+    if (state.sbSeat != null) blindJobs.push(flyBlind(state.sbSeat));
+    if (state.bbSeat != null && state.bbSeat !== state.sbSeat) {
+      blindJobs.push(
+        wait(DEAL_FX.blindStaggerMs, signal).then(() => flyBlind(state.bbSeat)),
+      );
+    }
+    await Promise.all(blindJobs);
 
-    // 3) Deal cards one-by-one clockwise from SB, two rounds
+    // 3) Hole cards: two rounds clockwise from SB; each flight ~0.3s with stagger
     const order = dealOrderFromSb(occupied, state.sbSeat ?? occupied[0]);
-    const per = Math.max(55, Math.floor(900 / Math.max(1, order.length)));
     const origin = { x: tBox.width * 0.5, y: tBox.height * 0.48 };
+    const flights = [];
     for (let i = 0; i < order.length; i++) {
       const seat = order[i];
+      const round = i < occupied.length ? 0 : 1;
       const pos = seatVisualPos(seat, viewerSeat);
       const anchor = seatAnchorEl(pos, viewerSeat);
       const to = anchor ? centerOf(anchor, table) : origin;
-      const card = document.createElement('div');
-      card.className = 'fx-deal-card';
-      card.setAttribute('aria-hidden', 'true');
-      layer.appendChild(card);
-      const rot = ((i % 5) - 2) * 8;
-      await animateEl(
-        card,
-        [
-          {
-            transform: `translate(${origin.x}px, ${origin.y}px) translate(-50%,-50%) rotate(${rot}deg) scale(.6)`,
-            opacity: 0,
-          },
-          {
-            transform: `translate(${(origin.x + to.x) / 2}px, ${(origin.y + to.y) / 2 - 24}px) translate(-50%,-50%) rotate(${rot / 2}deg) scale(.9)`,
-            opacity: 1,
-            offset: 0.45,
-          },
-          {
-            transform: `translate(${to.x}px, ${to.y}px) translate(-50%,-50%) rotate(0deg) scale(1)`,
-            opacity: 0.15,
-          },
-        ],
-        { duration: per + 40, easing: 'cubic-bezier(.18,.7,.22,1)', fill: 'forwards' },
-        signal,
+      const startDelay = i * DEAL_FX.cardStaggerMs;
+      const rot = ((i % 5) - 2) * 7;
+      const ease = i % 2 === 0 ? 'cubic-bezier(.18,.75,.22,1)' : 'cubic-bezier(.2,.7,.25,1)';
+      flights.push(
+        (async () => {
+          await wait(startDelay, signal);
+          const card = document.createElement('div');
+          card.className = 'fx-deal-card';
+          card.setAttribute('aria-hidden', 'true');
+          layer.appendChild(card);
+          await animateEl(
+            card,
+            [
+              {
+                transform: `translate(${origin.x}px, ${origin.y}px) translate(-50%,-50%) rotate(${rot}deg) scale(.55)`,
+                opacity: 0,
+              },
+              {
+                transform: `translate(${(origin.x + to.x) / 2}px, ${(origin.y + to.y) / 2 - 28}px) translate(-50%,-50%) rotate(${rot / 2}deg) scale(.95)`,
+                opacity: 1,
+                offset: 0.42,
+              },
+              {
+                transform: `translate(${to.x}px, ${to.y}px) translate(-50%,-50%) rotate(0deg) scale(1)`,
+                opacity: 0.2,
+              },
+            ],
+            { duration: DEAL_FX.cardFlightMs, easing: ease, fill: 'forwards' },
+            signal,
+          );
+          card.remove();
+          // Settle the live back / hero placeholder at this seat
+          const live =
+            pos === 'hero'
+              ? $('#heroHole .back, #heroHole i, #heroHole .card')?.[round]
+              : document.querySelector(
+                  `.seat.pos-${pos} .backs i:nth-child(${round + 1}), .seat.pos-${pos} .backs .back:nth-child(${round + 1})`,
+                );
+          if (live) {
+            live.animate(
+              [
+                { opacity: 0, transform: 'scale(.88)' },
+                { opacity: 1, transform: 'scale(1)' },
+              ],
+              { duration: DEAL_FX.settleMs, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'forwards' },
+            );
+          }
+        })(),
       );
-      card.remove();
-      // Reveal hero / backs progressively via CSS class on live nodes
-      const live =
-        pos === 'hero'
-          ? $('#heroHole .card')?.[Math.floor(i / occupied.length)]
-          : document.querySelector(`.seat.pos-${pos} .backs i:nth-child(${(i < occupied.length ? 1 : 2)})`);
-      if (live) {
-        live.animate(
-          [
-            { opacity: 0, transform: 'scale(.85)' },
-            { opacity: 1, transform: 'scale(1)' },
-          ],
-          { duration: 160, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'forwards' },
-        );
-      }
-      await wait(Math.floor(per * 0.15), signal);
     }
-    await wait(80, signal);
+    await Promise.all(flights);
+
+    // Pad short heads-up deals toward ~3s total
+    const elapsed = performance.now() - t0;
+    const target = 2800;
+    if (elapsed < target) await wait(target - elapsed, signal);
   } catch (e) {
     if (e?.name !== 'AbortError') console.warn(e);
   } finally {
     document.removeEventListener('pointerdown', onSkip, { capture: true });
     layer.replaceChildren();
     document.documentElement.classList.remove('is-dealing');
+    // Snap live backs/hero placeholders visible after skip/finish
+    document
+      .querySelectorAll('#heroHole .card, #heroHole .back, #heroHole i, .backs i, .backs .back')
+      .forEach((el) => {
+        el.style.opacity = '';
+        el.style.transform = '';
+      });
     if (dealAbort === ac) dealAbort = null;
     onDone?.();
   }

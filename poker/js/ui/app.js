@@ -38,13 +38,19 @@ let lastActor = null;
 let raiseTo = 0;
 let toastTimer = 0;
 let dealAnimKey = '';
-/** Hand number waiting for deal FX after pass confirm. */
+/** Hand number waiting for deal FX (plays before 換人). */
 let pendingDealHand = 0;
 let lastDealPlayed = 0;
 let winFxKey = '';
 /** @type {DOMRect | null} */
 let prevDealerRect = null;
 let dealFxBusy = false;
+/** True while the deal FX is presenting; hero holes stay face-down. */
+let dealPresenting = false;
+/** After deal FX finishes, show the 換人 overlay for the actor. */
+let awaitingDealThenPass = false;
+/** Last whole-second shown under reduced-motion timer. */
+let lastTimerSecShown = -1;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let raiseHoldTimer = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
@@ -165,10 +171,14 @@ function afterState() {
   }
   // Hot-seat: when actor changes to another seated player mid-hand, show pass screen
   // (Reveal phase uses bots for other seats — no pass for 亮牌／不亮.)
+  // Skip while a deal presentation is in flight (deal runs before 換人).
   if (
     state.actor != null &&
     state.actor !== viewerSeat &&
-    [PHASE.PREFLOP, PHASE.FLOP, PHASE.TURN, PHASE.RIVER].includes(state.phase)
+    [PHASE.PREFLOP, PHASE.FLOP, PHASE.TURN, PHASE.RIVER].includes(state.phase) &&
+    !dealPresenting &&
+    !awaitingDealThenPass &&
+    !dealFxBusy
   ) {
     needsPass = true;
   }
@@ -223,15 +233,27 @@ function scheduleAutoNextHand() {
     autoNextTimer = null;
     if (state.phase !== PHASE.HAND_OVER) return;
     try {
+      awaitingDealThenPass = true;
+      dealPresenting = true;
+      needsPass = false;
       dispatch({ type: 'ACK_HAND' });
       dispatch({ type: 'NEXT_HAND' });
       viewerSeat = state.actor ?? state.room.hostSeat;
-      needsPass = true;
-      showPass();
+      startDealThenPass();
     } catch (_) {
       /* ignore */
     }
   }, 1600);
+}
+
+/** SVG countdown ring around an avatar (pathLength=100 for easy dashoffset). */
+function avWithRing(initial, { timing = false } = {}) {
+  const ring =
+    `<svg class="av-ring" viewBox="0 0 36 36" aria-hidden="true">` +
+    `<circle class="av-ring-bg" cx="18" cy="18" r="15"/>` +
+    `<circle class="av-ring-fg" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0"/>` +
+    `</svg><span class="av-ring-sec" aria-hidden="true"></span>`;
+  return `<div class="av${timing ? ' is-timing' : ''}">${ring}<span>${esc(initial)}</span></div>`;
 }
 
 function view() {
@@ -416,14 +438,27 @@ function bindLobby() {
       openLobby();
       return;
     }
+    // Mark deal-before-pass before dispatch so afterState won't flash 換人
+    awaitingDealThenPass = true;
+    dealPresenting = true;
+    needsPass = false;
     dispatch({ type: 'START_HAND' });
-    // First actor gets the device
     viewerSeat = state.actor ?? state.room.hostSeat;
-    needsPass = true;
     $('#lobbyScreen').classList.remove('is-on');
     $('#lobbyScreen').classList.add('hidden');
-    showPass();
+    startDealThenPass();
   };
+}
+
+/** Play deal FX on the open table, then show 換人 for the actor. */
+function startDealThenPass() {
+  awaitingDealThenPass = true;
+  dealPresenting = true;
+  needsPass = false;
+  $('#passScreen')?.classList.remove('is-on');
+  pendingDealHand = state.handNumber;
+  render();
+  maybePlayDealFx();
 }
 
 /* ─── Pass screen ─── */
@@ -444,10 +479,13 @@ function showPass() {
 
 function hidePass() {
   needsPass = false;
+  dealPresenting = false;
+  awaitingDealThenPass = false;
   $('#passScreen').classList.remove('is-on');
   lastActor = state.actor;
   dealAnimKey = `${state.handNumber}-${viewerSeat}`;
   render();
+  // Deal already played before 換人; only run if somehow still pending
   maybePlayDealFx();
 }
 
@@ -561,13 +599,19 @@ function renderTable(v) {
     const wonAmt = state.winnerPayouts?.[seat];
     const isWin = wonAmt != null && (v.isHandOver || v.isShowdown);
     const showing = revealed ? ' is-showing' : '';
+    const timing =
+      !!v.config.timerEnabled &&
+      v.actor === seat &&
+      v.deadline != null &&
+      !v.isHandOver &&
+      !v.isShowdown;
     const el = document.createElement('div');
     el.className = `seat pos-${pos}${folded}${actor}${showing}${isWin ? ' is-winner' : ''}`;
     el.dataset.seat = String(seat);
     el.innerHTML = `
       ${revealHtml || backs}
       <div class="plate plateA${isWin ? ' is-winner' : ''}">
-        <div class="av"><span>${esc(p.name.slice(0, 1))}</span></div>
+        ${avWithRing(p.name.slice(0, 1), { timing })}
         <div>
           <div class="nm">${esc(p.name)}${role}</div>
           <span class="ch st">${fmtChips(p.chips)}</span>
@@ -596,7 +640,10 @@ function renderTable(v) {
 
   const hero = v.seats[viewerSeat];
   const hole = $('#heroHole');
-  if (hero?.hole?.length) {
+  // Face-down during deal presentation / pass privacy; faces only after 換人確認
+  if (dealPresenting || needsPass) {
+    hole.innerHTML = hero?.hole?.length || hero?.hasHole ? cardBackPair() : '';
+  } else if (hero?.hole?.length) {
     hole.innerHTML = hero.hole
       .map((c) => cardHtml(c, { hero: true, anim }))
       .join('');
@@ -606,21 +653,39 @@ function renderTable(v) {
   {
     const nameEl = $('#heroName');
     if (nameEl) {
-      if (hero) {
+      if (hero && !needsPass) {
         const role = roleTag(v, viewerSeat);
         nameEl.innerHTML = `${esc(hero.name)}（你）${role}`;
+      } else if (needsPass) {
+        nameEl.textContent = '（換人中）';
       } else {
         nameEl.textContent = '';
       }
     }
-    const av = $('#heroAv');
-    if (av) av.textContent = hero ? hero.name.slice(0, 1) : '—';
   }
-  $('#heroChips').textContent = hero ? fmtChips(hero.chips) : '';
+  $('#heroChips').textContent = hero && !needsPass ? fmtChips(hero.chips) : '';
   const mePlate = $('#mePlate');
   const heroWon = state.winnerPayouts?.[viewerSeat];
   const heroIsWin = heroWon != null && (v.isHandOver || v.isShowdown);
   mePlate?.classList.toggle('is-winner', !!heroIsWin);
+  const heroTiming =
+    !!v.config.timerEnabled &&
+    v.actor === viewerSeat &&
+    v.deadline != null &&
+    !v.isHandOver &&
+    !v.isShowdown &&
+    !needsPass &&
+    !dealPresenting;
+  {
+    const avHost = mePlate?.querySelector('.av') || null;
+    if (avHost && mePlate) {
+      const initial = hero ? hero.name.slice(0, 1) : '—';
+      avHost.outerHTML = avWithRing(initial, { timing: heroTiming });
+      // keep id for tests / a11y hooks
+      const newAv = mePlate.querySelector('.av');
+      if (newAv) newAv.id = 'heroAv';
+    }
+  }
   document.querySelectorAll('#meRoot > .win-badge').forEach((n) => n.remove());
   if (heroIsWin && mePlate) {
     const badge = document.createElement('div');
@@ -678,29 +743,39 @@ function renderTable(v) {
   });
 }
 
+function finishDealPresentation(hand) {
+  dealFxBusy = false;
+  dealPresenting = false;
+  document.documentElement.classList.remove('is-dealing');
+  if (awaitingDealThenPass && hand === state.handNumber) {
+    awaitingDealThenPass = false;
+    needsPass = true;
+    showPass();
+    return;
+  }
+  render();
+}
+
 function maybePlayDealFx() {
   if (needsPass || dealFxBusy) return;
   if (!pendingDealHand || pendingDealHand !== state.handNumber) return;
   if (state.phase !== PHASE.PREFLOP) return;
-  if (prefersReducedMotion()) {
-    lastDealPlayed = state.handNumber;
-    pendingDealHand = 0;
-    return;
-  }
-  dealFxBusy = true;
   const hand = state.handNumber;
   const prev = prevDealerRect;
   pendingDealHand = 0;
   lastDealPlayed = hand;
+  if (prefersReducedMotion()) {
+    finishDealPresentation(hand);
+    return;
+  }
+  dealFxBusy = true;
+  dealPresenting = true;
   requestAnimationFrame(() => {
     playDealAnimation({
       state,
       viewerSeat,
       prevDealer: prev,
-      onDone: () => {
-        dealFxBusy = false;
-        document.documentElement.classList.remove('is-dealing');
-      },
+      onDone: () => finishDealPresentation(hand),
     });
   });
 }
@@ -1883,28 +1958,70 @@ onTick(() => {
     const cd = $('#showCd');
     if (cd && !cd.classList.contains('hidden')) cd.textContent = `${left} 秒後自動不亮`;
   }
-  if (needsPass) return;
-  if (!state.config.timerEnabled || state.deadline == null || state.actor !== viewerSeat) {
-    updateTimerDisplay(null);
+  if (
+    !state.config.timerEnabled ||
+    state.deadline == null ||
+    state.actor == null ||
+    dealPresenting ||
+    state.phase === PHASE.SHOWDOWN ||
+    state.phase === PHASE.HAND_OVER ||
+    state.phase === PHASE.LOBBY
+  ) {
+    updateActorTimerRing(null);
     return;
   }
   const left = Math.max(0, state.deadline - Date.now());
-  updateTimerDisplay(left);
-  if (left <= 0) {
+  updateActorTimerRing(left);
+  // Only the hot-seat viewer can fire their own timeout
+  if (!needsPass && state.actor === viewerSeat && left <= 0) {
     const seat = state.actor;
     dispatch({ type: 'TIMEOUT', seat });
     passToNextIfNeeded();
   }
 });
 
-function updateTimerDisplay(leftMs) {
-  // Nameplate no longer hosts a timer ring (☰ shows 計時). Keep hook for deadline ticks.
-  const plate = $('#mePlate');
-  if (leftMs == null) {
-    plate?.classList.remove('is-timing');
+/**
+ * Drive the thin gold→red ring around the acting seat's avatar.
+ * Uses stroke-dashoffset only (GPU-friendly). Reduced-motion: 1Hz number.
+ * @param {number|null} leftMs
+ */
+function updateActorTimerRing(leftMs) {
+  const total = state.config.actionTimeoutMs || 30000;
+  const actor = state.actor;
+  // Clear all rings first
+  document.querySelectorAll('.av.is-timing').forEach((av) => {
+    av.classList.remove('is-timing', 'is-urgent');
+    const fg = av.querySelector('.av-ring-fg');
+    if (fg) fg.style.strokeDashoffset = '0';
+    const sec = av.querySelector('.av-ring-sec');
+    if (sec) sec.textContent = '';
+  });
+  if (leftMs == null || actor == null) {
+    lastTimerSecShown = -1;
     return;
   }
-  plate?.classList.add('is-timing');
+  const av =
+    actor === viewerSeat
+      ? document.querySelector('#heroAv, #mePlate .av')
+      : document.querySelector(`.seat[data-seat="${actor}"] .av`);
+  if (!av) return;
+  av.classList.add('is-timing');
+  const urgent = leftMs <= 5000;
+  av.classList.toggle('is-urgent', urgent);
+  const pct = Math.max(0, Math.min(1, leftMs / total));
+  const fg = av.querySelector('.av-ring-fg');
+  const reduce = prefersReducedMotion();
+  const secLeft = Math.max(0, Math.ceil(leftMs / 1000));
+  if (reduce) {
+    if (secLeft === lastTimerSecShown) return;
+    lastTimerSecShown = secLeft;
+  }
+  if (fg) {
+    // pathLength=100 → offset 0 = full, 100 = empty
+    fg.style.strokeDashoffset = String(100 * (1 - pct));
+  }
+  const secEl = av.querySelector('.av-ring-sec');
+  if (secEl) secEl.textContent = String(secLeft);
 }
 
 /* ─── Keyboard (desktop) ─── */
@@ -1945,9 +2062,17 @@ window.__poker = {
   setViewer(seat) {
     viewerSeat = seat;
     needsPass = false;
+    dealPresenting = false;
+    awaitingDealThenPass = false;
+    dealFxBusy = false;
     $('#passScreen')?.classList.remove('is-on');
     render();
   },
+  /** Test helper: force actor timer ring to a remaining-ms value. */
+  debugTimerRing(leftMs) {
+    updateActorTimerRing(leftMs);
+  },
+  prefersReducedMotion,
   /** Cancel auto-advance so layout audits can inspect showdown DOM. */
   cancelAutoNext() {
     if (autoNextTimer) {
