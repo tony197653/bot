@@ -614,17 +614,47 @@ body.is-playing .boot{display:none}
   font-variant-numeric:tabular-nums;font-size:12px;opacity:.85;min-width:1.2em;
 }
 
-/* Pause panel (host-triggered, between hands) */
-.pause-panel{max-width:min(92vw,380px)}
-.pause-list{display:flex;flex-direction:column;gap:10px;margin-top:16px;text-align:left}
-.pause-row{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.28);
-  border:1px solid rgba(214,180,90,.18);
+/* Pause modal — above table/act/toast; opaque sheet like 換人 */
+.pause-screen{
+  z-index:60;
+  background:rgba(8,14,11,.72);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  justify-content:center;
 }
-.pause-name{font-weight:700;font-size:15px}
-.pause-status button.pause-ready{height:40px;min-width:108px;padding:0 14px;font-size:14px}
-.pause-ok{color:#7dcea0;font-size:13px;font-weight:600}
+.pause-screen .pause-panel{
+  width:min(400px,100%);
+  margin:0 auto;
+  text-align:center;
+  background:#101b14;
+  border:1px solid rgba(214,180,90,.35);
+  box-shadow:0 24px 48px #000a;
+}
+.pause-count{
+  margin:0 0 14px;font-size:14px;font-weight:700;color:var(--accent);
+  font-variant-numeric:tabular-nums;
+}
+.pause-list{display:flex;flex-direction:column;gap:10px;text-align:left}
+.pause-row{
+  display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;
+  padding:12px 12px;border-radius:12px;background:#0a1210;
+  border:1px solid rgba(214,180,90,.22);
+}
+.pause-name{font-weight:700;font-size:15px;color:var(--ink);min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pause-wait{font-size:12px;color:var(--mute);white-space:nowrap}
+.pause-row.is-ready .pause-wait{color:#7dcea0;font-weight:600}
+.pause-ready{
+  height:40px;min-width:112px;padding:0 14px;border-radius:10px;font-size:14px;font-weight:700;
+  background:linear-gradient(var(--accent),var(--accent2));color:var(--accentink);border:none;
+  box-shadow:0 2px 8px #0005;
+}
+.pause-ready:disabled,.pause-ready.is-done{
+  background:#1a2a20;color:#7dcea0;box-shadow:none;cursor:default;
+}
+.pause-ok-mark{display:inline-flex;align-items:center;justify-content:center;
+  width:40px;height:40px;border-radius:10px;background:#1a2a20;color:#7dcea0;
+  font-size:18px;font-weight:700}
 
 @media (max-width:1023px){
   html,body{width:100%;max-width:100vw;overflow-x:hidden;overflow-x:clip;overflow-y:hidden}

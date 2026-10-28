@@ -295,6 +295,23 @@ function stackTargetEl(pos) {
   );
 }
 
+/**
+ * Land chips beside / below the stack text so the amount isn't covered mid-flight.
+ * @param {number|'hero'} pos
+ * @param {HTMLElement} table
+ */
+function chipLandPoint(pos, table) {
+  const target = stackTargetEl(pos);
+  const potEl = $('.pot') || table;
+  const base = centerOf(target || potEl, table);
+  if (pos === 'hero') {
+    // Right of hero stack digits
+    return { x: base.x + Math.max(28, (base.w || 0) * 0.55 + 16), y: base.y };
+  }
+  // Below opponent stack line (clear of "1,980" text)
+  return { x: base.x, y: base.y + Math.max(18, (base.h || 0) * 0.75 + 10) };
+}
+
 /** Pure helper for tests: visual target key for a winner seat. */
 export function chipTargetPos(winnerSeat, viewerSeat) {
   return seatVisualPos(winnerSeat, viewerSeat);
@@ -1256,8 +1273,7 @@ export async function playShowdownSequence({
       if (reduced) continue;
       const flyJobs = shares.map(([seat, amt], si) => {
         const pos = seatVisualPos(seat, viewerSeat);
-        const target = stackTargetEl(pos);
-        const to = centerOf(target || potEl, table);
+        const to = chipLandPoint(pos, table);
         const chip = document.createElement('div');
         chip.className = 'fx-chip-fly';
         chip.innerHTML = `<span class="chips"><i class="a"></i></span><span class="amt">${fmtChips(amt)}</span>`;

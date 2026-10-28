@@ -720,11 +720,10 @@ function renderTop(v) {
 function requestPause() {
   try {
     dispatch({ type: 'REQUEST_PAUSE', seat: state.room.hostSeat });
-    toast(
-      state.pause?.active
-        ? '已暫停，等待全員回來'
-        : '已預約暫停：這手結束後生效',
-    );
+    // Modal is the signal when active — only toast for mid-hand booking
+    if (state.pause?.requested && !state.pause?.active) {
+      toast('已預約暫停：這手結束後生效');
+    }
   } catch (e) {
     toast(e.message || String(e));
   }
@@ -735,30 +734,40 @@ function syncPausePanel() {
   if (!scr) return;
   if (!state.pause?.active) {
     scr.classList.remove('is-on');
+    $('#toast')?.classList.remove('is-on');
     return;
   }
-  // No action timer while paused
+  // No action timer / hold while paused
   if (autoNextTimer) {
     clearTimeout(autoNextTimer);
     autoNextTimer = null;
   }
   holdDeadline = null;
+  $('#toast')?.classList.remove('is-on');
   scr.classList.add('is-on');
   const list = $('#pauseList');
+  const countEl = $('#pauseCount');
   if (!list) return;
+  const entries = Object.entries(state.pause.ready || {});
+  const readyN = entries.filter(([, r]) => r).length;
+  const totalN = entries.length;
+  if (countEl) countEl.textContent = `${readyN}／${totalN} 人已回來`;
   const rows = [];
-  for (const [seatStr, ready] of Object.entries(state.pause.ready || {})) {
+  for (const [seatStr, ready] of entries) {
     const seat = +seatStr;
     const p = state.seats[seat];
     if (!p) continue;
-    const status = ready ? '已回來' : '未回來';
-    const btn = ready
-      ? `<span class="pause-ok">✓ ${status}</span>`
-      : `<button type="button" class="primary pause-ready" data-seat="${seat}">我回來了</button>`;
+    const status = ready
+      ? `<span class="pause-wait">✓ 已回來</span>`
+      : `<span class="pause-wait">等待中</span>`;
+    const action = ready
+      ? `<span class="pause-ok-mark" aria-label="已回來">✓</span>`
+      : `<button type="button" class="pause-ready" data-seat="${seat}">我回來了</button>`;
     rows.push(
-      `<div class="pause-row" data-seat="${seat}">` +
+      `<div class="pause-row${ready ? ' is-ready' : ''}" data-seat="${seat}">` +
         `<span class="pause-name">${esc(p.name)}</span>` +
-        `<span class="pause-status">${btn}</span>` +
+        status +
+        action +
         `</div>`,
     );
   }
@@ -772,7 +781,6 @@ function syncPausePanel() {
       try {
         state = applyAction(state, { type: 'PLAYER_READY', seat }, { now: Date.now() });
         if (!state.pause?.active) {
-          // All ready → deal next hand
           $('#pauseScreen')?.classList.remove('is-on');
           try {
             if (state.phase === PHASE.HAND_OVER) {
@@ -2301,6 +2309,18 @@ function renderActions(v) {
     $('#showCd')?.classList.add('hidden');
     $('#showBtns').classList.add('hidden');
     $('#showBtns').innerHTML = '';
+    // While pause modal is up: no 下一手 / countdown (modal owns the flow)
+    if (state.pause?.active) {
+      $('#btns').innerHTML = `
+        <button type="button" class="fold" id="btnEnd">結束牌局</button>
+        <button type="button" class="raiseb" id="btnSummary">看戰績</button>`;
+      $('#btnEnd').onclick = () => {
+        dispatch({ type: 'END_SESSION' });
+        showSummary();
+      };
+      $('#btnSummary').onclick = () => showSummary();
+      return;
+    }
     const isHost = viewerSeat === state.room.hostSeat;
     const holdLeft =
       holdDeadline != null
@@ -2311,6 +2331,7 @@ function renderActions(v) {
       holdDeadline != null
         ? Math.max(0, Math.min(100, ((holdDeadline - Date.now()) / holdTotal) * 100))
         : 100;
+    // 結束牌局 / 看戰績 are pre-existing HAND_OVER actions (unchanged)
     $('#btns').innerHTML = `
       <button type="button" class="call btn-next-hold" id="btnNext">
         <svg class="hold-ring" viewBox="0 0 36 36" aria-hidden="true">
@@ -2760,6 +2781,223 @@ window.__poker = {
   AFTER_STATE: afterState,
   setState(next) {
     state = next;
+    afterState();
+  },
+  /**
+   * Capture helper: inject a deterministic SHOWDOWN presentation.
+   * @param {'split'|'sidepot'|'heads'|'fold'} kind
+   */
+  forcePresentationShowdown(kind = 'heads') {
+    cancelDealFx();
+    cancelHeroFlip();
+    cancelWinFx();
+    winFxKey = '';
+    revealUiArmed = false;
+    showdownGlowOn = false;
+    showdownFxBusy = false;
+    displayPotOverride = null;
+    displayChipsOverride = null;
+    flippedSeats = new Set();
+    boardFrozenKey = '';
+    holdDeadline = null;
+    if (autoNextTimer) {
+      clearTimeout(autoNextTimer);
+      autoNextTimer = null;
+    }
+    if (revealTimer) {
+      clearTimeout(revealTimer);
+      revealTimer = null;
+    }
+    revealDeadline = null;
+
+    const s = structuredClone(state);
+    const seated = s.seats.map((p, i) => (p ? i : -1)).filter((i) => i >= 0);
+    if (seated.length < 2) throw new Error('need ≥2 seated');
+    const [a, b, c] = seated;
+    // Reset street markers
+    for (const p of s.seats) {
+      if (!p) continue;
+      p.bet = 0;
+      p.folded = false;
+      p.allIn = false;
+      p.showChoice = null;
+      p.lastAction = null;
+    }
+    s.actor = null;
+    s.deadline = null;
+    s.pots = [];
+    s.pause = null;
+    s.streetAggressor = null;
+    s.handNumber = Math.max(1, s.handNumber || 1);
+
+    const card = (r, suit) => ({ r, s: suit }); // s: 0♣1♦2♥3♠
+    viewerSeat = a;
+    needsPass = false;
+    handUiReady = true;
+    dealPresenting = false;
+    dealFxBusy = false;
+
+    if (kind === 'fold') {
+      const pot = 70;
+      s.board = [];
+      for (const seat of seated) {
+        const p = s.seats[seat];
+        p.hole = [card(14, 3), card(13, 2)];
+        p.hasHole = true;
+        p.contributed = seat === a ? pot : 0;
+        if (seat !== a) {
+          p.folded = true;
+          p.showChoice = 'muck';
+        }
+      }
+      s.seats[a].chips = 2000 + pot;
+      s.seats[a].contributed = pot;
+      for (const seat of seated) {
+        if (seat !== a) s.seats[seat].chips = 2000 - Math.floor(pot / (seated.length - 1));
+      }
+      s.winners = [{ seats: [a], amount: pot, hand: null, shares: { [a]: pot } }];
+      s.winnerPayouts = { [a]: pot };
+      s.phase = 'showdown';
+      s.showdown = {
+        pending: [a],
+        revealed: {},
+        ranks: {},
+        bestBySeat: {},
+        revealOrder: [a],
+        foldWin: true,
+        revealDeadline: null,
+      };
+    } else if (kind === 'split') {
+      // True chop: two winners, equal shares → two WIN tags + two chip flights
+      const pot = 120;
+      s.board = [card(9, 0), card(9, 1), card(5, 2), card(3, 3), card(2, 0)];
+      s.seats[a].hole = [card(14, 2), card(7, 0)];
+      s.seats[b].hole = [card(14, 3), card(7, 1)];
+      s.seats[a].hasHole = true;
+      s.seats[b].hasHole = true;
+      s.seats[a].contributed = pot / 2;
+      s.seats[b].contributed = pot / 2;
+      s.seats[a].chips = 2000 + pot / 2;
+      s.seats[b].chips = 2000 + pot / 2;
+      if (c != null) {
+        s.seats[c].hole = [card(8, 0), card(6, 1)];
+        s.seats[c].hasHole = true;
+        s.seats[c].folded = true;
+        s.seats[c].showChoice = 'muck';
+        s.seats[c].chips = 2000;
+        s.seats[c].contributed = 0;
+      }
+      const share = pot / 2;
+      s.winners = [
+        {
+          seats: [a, b],
+          amount: pot,
+          handZh: '一對',
+          shares: { [a]: share, [b]: share },
+        },
+      ];
+      s.winnerPayouts = { [a]: share, [b]: share };
+      s.seats[a].showChoice = 'auto';
+      s.seats[b].showChoice = 'auto';
+      s.phase = 'showdown';
+      s.showdown = {
+        pending: [],
+        revealed: {
+          [a]: { cards: s.seats[a].hole, mode: 'both' },
+          [b]: { cards: s.seats[b].hole, mode: 'both' },
+        },
+        ranks: { [a]: [1, 14, 9, 7, 5], [b]: [1, 14, 9, 7, 5] },
+        bestBySeat: {},
+        revealOrder: [a, b],
+        foldWin: false,
+        revealDeadline: null,
+      };
+    } else if (kind === 'sidepot') {
+      // Main 90 (a,b,c eligible) won by a; side 80 (b,c) won by b — two pots, reverse payout
+      const main = 90;
+      const side = 80;
+      s.board = [card(10, 0), card(10, 1), card(4, 2), card(3, 3), card(2, 0)];
+      s.seats[a].hole = [card(14, 2), card(14, 3)]; // quads tens? pair aces + pair tens = two pair → actually AA+TT board = two pair A/T
+      s.seats[b].hole = [card(13, 2), card(13, 3)]; // KK + TT
+      s.seats[c].hole = [card(8, 2), card(7, 3)];
+      for (const seat of [a, b, c]) {
+        s.seats[seat].hasHole = true;
+        s.seats[seat].showChoice = 'auto';
+      }
+      // Short stack a put 30; b&c put 70 → main 90, side 80
+      s.seats[a].contributed = 30;
+      s.seats[b].contributed = 70;
+      s.seats[c].contributed = 70;
+      s.seats[a].chips = 2000 - 30 + main; // wins main only
+      s.seats[b].chips = 2000 - 70 + side;
+      s.seats[c].chips = 2000 - 70;
+      s.winners = [
+        { seats: [a], amount: main, handZh: '兩對', shares: { [a]: main } },
+        { seats: [b], amount: side, handZh: '兩對', shares: { [b]: side } },
+      ];
+      s.winnerPayouts = { [a]: main, [b]: side };
+      s.phase = 'showdown';
+      s.showdown = {
+        pending: [],
+        revealed: {
+          [a]: { cards: s.seats[a].hole, mode: 'both' },
+          [b]: { cards: s.seats[b].hole, mode: 'both' },
+          [c]: { cards: s.seats[c].hole, mode: 'both' },
+        },
+        ranks: {},
+        bestBySeat: {},
+        revealOrder: [a, b, c],
+        foldWin: false,
+        revealDeadline: null,
+      };
+    } else {
+      // heads / default single winner showdown
+      const pot = 60;
+      s.board = [card(10, 1), card(7, 2), card(8, 3), card(5, 3), card(8, 2)];
+      s.seats[a].hole = [card(13, 0), card(4, 1)];
+      s.seats[b].hole = [card(12, 0), card(11, 1)];
+      s.seats[a].hasHole = true;
+      s.seats[b].hasHole = true;
+      s.seats[a].contributed = pot / 2;
+      s.seats[b].contributed = pot / 2;
+      s.seats[a].chips = 2000 + pot;
+      s.seats[b].chips = 2000 - pot;
+      s.seats[a].showChoice = 'auto';
+      s.winners = [{ seats: [a], amount: pot, handZh: '兩對', shares: { [a]: pot } }];
+      s.winnerPayouts = { [a]: pot };
+      s.phase = 'showdown';
+      s.showdown = {
+        pending: [b],
+        revealed: { [a]: { cards: s.seats[a].hole, mode: 'both' } },
+        ranks: {},
+        bestBySeat: {},
+        revealOrder: [a, b],
+        foldWin: false,
+        revealDeadline: null,
+      };
+      if (c != null) {
+        s.seats[c].hole = [card(2, 2), card(3, 1)];
+        s.seats[c].hasHole = true;
+        s.seats[c].folded = true;
+        s.seats[c].showChoice = 'muck';
+        s.seats[c].chips = 2000;
+      }
+    }
+
+    // finishShowdown if no pending (sidepot / some splits)
+    if (!s.showdown.pending.length) {
+      s.phase = 'hand_over';
+      s.lastHandSummary = {
+        winners: s.winners,
+        winnerPayouts: s.winnerPayouts,
+        board: s.board,
+        revealed: s.showdown.revealed,
+        foldWin: !!s.showdown.foldWin,
+      };
+    }
+
+    state = s;
+    botsRevealedForHand = s.handNumber; // don't auto-muck injected pending in beginRevealUi
     afterState();
   },
 };

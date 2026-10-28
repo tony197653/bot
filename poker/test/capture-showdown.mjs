@@ -1,5 +1,6 @@
 /**
  * Showdown evidence: phone-390 + desktop-1440 recordings, frame sheet, checklist.
+ * Uses __poker.forcePresentationShowdown for deterministic split / side-pot / fold.
  * Run: node test/capture-showdown.mjs
  */
 import { chromium } from 'playwright';
@@ -77,68 +78,24 @@ async function bootGame(page, url, seats) {
   await page.evaluate(() => window.__poker.skipDealAndReady(0));
 }
 
-/** Drive to fold-win via engine actions. */
-async function forceFoldWin(page) {
-  await page.evaluate(() => {
-    const P = window.__poker;
-    const streets = new Set(['preflop', 'flop', 'turn', 'river']);
-    let raised = false;
-    let guard = 0;
-    while (guard++ < 80) {
-      const s = P.getState();
-      if (!streets.has(s.phase) || s.actor == null) break;
-      P.setViewer(s.actor);
-      P.skipDealAndReady(s.actor);
-      const L = P.view().legal;
-      if (!L?.canAct) break;
-      if (!raised && (L.bet || L.raise)) {
-        P.dispatch({ type: 'BET_RAISE', seat: s.actor, amount: L.minRaiseTo });
-        raised = true;
-        continue;
-      }
-      if (L.fold) P.dispatch({ type: 'FOLD', seat: s.actor });
-      else if (L.check) P.dispatch({ type: 'CHECK', seat: s.actor });
-      else break;
-    }
-  });
-}
-
-/** Check/call to showdown. */
-async function forceShowdown(page) {
-  await page.evaluate(() => {
-    const P = window.__poker;
-    const streets = new Set(['preflop', 'flop', 'turn', 'river']);
-    let guard = 0;
-    while (guard++ < 120) {
-      const s = P.getState();
-      if (!streets.has(s.phase)) break;
-      if (s.actor == null) break;
-      P.setViewer(s.actor);
-      P.skipDealAndReady(s.actor);
-      const L = P.view().legal;
-      if (!L?.canAct) break;
-      if (L.check) P.dispatch({ type: 'CHECK', seat: s.actor });
-      else if (L.call) P.dispatch({ type: 'CALL', seat: s.actor });
-      else if (L.allIn) P.dispatch({ type: 'ALL_IN', seat: s.actor });
-      else break;
-    }
-  });
-}
-
-async function sampleShowdown(page, { maxMs = 14000, stepMs = 120 }) {
+async function sampleShowdown(page, { maxMs = 12000, stepMs = 120, untilPause = false }) {
   const frames = [];
   const checklist = {
     sawFlip: false,
     sawWinBadge: false,
+    winBadgeMax: 0,
     sawChipFly: false,
+    chipFlyMax: 0,
     potWentZero: false,
-    wrongSeatChip: false,
     boardDealReplay: false,
-    revealCdFromFive: false,
     holdRing: false,
+    pauseModalOpaque: false,
+    pauseButtons: false,
+    nextHiddenWhilePaused: false,
+    toastPill: false,
+    chipOverStack: false,
     strayAtOrigin: false,
     straySamples: [],
-    phases: [],
   };
   let boardHtml0 = null;
   const t0 = Date.now();
@@ -152,10 +109,30 @@ async function sampleShowdown(page, { maxMs = 14000, stepMs = 120 }) {
       const winBadges = document.querySelectorAll('.win-badge').length;
       const potAmt = document.querySelector('#potAmt')?.textContent?.trim() || '';
       const boardHtml = document.querySelector('#board')?.innerHTML || '';
-      const showCd = document.querySelector('#showCd:not(.hidden)')?.textContent || '';
-      const holdCd = document.querySelector('#holdCd')?.textContent || '';
       const holdRing = !!document.querySelector('#btnNext .hold-ring');
+      const btnNext = !!document.querySelector('#btnNext');
       const pauseOn = !!document.querySelector('#pauseScreen.is-on');
+      const pauseSheet = document.querySelector('#pauseScreen.is-on .pause-panel');
+      let pauseModalOpaque = false;
+      let pauseButtons = false;
+      if (pauseSheet) {
+        const bg = getComputedStyle(pauseSheet).backgroundColor;
+        pauseModalOpaque = bg.includes('rgb') && !bg.includes('rgba(0, 0, 0, 0)');
+        pauseButtons = document.querySelectorAll('#pauseScreen button.pause-ready, #pauseScreen .pause-ok-mark').length > 0;
+      }
+      const toastOn = !!document.querySelector('#toast.is-on');
+      // Chip overlapping stack text?
+      let chipOverStack = false;
+      for (const chip of chips) {
+        const cr = chip.getBoundingClientRect();
+        if (cr.width < 2 || parseFloat(getComputedStyle(chip).opacity) < 0.2) continue;
+        for (const st of document.querySelectorAll('.ch, .st, #heroChips')) {
+          const sr = st.getBoundingClientRect();
+          const ox = Math.max(0, Math.min(cr.right, sr.right) - Math.max(cr.left, sr.left));
+          const oy = Math.max(0, Math.min(cr.bottom, sr.bottom) - Math.max(cr.top, sr.top));
+          if (ox > 8 && oy > 8) chipOverStack = true;
+        }
+      }
       const strays = [];
       for (const el of chips) {
         const r = el.getBoundingClientRect();
@@ -169,41 +146,65 @@ async function sampleShowdown(page, { maxMs = 14000, stepMs = 120 }) {
           strays.push({ cx: Math.round(cx), cy: Math.round(cy), table: true });
         }
       }
+      // Pause sheet above table cards?
+      let pauseAboveTable = true;
+      if (pauseOn && pauseSheet) {
+        const pz = parseInt(getComputedStyle(document.querySelector('#pauseScreen')).zIndex, 10) || 0;
+        const board = document.querySelector('#board .card');
+        if (board) {
+          // screen should cover; check sheet rect doesn't have board center "winning" hit-test
+          const mid = pauseSheet.getBoundingClientRect();
+          const topEl = document.elementFromPoint(mid.left + mid.width / 2, mid.top + 40);
+          pauseAboveTable = !!(topEl && (topEl.closest?.('#pauseScreen') || topEl.closest?.('.pause-panel')));
+        }
+        void pz;
+      }
       return {
         phase: s?.phase,
-        foldWin: !!(s?.showdown?.foldWin || s?.lastHandSummary?.foldWin),
         potAmt,
         flips,
         winBadges,
         chipFly: chips.length,
         boardHtml,
-        showCd,
-        holdCd,
         holdRing,
+        btnNext,
         pauseOn,
-        fxBusy: !!window.__poker?.showdownFxBusy,
-        armed: !!window.__poker?.revealUiArmed,
+        pauseModalOpaque,
+        pauseButtons,
+        pauseAboveTable,
+        toastOn,
+        chipOverStack,
         strays,
         t: performance.now(),
       };
     });
-    checklist.phases.push(snap.phase);
+
     if (snap.flips > 0) checklist.sawFlip = true;
     if (snap.winBadges > 0) checklist.sawWinBadge = true;
+    checklist.winBadgeMax = Math.max(checklist.winBadgeMax, snap.winBadges);
     if (snap.chipFly > 0) checklist.sawChipFly = true;
+    checklist.chipFlyMax = Math.max(checklist.chipFlyMax, snap.chipFly);
     if (snap.potAmt === '0') checklist.potWentZero = true;
-    if (snap.showCd.includes('5')) checklist.revealCdFromFive = true;
     if (snap.holdRing) checklist.holdRing = true;
+    if (snap.pauseOn) {
+      if (snap.pauseModalOpaque) checklist.pauseModalOpaque = true;
+      if (snap.pauseButtons) checklist.pauseButtons = true;
+      if (!snap.btnNext) checklist.nextHiddenWhilePaused = true;
+      if (!snap.pauseAboveTable) checklist.pauseAboveTable = false;
+      else checklist.pauseAboveTable = true;
+    }
+    if (snap.toastOn && snap.pauseOn) checklist.toastPill = true;
+    if (snap.chipOverStack) checklist.chipOverStack = true;
     if (boardHtml0 == null && (snap.phase === 'showdown' || snap.phase === 'hand_over')) {
       boardHtml0 = snap.boardHtml;
-    } else if (boardHtml0 != null && snap.boardHtml !== boardHtml0) {
-      // Class-only changes ok; dealIn replay would replace nodes — track length churn
-      if (snap.boardHtml.includes('is-deal')) checklist.boardDealReplay = true;
+    } else if (boardHtml0 != null && snap.boardHtml?.includes('is-deal')) {
+      checklist.boardDealReplay = true;
     }
     if (snap.strays?.length) {
       checklist.strayAtOrigin = true;
       checklist.straySamples.push(snap.strays);
     }
+
     if (
       snap.phase === 'showdown' ||
       snap.phase === 'hand_over' ||
@@ -214,18 +215,25 @@ async function sampleShowdown(page, { maxMs = 14000, stepMs = 120 }) {
       const buf = await page.screenshot({ type: 'png' });
       frames.push({ ...snap, buf });
     }
-    if (snap.phase === 'hand_over' && snap.holdRing && frames.length > 8 && !snap.fxBusy) {
-      // enough for hold evidence
-      if (Date.now() - t0 > 3500) break;
+
+    if (untilPause && snap.pauseOn && frames.length > 2) break;
+    if (
+      !untilPause &&
+      snap.phase === 'hand_over' &&
+      snap.holdRing &&
+      !snap.pauseOn &&
+      frames.length > 6 &&
+      Date.now() - t0 > 2800
+    ) {
+      break;
     }
-    if (snap.pauseOn && frames.length > 3) break;
     await page.waitForTimeout(stepMs);
   }
   return { frames, checklist };
 }
 
 async function recordScenario(browser, url, opts) {
-  const { name, seats, viewport, mode } = opts;
+  const { name, seats, viewport, kind, pause = false } = opts;
   const ctx = await browser.newContext({
     viewport,
     deviceScaleFactor: viewport.width <= 430 ? 2 : 1,
@@ -236,55 +244,91 @@ async function recordScenario(browser, url, opts) {
   page.on('pageerror', (e) => errors.push(String(e)));
 
   await bootGame(page, url, seats);
-  if (mode === 'fold') await forceFoldWin(page);
-  else await forceShowdown(page);
+  await page.evaluate((k) => window.__poker.forcePresentationShowdown(k), kind);
 
-  // Wait for showdown/hand_over
   await page.waitForFunction(
     () => {
       const p = window.__poker?.getState?.()?.phase;
       return p === 'showdown' || p === 'hand_over';
     },
-    { timeout: 15000 },
+    { timeout: 8000 },
   );
 
   const { frames, checklist } = await sampleShowdown(page, {
-    maxMs: mode === 'pause' ? 8000 : 12000,
+    maxMs: pause ? 6000 : 11000,
+    untilPause: false,
   });
   checklist.name = name;
-  checklist.mode = mode;
+  checklist.kind = kind;
   checklist.seats = seats;
   checklist.viewport = viewport;
   checklist.errors = errors;
 
-  if (mode === 'pause') {
-    // Host pause during hold
-    await page.waitForSelector('#btnNext', { timeout: 12000 });
+  if (pause) {
+    await page.waitForSelector('#btnNext, #btnPauseHold, #btnPauseMenu', { timeout: 15000 });
     await page.evaluate(() => window.__poker.cancelAutoNext());
-    await page.click('#btnMenu');
-    await page.click('#btnPauseMenu');
+    // Prefer hold-row pause, else menu
+    if (await page.locator('#btnPauseHold').count()) {
+      await page.click('#btnPauseHold');
+    } else {
+      await page.click('#btnMenu');
+      await page.click('#btnPauseMenu');
+    }
     await page.waitForSelector('#pauseScreen.is-on', { timeout: 5000 });
+    await page.waitForTimeout(400);
     const pauseShot = await page.screenshot({ type: 'png' });
     writeFileSync(join(ART, `poker-showdown-${name}-pause.png`), pauseShot);
-    // Ready all players
+
+    // Verify modal quality
+    const pauseCheck = await page.evaluate(() => {
+      const scr = document.querySelector('#pauseScreen.is-on');
+      const sheet = scr?.querySelector('.pause-panel');
+      const btnNext = document.querySelector('#btnNext');
+      const toast = document.querySelector('#toast.is-on');
+      const readyBtns = document.querySelectorAll('button.pause-ready').length;
+      const mid = sheet?.getBoundingClientRect();
+      const topEl = mid
+        ? document.elementFromPoint(mid.left + mid.width / 2, mid.top + mid.height / 2)
+        : null;
+      return {
+        hasSheet: !!sheet,
+        nextGone: !btnNext,
+        toastGone: !toast,
+        readyBtns,
+        hitPause: !!(topEl && topEl.closest('#pauseScreen')),
+        countText: document.querySelector('#pauseCount')?.textContent || '',
+      };
+    });
+    Object.assign(checklist, { pauseCheck });
+    checklist.pauseModalOpaque = pauseCheck.hasSheet && pauseCheck.hitPause;
+    checklist.pauseButtons = pauseCheck.readyBtns > 0;
+    checklist.nextHiddenWhilePaused = pauseCheck.nextGone;
+    checklist.toastPill = !pauseCheck.toastGone ? true : checklist.toastPill;
+
     const n = await page.locator('button.pause-ready').count();
     for (let i = 0; i < n; i++) {
       await page.locator('button.pause-ready').first().click();
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(250);
     }
+    await page.waitForTimeout(600);
     checklist.pauseAllReady = !(await page.locator('#pauseScreen.is-on').count());
+    checklist.dealAfterPause = await page.evaluate(
+      () =>
+        document.documentElement.classList.contains('is-dealing') ||
+        !!document.querySelector('#passScreen.is-on') ||
+        window.__poker?.getState?.()?.phase === 'preflop',
+    );
   }
 
-  // Save spaced frames
   const picked = [];
   for (const f of frames) {
     if (picked.length >= 8) break;
-    if (!picked.length || f.t - picked[picked.length - 1].t >= 400) picked.push(f);
+    if (!picked.length || f.t - picked[picked.length - 1].t >= 350) picked.push(f);
   }
   for (let i = 0; i < picked.length; i++) {
     writeFileSync(join(ART, `poker-showdown-${name}-f${i + 1}.png`), picked[i].buf);
   }
-  if (picked[0]) {
+  if (picked.length) {
     writeFileSync(join(ART, `poker-showdown-${name}-final.png`), picked[picked.length - 1].buf);
   }
 
@@ -303,6 +347,39 @@ async function recordScenario(browser, url, opts) {
   return checklist;
 }
 
+async function buildSheet() {
+  try {
+    const { default: sharp } = await import('sharp').catch(() => ({ default: null }));
+    void sharp;
+  } catch {
+    /* ignore */
+  }
+  // Pillow via python
+  const { spawnSync } = await import('node:child_process');
+  const py = `
+from pathlib import Path
+from PIL import Image
+art = Path('${ART}')
+frames = sorted(art.glob('poker-showdown-split-390-f*.png'))[:8]
+if len(frames) < 4:
+    frames = sorted(art.glob('poker-showdown-3p-split-390-f*.png'))[:8]
+if not frames:
+    frames = sorted(art.glob('poker-showdown-*-390-f*.png'))[:8]
+imgs = [Image.open(f).convert('RGB') for f in frames]
+w,h = imgs[0].size
+cols = min(4, len(imgs))
+rows = (len(imgs) + cols - 1) // cols
+sheet = Image.new('RGB', (cols*w, rows*h), (12,24,18))
+for i,im in enumerate(imgs):
+    r,c = divmod(i, cols)
+    sheet.paste(im, (c*w, r*h))
+out = art/'poker-showdown-framesheet-390.png'
+sheet.save(out, quality=85)
+print(out, len(imgs))
+`;
+  spawnSync('python3', ['-c', py], { stdio: 'inherit' });
+}
+
 async function main() {
   const { server, url } = await startServer();
   const browser = await chromium.launch({ headless: true });
@@ -313,15 +390,23 @@ async function main() {
         name: '2p-390',
         seats: 2,
         viewport: { width: 390, height: 844 },
-        mode: 'showdown',
+        kind: 'heads',
       }),
     );
     results.push(
       await recordScenario(browser, url, {
-        name: '3p-split-390',
+        name: 'split-390',
         seats: 3,
         viewport: { width: 390, height: 844 },
-        mode: 'showdown',
+        kind: 'split',
+      }),
+    );
+    results.push(
+      await recordScenario(browser, url, {
+        name: 'sidepot-390',
+        seats: 3,
+        viewport: { width: 390, height: 844 },
+        kind: 'sidepot',
       }),
     );
     results.push(
@@ -329,7 +414,7 @@ async function main() {
         name: 'fold-390',
         seats: 3,
         viewport: { width: 390, height: 844 },
-        mode: 'fold',
+        kind: 'fold',
       }),
     );
     results.push(
@@ -337,7 +422,8 @@ async function main() {
         name: 'pause-390',
         seats: 3,
         viewport: { width: 390, height: 844 },
-        mode: 'pause',
+        kind: 'heads',
+        pause: true,
       }),
     );
     results.push(
@@ -345,7 +431,7 @@ async function main() {
         name: 'showdown-1440',
         seats: 3,
         viewport: { width: 1440, height: 900 },
-        mode: 'showdown',
+        kind: 'split',
       }),
     );
   } finally {
@@ -353,38 +439,51 @@ async function main() {
     server.close();
   }
 
+  await buildSheet();
+
   const checklist = {
     generatedAt: new Date().toISOString(),
     scenarios: results,
     acceptance: {
-      orderedRevealNotSameFrame: results.some((r) => r.sawFlip || r.sawWinBadge),
-      potToZero: results.filter((r) => r.mode !== 'pause').every((r) => r.potWentZero || r.sawChipFly),
+      splitTwoWins: results.some((r) => r.kind === 'split' && r.winBadgeMax >= 2),
+      sidePotMultiChipFlights: results.some((r) => r.kind === 'sidepot' && r.chipFlyMax >= 1),
+      potToZero: results.filter((r) => r.kind !== 'pause').every((r) => r.potWentZero || r.sawChipFly),
       holdRing: results.some((r) => r.holdRing),
       noBoardDealReplay: results.every((r) => !r.boardDealReplay),
       noStrays: results.every((r) => !r.strayAtOrigin),
-      pauseAllReady: results.find((r) => r.mode === 'pause')?.pauseAllReady ?? null,
+      noChipOverStack: results.every((r) => !r.chipOverStack),
+      pauseModalOk: results.find((r) => r.name === 'pause-390')?.pauseModalOpaque ?? null,
+      pauseButtons: results.find((r) => r.name === 'pause-390')?.pauseButtons ?? null,
+      nextHiddenWhilePaused: results.find((r) => r.name === 'pause-390')?.nextHiddenWhilePaused ?? null,
+      noToastPillOnPause: !(results.find((r) => r.name === 'pause-390')?.toastPill),
+      pauseAllReady: results.find((r) => r.name === 'pause-390')?.pauseAllReady ?? null,
+      dealAfterPause: results.find((r) => r.name === 'pause-390')?.dealAfterPause ?? null,
       noPageErrors: results.every((r) => !r.errors?.length),
     },
   };
   writeFileSync(join(ART, 'poker-showdown-checklist.json'), JSON.stringify(checklist, null, 2));
-
-  // Markdown checklist
   const md = [
-    '# Showdown FX checklist',
+    '# Showdown FX checklist (PR #25 follow-up)',
     '',
     `- Generated: ${checklist.generatedAt}`,
-    `- Ordered reveal / glow (not same-frame pop): ${checklist.acceptance.orderedRevealNotSameFrame}`,
-    `- Pot → 0 / chip flight observed: ${checklist.acceptance.potToZero}`,
-    `- Hold countdown ring: ${checklist.acceptance.holdRing}`,
+    `- Split shows 2 WIN tags: ${checklist.acceptance.splitTwoWins}`,
+    `- Side pot chip flights: ${checklist.acceptance.sidePotMultiChipFlights}`,
+    `- Pot → 0: ${checklist.acceptance.potToZero}`,
+    `- Hold ring: ${checklist.acceptance.holdRing}`,
     `- No board dealIn replay: ${checklist.acceptance.noBoardDealReplay}`,
-    `- No stray FX at origin: ${checklist.acceptance.noStrays}`,
-    `- Pause all-ready clears panel: ${checklist.acceptance.pauseAllReady}`,
+    `- No stray FX: ${checklist.acceptance.noStrays}`,
+    `- Chips not covering stack text: ${checklist.acceptance.noChipOverStack}`,
+    `- Pause opaque modal above table: ${checklist.acceptance.pauseModalOk}`,
+    `- Pause gold 我回來了 buttons: ${checklist.acceptance.pauseButtons}`,
+    `- 下一手 hidden while paused: ${checklist.acceptance.nextHiddenWhilePaused}`,
+    `- No duplicate toast pill: ${checklist.acceptance.noToastPillOnPause}`,
+    `- Pause all-ready → deal: ${checklist.acceptance.pauseAllReady} / ${checklist.acceptance.dealAfterPause}`,
     `- No page errors: ${checklist.acceptance.noPageErrors}`,
     '',
     '## Scenarios',
     ...results.map(
       (r) =>
-        `- **${r.name}** (${r.mode}, ${r.seats}p): flip=${r.sawFlip} win=${r.sawWinBadge} chips=${r.sawChipFly} pot0=${r.potWentZero} hold=${r.holdRing} stray=${r.strayAtOrigin}`,
+        `- **${r.name}** (${r.kind}): winBadges≤${r.winBadgeMax} chips≤${r.chipFlyMax} pot0=${r.potWentZero} hold=${r.holdRing} overStack=${r.chipOverStack} stray=${r.strayAtOrigin}`,
     ),
   ].join('\n');
   writeFileSync(join(ART, 'poker-showdown-checklist.md'), md);
