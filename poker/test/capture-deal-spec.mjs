@@ -52,6 +52,7 @@ function startServer() {
 }
 
 async function configureLobby(page, seatCount, timerOn = true) {
+  await page.waitForSelector('#playerRows .p-row');
   const rows = page.locator('#playerRows .p-row');
   const nRows = await rows.count();
   for (let i = 0; i < nRows; i++) {
@@ -60,6 +61,15 @@ async function configureLobby(page, seatCount, timerOn = true) {
     const disabled = await input.isDisabled();
     const wantOn = i < seatCount;
     if (wantOn === disabled) await row.locator('button[data-toggle]').click();
+  }
+  // Verify seat toggles stuck
+  const enabled = await page.evaluate(
+    () =>
+      [...document.querySelectorAll('#playerRows .p-row input')].filter((el) => !el.disabled)
+        .length,
+  );
+  if (enabled !== seatCount) {
+    throw new Error(`lobby seat configure failed: want ${seatCount}, got ${enabled}`);
   }
   const t = page.locator('#timerToggle');
   if (timerOn) {
@@ -170,9 +180,15 @@ async function recordDeal(browser, url, { seats, viewport, videoName, sheetName 
     if (!picked.includes(b)) picked.push(b);
     else break;
   }
+  const tag = `${seats}p-${viewport.width}`;
   for (let i = 0; i < picked.length; i++) {
-    writeFileSync(join(ART, `poker-deal-spec-frame-${seats}p-${i + 1}.png`), picked[i].buf);
+    writeFileSync(join(ART, `poker-deal-spec-frame-${tag}-${i + 1}.png`), picked[i].buf);
   }
+  checklist.frameTag = tag;
+  checklist.seatCount = await page.evaluate(() => {
+    const s = window.__poker?.getState?.();
+    return s ? s.seats.filter(Boolean).length : 0;
+  });
 
   // Frame sheet (2x3) without canvas lib if unavailable
   try {
@@ -257,31 +273,30 @@ async function recordHeroFlip(browser, url) {
   return meta;
 }
 
-async function stitchSheetWithPlaywright(browser, seats) {
+async function stitchSheetWithPlaywright(browser, tag, outName, cellW, cellH) {
   const frames = [];
   for (let i = 1; i <= 6; i++) {
-    const p = join(ART, `poker-deal-spec-frame-${seats}p-${i}.png`);
+    const p = join(ART, `poker-deal-spec-frame-${tag}-${i}.png`);
     if (existsSync(p)) frames.push(p);
   }
   if (frames.length < 2) return;
+  const cols = 3;
+  const rows = Math.ceil(frames.length / cols);
   const ctx = await browser.newContext({
-    viewport: { width: 390 * 3 + 16, height: 844 * 2 + 12 },
+    viewport: { width: cellW * cols + 16, height: cellH * rows + 12 },
     deviceScaleFactor: 1,
   });
   const page = await ctx.newPage();
   const imgs = frames
     .map(
       (f) =>
-        `<img src="data:image/png;base64,${readFileSync(f).toString('base64')}" style="width:390px;height:844px;object-fit:cover">`,
+        `<img src="data:image/png;base64,${readFileSync(f).toString('base64')}" style="width:${cellW}px;height:${cellH}px;object-fit:cover">`,
     )
     .join('');
   await page.setContent(
-    `<html><body style="margin:0;background:#111;display:grid;grid-template-columns:repeat(3,390px);gap:4px;padding:4px">${imgs}</body></html>`,
+    `<html><body style="margin:0;background:#111;display:grid;grid-template-columns:repeat(${cols},${cellW}px);gap:4px;padding:4px">${imgs}</body></html>`,
   );
-  await page.screenshot({
-    path: join(ART, `poker-deal-frame-sheet-${seats}p-phone-390.png`),
-    fullPage: true,
-  });
+  await page.screenshot({ path: join(ART, outName), fullPage: true });
   await ctx.close();
 }
 
@@ -298,7 +313,7 @@ async function main() {
       sheetName: 'poker-deal-frame-sheet-6p-phone-390.png',
     });
     report.checks.push(c6);
-    await stitchSheetWithPlaywright(browser, 6);
+    await stitchSheetWithPlaywright(browser, c6.frameTag, 'poker-deal-frame-sheet-6p-phone-390.png', 390, 844);
 
     const c4 = await recordDeal(browser, url, {
       seats: 4,
@@ -307,15 +322,22 @@ async function main() {
       sheetName: 'poker-deal-frame-sheet-4p-phone-390.png',
     });
     report.checks.push(c4);
-    await stitchSheetWithPlaywright(browser, 4);
+    await stitchSheetWithPlaywright(browser, c4.frameTag, 'poker-deal-frame-sheet-4p-phone-390.png', 390, 844);
 
     const cDesk = await recordDeal(browser, url, {
       seats: 6,
       viewport: { width: 1440, height: 900 },
       videoName: 'poker-deal-6p-desktop-1440.webm',
-      sheetName: 'poker-deal-frame-sheet-6p-desktop.png',
+      sheetName: 'poker-deal-frame-sheet-6p-desktop-1440.png',
     });
     report.checks.push(cDesk);
+    await stitchSheetWithPlaywright(
+      browser,
+      cDesk.frameTag,
+      'poker-deal-frame-sheet-6p-desktop-1440.png',
+      480,
+      300,
+    );
 
     const flip = await recordHeroFlip(browser, url);
     report.heroFlip = flip;
