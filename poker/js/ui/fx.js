@@ -677,11 +677,13 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
       blindJobs.push(
         (async () => {
           await runBlind(state.bbSeat, DEAL_FX.blindBbAt);
-          // Pot appears after BB lands
+          // Spec E2: pot only after BB settle completes
+          await wait(DEAL_FX.blindSettleMs, signal);
           const pot = document.querySelector('.pot');
           const potAmt = document.querySelector('#potAmt');
           if (pot) {
             pot.classList.remove('is-pending');
+            pot.style.opacity = '1';
             trackAnim(
               pot.animate(
                 [
