@@ -963,27 +963,24 @@ async function checkShowdownReveal(browser, url, vp, seatCount) {
     setup = await forceAllSeatsRevealed(page);
   }
   if (!setup.ok) issues.push(`showdown setup: ${setup.error || 'failed'}`);
-  await page.evaluate(() => {
-    window.__poker?.cancelAutoNext?.();
-    // Ensure reveal faces are painted: re-enter after force by flipping seats in DOM path
-    const api = window.__poker;
-    const st = api?.getState?.();
-    if (!st || !api) return;
-    // Trigger render with faces: set viewer and rely on revealed map + armed UI
-    api.setViewer?.(api.getViewer?.() ?? 0);
-  });
-  // Wait for showdown FX / hold so reveals + optional WIN badges settle
-  await page.waitForTimeout(1200);
+  await page.evaluate(() => window.__poker?.cancelAutoNext?.());
+  // Wait until opponent reveal-holes are painted (FX flips) + board present
+  try {
+    await page.waitForFunction(
+      (want) => {
+        const holes = document.querySelectorAll('.seat .reveal-hole').length;
+        const board = document.querySelectorAll('#board .card').length;
+        return holes >= want - 1 && board >= 3;
+      },
+      seatCount,
+      { timeout: 12000 },
+    );
+  } catch {
+    issues.push('timed out waiting for all-seat reveals + board');
+  }
   await page.evaluate(() => window.__poker?.cancelAutoNext?.());
   await waitFrames(page, 3);
-  await page.waitForTimeout(200);
-  // Re-run rail-side layout after FX badges mount
-  await page.evaluate(() => {
-    // force a layout pass via resize-ish re-render
-    window.__poker?.setViewer?.(window.__poker.getViewer());
-  });
-  await waitFrames(page, 2);
-  await page.waitForTimeout(120);
+  await page.waitForTimeout(400);
 
   const reveal = await page.evaluate(auditRevealLayoutInPage, { seatCount });
   issues.push(...reveal.issues);

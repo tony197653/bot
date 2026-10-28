@@ -555,7 +555,8 @@ export function placeShowdownReveals() {
         // Not enough room outside: against the right stage edge,
         // vertically away from the board (up for pos-1, down for pos-2)
         left = Math.max(stageBox.right - pad - w, pb.right - w * 0.15);
-        top = pos === 1 ? pb.top - 6 - h : pb.bottom + 4;
+        // Extra gap: rotated hero-sized cards inflate AABB past the unrotated box
+        top = pos === 1 ? pb.top - 10 - h : pb.bottom + 10;
       }
     } else if (pos === 3 || pos === 4) {
       // Left rail — outside to the left of the plate
@@ -565,12 +566,20 @@ export function placeShowdownReveals() {
         // Against the left stage edge; lower seats go below plate (clears board),
         // upper seats go above plate
         left = Math.min(stageBox.left + pad, pb.left - w * 0.15);
-        top = pos === 4 ? pb.top - 6 - h : pb.bottom + 4;
+        top = pos === 4 ? pb.top - 10 - h : pb.bottom + 10;
       }
     } else {
-      // Top — above the plate
+      // Top — above the plate when there is room; otherwise beside it
       left = (pb.left + pb.right) / 2 - w / 2;
-      top = pb.top - 6 - h;
+      top = pb.top - 10 - h;
+      if (top < stageBox.top + pad) {
+        top = Math.max(stageBox.top + pad, (pb.top + pb.bottom) / 2 - h / 2);
+        const roomL = pb.left - (stageBox.left + pad);
+        const roomR = stageBox.right - pad - pb.right;
+        if (roomR >= w + 6 && roomR >= roomL) left = pb.right + 6;
+        else if (roomL >= w + 6) left = pb.left - 6 - w;
+        else left = roomR >= roomL ? stageBox.right - pad - w : stageBox.left + pad;
+      }
     }
 
     const badge = seat.querySelector(':scope > .win-badge');
@@ -673,7 +682,22 @@ export function placeShowdownReveals() {
 
       for (const { r, el } of staticObs) {
         const ownPlate = el.closest?.('.seat') === it.seat;
-        if (ownPlate) continue; // side reveals may sit beside own plate
+        if (ownPlate) {
+          // Prefer vertical clearance from own plate (below for lower seats,
+          // above for upper) so rotated AABB doesn't cover the nameplate.
+          if (overlapsPad(box, r, 0)) {
+            if (it.pos === 2 || it.pos === 3) {
+              dy += Math.max(4, r.bottom + gap - box.top);
+            } else if (it.pos === 0) {
+              const cx = (box.left + box.right) / 2;
+              const ox = (r.left + r.right) / 2;
+              dx += cx >= ox ? 8 : -8;
+            } else {
+              dy -= Math.max(4, box.bottom + gap - r.top);
+            }
+          }
+          continue;
+        }
         pushFrom(r);
       }
 
