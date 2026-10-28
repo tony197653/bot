@@ -120,6 +120,10 @@ export function applyAction(state, action, env = {}) {
     case 'SET_TIMER':
       s.config.timerEnabled = !!action.enabled;
       return s;
+    case 'ARM_DEADLINE':
+      // Presentation gate: start the 30s clock only after deal + 換人 + hero flip.
+      armDeadline(s, env.now ?? Date.now());
+      return s;
     case 'START_HAND':
       return startHand(s, env);
     case 'FOLD':
@@ -313,7 +317,9 @@ function startHand(s, env) {
 
   // Reset acted: blinds have "acted" only in the sense they posted; they can still act
   s.actedBit = 0;
-  armDeadline(s, env.now ?? Date.now());
+  // Do not arm the action timer here — UI arms it after deal FX + 換人 confirm + hero flip
+  // (see ARM_DEADLINE). Mid-hand streets still arm via afterAction.
+  s.deadline = null;
   rebuildPots(s);
   return s;
 }
