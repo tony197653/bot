@@ -42,16 +42,42 @@ export function categoryZh(rank) {
  * @returns {number[]} comparable rank vector
  */
 export function evaluate(cards) {
+  return bestFiveOf(cards).rank;
+}
+
+/**
+ * Best 5-card subset among 5–7 cards (for correctness / tests; UI may ignore cards).
+ * @param {(import('./cards.js').Card|string)[]} cards
+ * @returns {{ rank: number[], cards: import('./cards.js').Card[] }}
+ */
+export function bestFiveOf(cards) {
   const cs = cards.map(asCard);
   if (cs.length < 5 || cs.length > 7) {
     throw new Error('需要 5 到 7 張牌');
   }
-  let best = null;
+  let bestRank = null;
+  /** @type {import('./cards.js').Card[]|null} */
+  let bestCards = null;
   for (const five of combinations(cs, 5)) {
     const r = rankFive(five);
-    if (!best || compareRanks(r, best) > 0) best = r;
+    if (!bestRank || compareRanks(r, bestRank) > 0) {
+      bestRank = r;
+      bestCards = five;
+    }
   }
-  return best;
+  return { rank: bestRank, cards: bestCards };
+}
+
+/**
+ * Best five from hole + board.
+ * @param {(import('./cards.js').Card|string)[]} hole
+ * @param {(import('./cards.js').Card|string)[]} board
+ * @returns {{ rank: number[], cards: import('./cards.js').Card[] }|null}
+ */
+export function bestFive(hole, board) {
+  const all = [...hole, ...board].map(asCard);
+  if (all.length < 5) return null;
+  return bestFiveOf(all);
 }
 
 /**

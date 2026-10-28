@@ -40,6 +40,7 @@
       <div class="menu-meta" id="menuMeta">第 0 手 · 房號 —</div>
       <div class="menu-meta" id="menuHost">房主 —</div>
       <button type="button" id="btnTimerCfg" role="menuitem">計時關</button>
+      <button type="button" class="hidden" id="btnPauseMenu" role="menuitem">暫停</button>
       <button type="button" class="hidden" id="btnFullscreen" role="menuitem">全螢幕</button>
       <button type="button" id="btnMute" role="menuitem" aria-pressed="false">音效</button>
       <button type="button" id="btnLobby" role="menuitem">大廳</button>
@@ -154,6 +155,15 @@
     <div class="actions">
       <button type="button" class="primary" id="btnSummaryClose">關閉</button>
     </div>
+  </div>
+</div>
+
+<div class="screen pause-screen" id="pauseScreen" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+  <div class="sheet pause-panel">
+    <h2 id="pauseTitle">暫停中</h2>
+    <p class="lead" id="pauseLead">每位玩家確認回來後才會發下一手。行動計時已停止。</p>
+    <p class="pause-count" id="pauseCount" aria-live="polite">0／0 人已回來</p>
+    <div class="pause-list" id="pauseList"></div>
   </div>
 </div>
 

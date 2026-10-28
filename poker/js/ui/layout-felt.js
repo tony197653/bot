@@ -494,4 +494,419 @@ export function placeTableNote() {
   return { ok: issues.length === 0, issues };
 }
 
+function overlapsPad(a, b, pad = 0) {
+  const ox = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+  const oy = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+  return ox > pad && oy > pad;
+}
+
+function seatPosClass(seatEl) {
+  const m = [...seatEl.classList].find((c) => /^pos-\d$/.test(c));
+  return m ? Number(m.slice(4)) : 0;
+}
+
+/**
+ * Park opponent reveal-holes (+ WIN badges) fully inside the viewport,
+ * clear of the board / pot / plates / peers by ≥6px.
+ * Side seats: inward of the nameplate (toward table centre) with a vertical
+ * offset away from the board band. WIN sits above or below the card pair —
+ * never on the cards. Does not change bet-chip placement.
+ */
+export function placeShowdownReveals() {
+  const stage = document.querySelector('.stage');
+  const table = document.querySelector('.table');
+  if (!stage || !table) return { ok: false, issues: ['no stage'] };
+
+  const holes = [...document.querySelectorAll('.seat[data-seat] .reveal-hole')];
+  if (!holes.length) return { ok: true, issues: [] };
+
+  const view = {
+    left: 0,
+    top: 0,
+    right: window.innerWidth,
+    bottom: window.innerHeight,
+  };
+  const pad = 4;
+  const gap = 6;
+
+  /** @type {{ hole: HTMLElement, seat: HTMLElement, pos: number, w: number, h: number, left: number, top: number, badge: HTMLElement|null }[]} */
+  const items = [];
+
+  for (const hole of holes) {
+    const seat = hole.closest('.seat');
+    if (!seat) continue;
+    const plate = seat.querySelector('.plateA, .plate');
+    if (!plate) continue;
+    hole.style.left = '0';
+    hole.style.top = '0';
+    hole.style.right = 'auto';
+    hole.style.bottom = 'auto';
+    hole.style.transform = 'none';
+    hole.style.margin = '0';
+    hole.style.position = 'absolute';
+
+    const pb = plate.getBoundingClientRect();
+    const hb = hole.getBoundingClientRect();
+    const w = Math.max(hb.width, 1);
+    const h = Math.max(hb.height, 1);
+    const pos = seatPosClass(seat);
+
+    // Prefer: centred on the plate, nudged slightly toward table centre,
+    // vertically away from the board band (above for upper seats, below for lower).
+    // 80%-scale cards then fit inside the viewport without rail-edge clipping.
+    const midX = (pb.left + pb.right) / 2;
+    // Nudge toward table centre so 80% cards sit on the felt, not the screen gutter
+    const inward =
+      pos === 1 || pos === 2 ? -18 : pos === 3 || pos === 4 ? 18 : 0;
+    let left = midX - w / 2 + inward;
+    let top;
+    if (pos === 2 || pos === 3) {
+      top = pb.bottom + gap + 2;
+    } else {
+      // pos 0 / 1 / 4 — above the plate
+      top = pb.top - gap - h;
+    }
+
+    const badge = seat.querySelector(':scope > .win-badge');
+    items.push({ hole, seat, pos, w, h, left, top, badge });
+  }
+
+  const clampItem = (it) => {
+    it.left = Math.min(
+      Math.max(it.left, view.left + pad),
+      view.right - pad - it.w,
+    );
+    it.top = Math.min(
+      Math.max(it.top, view.top + pad),
+      view.bottom - pad - it.h,
+    );
+  };
+
+  const boardCards = [...document.querySelectorAll('#board .card')]
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.width > 0);
+  let boardBand = null;
+  if (boardCards.length) {
+    boardBand = {
+      left: Math.min(...boardCards.map((r) => r.left)),
+      right: Math.max(...boardCards.map((r) => r.right)),
+      top: Math.min(...boardCards.map((r) => r.top)),
+      bottom: Math.max(...boardCards.map((r) => r.bottom)),
+    };
+  }
+
+  const enforceBoardBand = (it) => {
+    if (!boardBand) return;
+    if (it.pos === 2 || it.pos === 3) {
+      it.top = Math.max(it.top, boardBand.bottom + gap);
+    } else if (it.pos === 0 || it.pos === 1 || it.pos === 4) {
+      it.top = Math.min(it.top, boardBand.top - gap - it.h);
+    }
+  };
+
+  for (const it of items) {
+    clampItem(it);
+    enforceBoardBand(it);
+    clampItem(it);
+  }
+
+  const staticObstacles = () => {
+    const list = [];
+    for (const el of document.querySelectorAll(
+      '#board .card, .pot, #heroHole .card, #meRoot > .win-badge, .meinfo',
+    )) {
+      if (getComputedStyle(el).display === 'none') continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) continue;
+      list.push({ r, el });
+    }
+    for (const el of document.querySelectorAll('.seat .plateA, .seat .plate')) {
+      const r = el.getBoundingClientRect();
+      if (r.width < 1) continue;
+      list.push({ r, el });
+    }
+    return list;
+  };
+
+  for (let iter = 0; iter < 56; iter++) {
+    let moved = false;
+    const staticObs = staticObstacles();
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const box = {
+        left: it.left,
+        right: it.left + it.w,
+        top: it.top,
+        bottom: it.top + it.h,
+      };
+      let dx = 0;
+      let dy = 0;
+
+      const pushFrom = (obs) => {
+        // Require ≥gap clear — treat pad as soft separation target
+        if (!overlapsPad(box, obs, gap)) return;
+        const cx = (box.left + box.right) / 2;
+        const cy = (box.top + box.bottom) / 2;
+        const ox = (obs.left + obs.right) / 2;
+        const oy = (obs.top + obs.bottom) / 2;
+        let vx = cx - ox;
+        let vy = cy - oy;
+        // Prefer vertical escape away from the board
+        if (it.pos === 2 || it.pos === 3) vy += 1.4;
+        if (it.pos === 1 || it.pos === 4 || it.pos === 0) vy -= 1.4;
+        const n = Math.hypot(vx, vy) || 1;
+        dx += (vx / n) * 5;
+        dy += (vy / n) * 5;
+      };
+
+      for (const { r, el } of staticObs) {
+        const ownPlate = el.closest?.('.seat') === it.seat;
+        if (ownPlate) {
+          if (overlapsPad(box, r, gap - 0.5)) {
+            if (it.pos === 2 || it.pos === 3) {
+              dy += Math.max(4, r.bottom + gap - box.top);
+            } else {
+              dy -= Math.max(4, box.bottom + gap - r.top);
+            }
+          }
+          continue;
+        }
+        pushFrom(r);
+      }
+
+      for (let j = 0; j < items.length; j++) {
+        if (i === j) continue;
+        const o = items[j];
+        const ob = {
+          left: o.left,
+          right: o.left + o.w,
+          top: o.top,
+          bottom: o.top + o.h,
+        };
+        if (!overlapsPad(box, ob, gap)) continue;
+        // Peer resolve: prefer horizontal split for top-band seats
+        const cx = (box.left + box.right) / 2;
+        const ox = (ob.left + ob.right) / 2;
+        const cy = (box.top + box.bottom) / 2;
+        const oy = (ob.top + ob.bottom) / 2;
+        let vx = cx - ox;
+        let vy = cy - oy;
+        if (Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) vx = it.pos <= o.pos ? -1 : 1;
+        if (
+          (it.pos === 0 || it.pos === 1 || it.pos === 4) &&
+          (o.pos === 0 || o.pos === 1 || o.pos === 4)
+        ) {
+          vx *= 1.6;
+          vy *= 0.4;
+        }
+        const n = Math.hypot(vx, vy) || 1;
+        dx += (vx / n) * 6;
+        dy += (vy / n) * 6;
+      }
+
+      if (Math.abs(dx) > 0.4 || Math.abs(dy) > 0.4) {
+        it.left += dx;
+        it.top += dy;
+        clampItem(it);
+        enforceBoardBand(it);
+        clampItem(it);
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+
+  // Final own-plate snap: lower seats must sit fully below plate + gap
+  for (const it of items) {
+    const plate = it.seat.querySelector('.plateA, .plate');
+    if (!plate) continue;
+    const pb = plate.getBoundingClientRect();
+    if (it.pos === 2 || it.pos === 3) {
+      it.top = Math.max(it.top, pb.bottom + gap);
+    } else if (it.pos === 0) {
+      it.top = Math.min(it.top, pb.top - gap - it.h);
+    }
+    clampItem(it);
+    enforceBoardBand(it);
+    clampItem(it);
+  }
+
+  // Commit + park WIN badge above (preferred) or below the card pair — never on it
+  for (const it of items) {
+    const sb = it.seat.getBoundingClientRect();
+    it.hole.style.position = 'absolute';
+    it.hole.style.left = `${it.left - sb.left}px`;
+    it.hole.style.top = `${it.top - sb.top}px`;
+    it.hole.style.right = 'auto';
+    it.hole.style.bottom = 'auto';
+    it.hole.style.transform = 'none';
+    it.hole.style.margin = '0';
+    it.hole.style.zIndex = '5';
+
+    if (!it.badge) continue;
+    const badgeH = it.badge.offsetHeight || 22;
+    const badgeW = it.badge.offsetWidth || 72;
+    const plate = it.seat.querySelector('.plateA, .plate');
+    const pb = plate?.getBoundingClientRect();
+
+    const hits = (l, t, obs) => {
+      if (!obs) return false;
+      const r = l + badgeW;
+      const b = t + badgeH;
+      return (
+        Math.min(r, obs.right) - Math.max(l, obs.left) > 0 &&
+        Math.min(b, obs.bottom) - Math.max(t, obs.top) > 0
+      );
+    };
+    const holeBox = {
+      left: it.left,
+      right: it.left + it.w,
+      top: it.top,
+      bottom: it.top + it.h,
+    };
+
+    // Candidates ordered away from the nameplate:
+    // lower seats (cards below plate) → badge below cards first;
+    // upper seats (cards above plate) → badge above cards first.
+    const above = {
+      left: it.left + it.w / 2 - badgeW / 2,
+      top: it.top - badgeH - gap,
+    };
+    const below = {
+      left: it.left + it.w / 2 - badgeW / 2,
+      top: it.top + it.h + gap,
+    };
+    const candidates =
+      it.pos === 2 || it.pos === 3 ? [below, above] : [above, below];
+    let chosen = null;
+    for (const c of candidates) {
+      c.left = Math.min(
+        Math.max(c.left, view.left + pad),
+        view.right - pad - badgeW,
+      );
+      c.top = Math.min(
+        Math.max(c.top, view.top + pad),
+        view.bottom - pad - badgeH,
+      );
+      if (hits(c.left, c.top, holeBox)) continue;
+      if (pb && hits(c.left, c.top, pb)) continue;
+      if (boardBand && hits(c.left, c.top, boardBand)) continue;
+      let peerHit = false;
+      for (const o of items) {
+        if (o === it) continue;
+        if (
+          hits(c.left, c.top, {
+            left: o.left,
+            right: o.left + o.w,
+            top: o.top,
+            bottom: o.top + o.h,
+          })
+        ) {
+          peerHit = true;
+          break;
+        }
+      }
+      if (peerHit) continue;
+      chosen = c;
+      break;
+    }
+    if (!chosen) {
+      // Fallback: above, clamped — still keep clear of the card AABB vertically
+      chosen = {
+        left: Math.min(
+          Math.max(it.left + it.w / 2 - badgeW / 2, view.left + pad),
+          view.right - pad - badgeW,
+        ),
+        top: Math.max(view.top + pad, it.top - badgeH - 4),
+      };
+      if (chosen.top + badgeH > it.top) {
+        chosen.top = Math.min(it.top + it.h + 4, view.bottom - pad - badgeH);
+      }
+    }
+
+    it.badge.style.position = 'absolute';
+    it.badge.style.left = `${chosen.left - sb.left + badgeW / 2}px`;
+    it.badge.style.top = `${chosen.top - sb.top}px`;
+    it.badge.style.bottom = 'auto';
+    it.badge.style.right = 'auto';
+    it.badge.style.transform = 'translateX(-50%)';
+    it.badge.style.zIndex = '6';
+  }
+
+  // Second pass: clear of rotated card AABBs (hole flex box understates height)
+  for (const it of items) {
+    if (!it.badge) continue;
+    const sb = it.seat.getBoundingClientRect();
+    const cards = [...it.hole.querySelectorAll('.card')].map((c) =>
+      c.getBoundingClientRect(),
+    );
+    if (!cards.length) continue;
+    const cardBand = {
+      left: Math.min(...cards.map((r) => r.left)),
+      right: Math.max(...cards.map((r) => r.right)),
+      top: Math.min(...cards.map((r) => r.top)),
+      bottom: Math.max(...cards.map((r) => r.bottom)),
+    };
+    const bb = it.badge.getBoundingClientRect();
+    if (bb.width < 1) continue;
+    const covers =
+      Math.min(bb.right, cardBand.right) - Math.max(bb.left, cardBand.left) > 0 &&
+      Math.min(bb.bottom, cardBand.bottom) - Math.max(bb.top, cardBand.top) > 0;
+    const badgeH = bb.height || 22;
+    const badgeW = bb.width || 72;
+    let top;
+    let left = (cardBand.left + cardBand.right) / 2 - badgeW / 2;
+    const above = cardBand.top - badgeH - gap;
+    const below = cardBand.bottom + gap;
+    left = Math.min(Math.max(left, view.left + pad), view.right - pad - badgeW);
+    const plate = it.seat.querySelector('.plateA, .plate');
+    const pb = plate?.getBoundingClientRect();
+    const clearOfPlate = (t) => {
+      if (!pb) return true;
+      return !(
+        Math.min(t + badgeH, pb.bottom) - Math.max(t, pb.top) > 0 &&
+        Math.min(left + badgeW, pb.right) - Math.max(left, pb.left) > 0
+      );
+    };
+    const clearOfCards = (t) =>
+      !(
+        Math.min(t + badgeH, cardBand.bottom) - Math.max(t, cardBand.top) > 0 &&
+        Math.min(left + badgeW, cardBand.right) - Math.max(left, cardBand.left) > 0
+      );
+    const gapToCards = (t) => {
+      const oy = Math.min(t + badgeH, cardBand.bottom) - Math.max(t, cardBand.top);
+      const ox =
+        Math.min(left + badgeW, cardBand.right) - Math.max(left, cardBand.left);
+      if (ox > 0 && oy > 0) return -Math.min(ox, oy);
+      if (ox > 0) return Math.max(t - cardBand.bottom, cardBand.top - (t + badgeH));
+      return 99;
+    };
+    // Already clear of cards (≥gap) + plate?
+    if (
+      !covers &&
+      clearOfPlate(bb.top) &&
+      clearOfCards(bb.top) &&
+      gapToCards(bb.top) >= gap
+    ) {
+      continue;
+    }
+    // Prefer the side away from the plate
+    const preferBelow = it.pos === 2 || it.pos === 3;
+    const order = preferBelow ? [below, above] : [above, below];
+    top = order[0];
+    for (const cand of order) {
+      const t = Math.min(Math.max(cand, view.top + pad), view.bottom - pad - badgeH);
+      if (clearOfCards(t) && clearOfPlate(t) && gapToCards(t) >= gap - 0.5) {
+        top = t;
+        break;
+      }
+      top = t;
+    }
+    it.badge.style.left = `${left - sb.left + badgeW / 2}px`;
+    it.badge.style.top = `${top - sb.top}px`;
+  }
+
+  return { ok: true, issues: [] };
+}
+
 export { GAP as BET_GAP };

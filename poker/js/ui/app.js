@@ -12,22 +12,36 @@ import {
   PHASE,
   sessionSummary,
   REVEAL_MS,
+  HOLD_MS_SHOWDOWN,
+  HOLD_MS_FOLD_WIN,
 } from '../engine/index.js';
-import { cardHtml, cardBackPair, heroBackPair, fmtChips } from './cards-dom.js';
+import { cardHtml, cardBackPair, heroBackPair, fmtChips, cardFaceInner } from './cards-dom.js';
 import { onTick } from './ticker.js';
-import { mapSeatsClockwise } from './seating.js';
-import { placeBets, placeDealer, placeTableNote } from './layout-felt.js';
+import { mapSeatsClockwise, seatVisualPos } from './seating.js';
+import {
+  placeBets,
+  placeDealer,
+  placeTableNote,
+  placeShowdownReveals,
+} from './layout-felt.js';
 import {
   playDealAnimation,
   playHeroFlip,
-  playWinnerFx,
+  playShowdownSequence,
   cancelDealFx,
   cancelWinFx,
   cancelHeroFlip,
   prefersReducedMotion,
   foldWinCenterNote,
   DEAL_FX,
+  SHOWDOWN_FX,
 } from './fx.js';
+
+/**
+ * Single-device: other seats who don't tap → MUCK (not coin-flip).
+ * Flip to `false` to restore random show/muck for non-viewer seats.
+ */
+export const OTHER_HUMANS_DEFAULT_MUCK = true;
 
 const DEFAULT_NAMES = ['宗良', '阿哲', '小芸', '志明', '小美', '老K'];
 
@@ -77,7 +91,25 @@ let revealTimer = null;
 let botsRevealedForHand = 0;
 /** Auto-advance to next hand after reveal settles. */
 let autoNextTimer = null;
+/** Hold-period end (ms epoch) while HAND_OVER waiting for auto-next. */
+let holdDeadline = null;
 let raisePanelOpen = false;
+/** Showdown FX in progress — freeze table rebuild / defer glow. */
+let showdownFxBusy = false;
+/** Choice buttons armed only after FX reaches F. */
+let revealUiArmed = false;
+/** Winner glow/badge visible (set at FX stage D, before choice). */
+let showdownGlowOn = false;
+/** Board HTML frozen during showdown to avoid dealIn replay. */
+let boardFrozenKey = '';
+/** Display pot amount during FX (engine contributed stays until ACK). */
+let displayPotOverride = null;
+/** @type {Record<number, number>|null} stack display before payout rolls in */
+let displayChipsOverride = null;
+/** Seats whose hole cards have been flipped by FX this hand. */
+let flippedSeats = new Set();
+/** Host requested pause — also mirrored in engine.state.pause */
+let pausePanelBound = false;
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
@@ -172,16 +204,36 @@ function afterState() {
     pendingDealHand = state.handNumber;
     botsRevealedForHand = 0;
     revealDeadline = null;
+    revealUiArmed = false;
+    showdownGlowOn = false;
+    showdownFxBusy = false;
+    displayPotOverride = null;
+    displayChipsOverride = null;
+    flippedSeats = new Set();
+    boardFrozenKey = '';
+    holdDeadline = null;
     if (revealTimer) {
       clearTimeout(revealTimer);
       revealTimer = null;
     }
+    if (autoNextTimer) {
+      clearTimeout(autoNextTimer);
+      autoNextTimer = null;
+    }
   }
-  // Hand over: stop pass gate so winner FX / summary are visible
+  // Hand over: stop pass gate so winner FX / summary are visible.
+  // Hold / auto-next only after showdown FX arms (onReadyForChoice) — never before.
   if (state.phase === PHASE.HAND_OVER || state.phase === PHASE.SESSION_OVER) {
     needsPass = false;
     $('#passScreen')?.classList.remove('is-on');
-    scheduleAutoNextHand();
+    if (
+      state.phase === PHASE.HAND_OVER &&
+      !showdownFxBusy &&
+      revealUiArmed &&
+      !state.pause?.active
+    ) {
+      scheduleAutoNextHand();
+    }
   }
   // Hot-seat: when actor changes to another seated player mid-hand, show pass screen
   // (Reveal phase uses bots for other seats — no pass for 亮牌／不亮.)
@@ -201,6 +253,7 @@ function afterState() {
     $('#passScreen')?.classList.remove('is-on');
     beginRevealUi();
   }
+  syncPausePanel();
   render();
 }
 
@@ -208,13 +261,13 @@ function beginRevealUi() {
   if (!state.showdown) return;
   if (botsRevealedForHand !== state.handNumber) {
     botsRevealedForHand = state.handNumber;
-    // Single-device: non-viewer seats decide at random immediately
+    // Single-device: non-viewer seats default MUCK (OTHER_HUMANS_DEFAULT_MUCK)
     const pending = [...(state.showdown.pending || [])];
     for (const seat of pending) {
       if (seat === viewerSeat) continue;
       if (state.phase !== PHASE.SHOWDOWN) break;
       if (!state.showdown?.pending?.includes(seat)) continue;
-      const show = Math.random() < 0.5;
+      const show = OTHER_HUMANS_DEFAULT_MUCK ? false : Math.random() < 0.5;
       try {
         state = applyAction(
           state,
@@ -225,11 +278,18 @@ function beginRevealUi() {
         /* ignore */
       }
     }
-    if (state.phase === PHASE.HAND_OVER) {
-      scheduleAutoNextHand();
-    }
   }
-  if (state.phase !== PHASE.SHOWDOWN) return;
+  // Countdown / REVEAL_TIMEOUT armed only after showdown FX reaches choice phase
+}
+
+/** Arm 5s show/muck window once buttons are tappable (after FX). */
+function armRevealChoice() {
+  revealUiArmed = true;
+  if (state.phase !== PHASE.SHOWDOWN) {
+    if (state.phase === PHASE.HAND_OVER) scheduleAutoNextHand();
+    render();
+    return;
+  }
   if (revealDeadline == null && state.showdown?.pending?.length) {
     revealDeadline = Date.now() + REVEAL_MS;
     if (revealTimer) clearTimeout(revealTimer);
@@ -238,23 +298,63 @@ function beginRevealUi() {
       dispatch({ type: 'REVEAL_TIMEOUT' });
     }, REVEAL_MS + 30);
   }
+  render();
+}
+
+function holdMsForState() {
+  const foldWin =
+    !!state.showdown?.foldWin || !!state.lastHandSummary?.foldWin;
+  return foldWin ? HOLD_MS_FOLD_WIN : HOLD_MS_SHOWDOWN;
 }
 
 function scheduleAutoNextHand() {
   if (state.phase !== PHASE.HAND_OVER) return;
+  if (state.pause?.active) return;
+  if (showdownFxBusy) return;
   if (autoNextTimer) clearTimeout(autoNextTimer);
+  const ms = holdMsForState();
+  holdDeadline = Date.now() + ms;
   autoNextTimer = setTimeout(() => {
     autoNextTimer = null;
-    if (state.phase !== PHASE.HAND_OVER) return;
-    try {
+    holdDeadline = null;
+    goNextHandFromHold();
+  }, ms);
+  render();
+}
+
+function goNextHandFromHold() {
+  if (state.phase !== PHASE.HAND_OVER && !state.pause?.active) return;
+  if (autoNextTimer) {
+    clearTimeout(autoNextTimer);
+    autoNextTimer = null;
+  }
+  holdDeadline = null;
+  try {
+    if (state.phase === PHASE.HAND_OVER) {
       dispatch({ type: 'ACK_HAND' });
-      dispatch({ type: 'NEXT_HAND' });
-      viewerSeat = state.actor ?? state.room.hostSeat;
-      startDealThenPass();
-    } catch (_) {
-      /* ignore */
     }
-  }, 1600);
+    if (state.pause?.requested && !state.pause?.active) {
+      dispatch({ type: 'NEXT_HAND' }); // activates pause
+      syncPausePanel();
+      render();
+      return;
+    }
+    if (state.pause?.active) {
+      syncPausePanel();
+      render();
+      return;
+    }
+    dispatch({ type: 'NEXT_HAND' });
+    viewerSeat = state.actor ?? state.room.hostSeat;
+    startDealThenPass();
+  } catch (e) {
+    if (state.pause?.active) {
+      syncPausePanel();
+      render();
+      return;
+    }
+    toast(e.message || String(e));
+  }
 }
 
 /** SVG countdown ring around an avatar (pathLength=100 for easy dashoffset). */
@@ -605,6 +705,115 @@ function renderTop(v) {
       closeMenu();
     };
   }
+  const pbtn = $('#btnPauseMenu');
+  if (pbtn) {
+    const isHost = viewerSeat === state.room.hostSeat;
+    const canPause =
+      isHost &&
+      !state.pause?.active &&
+      state.phase !== PHASE.LOBBY &&
+      state.phase !== PHASE.SESSION_OVER;
+    pbtn.classList.toggle('hidden', !canPause);
+    pbtn.textContent = state.pause?.requested ? '暫停（已預約）' : '暫停';
+    pbtn.onclick = () => {
+      requestPause();
+      closeMenu();
+    };
+  }
+}
+
+function requestPause() {
+  try {
+    dispatch({ type: 'REQUEST_PAUSE', seat: state.room.hostSeat });
+    // Modal is the signal when active — only toast for mid-hand booking
+    if (state.pause?.requested && !state.pause?.active) {
+      toast('已預約暫停：這手結束後生效');
+    } else {
+      $('#toast')?.classList.remove('is-on');
+    }
+  } catch (e) {
+    toast(e.message || String(e));
+  }
+}
+
+function syncPausePanel() {
+  const scr = $('#pauseScreen');
+  if (!scr) return;
+  if (!state.pause?.active) {
+    scr.classList.remove('is-on');
+    $('#toast')?.classList.remove('is-on');
+    return;
+  }
+  // No action timer / hold while paused
+  if (autoNextTimer) {
+    clearTimeout(autoNextTimer);
+    autoNextTimer = null;
+  }
+  holdDeadline = null;
+  $('#toast')?.classList.remove('is-on');
+  scr.classList.add('is-on');
+  const list = $('#pauseList');
+  const countEl = $('#pauseCount');
+  if (!list) return;
+  const entries = Object.entries(state.pause.ready || {});
+  const readyN = entries.filter(([, r]) => r).length;
+  const totalN = entries.length;
+  if (countEl) countEl.textContent = `${readyN}／${totalN} 人已回來`;
+  const rows = [];
+  for (const [seatStr, ready] of entries) {
+    const seat = +seatStr;
+    const p = state.seats[seat];
+    if (!p) continue;
+    const status = ready
+      ? `<span class="pause-wait">✓ 已回來</span>`
+      : `<span class="pause-wait">等待中</span>`;
+    const action = ready
+      ? `<span class="pause-ok-mark" aria-label="已回來">✓</span>`
+      : `<button type="button" class="pause-ready" data-seat="${seat}">我回來了</button>`;
+    rows.push(
+      `<div class="pause-row${ready ? ' is-ready' : ''}" data-seat="${seat}">` +
+        `<span class="pause-name">${esc(p.name)}</span>` +
+        status +
+        action +
+        `</div>`,
+    );
+  }
+  list.innerHTML = rows.join('') || '<p class="lead">沒有在座玩家</p>';
+  if (!pausePanelBound) {
+    pausePanelBound = true;
+    list.addEventListener('click', (e) => {
+      const btn = e.target?.closest?.('button.pause-ready');
+      if (!btn) return;
+      const seat = +btn.dataset.seat;
+      try {
+        state = applyAction(state, { type: 'PLAYER_READY', seat }, { now: Date.now() });
+        if (!state.pause?.active) {
+          $('#pauseScreen')?.classList.remove('is-on');
+          try {
+            if (state.phase === PHASE.HAND_OVER) {
+              try {
+                state = applyAction(state, { type: 'ACK_HAND' }, { now: Date.now() });
+              } catch (_) {
+                /* already cleared */
+              }
+            }
+            state = applyAction(state, { type: 'NEXT_HAND' }, { now: Date.now() });
+            viewerSeat = state.actor ?? state.room.hostSeat;
+            afterState();
+            startDealThenPass();
+          } catch (err2) {
+            toast(err2.message || String(err2));
+            render();
+          }
+        } else {
+          syncPausePanel();
+          render();
+        }
+      } catch (err) {
+        toast(err.message || String(err));
+      }
+    });
+  }
 }
 
 function closeMenu() {
@@ -636,15 +845,29 @@ function setupMenu() {
 }
 
 function renderTable(v) {
-  // Freeze seat/bet/hero rebuild while deal WAAPI is running (spec §13.5)
+  // Freeze seat/bet/hero rebuild while deal / showdown WAAPI is running
   if (dealFxBusy || heroFlipping) return;
+  if (showdownFxBusy) {
+    // Still allow pot/stack overrides from FX callbacks via light updates
+    if (displayPotOverride != null && $('#potAmt')) {
+      $('#potAmt').textContent = fmtChips(displayPotOverride);
+    }
+    return;
+  }
 
   const dealingSetup = dealPresenting || awaitingDealThenPass;
+  const atShowdown = v.isShowdown || v.isHandOver;
   const boardEl = $('#board');
-  // Felt shows ONLY dealt community cards — no dashed placeholders
-  boardEl.innerHTML = (v.board || [])
-    .map((c) => cardHtml(c, { anim: true }))
-    .join('');
+  // Felt shows ONLY dealt community cards — no dashed placeholders.
+  // Freeze board DOM during showdown/hand-over so dealIn never replays on re-render.
+  const boardKey = (v.board || []).map((c) => `${c.r}${c.s}`).join('-') + `:${v.handNumber}`;
+  if (!atShowdown || boardFrozenKey !== boardKey) {
+    boardEl.innerHTML = (v.board || [])
+      .map((c) => cardHtml(c, { anim: !atShowdown }))
+      .join('');
+    if (atShowdown) boardFrozenKey = boardKey;
+    else boardFrozenKey = '';
+  }
 
   const potEl = document.querySelector('.pot');
   if (dealingSetup) {
@@ -661,7 +884,11 @@ function renderTable(v) {
       potEl.style.opacity = '';
       potEl.style.visibility = '';
     }
-    $('#potAmt').textContent = fmtChips(v.potTotal);
+    // During showdown before chip FX settles, keep showing pot total (contributed).
+    // After onPotZero, displayPotOverride is 0.
+    $('#potAmt').textContent = fmtChips(
+      displayPotOverride != null ? displayPotOverride : v.potTotal,
+    );
   }
   if ($('#potSub')) $('#potSub').textContent = '';
 
@@ -685,16 +912,33 @@ function renderTable(v) {
     const role = roleTag(v, seat);
     const folded = p.folded ? ' is-folded' : '';
     const actor = v.actor === seat ? ' is-actor' : '';
-    const revealed = p.hole && p.hole.length === 2 && !p.isSelf;
+    // Face cards only after FX flip (or after sequence armed with a show choice)
+    const willReveal =
+      !!state.showdown?.revealed?.[seat] ||
+      !!state.lastHandSummary?.revealed?.[seat] ||
+      p.showChoice === 'auto' ||
+      p.showChoice === 'both';
+    const canShowFaces =
+      p.hole &&
+      p.hole.length === 2 &&
+      !p.isSelf &&
+      (flippedSeats.has(seat) || (atShowdown && revealUiArmed && willReveal));
+    const revealed = !!canShowFaces;
     const backs =
-      p.holeHidden && p.hasHole && !revealed ? cardBackPair() : '';
+      !revealed &&
+      ((p.holeHidden && p.hasHole) ||
+        (atShowdown && willReveal && p.hasHole) ||
+        (atShowdown && p.hasHole && p.showChoice == null))
+        ? cardBackPair()
+        : '';
     const revealHtml = revealed
-      ? `<div class="reveal-hole">${p.hole
+      ? `<div class="reveal-hole" data-seat="${seat}">${p.hole
           .map((c) => cardHtml(c, { hero: true }))
           .join('')}</div>`
       : '';
     const wonAmt = state.winnerPayouts?.[seat];
-    const isWin = wonAmt != null && (v.isHandOver || v.isShowdown);
+    // Defer WIN glow/badge until FX onGlow
+    const isWin = wonAmt != null && atShowdown && showdownGlowOn;
     const showing = revealed ? ' is-showing' : '';
     const timing =
       handUiReady &&
@@ -702,10 +946,16 @@ function renderTable(v) {
       v.actor === seat &&
       v.deadline != null &&
       !v.isHandOver &&
-      !v.isShowdown;
+      !v.isShowdown &&
+      !state.pause?.active;
     // During deal intro, show pre-blind stack so chip-count can roll down
-    const stackShow =
+    let stackShow =
       dealingSetup && p.bet > 0 ? p.chips + p.bet : p.chips;
+    if (displayChipsOverride && displayChipsOverride[seat] != null) {
+      stackShow = displayChipsOverride[seat];
+    } else if (atShowdown && wonAmt != null && !revealUiArmed) {
+      stackShow = p.chips - wonAmt;
+    }
     const el = document.createElement('div');
     el.className = `seat pos-${pos}${folded}${actor}${showing}${isWin ? ' is-winner' : ''}`;
     el.dataset.seat = String(seat);
@@ -742,12 +992,30 @@ function renderTable(v) {
 
   const hero = v.seats[viewerSeat];
   const hole = $('#heroHole');
+  const heroShown =
+    hero?.showChoice === 'auto' ||
+    hero?.showChoice === 'both' ||
+    !!state.showdown?.revealed?.[viewerSeat] ||
+    !!state.lastHandSummary?.revealed?.[viewerSeat];
+  const heroMucked = hero?.showChoice === 'muck';
   // Face-down large backs during deal / post-deal pass; faces only after flip
   if (dealPresenting || passAfterDeal || (needsPass && passAfterDeal)) {
     hole.innerHTML =
       hero?.hole?.length || hero?.hasHole ? heroBackPair({ pending: dealPresenting }) : '';
   } else if (needsPass && !passAfterDeal) {
     hole.innerHTML = '';
+  } else if (atShowdown && heroMucked) {
+    // Privacy: after 不亮, own cards stay face-down (not face-up for bystanders)
+    hole.innerHTML = hero?.hasHole || hero?.hole?.length ? heroBackPair({ pending: false }) : '';
+  } else if (atShowdown && hero?.hole?.length && handUiReady) {
+    if (heroShown && (flippedSeats.has(viewerSeat) || revealUiArmed)) {
+      hole.innerHTML = hero.hole
+        .map((c) => cardHtml(c, { hero: true, anim: false }))
+        .join('');
+    } else {
+      // Privacy default at showdown: backs until shown / FX flip
+      hole.innerHTML = heroBackPair({ pending: false });
+    }
   } else if (hero?.hole?.length && handUiReady) {
     hole.innerHTML = hero.hole
       .map((c) => cardHtml(c, { hero: true, anim: false }))
@@ -771,14 +1039,20 @@ function renderTable(v) {
     }
   }
   {
-    const stackShow =
+    let stackShow =
       hero && dealingSetup && hero.bet > 0 ? hero.chips + hero.bet : hero?.chips;
+    const heroWonAmt = state.winnerPayouts?.[viewerSeat];
+    if (displayChipsOverride && displayChipsOverride[viewerSeat] != null) {
+      stackShow = displayChipsOverride[viewerSeat];
+    } else if (atShowdown && heroWonAmt != null && !revealUiArmed) {
+      stackShow = (hero?.chips ?? 0) - heroWonAmt;
+    }
     $('#heroChips').textContent =
       hero && (!needsPass || passAfterDeal) ? fmtChips(stackShow ?? 0) : '';
   }
   const mePlate = $('#mePlate');
   const heroWon = state.winnerPayouts?.[viewerSeat];
-  const heroIsWin = heroWon != null && (v.isHandOver || v.isShowdown);
+  const heroIsWin = heroWon != null && atShowdown && showdownGlowOn;
   mePlate?.classList.toggle('is-winner', !!heroIsWin);
   const heroTiming =
     handUiReady &&
@@ -847,6 +1121,7 @@ function renderTable(v) {
     placeBets();
     // Re-place D now that bets are parked, so D clears chips too
     placeDealer();
+    placeShowdownReveals();
     placeTableNote();
     const d = $('#dealer');
     if (d && getComputedStyle(d).display !== 'none') {
@@ -919,7 +1194,178 @@ function maybePlayWinnerFx(v) {
   const key = `${state.handNumber}:${JSON.stringify(state.winnerPayouts || state.winners)}`;
   if (key === winFxKey) return;
   winFxKey = key;
-  playWinnerFx({ state, viewerSeat, holdMs: 2000 });
+  showdownFxBusy = true;
+  revealUiArmed = false;
+  showdownGlowOn = false;
+  // Cancel any premature hold that started before FX (HAND_OVER can land in beginRevealUi)
+  if (autoNextTimer) {
+    clearTimeout(autoNextTimer);
+    autoNextTimer = null;
+  }
+  holdDeadline = null;
+  // Pre-payout stack display
+  displayChipsOverride = {};
+  for (const [seat, amt] of Object.entries(state.winnerPayouts || {})) {
+    const p = state.seats[+seat];
+    if (p) displayChipsOverride[+seat] = p.chips - amt;
+  }
+  displayPotOverride = v.potTotal;
+
+  const flipSeat = async (seat, cards) => {
+    flippedSeats.add(seat);
+    const pos = seatVisualPos(seat, viewerSeat);
+    if (pos === 'hero') {
+      const mount = (html) => {
+        const h = $('#heroHole');
+        if (h) h.innerHTML = html;
+      };
+      if (prefersReducedMotion()) {
+        mount(cards.map((c) => cardHtml(c, { hero: true, anim: false })).join(''));
+        return;
+      }
+      const parts = cards.map((c, i) => {
+        const red = c.s === 1 || c.s === 2 ? ' red' : ' blk';
+        return (
+          `<div class="card hero is-flipping" data-i="${i}">` +
+          `<div class="flip">` +
+          `<div class="face back" aria-hidden="true"></div>` +
+          `<div class="face front${red}">${cardFaceInner(c)}</div>` +
+          `</div></div>`
+        );
+      });
+      mount(parts.join(''));
+      const els = [...document.querySelectorAll('#heroHole .card.is-flipping .flip')];
+      await Promise.all(
+        els.map((flip, i) =>
+          flip
+            .animate(
+              [
+                { transform: 'rotateY(0deg)' },
+                { offset: 0.5, transform: 'rotateY(90deg) translateY(-4px)' },
+                { transform: 'rotateY(180deg)' },
+              ],
+              {
+                delay: i * 40,
+                duration: SHOWDOWN_FX.flipMs,
+                easing: SHOWDOWN_FX.easeFlip,
+                fill: 'forwards',
+              },
+            )
+            .finished.catch(() => {}),
+        ),
+      );
+      mount(cards.map((c) => cardHtml(c, { hero: true, anim: false })).join(''));
+      return;
+    }
+    const seatEl = document.querySelector(`.seat.pos-${pos}`);
+    if (!seatEl) return;
+    const host = document.createElement('div');
+    host.className = 'reveal-hole';
+    host.dataset.seat = String(seat);
+    seatEl.querySelector('.backs')?.remove();
+    seatEl.querySelector('.reveal-hole')?.remove();
+    seatEl.insertBefore(host, seatEl.firstChild);
+    seatEl.classList.add('is-showing');
+    if (prefersReducedMotion()) {
+      host.innerHTML = cards.map((c) => cardHtml(c, { hero: true })).join('');
+      placeShowdownReveals();
+      return;
+    }
+    host.innerHTML = cards
+      .map((c, i) => {
+        const red = c.s === 1 || c.s === 2 ? ' red' : ' blk';
+        return (
+          `<div class="card hero is-flipping" data-i="${i}">` +
+          `<div class="flip">` +
+          `<div class="face back" aria-hidden="true"></div>` +
+          `<div class="face front${red}">${cardFaceInner(c)}</div>` +
+          `</div></div>`
+        );
+      })
+      .join('');
+    placeShowdownReveals();
+    const flips = [...host.querySelectorAll('.flip')];
+    await Promise.all(
+      flips.map((flip, i) =>
+        flip
+          .animate(
+            [
+              { transform: 'rotateY(0deg)' },
+              { offset: 0.5, transform: 'rotateY(90deg) translateY(-4px)' },
+              { transform: 'rotateY(180deg)' },
+            ],
+            {
+              delay: i * 40,
+              duration: SHOWDOWN_FX.flipMs,
+              easing: SHOWDOWN_FX.easeFlip,
+              fill: 'forwards',
+            },
+          )
+          .finished.catch(() => {}),
+      ),
+    );
+    host.innerHTML = cards.map((c) => cardHtml(c, { hero: true })).join('');
+    placeShowdownReveals();
+  };
+
+  playShowdownSequence({
+    state,
+    viewerSeat,
+    flipSeat,
+    onGlow: () => {
+      showdownGlowOn = true;
+      // Mount badges without full table rebuild (FX layer busy)
+      for (const [seat, amt] of Object.entries(state.winnerPayouts || {})) {
+        const pos = seatVisualPos(+seat, viewerSeat);
+        if (pos === 'hero') {
+          $('#mePlate')?.classList.add('is-winner');
+          if (!document.querySelector('#meRoot > .win-badge')) {
+            const badge = document.createElement('div');
+            badge.className = 'win-badge';
+            badge.textContent = `WIN +${fmtChips(+amt)}`;
+            $('#meRoot')?.appendChild(badge);
+          }
+        } else {
+          const seatEl = document.querySelector(`.seat.pos-${pos}`);
+          seatEl?.classList.add('is-winner');
+          seatEl?.querySelector('.plate')?.classList.add('is-winner');
+          if (seatEl && !seatEl.querySelector('.win-badge')) {
+            const badge = document.createElement('div');
+            badge.className = 'win-badge';
+            badge.textContent = `WIN +${fmtChips(+amt)}`;
+            seatEl.appendChild(badge);
+          }
+        }
+      }
+      placeShowdownReveals();
+    },
+    onStacksFinal: (payouts) => {
+      displayChipsOverride = null;
+      for (const [seat] of Object.entries(payouts || {})) {
+        const pos = seatVisualPos(+seat, viewerSeat);
+        const el =
+          pos === 'hero'
+            ? $('#heroChips')
+            : document.querySelector(`.seat.pos-${pos} .ch, .seat.pos-${pos} .st`);
+        const p = state.seats[+seat];
+        if (el && p) el.textContent = fmtChips(p.chips);
+      }
+      // Pot clears with the stack roll so mid-FX never shows both WIN and pot
+      displayPotOverride = 0;
+      if ($('#potAmt')) $('#potAmt').textContent = '0';
+    },
+    onPotZero: () => {
+      displayPotOverride = 0;
+      if ($('#potAmt')) $('#potAmt').textContent = '0';
+    },
+    onReadyForChoice: () => {
+      showdownFxBusy = false;
+      armRevealChoice();
+    },
+    onDone: () => {
+      showdownFxBusy = false;
+    },
+  });
 }
 
 /** Safe chip-rail anchors (% of .table) — inward from seats, clear of pot (~28%) / board. */
@@ -1878,25 +2324,65 @@ function renderActions(v) {
     $('#showCd')?.classList.add('hidden');
     $('#showBtns').classList.add('hidden');
     $('#showBtns').innerHTML = '';
+    // While pause modal is up: no 下一手 / countdown (modal owns the flow)
+    if (state.pause?.active) {
+      $('#btns').innerHTML = `
+        <button type="button" class="fold" id="btnEnd">結束牌局</button>
+        <button type="button" class="raiseb" id="btnSummary">看戰績</button>`;
+      $('#btnEnd').onclick = () => {
+        dispatch({ type: 'END_SESSION' });
+        showSummary();
+      };
+      $('#btnSummary').onclick = () => showSummary();
+      return;
+    }
+    // During showdown FX: no hold ring yet (avoids cutting pot→0 / chip flights)
+    if (!revealUiArmed || showdownFxBusy) {
+      $('#btns').innerHTML = `
+        <button type="button" class="call" id="btnNext" disabled style="opacity:.4">下一手</button>
+        <button type="button" class="fold" id="btnEnd">結束牌局</button>
+        <button type="button" class="raiseb" id="btnSummary">看戰績</button>`;
+      $('#btnEnd').onclick = () => {
+        dispatch({ type: 'END_SESSION' });
+        showSummary();
+      };
+      $('#btnSummary').onclick = () => showSummary();
+      return;
+    }
+    const isHost = viewerSeat === state.room.hostSeat;
+    const holdLeft =
+      holdDeadline != null
+        ? Math.max(0, Math.ceil((holdDeadline - Date.now()) / 1000))
+        : Math.ceil(holdMsForState() / 1000);
+    const holdTotal = holdMsForState();
+    const holdPct =
+      holdDeadline != null
+        ? Math.max(0, Math.min(100, ((holdDeadline - Date.now()) / holdTotal) * 100))
+        : 100;
+    // 結束牌局 / 看戰績 are pre-existing HAND_OVER actions (unchanged)
     $('#btns').innerHTML = `
-      <button type="button" class="call" id="btnNext">下一手</button>
+      <button type="button" class="call btn-next-hold" id="btnNext">
+        <span class="btn-next-label">下一手</span>
+        <span class="btn-next-cd" id="holdCd">${holdLeft}</span>
+        <span class="hold-bar" aria-hidden="true"><i style="width:${holdPct}%"></i></span>
+      </button>
+      ${
+        isHost
+          ? `<button type="button" class="raiseb" id="btnPauseHold">暫停</button>`
+          : ''
+      }
       <button type="button" class="fold" id="btnEnd">結束牌局</button>
       <button type="button" class="raiseb" id="btnSummary">看戰績</button>`;
     $('#btnNext').onclick = () => {
-      if (autoNextTimer) {
-        clearTimeout(autoNextTimer);
-        autoNextTimer = null;
-      }
-      dispatch({ type: 'ACK_HAND' });
-      dispatch({ type: 'NEXT_HAND' });
-      viewerSeat = state.actor ?? viewerSeat;
-      startDealThenPass();
+      goNextHandFromHold();
     };
+    $('#btnPauseHold')?.addEventListener('click', () => requestPause());
     $('#btnEnd').onclick = () => {
       if (autoNextTimer) {
         clearTimeout(autoNextTimer);
         autoNextTimer = null;
       }
+      holdDeadline = null;
       dispatch({ type: 'END_SESSION' });
       showSummary();
     };
@@ -1904,7 +2390,7 @@ function renderActions(v) {
     return;
   }
 
-  if (showdownMine) {
+  if (showdownMine && revealUiArmed) {
     act.classList.remove('is-dim');
     $('#btns').innerHTML = '';
     const left =
@@ -1928,6 +2414,7 @@ function renderActions(v) {
     $('#btnShowBoth').onclick = () => {
       if (revealTimer) clearTimeout(revealTimer);
       revealDeadline = null;
+      flippedSeats.add(viewerSeat);
       dispatch({ type: 'SHOW', seat: viewerSeat, mode: 'both' });
     };
     return;
@@ -1937,7 +2424,13 @@ function renderActions(v) {
     act.classList.remove('is-dim');
     $('#showCd')?.classList.add('hidden');
     $('#showBtns').classList.add('hidden');
-    $('#btns').innerHTML = '';
+    // During A–E: show disabled 下一手 placeholder; no choice yet
+    if (!revealUiArmed) {
+      $('#btns').innerHTML = `
+        <button type="button" class="call" id="btnNext" disabled style="opacity:.45">下一手</button>`;
+    } else {
+      $('#btns').innerHTML = '';
+    }
     return;
   }
 
@@ -2107,6 +2600,17 @@ onTick(() => {
     const cd = $('#showCd');
     if (cd && !cd.classList.contains('hidden')) cd.textContent = `${left} 秒後自動不亮`;
   }
+  if (state.phase === PHASE.HAND_OVER && holdDeadline != null && !state.pause?.active) {
+    const left = Math.max(0, Math.ceil((holdDeadline - Date.now()) / 1000));
+    const holdCd = $('#holdCd');
+    if (holdCd) holdCd.textContent = String(left);
+    const pct = Math.max(
+      0,
+      Math.min(100, ((holdDeadline - Date.now()) / holdMsForState()) * 100),
+    );
+    const bar = document.querySelector('#btnNext .hold-bar > i');
+    if (bar) bar.style.width = `${pct}%`;
+  }
   if (debugTimerFreezeMs != null) {
     updateActorTimerRing(debugTimerFreezeMs);
     return;
@@ -2119,6 +2623,7 @@ onTick(() => {
     dealPresenting ||
     heroFlipping ||
     needsPass ||
+    state.pause?.active ||
     state.phase === PHASE.SHOWDOWN ||
     state.phase === PHASE.HAND_OVER ||
     state.phase === PHASE.LOBBY
@@ -2256,11 +2761,303 @@ window.__poker = {
       clearTimeout(autoNextTimer);
       autoNextTimer = null;
     }
+    holdDeadline = null;
+  },
+  /** Skip deal presentation and arm UI for immediate play (tests / capture). */
+  skipDealAndReady(seat = 0) {
+    cancelDealFx();
+    cancelHeroFlip();
+    cancelWinFx();
+    pendingDealHand = 0;
+    lastDealPlayed = state.handNumber;
+    dealFxBusy = false;
+    dealPresenting = false;
+    awaitingDealThenPass = false;
+    passAfterDeal = false;
+    heroFlipping = false;
+    handUiReady = true;
+    needsPass = false;
+    viewerSeat = seat;
+    $('#passScreen')?.classList.remove('is-on');
+    document.getElementById('act')?.classList.remove('is-deal-locked');
+    document.documentElement.classList.remove('is-dealing');
+    if (state.config.timerEnabled && state.actor != null && state.deadline == null) {
+      dispatch({ type: 'ARM_DEADLINE' });
+    } else {
+      render();
+    }
+  },
+  get revealUiArmed() {
+    return revealUiArmed;
+  },
+  get showdownFxBusy() {
+    return showdownFxBusy;
+  },
+  get holdDeadline() {
+    return holdDeadline;
   },
   dispatch,
   view,
   applyAction,
   createInitialState,
+  AFTER_STATE: afterState,
+  setState(next) {
+    state = next;
+    afterState();
+  },
+  /**
+   * Capture helper: inject a deterministic SHOWDOWN presentation.
+   * @param {'split'|'sidepot'|'heads'|'fold'|'allReveal'} kind
+   */
+  forcePresentationShowdown(kind = 'heads') {
+    cancelDealFx();
+    cancelHeroFlip();
+    cancelWinFx();
+    winFxKey = '';
+    revealUiArmed = false;
+    showdownGlowOn = false;
+    showdownFxBusy = false;
+    displayPotOverride = null;
+    displayChipsOverride = null;
+    flippedSeats = new Set();
+    boardFrozenKey = '';
+    holdDeadline = null;
+    if (autoNextTimer) {
+      clearTimeout(autoNextTimer);
+      autoNextTimer = null;
+    }
+    if (revealTimer) {
+      clearTimeout(revealTimer);
+      revealTimer = null;
+    }
+    revealDeadline = null;
+
+    const s = structuredClone(state);
+    const seated = s.seats.map((p, i) => (p ? i : -1)).filter((i) => i >= 0);
+    if (seated.length < 2) throw new Error('need ≥2 seated');
+    const [a, b, c] = seated;
+    // Reset street markers
+    for (const p of s.seats) {
+      if (!p) continue;
+      p.bet = 0;
+      p.folded = false;
+      p.allIn = false;
+      p.showChoice = null;
+      p.lastAction = null;
+    }
+    s.actor = null;
+    s.deadline = null;
+    s.pots = [];
+    s.pause = null;
+    s.streetAggressor = null;
+    s.handNumber = Math.max(1, s.handNumber || 1);
+
+    const card = (r, suit) => ({ r, s: suit }); // s: 0♣1♦2♥3♠
+    viewerSeat = a;
+    needsPass = false;
+    handUiReady = true;
+    dealPresenting = false;
+    dealFxBusy = false;
+
+    if (kind === 'fold') {
+      const pot = 70;
+      s.board = [];
+      for (const seat of seated) {
+        const p = s.seats[seat];
+        p.hole = [card(14, 3), card(13, 2)];
+        p.hasHole = true;
+        p.contributed = seat === a ? pot : 0;
+        if (seat !== a) {
+          p.folded = true;
+          p.showChoice = 'muck';
+        }
+      }
+      s.seats[a].chips = 2000 + pot;
+      s.seats[a].contributed = pot;
+      for (const seat of seated) {
+        if (seat !== a) s.seats[seat].chips = 2000 - Math.floor(pot / (seated.length - 1));
+      }
+      s.winners = [{ seats: [a], amount: pot, hand: null, shares: { [a]: pot } }];
+      s.winnerPayouts = { [a]: pot };
+      s.phase = 'showdown';
+      s.showdown = {
+        pending: [a],
+        revealed: {},
+        ranks: {},
+        bestBySeat: {},
+        revealOrder: [a],
+        foldWin: true,
+        revealDeadline: null,
+      };
+    } else if (kind === 'split') {
+      // True chop: two winners, equal shares → two WIN tags + two chip flights
+      const pot = 120;
+      s.board = [card(9, 0), card(9, 1), card(5, 2), card(3, 3), card(2, 0)];
+      s.seats[a].hole = [card(14, 2), card(7, 0)];
+      s.seats[b].hole = [card(14, 3), card(7, 1)];
+      s.seats[a].hasHole = true;
+      s.seats[b].hasHole = true;
+      s.seats[a].contributed = pot / 2;
+      s.seats[b].contributed = pot / 2;
+      s.seats[a].chips = 2000 + pot / 2;
+      s.seats[b].chips = 2000 + pot / 2;
+      if (c != null) {
+        s.seats[c].hole = [card(8, 0), card(6, 1)];
+        s.seats[c].hasHole = true;
+        s.seats[c].folded = true;
+        s.seats[c].showChoice = 'muck';
+        s.seats[c].chips = 2000;
+        s.seats[c].contributed = 0;
+      }
+      const share = pot / 2;
+      s.winners = [
+        {
+          seats: [a, b],
+          amount: pot,
+          handZh: '一對',
+          shares: { [a]: share, [b]: share },
+        },
+      ];
+      s.winnerPayouts = { [a]: share, [b]: share };
+      s.seats[a].showChoice = 'auto';
+      s.seats[b].showChoice = 'auto';
+      s.phase = 'showdown';
+      s.showdown = {
+        pending: [],
+        revealed: {
+          [a]: { cards: s.seats[a].hole, mode: 'both' },
+          [b]: { cards: s.seats[b].hole, mode: 'both' },
+        },
+        ranks: { [a]: [1, 14, 9, 7, 5], [b]: [1, 14, 9, 7, 5] },
+        bestBySeat: {},
+        revealOrder: [a, b],
+        foldWin: false,
+        revealDeadline: null,
+      };
+    } else if (kind === 'sidepot') {
+      // Main 90 (a,b,c eligible) won by a; side 80 (b,c) won by b — two pots, reverse payout
+      const main = 90;
+      const side = 80;
+      s.board = [card(10, 0), card(10, 1), card(4, 2), card(3, 3), card(2, 0)];
+      s.seats[a].hole = [card(14, 2), card(14, 3)]; // quads tens? pair aces + pair tens = two pair → actually AA+TT board = two pair A/T
+      s.seats[b].hole = [card(13, 2), card(13, 3)]; // KK + TT
+      s.seats[c].hole = [card(8, 2), card(7, 3)];
+      for (const seat of [a, b, c]) {
+        s.seats[seat].hasHole = true;
+        s.seats[seat].showChoice = 'auto';
+      }
+      // Short stack a put 30; b&c put 70 → main 90, side 80
+      s.seats[a].contributed = 30;
+      s.seats[b].contributed = 70;
+      s.seats[c].contributed = 70;
+      s.seats[a].chips = 2000 - 30 + main; // wins main only
+      s.seats[b].chips = 2000 - 70 + side;
+      s.seats[c].chips = 2000 - 70;
+      s.winners = [
+        { seats: [a], amount: main, handZh: '兩對', shares: { [a]: main } },
+        { seats: [b], amount: side, handZh: '兩對', shares: { [b]: side } },
+      ];
+      s.winnerPayouts = { [a]: main, [b]: side };
+      s.phase = 'showdown';
+      s.showdown = {
+        pending: [],
+        revealed: {
+          [a]: { cards: s.seats[a].hole, mode: 'both' },
+          [b]: { cards: s.seats[b].hole, mode: 'both' },
+          [c]: { cards: s.seats[c].hole, mode: 'both' },
+        },
+        ranks: {},
+        bestBySeat: {},
+        revealOrder: [a, b, c],
+        foldWin: false,
+        revealDeadline: null,
+      };
+    } else if (kind === 'allReveal') {
+      // Every seated player shows — layout stress for 2–6 seats
+      const pot = 60 * seated.length;
+      s.board = [card(9, 0), card(9, 1), card(5, 2), card(3, 3), card(2, 0)];
+      const holes = [
+        [card(14, 2), card(7, 0)],
+        [card(14, 3), card(7, 1)],
+        [card(13, 2), card(13, 3)],
+        [card(12, 0), card(11, 1)],
+        [card(10, 2), card(8, 3)],
+        [card(6, 0), card(4, 1)],
+      ];
+      const revealed = {};
+      const share = Math.floor(pot / seated.length);
+      for (let i = 0; i < seated.length; i++) {
+        const seat = seated[i];
+        const p = s.seats[seat];
+        p.hole = holes[i % holes.length];
+        p.hasHole = true;
+        p.showChoice = 'auto';
+        p.contributed = share;
+        p.chips = seat === a ? 2000 - share + pot : 2000 - share;
+        revealed[seat] = { cards: p.hole, mode: 'both' };
+      }
+      s.winners = [{ seats: [a], amount: pot, handZh: '一對', shares: { [a]: pot } }];
+      s.winnerPayouts = { [a]: pot };
+      s.phase = 'showdown';
+      s.showdown = {
+        pending: [],
+        revealed,
+        ranks: {},
+        bestBySeat: {},
+        revealOrder: [...seated],
+        foldWin: false,
+        revealDeadline: null,
+      };
+    } else {
+      // heads / default single winner showdown
+      const pot = 60;
+      s.board = [card(10, 1), card(7, 2), card(8, 3), card(5, 3), card(8, 2)];
+      s.seats[a].hole = [card(13, 0), card(4, 1)];
+      s.seats[b].hole = [card(12, 0), card(11, 1)];
+      s.seats[a].hasHole = true;
+      s.seats[b].hasHole = true;
+      s.seats[a].contributed = pot / 2;
+      s.seats[b].contributed = pot / 2;
+      s.seats[a].chips = 2000 + pot;
+      s.seats[b].chips = 2000 - pot;
+      s.seats[a].showChoice = 'auto';
+      s.winners = [{ seats: [a], amount: pot, handZh: '兩對', shares: { [a]: pot } }];
+      s.winnerPayouts = { [a]: pot };
+      s.phase = 'showdown';
+      s.showdown = {
+        pending: [b],
+        revealed: { [a]: { cards: s.seats[a].hole, mode: 'both' } },
+        ranks: {},
+        bestBySeat: {},
+        revealOrder: [a, b],
+        foldWin: false,
+        revealDeadline: null,
+      };
+      if (c != null) {
+        s.seats[c].hole = [card(2, 2), card(3, 1)];
+        s.seats[c].hasHole = true;
+        s.seats[c].folded = true;
+        s.seats[c].showChoice = 'muck';
+        s.seats[c].chips = 2000;
+      }
+    }
+
+    // finishShowdown if no pending (sidepot / some splits)
+    if (!s.showdown.pending.length) {
+      s.phase = 'hand_over';
+      s.lastHandSummary = {
+        winners: s.winners,
+        winnerPayouts: s.winnerPayouts,
+        board: s.board,
+        revealed: s.showdown.revealed,
+        foldWin: !!s.showdown.foldWin,
+      };
+    }
+
+    state = s;
+    botsRevealedForHand = s.handNumber; // don't auto-muck injected pending in beginRevealUi
+    afterState();
+  },
 };
 
 boot();
