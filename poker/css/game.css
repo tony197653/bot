@@ -333,7 +333,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
   opacity:.38;pointer-events:none;
   transition:opacity .22s ease,transform .22s ease;
 }
-.act.is-deal-locked .btns button{pointer-events:none;cursor:default}
+.act.is-deal-locked .btns button{
+  pointer-events:none;cursor:default;
+  /* Kill the gold raise gradient so all three read as disabled */
+  background:var(--btn)!important;color:var(--mute)!important;border:1px solid rgba(255,255,255,.06)!important;
+}
+.act.is-deal-locked .btns .fold{color:var(--mute)!important}
 .show-btns{display:flex;gap:8px;width:100%}
 .show-btns.hidden{display:none!important}
 .show-btns button{
