@@ -265,15 +265,19 @@ async function recordScenario(browser, url, opts) {
   checklist.errors = errors;
 
   if (pause) {
-    await page.waitForSelector('#btnNext, #btnPauseHold, #btnPauseMenu', { timeout: 15000 });
-    await page.evaluate(() => window.__poker.cancelAutoNext());
-    // Prefer hold-row pause, else menu
-    if (await page.locator('#btnPauseHold').count()) {
-      await page.click('#btnPauseHold');
-    } else {
-      await page.click('#btnMenu');
-      await page.click('#btnPauseMenu');
-    }
+    // Reach HAND_OVER hold, then host-pause via engine (same as ☰ / 暫停 button)
+    await page.waitForFunction(
+      () => window.__poker?.getState?.()?.phase === 'hand_over',
+      { timeout: 20000 },
+    );
+    await page.evaluate(() => {
+      window.__poker.cancelAutoNext();
+      window.__poker.setViewer(window.__poker.getState().room.hostSeat);
+      window.__poker.dispatch({
+        type: 'REQUEST_PAUSE',
+        seat: window.__poker.getState().room.hostSeat,
+      });
+    });
     await page.waitForSelector('#pauseScreen.is-on', { timeout: 5000 });
     await page.waitForTimeout(400);
     const pauseShot = await page.screenshot({ type: 'png' });
