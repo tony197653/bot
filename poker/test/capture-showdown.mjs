@@ -328,16 +328,24 @@ async function recordScenario(browser, url, opts) {
     );
   }
 
+  // Spaced sheet frames across the whole timeline (include the settled end)
   const picked = [];
-  for (const f of frames) {
-    if (picked.length >= 8) break;
-    if (!picked.length || f.t - picked[picked.length - 1].t >= 350) picked.push(f);
+  if (frames.length) {
+    const idxs = new Set([0, frames.length - 1]);
+    const mid = Math.min(6, Math.max(0, frames.length - 2));
+    for (let i = 1; i <= mid; i++) {
+      idxs.add(Math.round((i * (frames.length - 1)) / (mid + 1)));
+    }
+    [...idxs]
+      .sort((a, b) => a - b)
+      .slice(0, 8)
+      .forEach((i) => picked.push(frames[i]));
   }
   for (let i = 0; i < picked.length; i++) {
     writeFileSync(join(ART, `poker-showdown-${name}-f${i + 1}.png`), picked[i].buf);
   }
-  if (picked.length) {
-    writeFileSync(join(ART, `poker-showdown-${name}-final.png`), picked[picked.length - 1].buf);
+  if (frames.length) {
+    writeFileSync(join(ART, `poker-showdown-${name}-final.png`), frames[frames.length - 1].buf);
   }
 
   const vpath = await page.video()?.path();

@@ -617,21 +617,24 @@ body.is-playing .boot{display:none}
 /* Pause modal — above table/act/toast; opaque sheet like 換人 */
 .pause-screen{
   z-index:80 !important;
-  background:#0a100ecc;
-  backdrop-filter:blur(10px);
-  -webkit-backdrop-filter:blur(10px);
+  background:#070c0af2;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
   justify-content:center;
 }
+.pause-screen .sheet.pause-panel,
 .pause-screen .pause-panel{
   width:min(400px,100%);
   margin:0 auto;
   text-align:center;
-  background:#0e1812;
-  opacity:1;
-  border:1px solid rgba(214,180,90,.4);
+  background:#121c16 !important;
+  background-image:none !important;
+  opacity:1 !important;
+  border:1px solid rgba(214,180,90,.45);
   box-shadow:0 24px 48px #000c;
   position:relative;
   z-index:1;
+  isolation:isolate;
 }
 /* Dim/hide the action bar while the pause modal owns the flow */
 body:has(#pauseScreen.is-on) #act{

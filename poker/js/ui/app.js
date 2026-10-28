@@ -1340,6 +1340,9 @@ function maybePlayWinnerFx(v) {
         const p = state.seats[+seat];
         if (el && p) el.textContent = fmtChips(p.chips);
       }
+      // Pot clears with the stack roll so mid-FX never shows both WIN and pot
+      displayPotOverride = 0;
+      if ($('#potAmt')) $('#potAmt').textContent = '0';
     },
     onPotZero: () => {
       displayPotOverride = 0;
