@@ -630,24 +630,18 @@ input[type=range]::-moz-range-thumb{
 }
 body.is-playing .boot{display:none}
 
-/* Next-hand hold — countdown stays INSIDE the button (row, not column stack) */
+/* Next-hand hold — "下一手 8" + progress bar fully inside button bounds */
 .btns button.btn-next-hold{
-  flex-direction:row;gap:6px;overflow:hidden;position:relative;
-  padding:0 8px;line-height:1;
+  flex-direction:row;gap:5px;overflow:hidden;position:relative;
+  padding:0 6px 9px;line-height:1;font-size:15px;
 }
-.btn-next-hold .hold-ring{
-  width:18px;height:18px;flex:none;transform:rotate(-90deg);
-}
-.btn-next-hold .hold-ring circle{fill:none;stroke-width:3;stroke-linecap:round}
-.btn-next-hold .hold-ring-bg{stroke:rgba(255,255,255,.2)}
-.btn-next-hold .hold-ring-fg{stroke:var(--gold);transition:stroke-dashoffset .2s linear}
 .btn-next-hold .btn-next-label{flex:none;white-space:nowrap}
 .btn-next-hold .btn-next-cd{
-  font-variant-numeric:tabular-nums;font-size:14px;font-weight:800;
-  opacity:.95;min-width:1em;line-height:1;
+  font-variant-numeric:tabular-nums;font-size:15px;font-weight:800;
+  opacity:.95;min-width:0.9em;line-height:1;color:var(--gold);
 }
 .btn-next-hold .hold-bar{
-  position:absolute;left:8px;right:8px;bottom:5px;height:3px;border-radius:2px;
+  position:absolute;left:6px;right:6px;bottom:5px;height:3px;border-radius:2px;
   background:rgba(255,255,255,.14);overflow:hidden;pointer-events:none;
 }
 .btn-next-hold .hold-bar > i{

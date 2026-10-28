@@ -2362,11 +2362,6 @@ function renderActions(v) {
     // 結束牌局 / 看戰績 are pre-existing HAND_OVER actions (unchanged)
     $('#btns').innerHTML = `
       <button type="button" class="call btn-next-hold" id="btnNext">
-        <svg class="hold-ring" viewBox="0 0 36 36" aria-hidden="true">
-          <circle class="hold-ring-bg" cx="18" cy="18" r="15"/>
-          <circle class="hold-ring-fg" cx="18" cy="18" r="15" pathLength="100"
-            stroke-dasharray="100" stroke-dashoffset="${100 - holdPct}"/>
-        </svg>
         <span class="btn-next-label">下一手</span>
         <span class="btn-next-cd" id="holdCd">${holdLeft}</span>
         <span class="hold-bar" aria-hidden="true"><i style="width:${holdPct}%"></i></span>
@@ -2613,8 +2608,6 @@ onTick(() => {
       0,
       Math.min(100, ((holdDeadline - Date.now()) / holdMsForState()) * 100),
     );
-    const fg = document.querySelector('#btnNext .hold-ring-fg');
-    if (fg) fg.setAttribute('stroke-dashoffset', String(100 - pct));
     const bar = document.querySelector('#btnNext .hold-bar > i');
     if (bar) bar.style.width = `${pct}%`;
   }

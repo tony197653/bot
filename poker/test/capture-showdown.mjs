@@ -111,26 +111,25 @@ async function sampleShowdown(page, { maxMs = 16000, stepMs = 100, untilPause = 
       const winBadges = document.querySelectorAll('.win-badge').length;
       const potAmt = document.querySelector('#potAmt')?.textContent?.trim() || '';
       const boardHtml = document.querySelector('#board')?.innerHTML || '';
-      const holdRing = !!document.querySelector('#btnNext .hold-ring');
       const btnNextEl = document.querySelector('#btnNext');
       const btnNext = !!btnNextEl;
+      const holdRing = !!(
+        btnNextEl &&
+        (btnNextEl.querySelector('.hold-bar') || btnNextEl.querySelector('.btn-next-cd'))
+      );
       let holdInsideBtn = null;
       if (btnNextEl && holdRing) {
         const br = btnNextEl.getBoundingClientRect();
-        const ring = btnNextEl.querySelector('.hold-ring')?.getBoundingClientRect();
         const cd = btnNextEl.querySelector('.btn-next-cd')?.getBoundingClientRect();
-        holdInsideBtn = !!(
-          ring &&
-          cd &&
-          ring.top >= br.top - 1 &&
-          ring.bottom <= br.bottom + 1 &&
-          ring.left >= br.left - 1 &&
-          ring.right <= br.right + 1 &&
-          cd.top >= br.top - 1 &&
-          cd.bottom <= br.bottom + 1 &&
-          cd.left >= br.left - 1 &&
-          cd.right <= br.right + 1
-        );
+        const bar = btnNextEl.querySelector('.hold-bar')?.getBoundingClientRect();
+        const label = btnNextEl.querySelector('.btn-next-label')?.getBoundingClientRect();
+        const inside = (r) =>
+          !!r &&
+          r.top >= br.top - 1 &&
+          r.bottom <= br.bottom + 1 &&
+          r.left >= br.left - 1 &&
+          r.right <= br.right + 1;
+        holdInsideBtn = inside(cd) && inside(bar) && inside(label);
       }
       let revealBoardOverlap = false;
       for (const card of document.querySelectorAll('.reveal-hole .card, .seat .win-badge')) {

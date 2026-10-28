@@ -530,19 +530,16 @@ export function placeShowdownReveals() {
     if (!seat) continue;
     const plate = seat.querySelector('.plateA, .plate');
     if (!plate) continue;
-    // Clear prior nudges so measurement uses natural size
-    hole.style.left = '';
-    hole.style.top = '';
-    hole.style.right = '';
-    hole.style.bottom = '';
-    hole.style.transform = '';
-    hole.style.margin = '';
+    // Clear prior nudges + stylesheet side anchors so width is the card pair only
+    hole.style.left = '0';
+    hole.style.top = '0';
+    hole.style.right = 'auto';
+    hole.style.bottom = 'auto';
+    hole.style.transform = 'none';
+    hole.style.margin = '0';
     hole.style.position = 'absolute';
 
     const pb = plate.getBoundingClientRect();
-    // Force layout with absolute so width is measurable beside the plate
-    hole.style.left = '0';
-    hole.style.top = '0';
     const hb = hole.getBoundingClientRect();
     const w = Math.max(hb.width, 1);
     const h = Math.max(hb.height, 1);
@@ -555,9 +552,9 @@ export function placeShowdownReveals() {
       left = pb.right + 6;
       top = (pb.top + pb.bottom) / 2 - h / 2;
       if (left + w > stageBox.right - pad) {
-        // Not enough room outside: keep hard against the right stage edge,
-        // and shift vertically away from the board (up for pos-1, down for pos-2)
-        left = stageBox.right - pad - w;
+        // Not enough room outside: against the right stage edge,
+        // vertically away from the board (up for pos-1, down for pos-2)
+        left = Math.max(stageBox.right - pad - w, pb.right - w * 0.15);
         top = pos === 1 ? pb.top - 6 - h : pb.bottom + 4;
       }
     } else if (pos === 3 || pos === 4) {
@@ -565,7 +562,9 @@ export function placeShowdownReveals() {
       left = pb.left - 6 - w;
       top = (pb.top + pb.bottom) / 2 - h / 2;
       if (left < stageBox.left + pad) {
-        left = stageBox.left + pad;
+        // Against the left stage edge; lower seats go below plate (clears board),
+        // upper seats go above plate
+        left = Math.min(stageBox.left + pad, pb.left - w * 0.15);
         top = pos === 4 ? pb.top - 6 - h : pb.bottom + 4;
       }
     } else {
@@ -589,22 +588,56 @@ export function placeShowdownReveals() {
     );
   };
 
+  // Hard band: lower seats stay below the board; upper seats stay above it
+  const boardCards = [...document.querySelectorAll('#board .card')]
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.width > 0);
+  let boardBand = null;
+  if (boardCards.length) {
+    boardBand = {
+      left: Math.min(...boardCards.map((r) => r.left)),
+      right: Math.max(...boardCards.map((r) => r.right)),
+      top: Math.min(...boardCards.map((r) => r.top)),
+      bottom: Math.max(...boardCards.map((r) => r.bottom)),
+    };
+  }
+
+  const enforceBoardBand = (it) => {
+    if (!boardBand) return;
+    if (it.pos === 2 || it.pos === 3) {
+      it.top = Math.max(it.top, boardBand.bottom + gap);
+    } else if (it.pos === 0 || it.pos === 1 || it.pos === 4) {
+      it.top = Math.min(it.top, boardBand.top - gap - it.h);
+    }
+  };
+
+  for (const it of items) {
+    clampItem(it);
+    enforceBoardBand(it);
+    clampItem(it);
+  }
+
+  // Own plate is NOT an obstacle for side-seat reveals (they may tuck beside it);
+  // other plates, board, pot, hero cards, and peer reveals are.
   const staticObstacles = () => {
     const list = [];
     for (const el of document.querySelectorAll(
-      '#board .card, .pot, .seat .plateA, .seat .plate, .meinfo, #heroHole .card, #meRoot > .win-badge',
+      '#board .card, .pot, #heroHole .card, #meRoot > .win-badge, .meinfo',
     )) {
       if (getComputedStyle(el).display === 'none') continue;
       const r = el.getBoundingClientRect();
       if (r.width < 1 || r.height < 1) continue;
-      list.push(r);
+      list.push({ r, el });
+    }
+    for (const el of document.querySelectorAll('.seat .plateA, .seat .plate')) {
+      const r = el.getBoundingClientRect();
+      if (r.width < 1) continue;
+      list.push({ r, el });
     }
     return list;
   };
 
-  for (const it of items) clampItem(it);
-
-  // Iteratively separate from board / pot / plates / peers
+  // Iteratively separate from board / pot / other plates / peers
   for (let iter = 0; iter < 48; iter++) {
     let moved = false;
     const staticObs = staticObstacles();
@@ -619,26 +652,30 @@ export function placeShowdownReveals() {
       let dx = 0;
       let dy = 0;
 
-      const pushFrom = (obs) => {
-        if (!overlapsPad(box, obs, gap)) return;
+      const pushFrom = (obs, { softOwnPlate = false } = {}) => {
+        if (!overlapsPad(box, obs, softOwnPlate ? 0 : gap)) return;
         const cx = (box.left + box.right) / 2;
         const cy = (box.top + box.bottom) / 2;
         const ox = (obs.left + obs.right) / 2;
         const oy = (obs.top + obs.bottom) / 2;
         let vx = cx - ox;
         let vy = cy - oy;
-        // Bias side seats further toward the rail when stuck on the board
-        if (it.pos === 1 || it.pos === 2) vx += 1.2;
-        if (it.pos === 3 || it.pos === 4) vx -= 1.2;
-        if (it.pos === 0) vy -= 0.8;
-        if (it.pos === 2 || it.pos === 3) vy += 0.35;
-        if (it.pos === 1 || it.pos === 4) vy -= 0.35;
+        // Bias side seats further toward the rail / away from board
+        if (it.pos === 1 || it.pos === 2) vx += 1.4;
+        if (it.pos === 3 || it.pos === 4) vx -= 1.4;
+        if (it.pos === 0) vy -= 1;
+        if (it.pos === 2 || it.pos === 3) vy += 0.9;
+        if (it.pos === 1 || it.pos === 4) vy -= 0.9;
         const n = Math.hypot(vx, vy) || 1;
         dx += (vx / n) * 6;
         dy += (vy / n) * 6;
       };
 
-      for (const obs of staticObs) pushFrom(obs);
+      for (const { r, el } of staticObs) {
+        const ownPlate = el.closest?.('.seat') === it.seat;
+        if (ownPlate) continue; // side reveals may sit beside own plate
+        pushFrom(r);
+      }
 
       for (let j = 0; j < items.length; j++) {
         if (i === j) continue;
@@ -649,15 +686,13 @@ export function placeShowdownReveals() {
           top: o.top,
           bottom: o.top + o.h,
         });
-        if (o.badge) {
-          const br = o.badge.getBoundingClientRect();
-          if (br.width > 0) pushFrom(br);
-        }
       }
 
       if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
         it.left += dx;
         it.top += dy;
+        clampItem(it);
+        enforceBoardBand(it);
         clampItem(it);
         moved = true;
       }
@@ -680,28 +715,51 @@ export function placeShowdownReveals() {
     if (it.badge) {
       const badgeH = it.badge.offsetHeight || 22;
       const badgeW = it.badge.offsetWidth || 72;
+      const plate = it.seat.querySelector('.plateA, .plate');
+      const pb = plate?.getBoundingClientRect();
+      // Prefer above the reveal cluster; if that hits the plate or stage, park
+      // on the rail-outward side of the cards instead.
+      let badgeLeft = it.left + it.w / 2 - badgeW / 2;
+      let badgeTop = it.top - badgeH - 4;
+      const hitsPlate = (l, t) => {
+        if (!pb) return false;
+        const r = l + badgeW;
+        const b = t + badgeH;
+        return (
+          Math.min(r, pb.right) - Math.max(l, pb.left) > 0 &&
+          Math.min(b, pb.bottom) - Math.max(t, pb.top) > 0
+        );
+      };
+      if (badgeTop < stageBox.top + pad || hitsPlate(badgeLeft, badgeTop)) {
+        if (it.pos === 3 || it.pos === 4) {
+          badgeLeft = Math.max(stageBox.left + pad, it.left - badgeW - 4);
+          badgeTop = it.top + Math.max(0, (it.h - badgeH) / 2);
+        } else if (it.pos === 1 || it.pos === 2) {
+          badgeLeft = Math.min(stageBox.right - pad - badgeW, it.left + it.w + 4);
+          badgeTop = it.top + Math.max(0, (it.h - badgeH) / 2);
+        } else {
+          badgeTop = it.top + it.h + 4;
+        }
+      }
+      if (hitsPlate(badgeLeft, badgeTop) || badgeTop < stageBox.top + pad) {
+        // Last resort: sit on the outer top corner of the cards
+        badgeLeft =
+          it.pos === 1 || it.pos === 2
+            ? it.left + it.w - badgeW
+            : it.left;
+        badgeTop = it.top - Math.min(badgeH / 2, 10);
+        badgeLeft = Math.min(
+          Math.max(badgeLeft, stageBox.left + pad),
+          stageBox.right - pad - badgeW,
+        );
+      }
       it.badge.style.position = 'absolute';
-      it.badge.style.left = `${it.left - sb.left + it.w / 2}px`;
-      it.badge.style.top = `${it.top - sb.top - badgeH - 4}px`;
+      it.badge.style.left = `${badgeLeft - sb.left + badgeW / 2}px`;
+      it.badge.style.top = `${badgeTop - sb.top}px`;
       it.badge.style.bottom = 'auto';
       it.badge.style.right = 'auto';
       it.badge.style.transform = 'translateX(-50%)';
       it.badge.style.zIndex = '6';
-      // If badge would clip stage top, flip below the cards
-      const badgeTop = it.top - badgeH - 4;
-      if (badgeTop < stageBox.top + pad) {
-        it.badge.style.top = `${it.top - sb.top + it.h + 4}px`;
-      }
-      // Keep badge horizontally in stage
-      const idealLeft = it.left + it.w / 2 - badgeW / 2;
-      if (idealLeft < stageBox.left + pad || idealLeft + badgeW > stageBox.right - pad) {
-        const clamped =
-          Math.min(
-            Math.max(it.left + it.w / 2, stageBox.left + pad + badgeW / 2),
-            stageBox.right - pad - badgeW / 2,
-          ) - sb.left;
-        it.badge.style.left = `${clamped}px`;
-      }
     }
   }
 
