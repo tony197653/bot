@@ -217,14 +217,14 @@ async function sampleShowdown(page, { maxMs = 16000, stepMs = 100, untilPause = 
     }
 
     if (untilPause && snap.pauseOn && frames.length > 2) break;
-    // Wait until FX settled: pot 0 (or no flying chips) and hold armed, ≥4.5s
-    const fxIdle = snap.chipFly === 0 && (snap.potAmt === '0' || checklist.sawChipFly);
+    // Wait until FX settled: pot 0, no flying chips, hold ring armed
     if (
       !untilPause &&
       snap.phase === 'hand_over' &&
       snap.holdRing &&
+      snap.potAmt === '0' &&
+      snap.chipFly === 0 &&
       !snap.pauseOn &&
-      fxIdle &&
       checklist.sawWinBadge &&
       frames.length > 8 &&
       Date.now() - t0 > 4500

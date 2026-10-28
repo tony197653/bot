@@ -2326,6 +2326,19 @@ function renderActions(v) {
       $('#btnSummary').onclick = () => showSummary();
       return;
     }
+    // During showdown FX: no hold ring yet (avoids cutting pot→0 / chip flights)
+    if (!revealUiArmed || showdownFxBusy) {
+      $('#btns').innerHTML = `
+        <button type="button" class="call" id="btnNext" disabled style="opacity:.4">下一手</button>
+        <button type="button" class="fold" id="btnEnd">結束牌局</button>
+        <button type="button" class="raiseb" id="btnSummary">看戰績</button>`;
+      $('#btnEnd').onclick = () => {
+        dispatch({ type: 'END_SESSION' });
+        showSummary();
+      };
+      $('#btnSummary').onclick = () => showSummary();
+      return;
+    }
     const isHost = viewerSeat === state.room.hostSeat;
     const holdLeft =
       holdDeadline != null
