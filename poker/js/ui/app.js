@@ -723,6 +723,8 @@ function requestPause() {
     // Modal is the signal when active — only toast for mid-hand booking
     if (state.pause?.requested && !state.pause?.active) {
       toast('已預約暫停：這手結束後生效');
+    } else {
+      $('#toast')?.classList.remove('is-on');
     }
   } catch (e) {
     toast(e.message || String(e));

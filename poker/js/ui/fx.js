@@ -304,12 +304,18 @@ function chipLandPoint(pos, table) {
   const target = stackTargetEl(pos);
   const potEl = $('.pot') || table;
   const base = centerOf(target || potEl, table);
+  const plate =
+    pos === 'hero' ? seatAnchorEl('hero') : seatAnchorEl(pos);
+  const plateBox = plate ? centerOf(plate, table) : base;
   if (pos === 'hero') {
-    // Right of hero stack digits
-    return { x: base.x + Math.max(28, (base.w || 0) * 0.55 + 16), y: base.y };
+    // Right of hero stack digits, clear of the number
+    return { x: base.x + Math.max(42, (base.w || 0) + 20), y: base.y + 2 };
   }
-  // Below opponent stack line (clear of "1,980" text)
-  return { x: base.x, y: base.y + Math.max(18, (base.h || 0) * 0.75 + 10) };
+  // Just below the nameplate cluster (not on the .ch text)
+  return {
+    x: plateBox.x,
+    y: plateBox.y + Math.max(36, (plateBox.h || 0) * 0.55 + 16),
+  };
 }
 
 /** Pure helper for tests: visual target key for a winner seat. */

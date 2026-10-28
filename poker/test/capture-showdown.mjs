@@ -78,7 +78,7 @@ async function bootGame(page, url, seats) {
   await page.evaluate(() => window.__poker.skipDealAndReady(0));
 }
 
-async function sampleShowdown(page, { maxMs = 12000, stepMs = 120, untilPause = false }) {
+async function sampleShowdown(page, { maxMs = 16000, stepMs = 100, untilPause = false }) {
   const frames = [];
   const checklist = {
     sawFlip: false,
@@ -217,13 +217,17 @@ async function sampleShowdown(page, { maxMs = 12000, stepMs = 120, untilPause = 
     }
 
     if (untilPause && snap.pauseOn && frames.length > 2) break;
+    // Wait until FX settled: pot 0 (or no flying chips) and hold armed, ≥4.5s
+    const fxIdle = snap.chipFly === 0 && (snap.potAmt === '0' || checklist.sawChipFly);
     if (
       !untilPause &&
       snap.phase === 'hand_over' &&
       snap.holdRing &&
       !snap.pauseOn &&
-      frames.length > 6 &&
-      Date.now() - t0 > 2800
+      fxIdle &&
+      checklist.sawWinBadge &&
+      frames.length > 8 &&
+      Date.now() - t0 > 4500
     ) {
       break;
     }
@@ -426,7 +430,7 @@ async function main() {
         name: 'pause-390',
         seats: 3,
         viewport: { width: 390, height: 844 },
-        kind: 'heads',
+        kind: 'split', // HAND_OVER after FX — then host pause + all-ready
         pause: true,
       }),
     );
