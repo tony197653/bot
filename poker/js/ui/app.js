@@ -1181,6 +1181,12 @@ function maybePlayWinnerFx(v) {
   showdownFxBusy = true;
   revealUiArmed = false;
   showdownGlowOn = false;
+  // Cancel any premature hold that started before FX (HAND_OVER can land in beginRevealUi)
+  if (autoNextTimer) {
+    clearTimeout(autoNextTimer);
+    autoNextTimer = null;
+  }
+  holdDeadline = null;
   // Pre-payout stack display
   displayChipsOverride = {};
   for (const [seat, amt] of Object.entries(state.winnerPayouts || {})) {
