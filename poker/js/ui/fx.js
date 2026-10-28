@@ -336,6 +336,8 @@ export function winnerAmounts(state) {
 function revealPending(el) {
   if (!el) return;
   el.classList.remove('is-pending');
+  // Inline opacity so the seat card is visible even if a parent rule lags
+  el.style.opacity = '1';
 }
 
 function snapDealFinal({ occupied, viewerSeat, state }) {
@@ -770,12 +772,14 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
 
       cardJobs.push(
         (async () => {
+          // Re-query target at flight start in case DOM shifted
+          const liveTarget = targetCardEl(pos, round) || target;
           const anim = trackAnim(
             card.animate(frames, {
               delay,
               duration: F,
               easing: 'cubic-bezier(.2, .75, .25, 1)',
-              fill: 'both',
+              fill: 'forwards',
             }),
           );
           const sh = card.querySelector('.fx-shadow');
@@ -785,25 +789,39 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
                 delay,
                 duration: F,
                 easing: 'linear',
-                fill: 'both',
+                fill: 'forwards',
               }),
             );
           }
-          await anim.finished;
-          // Same rAF: reveal target, remove flyer
+          try {
+            await anim.finished;
+          } catch {
+            // cancelled / skipped
+            revealPending(liveTarget);
+            card.remove();
+            return;
+          }
+          // Same rAF: reveal seat card first, then delete flyer (seamless handoff)
           await new Promise((r) => requestAnimationFrame(r));
-          revealPending(target);
+          const handoff = targetCardEl(pos, round) || liveTarget;
+          if (handoff) {
+            handoff.classList.remove('is-pending');
+            handoff.style.opacity = '1';
+            handoff.style.visibility = 'visible';
+          }
+          card.style.opacity = '0';
           card.remove();
-          if (target && 'animate' in target) {
+          if (handoff) {
             try {
+              // Individual `scale` only — must not clobber CSS rotate(±6/8°)
               trackAnim(
-                target.animate([{ scale: 1.06 }, { offset: 0.55, scale: 0.98 }, { scale: 1 }], {
+                handoff.animate([{ scale: 1.06 }, { offset: 0.55, scale: 0.98 }, { scale: 1 }], {
                   duration: DEAL_FX.settleMs,
                   easing: 'cubic-bezier(.3,0,.2,1)',
                 }),
               );
             } catch {
-              /* scale property unsupported — ignore */
+              /* ignore */
             }
           }
         })(),

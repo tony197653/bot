@@ -1935,6 +1935,16 @@ function renderActions(v) {
   $('#showBtns').classList.add('hidden');
   $('#showCd')?.classList.add('hidden');
 
+  // During deal / flip / post-deal pass: show locked Fold/Call/Raise (not 換人)
+  if (!handUiReady || dealPresenting || heroFlipping || passAfterDeal) {
+    act.classList.add('is-deal-locked');
+    $('#btns').innerHTML = `
+      <button class="fold" type="button" disabled>蓋牌</button>
+      <button class="call" type="button" disabled>跟注</button>
+      <button class="raiseb" type="button" disabled>加注</button>`;
+    return;
+  }
+
   if (!myTurn) {
     act.classList.add('is-dim');
     $('#showBtns').classList.add('hidden');
