@@ -122,7 +122,26 @@ export function cancelDealFx() {
 export function cancelWinFx() {
   winAbort?.abort();
   winAbort = null;
+  for (const a of winAnims) {
+    try {
+      a.cancel();
+    } catch {
+      /* ignore */
+    }
+  }
+  winAnims = [];
   $('#fxLayer')?.querySelectorAll('.fx-chip-fly').forEach((n) => n.remove());
+}
+
+/** @type {Animation[]} */
+let winAnims = [];
+
+function trackWinAnim(anim) {
+  winAnims.push(anim);
+  anim.finished.catch(() => {}).finally(() => {
+    winAnims = winAnims.filter((a) => a !== anim);
+  });
+  return anim;
 }
 
 export function cancelHeroFlip() {
@@ -254,9 +273,31 @@ function deckSize() {
   return w >= 1024 ? { w: 36, h: 50 } : { w: 30, h: 42 };
 }
 
-function seatAnchorEl(pos, viewerSeat) {
-  if (pos === 'hero' || pos === viewerSeat) return $('#mePlate') || $('.meinfo') || $('.me');
+/**
+ * Resolve the DOM seat cluster for a *visual* pos id (`'hero'` | 0..4).
+ * BUG FIX: never compare visual pos to engine viewerSeat (pos 0 ≠ seat 0).
+ * @param {number|'hero'} pos
+ */
+function seatAnchorEl(pos) {
+  if (pos === 'hero') return $('#mePlate') || $('.meinfo') || $('.me');
   return document.querySelector(`.seat.pos-${pos}`);
+}
+
+/**
+ * Chip flight target: the stack count element (not nameplate center).
+ * @param {number|'hero'} pos
+ */
+function stackTargetEl(pos) {
+  if (pos === 'hero') return $('#heroChips') || $('#mePlate strong') || seatAnchorEl('hero');
+  return (
+    document.querySelector(`.seat.pos-${pos} .ch, .seat.pos-${pos} .st`) ||
+    seatAnchorEl(pos)
+  );
+}
+
+/** Pure helper for tests: visual target key for a winner seat. */
+export function chipTargetPos(winnerSeat, viewerSeat) {
+  return seatVisualPos(winnerSeat, viewerSeat);
 }
 
 function targetCardEl(pos, round) {
@@ -278,6 +319,28 @@ function stackElForSeat(seat, viewerSeat, pos) {
   if (pos === 'hero' || seat === viewerSeat) return document.querySelector('#heroChips, #mePlate strong');
   return document.querySelector(`.seat.pos-${pos} .ch, .seat.pos-${pos} .st`);
 }
+
+/** Showdown presentation timing (ordering / stagger only — no new best-5 visuals). */
+export const SHOWDOWN_FX = Object.freeze({
+  betsToPotMs: 360,
+  flipMs: 380,
+  flipStagger: 550,
+  readPause: 300,
+  glowInMs: 400,
+  badgeMs: 380,
+  chipFlyMs: 650,
+  potGap: 450,
+  splitStagger: 80,
+  rollMs: 400,
+  chipFadeMs: 200,
+  clearMs: 280,
+  skipGuardMs: 300,
+  easeIn: 'cubic-bezier(.05,.7,.1,1)',
+  easeMove: 'cubic-bezier(.2,0,0,1)',
+  easeChip: 'cubic-bezier(.65,0,.35,1)',
+  easeFlip: 'cubic-bezier(.4,0,.2,1)',
+  easeOut: 'cubic-bezier(.3,0,1,1)',
+});
 
 function countText(el, from, to, ms, signal) {
   if (!el) return Promise.resolve();
@@ -657,7 +720,7 @@ export async function playDealAnimation({ state, viewerSeat, prevDealer, onDone 
       const toChips = p.chips;
       countText(stack, fromChips, toChips, DEAL_FX.chipCountMs, signal).catch(() => {});
 
-      const fromEl = stack || seatAnchorEl(pos, viewerSeat);
+      const fromEl = stack || seatAnchorEl(pos);
       if (!fromEl || !bet) return;
       const from = centerOf(fromEl, table);
       const chipIcon = bet.querySelector('.chips') || bet;
@@ -995,90 +1058,285 @@ export async function playHeroFlip({ cards, mountHtml, onDone }) {
 }
 
 /**
- * Winner glow + badge + pot chips slide; hold ~2s.
+ * Ordered showdown presentation: bets→pot → staggered flips → glow/WIN → chips per pot.
+ * No best-5 lift / hand-name / jump FX — only existing glow + WIN + chip flight, timed correctly.
+ *
  * @param {object} opts
+ * @param {object} opts.state
+ * @param {number} opts.viewerSeat
+ * @param {(seat:number, cards:object[]) => Promise<void>|void} [opts.flipSeat] reveal mount+flip for one seat
+ * @param {() => void} [opts.onGlow] show winner classes / badges (deferred until after flips)
+ * @param {(payouts: Record<number,number>) => void} [opts.onStacksFinal] set stack texts to final
+ * @param {() => void} [opts.onPotZero] set pot display to 0
+ * @param {() => void} [opts.onReadyForChoice] arm 亮牌／不亮 after chip FX
+ * @param {() => void} [opts.onDone]
+ * @returns {Promise<{ skipped: boolean }>}
  */
-export async function playWinnerFx({ state, viewerSeat, holdMs = 2000 }) {
+export async function playShowdownSequence({
+  state,
+  viewerSeat,
+  flipSeat,
+  onGlow,
+  onStacksFinal,
+  onPotZero,
+  onReadyForChoice,
+  onDone,
+}) {
   cancelWinFx();
   const table = $('.table');
   const layer = $('#fxLayer');
-  if (!table || !layer || !state.winners?.length) return;
+  if (!table || !layer || !state.winners?.length) {
+    onGlow?.();
+    onStacksFinal?.(state.winnerPayouts || {});
+    onPotZero?.();
+    onReadyForChoice?.();
+    onDone?.();
+    return { skipped: true };
+  }
 
   const ac = new AbortController();
   winAbort = ac;
   const { signal } = ac;
+  const T = SHOWDOWN_FX;
+  const reduced = prefersReducedMotion();
+  const foldWin = !!state.showdown?.foldWin || !!state.lastHandSummary?.foldWin;
+  let skipped = false;
+
+  const skip = () => {
+    skipped = true;
+    ac.abort();
+  };
+  const startedAt = performance.now();
+  const onSkip = (e) => {
+    if (performance.now() - startedAt < T.skipGuardMs) return;
+    if (e.target?.closest?.('#act, .menu-pop, .menu-btn, .screen, .raise-panel, .pause-panel')) return;
+    e.preventDefault();
+    // Finish in-flight anims to final keyframe
+    for (const a of [...winAnims]) {
+      try {
+        a.finish();
+      } catch {
+        /* ignore */
+      }
+    }
+    skip();
+  };
+  document.addEventListener('pointerdown', onSkip, { capture: true });
 
   const amounts = winnerAmounts(state);
   const potEl = $('.pot') || table;
   const from = centerOf(potEl, table);
 
-  const leftoverBets = [...document.querySelectorAll('#bets .bet')];
-  if (leftoverBets.length && amounts.size) {
-    const firstSeat = amounts.keys().next().value;
-    const winPos = seatVisualPos(firstSeat, viewerSeat);
-    const winAnchor = seatAnchorEl(winPos, viewerSeat) || potEl;
-    const toWin = centerOf(winAnchor, table);
-    for (const bet of leftoverBets) {
-      const start = centerOf(bet, table);
-      const html = bet.innerHTML;
-      bet.remove();
-      if (prefersReducedMotion()) continue;
-      const fly = document.createElement('div');
-      fly.className = 'fx-chip-fly';
-      fly.innerHTML = html;
-      layer.appendChild(fly);
-      fly
-        .animate(
-          [
-            { transform: `translate(${start.x}px, ${start.y}px) translate(-50%,-50%)`, opacity: 1 },
-            { transform: `translate(${toWin.x}px, ${toWin.y}px) translate(-50%,-50%) scale(.7)`, opacity: 0.2 },
-          ],
-          { duration: 420, easing: 'cubic-bezier(.18,.75,.22,1)', fill: 'forwards' },
-        )
-        .finished.catch(() => {});
-    }
-  }
-
-  for (const [seat, amt] of amounts) {
-    const pos = seatVisualPos(seat, viewerSeat);
-    const anchor = seatAnchorEl(pos, viewerSeat);
-    if (!anchor) continue;
-    const badge =
-      pos === 'hero'
-        ? document.querySelector('#meRoot > .win-badge')
-        : anchor.querySelector('.win-badge');
-    if (badge && !prefersReducedMotion()) {
-      badge.animate(
-        [
-          { opacity: 0, transform: 'translate(-50%, 8px) scale(.8)' },
-          { opacity: 1, transform: 'translate(-50%, 0) scale(1)' },
-        ],
-        { duration: 380, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'forwards' },
-      );
-    }
-    if (prefersReducedMotion()) continue;
-    const chip = document.createElement('div');
-    chip.className = 'fx-chip-fly';
-    chip.innerHTML = `<span class="chips"><i class="a"></i><i class="b"></i><i class="c"></i></span><span class="amt">${fmtChips(amt)}</span>`;
-    layer.appendChild(chip);
-    const to = centerOf(anchor, table);
-    chip
-      .animate(
-        [
-          { transform: `translate(${from.x}px, ${from.y}px) translate(-50%,-50%) scale(.7)`, opacity: 0.3 },
-          { transform: `translate(${to.x}px, ${to.y}px) translate(-50%,-50%) scale(1)`, opacity: 1 },
-        ],
-        { duration: 520, easing: 'cubic-bezier(.18,.75,.22,1)', fill: 'forwards' },
-      )
-      .finished.catch(() => {});
-  }
-
   try {
-    await wait(holdMs, signal);
-  } catch {
-    /* skip */
+    // A — street bets into pot (then never fly leftover bets to first winner)
+    const leftoverBets = [...document.querySelectorAll('#bets .bet')];
+    if (leftoverBets.length) {
+      if (!reduced) {
+        const jobs = leftoverBets.map((bet) => {
+          const start = centerOf(bet, table);
+          const html = bet.innerHTML;
+          bet.remove();
+          const fly = document.createElement('div');
+          fly.className = 'fx-chip-fly';
+          fly.innerHTML = html;
+          fly.style.transform = `translate(${start.x}px, ${start.y}px) translate(-50%,-50%)`;
+          fly.style.opacity = '1';
+          layer.appendChild(fly);
+          const toPot = centerOf(potEl, table);
+          return trackWinAnim(
+            fly.animate(
+              [
+                { transform: `translate(${start.x}px, ${start.y}px) translate(-50%,-50%)`, opacity: 1 },
+                { transform: `translate(${toPot.x}px, ${toPot.y}px) translate(-50%,-50%) scale(.7)`, opacity: 0 },
+              ],
+              { duration: T.betsToPotMs, easing: T.easeMove, fill: 'forwards' },
+            ),
+          ).finished.then(() => fly.remove());
+        });
+        await Promise.all(jobs).catch(() => {});
+      } else {
+        leftoverBets.forEach((b) => b.remove());
+        await wait(T.betsToPotMs, signal).catch(() => {});
+      }
+    }
+
+    // B — reveal in TDA order (auto-revealed / already shown only)
+    if (!foldWin && typeof flipSeat === 'function') {
+      const order =
+        state.showdown?.revealOrder?.length
+          ? state.showdown.revealOrder
+          : [...amounts.keys()];
+      const revealed = state.showdown?.revealed || state.lastHandSummary?.revealed || {};
+      let first = true;
+      for (const seat of order) {
+        const entry = revealed[seat] || revealed[String(seat)];
+        if (!entry?.cards?.length) continue;
+        if (!first) {
+          await wait(reduced ? T.flipStagger : T.flipStagger, signal).catch(() => {
+            throw new DOMException('aborted', 'AbortError');
+          });
+        }
+        first = false;
+        await flipSeat(seat, entry.cards);
+      }
+      await wait(T.readPause, signal).catch(() => {
+        throw new DOMException('aborted', 'AbortError');
+      });
+    }
+
+    // D — existing winner glow + WIN badge (deferred so they don't pop with cards)
+    onGlow?.();
+    const glowJobs = [];
+    for (const [seat, amt] of amounts) {
+      const pos = seatVisualPos(seat, viewerSeat);
+      const anchor = seatAnchorEl(pos);
+      if (!anchor) continue;
+      const plate = pos === 'hero' ? $('#mePlate') : anchor.querySelector('.plate') || anchor;
+      plate?.classList.add('is-winner');
+      if (pos === 'hero') $('#mePlate')?.classList.add('is-winner');
+      else document.querySelector(`.seat.pos-${pos}`)?.classList.add('is-winner');
+
+      let badge =
+        pos === 'hero'
+          ? document.querySelector('#meRoot > .win-badge')
+          : anchor.querySelector('.win-badge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'win-badge';
+        badge.textContent = `WIN +${fmtChips(amt)}`;
+        badge.style.opacity = '0';
+        if (pos === 'hero') $('#meRoot')?.appendChild(badge);
+        else anchor.appendChild(badge);
+      }
+      if (!reduced) {
+        glowJobs.push(
+          trackWinAnim(
+            badge.animate(
+              [
+                { opacity: 0, transform: 'translate(-50%, 8px) scale(.8)' },
+                { opacity: 1, transform: 'translate(-50%, 0) scale(1)' },
+              ],
+              { duration: T.badgeMs, delay: 120, easing: T.easeIn, fill: 'forwards' },
+            ),
+          ).finished.catch(() => {}),
+        );
+        if (plate) {
+          glowJobs.push(
+            trackWinAnim(
+              plate.animate([{ opacity: 0.85 }, { opacity: 1 }], {
+                duration: T.glowInMs,
+                easing: T.easeIn,
+                fill: 'forwards',
+              }),
+            ).finished.catch(() => {}),
+          );
+        }
+      } else {
+        badge.style.opacity = '1';
+      }
+    }
+    await Promise.all(glowJobs).catch(() => {});
+
+    // E — pots last-first; split shares to each winner's stack target
+    const pots = [...(state.winners || [])].reverse();
+    for (let pi = 0; pi < pots.length; pi++) {
+      if (pi > 0) {
+        await wait(T.potGap, signal).catch(() => {
+          throw new DOMException('aborted', 'AbortError');
+        });
+      }
+      const pot = pots[pi];
+      const shares =
+        pot.shares && Object.keys(pot.shares).length
+          ? Object.entries(pot.shares).map(([seat, amt]) => [+seat, +amt])
+          : (pot.seats || []).map((seat) => [
+              seat,
+              Math.floor((pot.amount || 0) / Math.max(1, pot.seats.length)),
+            ]);
+      if (reduced) continue;
+      const flyJobs = shares.map(([seat, amt], si) => {
+        const pos = seatVisualPos(seat, viewerSeat);
+        const target = stackTargetEl(pos);
+        const to = centerOf(target || potEl, table);
+        const chip = document.createElement('div');
+        chip.className = 'fx-chip-fly';
+        chip.innerHTML = `<span class="chips"><i class="a"></i></span><span class="amt">${fmtChips(amt)}</span>`;
+        chip.style.transform = `translate(${from.x}px, ${from.y}px) translate(-50%,-50%) scale(.7)`;
+        chip.style.opacity = '0.3';
+        layer.appendChild(chip);
+        return trackWinAnim(
+          chip.animate(
+            [
+              {
+                transform: `translate(${from.x}px, ${from.y}px) translate(-50%,-50%) scale(.7)`,
+                opacity: 0.3,
+              },
+              {
+                transform: `translate(${to.x}px, ${to.y}px) translate(-50%,-50%) scale(1)`,
+                opacity: 1,
+              },
+            ],
+            {
+              delay: si * T.splitStagger,
+              duration: T.chipFlyMs,
+              easing: T.easeChip,
+              fill: 'forwards',
+            },
+          ),
+        )
+          .finished.then(async () => {
+            await wait(T.chipFadeMs, signal).catch(() => {});
+            chip
+              .animate([{ opacity: 1 }, { opacity: 0 }], {
+                duration: T.chipFadeMs,
+                easing: T.easeOut,
+                fill: 'forwards',
+              })
+              .finished.catch(() => {})
+              .then(() => chip.remove());
+          })
+          .catch(() => chip.remove());
+      });
+      await Promise.all(flyJobs).catch(() => {});
+    }
+
+    // Stack count-up + pot → 0 (display only; engine already settled)
+    onStacksFinal?.(state.winnerPayouts || {});
+    onPotZero?.();
+    if (!reduced) {
+      await wait(T.rollMs, signal).catch(() => {});
+    }
+
+    onReadyForChoice?.();
+  } catch (e) {
+    if (e?.name !== 'AbortError') console.warn(e);
+    // Skip → final visual state
+    onGlow?.();
+    onStacksFinal?.(state.winnerPayouts || {});
+    onPotZero?.();
+    // Ensure revealed cards are mounted
+    if (!foldWin && typeof flipSeat === 'function') {
+      const revealed = state.showdown?.revealed || state.lastHandSummary?.revealed || {};
+      for (const [seat, entry] of Object.entries(revealed)) {
+        if (entry?.cards?.length) await flipSeat(+seat, entry.cards);
+      }
+    }
+    onReadyForChoice?.();
   } finally {
+    document.removeEventListener('pointerdown', onSkip, { capture: true });
     layer.querySelectorAll('.fx-chip-fly').forEach((n) => n.remove());
     if (winAbort === ac) winAbort = null;
+    onDone?.();
   }
+  return { skipped };
+}
+
+/** @deprecated Prefer playShowdownSequence — kept for callers expecting the old name. */
+export async function playWinnerFx(opts) {
+  return playShowdownSequence(opts);
+}
+
+/** Side-pot payout order for tests: last pot first. */
+export function sidePotPayoutOrder(winners) {
+  return [...(winners || [])].reverse();
 }

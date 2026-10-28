@@ -6,8 +6,18 @@
 
 import { makeDeck, cloneJson, cloneCards, cardKey } from './cards.js';
 import { shuffle } from './shuffle.js';
-import { evaluateHand, compareRanks, categoryZh } from './hand.js';
-import { computePots, splitPot } from './pots.js';
+import { evaluateHand, compareRanks, categoryZh, bestFive } from './hand.js';
+import { computePots, splitPot, orderFromButton } from './pots.js';
+
+/**
+ * Fold-win (全員蓋牌勝): only the winner may 亮牌／不亮.
+ * Flip to `false` to restore “everyone with hole cards chooses”.
+ */
+export const FOLD_WIN_ONLY_WINNER_CHOOSES = true;
+
+/** Post-decision hold before auto-next (ms). */
+export const HOLD_MS_SHOWDOWN = 8000;
+export const HOLD_MS_FOLD_WIN = 4000;
 
 export const PHASE = {
   LOBBY: 'lobby',
@@ -79,6 +89,13 @@ export function createInitialState(opts = {}) {
     showdown: null,
     lastHandSummary: null,
     rngSeedUsed: null,
+    /** Last bet/raise seat on the current street (TDA showdown order). */
+    streetAggressor: null,
+    /**
+     * Between-hands pause (host-requested).
+     * @type {null | { requested: boolean, active: boolean, ready: Record<string, boolean> }}
+     */
+    pause: null,
   };
 }
 
@@ -150,7 +167,13 @@ export function applyAction(state, action, env = {}) {
       s.phase = PHASE.SESSION_OVER;
       return s;
     case 'NEXT_HAND':
-      return startHand(s, env);
+      return doNextHand(s, env);
+    case 'REQUEST_PAUSE':
+      return doRequestPause(s, action);
+    case 'PLAYER_READY':
+      return doPlayerReady(s, action);
+    case 'CANCEL_PAUSE_REQUEST':
+      return doCancelPauseRequest(s, action);
     default:
       throw err('未知動作: ' + type);
   }
@@ -257,6 +280,7 @@ function startHand(s, env) {
   s.log = [];
   s.streetLog = [];
   s.actedBit = 0;
+  s.streetAggressor = null;
 
   // Advance button among players with chips
   if (s.handNumber === 1) {
@@ -460,6 +484,8 @@ function applyRaiseTo(s, seat, raiseTo, env, isAllInBtn) {
   else p.lastAction = `加注到 ${raiseTo}`;
 
   pushLog(s, 'action', `${p.name} ${p.lastAction}`);
+  // TDA: last aggressor on the street opens the showdown reveal order
+  s.streetAggressor = seat;
 
   if (reopens) {
     s.lastFullRaiseSize = raiseTo - prevBet;
@@ -551,6 +577,7 @@ function advanceStreet(s, env) {
   s.minRaiseTo = s.config.bigBlind;
   s.actor = null;
   s.deadline = null;
+  s.streetAggressor = null;
   rebuildPots(s);
 
   const contenders = livePlayers(s).filter((p) => !p.folded);
@@ -608,7 +635,7 @@ function awardUncontested(s, seat) {
   p.chips += total;
   p.lastAction = `贏得 ${total}`;
   pushLog(s, 'result', `${p.name} 贏得 ${total}（其他人蓋牌）`);
-  s.winners = [{ seats: [seat], amount: total, hand: null }];
+  s.winners = [{ seats: [seat], amount: total, hand: null, shares: { [seat]: total } }];
   s.winnerPayouts = { [seat]: total };
   s.pots = [];
   // Street bets are already in contributed/pots — clear markers so UI chips leave the felt
@@ -616,7 +643,7 @@ function awardUncontested(s, seat) {
   s.currentBet = 0;
   s.actor = null;
   s.deadline = null;
-  // Fold-win: every player who had hole cards (incl. winner) may 亮牌／不亮
+  // Fold-win: architect default — only the winner chooses (FOLD_WIN_ONLY_WINNER_CHOOSES)
   return beginRevealPhase(s, { autoRevealSeats: new Set(), foldWin: true });
 }
 
@@ -673,7 +700,10 @@ function goShowdown(s) {
     }
     const winners = elig.filter((e) => compareRanks(e.rank, best) === 0).map((e) => e.seat);
     const shares = splitPot(pot.amount, winners, s.button, s.config.maxSeats);
+    /** @type {Record<number, number>} */
+    const shareObj = {};
     for (const [seat, amt] of shares) {
+      shareObj[seat] = amt;
       const prev = awards.get(seat) || { amount: 0, handZh: '', rank: null };
       prev.amount += amt;
       prev.rank = ranked.find((r) => r.seat === seat).rank;
@@ -686,6 +716,7 @@ function goShowdown(s) {
       seats: winners,
       amount: pot.amount,
       handZh: categoryZh(best),
+      shares: shareObj,
     });
     const names = winners.map((seat) => s.seats[seat].name).join('、');
     pushLog(
@@ -714,18 +745,55 @@ function goShowdown(s) {
         : '攤牌';
     }
   }
+  /** @type {Record<number, {rank:number[], cards: object[]}>} */
+  const bestBySeat = {};
+  for (const p of contenders) {
+    const bf = bestFive(p.hole, s.board);
+    if (bf) bestBySeat[p.seat] = { rank: bf.rank, cards: bf.cards };
+  }
   return beginRevealPhase(s, {
     autoRevealSeats: winnerSeats,
     foldWin: false,
     ranks: Object.fromEntries(ranked.map((r) => [r.seat, r.rank])),
+    bestBySeat,
+    revealOrder: showdownRevealOrder(s, contenders.map((c) => c.seat)),
   });
+}
+
+/**
+ * TDA Rule 18 order among contenders: last aggressor first, else left of button, then clockwise.
+ * @param {object} s
+ * @param {number[]} contenderSeats
+ * @returns {number[]}
+ */
+export function showdownRevealOrder(s, contenderSeats) {
+  const set = new Set(contenderSeats);
+  if (set.size === 0) return [];
+  const max = s.config.maxSeats;
+  let start;
+  if (s.streetAggressor != null && set.has(s.streetAggressor)) {
+    start = s.streetAggressor;
+  } else {
+    // Left of button among contenders
+    const fromBtn = orderFromButton([...set], s.button, max);
+    start = fromBtn[0];
+  }
+  /** @type {number[]} */
+  const out = [];
+  for (let i = 0; i < max; i++) {
+    const seat = (start + i) % max;
+    if (set.has(seat)) out.push(seat);
+  }
+  return out;
 }
 
 /**
  * Hand-end reveal: each player who still holds hole cards chooses 亮牌 or 不亮
  * (both cards together). `autoRevealSeats` are forced face-up (showdown winners).
+ * Fold-win + FOLD_WIN_ONLY_WINNER_CHOOSES: only the non-folded winner is pending;
+ * folded holders are auto-mucked (one-line flip restores all-pending).
  */
-function beginRevealPhase(s, { autoRevealSeats, foldWin, ranks = null }) {
+function beginRevealPhase(s, { autoRevealSeats, foldWin, ranks = null, bestBySeat = null, revealOrder = null }) {
   /** @type {Record<string, {cards: object[], mode: string}>} */
   const revealed = {};
   /** @type {number[]} */
@@ -735,6 +803,10 @@ function beginRevealPhase(s, { autoRevealSeats, foldWin, ranks = null }) {
     if (autoRevealSeats.has(p.seat)) {
       p.showChoice = 'auto';
       revealed[p.seat] = { cards: cloneCards(p.hole), mode: 'both' };
+    } else if (foldWin && FOLD_WIN_ONLY_WINNER_CHOOSES && p.folded) {
+      // Architect default: folded players do not get a show/muck choice
+      p.showChoice = 'muck';
+      if (!p.lastAction) p.lastAction = '不亮';
     } else {
       p.showChoice = null;
       if (!p.lastAction || p.folded) p.lastAction = '待選擇亮牌';
@@ -746,8 +818,10 @@ function beginRevealPhase(s, { autoRevealSeats, foldWin, ranks = null }) {
     pending,
     revealed,
     ranks: ranks || {},
+    bestBySeat: bestBySeat || {},
+    revealOrder: revealOrder || [],
     foldWin: !!foldWin,
-    /** UI starts a 5s countdown from this timestamp (ms); null until UI sets via SET_REVEAL_DEADLINE */
+    /** UI starts a 5s countdown from this timestamp (ms); null until UI arms it after FX */
     revealDeadline: null,
   };
   if (pending.length === 0) return finishShowdown(s);
@@ -830,6 +904,71 @@ function doAckHand(s) {
   s.showdown = null;
   s.deck = [];
   return s;
+}
+
+function doNextHand(s, env) {
+  if (s.pause?.active) throw err('暫停中，請等待全員回來');
+  // Host requested pause mid-hand / during hold → activate before dealing
+  if (s.pause?.requested && !s.pause.active) {
+    return activatePause(s);
+  }
+  return startHand(s, env);
+}
+
+/** Host-only: request pause (takes effect between hands). */
+function doRequestPause(s, action) {
+  const seat = action.seat;
+  if (seat !== s.room.hostSeat) throw err('只有房主可以暫停');
+  if (s.phase === PHASE.SESSION_OVER || s.phase === PHASE.LOBBY) {
+    throw err('現在無法暫停');
+  }
+  if (s.pause?.active) return s;
+  s.pause = { requested: true, active: false, ready: {} };
+  // Already between hands → pause immediately
+  if (s.phase === PHASE.HAND_OVER) {
+    return activatePause(s);
+  }
+  return s;
+}
+
+function doCancelPauseRequest(s, action) {
+  const seat = action.seat;
+  if (seat !== s.room.hostSeat) throw err('只有房主可以取消暫停');
+  if (!s.pause || s.pause.active) throw err('沒有待生效的暫停');
+  s.pause = null;
+  return s;
+}
+
+function doPlayerReady(s, action) {
+  if (!s.pause?.active) throw err('目前沒有暫停');
+  const seat = action.seat;
+  if (!s.seats[seat] || s.seats[seat].sittingOut) throw err('座位無效');
+  if (!(String(seat) in s.pause.ready) && !(seat in s.pause.ready)) {
+    throw err('此座位不需確認');
+  }
+  s.pause.ready[seat] = true;
+  if (allPauseReady(s)) {
+    s.pause = null;
+  }
+  return s;
+}
+
+function activatePause(s) {
+  /** @type {Record<string, boolean>} */
+  const ready = {};
+  for (const p of seatedPlayers(s)) {
+    if (p.sittingOut) continue;
+    ready[p.seat] = false;
+  }
+  s.pause = { requested: true, active: true, ready };
+  s.deadline = null;
+  s.actor = null;
+  return s;
+}
+
+function allPauseReady(s) {
+  if (!s.pause?.active) return true;
+  return Object.values(s.pause.ready).every(Boolean);
 }
 
 /* ─── Legal actions & helpers ─── */
@@ -1098,4 +1237,6 @@ export const _test = {
   findNextActor,
   bettingRoundDone,
   rebuildPots,
+  activatePause,
+  allPauseReady,
 };

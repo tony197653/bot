@@ -90,19 +90,25 @@ describe('亮牌／不亮規則', () => {
     assert.equal(REVEAL_MS, 5000);
   });
 
-  it('蓋牌獲勝：贏家與蓋牌者皆可選亮牌／不亮（無人自動亮）', () => {
+  it('蓋牌獲勝：只有贏家可選亮牌／不亮（已蓋牌者自動不亮）', () => {
     let s = createInitialState({ timerEnabled: false });
     s = seatAll(s, ['宗良', '阿哲', '小芸']);
     s = start(s, 11);
     s = playToFoldWin(s);
     assert.equal(s.phase, PHASE.SHOWDOWN, 'phase=' + s.phase);
     assert.ok(s.showdown?.foldWin);
-    const withHoles = s.seats.filter((p) => p && p.hole?.length === 2);
-    assert.ok(withHoles.length >= 2);
-    // Nobody auto-revealed on fold-win
-    for (const p of withHoles) {
+    const winnerSeat = s.winners[0].seats[0];
+    assert.deepEqual(s.showdown.pending, [winnerSeat]);
+    assert.equal(s.seats[winnerSeat].showChoice, null);
+    // Folded holders auto-muck; nobody auto-revealed
+    for (const p of s.seats.filter((x) => x && x.hole?.length === 2)) {
       assert.notEqual(p.showChoice, 'auto');
-      assert.ok(s.showdown.pending.includes(p.seat), `seat ${p.seat} should be pending`);
+      if (p.seat === winnerSeat) {
+        assert.ok(s.showdown.pending.includes(p.seat));
+      } else {
+        assert.equal(p.showChoice, 'muck');
+        assert.ok(!s.showdown.pending.includes(p.seat));
+      }
     }
     assert.deepEqual(
       Object.keys(s.showdown.revealed || {}).map(Number).sort(),
@@ -176,7 +182,7 @@ describe('亮牌／不亮規則', () => {
     s = seatAll(s, ['宗良', '阿哲', '小芸']);
     s = start(s, 7);
     s = playToFoldWin(s);
-    assert.ok(s.showdown.pending.length >= 2);
+    assert.ok(s.showdown.pending.length >= 1);
     s = applyAction(s, { type: 'REVEAL_TIMEOUT' }, { now: 1e6 });
     assert.equal(s.phase, PHASE.HAND_OVER);
     for (const p of s.seats.filter(Boolean)) {

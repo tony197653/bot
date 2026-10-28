@@ -600,6 +600,32 @@ input[type=range]::-moz-range-thumb{
 }
 body.is-playing .boot{display:none}
 
+/* Next-hand hold countdown ring */
+.btn-next-hold{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-next-hold .hold-ring{
+  width:22px;height:22px;flex:none;transform:rotate(-90deg);
+}
+.btn-next-hold .hold-ring circle{fill:none;stroke-width:3;stroke-linecap:round}
+.btn-next-hold .hold-ring-bg{stroke:rgba(255,255,255,.2)}
+.btn-next-hold .hold-ring-fg{stroke:var(--gold);transition:stroke-dashoffset .2s linear}
+.btn-next-hold .btn-next-cd{
+  font-variant-numeric:tabular-nums;font-size:12px;opacity:.85;min-width:1.2em;
+}
+
+/* Pause panel (host-triggered, between hands) */
+.pause-panel{max-width:min(92vw,380px)}
+.pause-list{display:flex;flex-direction:column;gap:10px;margin-top:16px;text-align:left}
+.pause-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.28);
+  border:1px solid rgba(214,180,90,.18);
+}
+.pause-name{font-weight:700;font-size:15px}
+.pause-status button.pause-ready{height:40px;min-width:108px;padding:0 14px;font-size:14px}
+.pause-ok{color:#7dcea0;font-size:13px;font-weight:600}
+
 @media (max-width:1023px){
   html,body{width:100%;max-width:100vw;overflow-x:hidden;overflow-x:clip;overflow-y:hidden}
   .app{width:100%;max-width:100vw;overflow-x:hidden}

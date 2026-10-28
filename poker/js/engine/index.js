@@ -7,9 +7,13 @@ export {
   streetBetsTotal,
   sessionSummary,
   foldWinCenterNote,
+  showdownRevealOrder,
   PHASE,
   STREET_ZH,
   REVEAL_MS,
+  FOLD_WIN_ONLY_WINNER_CHOOSES,
+  HOLD_MS_SHOWDOWN,
+  HOLD_MS_FOLD_WIN,
   _test,
 } from './game.js';
 
@@ -32,6 +36,8 @@ export { shuffle, randomInt, mulberry32 } from './shuffle.js';
 export {
   evaluate,
   evaluateHand,
+  bestFive,
+  bestFiveOf,
   compareRanks,
   categoryZh,
   CATEGORY,
