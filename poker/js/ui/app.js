@@ -2706,11 +2706,50 @@ window.__poker = {
       clearTimeout(autoNextTimer);
       autoNextTimer = null;
     }
+    holdDeadline = null;
+  },
+  /** Skip deal presentation and arm UI for immediate play (tests / capture). */
+  skipDealAndReady(seat = 0) {
+    cancelDealFx();
+    cancelHeroFlip();
+    cancelWinFx();
+    pendingDealHand = 0;
+    lastDealPlayed = state.handNumber;
+    dealFxBusy = false;
+    dealPresenting = false;
+    awaitingDealThenPass = false;
+    passAfterDeal = false;
+    heroFlipping = false;
+    handUiReady = true;
+    needsPass = false;
+    viewerSeat = seat;
+    $('#passScreen')?.classList.remove('is-on');
+    document.getElementById('act')?.classList.remove('is-deal-locked');
+    document.documentElement.classList.remove('is-dealing');
+    if (state.config.timerEnabled && state.actor != null && state.deadline == null) {
+      dispatch({ type: 'ARM_DEADLINE' });
+    } else {
+      render();
+    }
+  },
+  get revealUiArmed() {
+    return revealUiArmed;
+  },
+  get showdownFxBusy() {
+    return showdownFxBusy;
+  },
+  get holdDeadline() {
+    return holdDeadline;
   },
   dispatch,
   view,
   applyAction,
   createInitialState,
+  AFTER_STATE: afterState,
+  setState(next) {
+    state = next;
+    afterState();
+  },
 };
 
 boot();
