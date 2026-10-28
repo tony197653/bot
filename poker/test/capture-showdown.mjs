@@ -66,8 +66,8 @@ async function configureLobby(page, seatCount) {
   if (await t.isChecked()) await t.uncheck();
 }
 
-async function bootGame(page, seats) {
-  await page.goto('/');
+async function bootGame(page, url, seats) {
+  await page.goto(url);
   await page.waitForSelector('#lobbyScreen');
   await configureLobby(page, seats);
   await page.click('#btnStart');
@@ -235,7 +235,7 @@ async function recordScenario(browser, url, opts) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
 
-  await bootGame(page, seats);
+  await bootGame(page, url, seats);
   if (mode === 'fold') await forceFoldWin(page);
   else await forceShowdown(page);
 

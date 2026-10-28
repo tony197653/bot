@@ -216,11 +216,17 @@ function afterState() {
       autoNextTimer = null;
     }
   }
-  // Hand over: stop pass gate so winner FX / summary are visible
+  // Hand over: stop pass gate so winner FX / summary are visible.
+  // Hold / auto-next only after showdown FX arms (onReadyForChoice) — never before.
   if (state.phase === PHASE.HAND_OVER || state.phase === PHASE.SESSION_OVER) {
     needsPass = false;
     $('#passScreen')?.classList.remove('is-on');
-    if (state.phase === PHASE.HAND_OVER && !showdownFxBusy) {
+    if (
+      state.phase === PHASE.HAND_OVER &&
+      !showdownFxBusy &&
+      revealUiArmed &&
+      !state.pause?.active
+    ) {
       scheduleAutoNextHand();
     }
   }
