@@ -17,7 +17,7 @@
 <!-- ① 開始＋選玩家 -->
 <section id="screen-start" class="screen is-active" aria-label="開始畫面">
   <div class="shell start-shell">
-    <h1 class="brand">STAY 猜歌測驗</h1>
+    <h1 class="brand" id="startHeading" tabindex="-1">STAY 猜歌測驗</h1>
     <div class="hero">
       <p class="hero-line">聽片段，選出正確歌名</p>
       <svg class="wave" viewBox="0 0 280 56" aria-hidden="true" focusable="false">
@@ -55,7 +55,7 @@
         <span id="quizPlayer">玩家：—</span>
         <span id="quizScore">總分 0</span>
       </div>
-      <h2 class="q-index" id="quizHeading"><span id="quizIndex">第 1 題／共 10 題</span></h2>
+      <h2 class="q-index" id="quizHeading" tabindex="-1"><span id="quizIndex">第 1 題／共 10 題</span></h2>
       <div class="progress-track" aria-hidden="true"><i id="quizProgress"></i></div>
     </header>
 
@@ -107,7 +107,7 @@
 <section id="screen-result" class="screen" aria-labelledby="resultHeading" hidden>
   <div class="shell result-shell">
     <div class="result-score-block">
-      <h1 class="result-score" id="resultHeading"><span id="resultScore">0／100</span></h1>
+      <h1 class="result-score" id="resultHeading" tabindex="-1"><span id="resultScore">0／100</span></h1>
       <p class="result-comment" id="resultComment"></p>
       <p class="new-record hidden" id="newRecord">新紀錄！</p>
       <p class="highscore" id="resultHigh"></p>

@@ -36,6 +36,8 @@ let listens = 1;
 let playPhase = null;
 let answered = false;
 let nextArmedAt = 0;
+/** 「再玩一次」後短暫忽略玩家鈕，避免同點幽靈點擊（約 450ms） */
+let playerArmedAt = 0;
 /** @type {ReturnType<typeof createCountdown>} */
 let timer = createCountdown({ durationMs: 15000 });
 let timerUi = null;
@@ -106,6 +108,21 @@ function showScreen(name) {
     node.classList.toggle('is-active', on);
     node.hidden = !on;
     if (on) node.classList.add('fade-in');
+  }
+  // A：換畫面捲回頂端，避免矮螢幕結果／開始標題被切掉
+  window.scrollTo(0, 0);
+  const heading =
+    name === 'start'
+      ? document.getElementById('startHeading')
+      : name === 'result'
+        ? document.getElementById('resultHeading')
+        : document.getElementById('quizHeading');
+  if (heading && typeof heading.focus === 'function') {
+    try {
+      heading.focus({ preventScroll: true });
+    } catch {
+      heading.focus();
+    }
   }
 }
 
@@ -777,6 +794,8 @@ el.btnReplay.addEventListener('click', () => {
 el.btnNext.addEventListener('click', () => goNext());
 el.btnAgain.addEventListener('click', () => {
   stopAudio();
+  // B：回到開始後短暫忽略玩家鈕，避免「再玩一次」同點幽靈點到 Stay
+  playerArmedAt = performance.now() + 450;
   showScreen('start');
   refreshStartHigh();
 });
@@ -952,7 +971,10 @@ async function boot() {
     btn.dataset.player = name;
     btn.textContent = name;
     btn.disabled = false;
-    btn.addEventListener('click', () => startRound(name, true));
+    btn.addEventListener('click', () => {
+      if (performance.now() < playerArmedAt) return;
+      startRound(name, true);
+    });
   });
   refreshStartHigh();
 }
