@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '../stay-quiz');
-const OUT = '/opt/cursor/artifacts';
+const OUT = process.env.STAY_SHOTS_DIR || join(__dirname, 'shots');
 mkdirSync(OUT, { recursive: true });
 const MIME = {
   '.html': 'text/html; charset=utf-8',
