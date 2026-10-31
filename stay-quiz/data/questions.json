@@ -1,0 +1,24 @@
+{
+  "version": 2,
+  "seconds": 15,
+  "points": [10, 9, 8],
+  "players": ["羽蕎", "容亘", "Stay"],
+  "questions": [
+    { "id": "q01", "title": "This & That", "audio": "audio/q01.mp3", "youtube": "https://www.youtube.com/watch?v=BZ4UzthYTss" },
+    { "id": "q02", "title": "Chk Chk Boom", "audio": "audio/q02.mp3", "youtube": "https://www.youtube.com/watch?v=T17AR8cVmto" },
+    { "id": "q03", "title": "LALALALA", "audio": "audio/q03.mp3", "youtube": "https://www.youtube.com/watch?v=dBDkYofMUs4" },
+    { "id": "q04", "title": "Do It", "audio": "audio/q04.mp3", "youtube": "https://www.youtube.com/watch?v=kaBPTrvzf8c" },
+    { "id": "q05", "title": "MANIAC", "audio": "audio/q05.mp3", "youtube": "https://www.youtube.com/watch?v=OvioeS1ZZ7o" },
+    { "id": "q06", "title": "God's Menu", "audio": "audio/q06.mp3", "youtube": "https://www.youtube.com/watch?v=TQTlCHxyuu8" },
+    { "id": "q07", "title": "Back Door", "audio": "audio/q07.mp3", "youtube": "https://www.youtube.com/watch?v=X-uJtV8ScYk" },
+    { "id": "q08", "title": "CHEESE", "audio": "audio/q08.mp3", "youtube": "https://www.youtube.com/watch?v=YLtEc-kvOqA" },
+    { "id": "q09", "title": "S-Class", "audio": "audio/q09.mp3", "youtube": "https://www.youtube.com/watch?v=JsOOis4bBFg" },
+    { "id": "q10", "title": "CEREMONY", "audio": "audio/q10.mp3", "youtube": "https://www.youtube.com/watch?v=P7vBoGWoReg" }
+  ],
+  "distractors": [
+    "Hellevator", "District 9", "My Pace", "MIROH", "Side Effects",
+    "Levanter", "Double Knot", "TOP", "All In", "Thunderous",
+    "Christmas EveL", "VENOM", "CASE 143", "CIRCUS", "TOPLINE",
+    "Super Bowl", "Lose My Breath", "JJAM", "Walkin On Water", "GIANT"
+  ]
+}
