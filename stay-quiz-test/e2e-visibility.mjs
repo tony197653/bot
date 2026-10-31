@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '../stay-quiz');
+const ROOT = process.env.STAY_QUIZ_ROOT || join(__dirname, '../stay-quiz');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',

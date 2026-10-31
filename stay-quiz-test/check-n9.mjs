@@ -8,7 +8,7 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '../stay-quiz');
+const ROOT = process.env.STAY_QUIZ_ROOT || join(__dirname, '../stay-quiz');
 const OUT = process.env.STAY_SHOTS_DIR || join(__dirname, 'shots');
 mkdirSync(OUT, { recursive: true });
 const MIME = {

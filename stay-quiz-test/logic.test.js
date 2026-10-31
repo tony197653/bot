@@ -1,6 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
+import { readFileSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const QUIZ_ROOT = process.env.STAY_QUIZ_ROOT || join(__dirname, '../stay-quiz');
+const {
   buildChoices,
   commentFor,
   createCountdown,
@@ -19,13 +25,8 @@ import {
   shouldUpdateBest,
   shuffle,
   TimerState,
-} from '../stay-quiz/logic.js';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const data = JSON.parse(readFileSync(join(__dirname, '../stay-quiz/data/questions.json'), 'utf8'));
+} = await import(pathToFileURL(join(QUIZ_ROOT, 'logic.js')).href);
+const data = JSON.parse(readFileSync(join(QUIZ_ROOT, 'data/questions.json'), 'utf8'));
 
 describe('計分 scoreFor', () => {
   it('聽 1 次答對＝10、2＝9、3＝8、5＝8', () => {

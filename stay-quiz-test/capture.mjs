@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '../stay-quiz');
+const ROOT = process.env.STAY_QUIZ_ROOT || join(__dirname, '../stay-quiz');
 const OUT = '/opt/cursor/artifacts';
 mkdirSync(OUT, { recursive: true });
 
