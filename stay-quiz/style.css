@@ -50,6 +50,8 @@ button {
   -webkit-appearance: none;
   background: none;
   color: inherit;
+  /* D：避免連點被當成雙擊縮放 */
+  touch-action: manipulation;
 }
 button:disabled { cursor: not-allowed; opacity: 0.55; }
 /* QA #4：答題後選項不可用整卡 opacity（會把正解／✓ 壓到對比不足） */
@@ -66,6 +68,10 @@ a:focus-visible {
   min-height: 100dvh;
   min-height: 100svh;
   padding: 20px 24px calc(24px + var(--safe-b));
+}
+/* C：結果頁底部加高，減輕 iOS 回彈／工具列吃掉「再玩一次」第一下 */
+#screen-result.screen {
+  padding-bottom: calc(96px + var(--safe-b));
 }
 .screen.is-active { display: block; }
 .shell {
