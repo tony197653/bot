@@ -113,6 +113,17 @@ a:focus-visible {
 .rules p { margin: 0 0 4px; text-wrap: pretty; }
 .rules p:last-child { margin-bottom: 0; }
 .nowrap { white-space: nowrap; }
+.vh {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
 
 .highscore {
   margin: 16px 0;
@@ -233,12 +244,12 @@ a:focus-visible {
   transition: transform 100ms ease;
 }
 .btn-replay:not(:disabled):active { transform: scale(0.97); }
-.btn-play.is-loading {
-  opacity: 0.85;
-}
+/* N5：載入中提示對比 ≥4.5:1，不用半透明 */
+.btn-play:disabled,
+.btn-play.is-loading { opacity: 1; }
 .btn-play.is-loading .ico-play,
 .btn-play.is-loading .ico-pause { display: none; }
-.btn-play.is-loading .play-hint { display: grid; }
+.btn-play.is-loading .play-hint { display: grid; color: #fff; }
 
 .btn-play {
   width: 96px;
@@ -377,6 +388,12 @@ a:focus-visible {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  /* N3：為 sticky 下一題列預留空間，避免蓋住回饋／MV */
+  scroll-margin-bottom: calc(72px + var(--safe-b));
+}
+.options .opt.is-correct,
+.options .opt.is-wrong {
+  scroll-margin-bottom: calc(72px + var(--safe-b));
 }
 .fb-text { margin: 0; font-weight: 600; flex: 1; }
 .btn-mv {
@@ -402,13 +419,16 @@ a:focus-visible {
 }
 /* QA #10：窄螢幕回饋時下一題固定在拇指區 */
 @media (max-width: 430px) {
+  #screen-quiz.is-feedback .opt-col {
+    padding-bottom: calc(72px + var(--safe-b));
+  }
   #screen-quiz.is-feedback .next-bar {
     position: sticky;
     bottom: 0;
     z-index: 5;
     margin: 12px -8px 0;
     padding: 10px 8px calc(10px + var(--safe-b));
-    background: linear-gradient(to top, var(--bg) 70%, transparent);
+    background: linear-gradient(to top, var(--bg) 85%, rgba(247, 245, 240, 0));
   }
 }
 .btn-primary {

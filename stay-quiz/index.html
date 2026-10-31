@@ -32,8 +32,8 @@
       </svg>
     </div>
     <div class="rules" id="rulesBox">
-      <p>・共 10 題，每題 4 選 1，15 秒內作答</p>
-      <p>・聽 1 次答對 10 分、2 次 9 分、3 次以上 8 分；答錯或逾時 0 分</p>
+      <p>・共 10 題，每題 4 選 1，<span class="nowrap">15 秒內作答</span></p>
+      <p>・聽 1 次答對 10 分、2 次 9 分、<span class="nowrap">3 次以上 8 分</span>；答錯或逾時 0 分</p>
     </div>
     <p class="highscore" id="startHigh" aria-live="polite">還沒有紀錄</p>
     <p class="pick-label">選擇玩家，按下就開始</p>
@@ -49,6 +49,7 @@
 <!-- ②／③ 作答＋回饋 -->
 <section id="screen-quiz" class="screen" aria-labelledby="quizHeading" hidden>
   <div class="shell quiz-shell">
+    <h1 class="vh" id="quizPageTitle">STAY 猜歌測驗 · 作答</h1>
     <header class="quiz-top">
       <div class="quiz-top-row">
         <span id="quizPlayer">玩家：—</span>
@@ -112,7 +113,8 @@
       <p class="highscore" id="resultHigh"></p>
     </div>
     <div class="review-wrap">
-      <div class="review" id="reviewList" aria-label="每題回顧"></div>
+      <h2 class="vh">每題回顧</h2>
+      <div class="review" id="reviewList" role="list"></div>
     </div>
     <button type="button" class="btn-primary" id="btnAgain">再玩一次</button>
   </div>

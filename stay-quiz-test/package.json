@@ -1,14 +1,10 @@
 {
   "name": "stay-quiz-test",
-  "version": "1.0.0",
-  "description": "",
-  "main": "logic.test.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "private": true,
   "type": "module",
-  "private": true
+  "scripts": {
+    "test": "node --test logic.test.js",
+    "test:e2e": "node e2e-visibility.mjs",
+    "capture": "node capture.mjs"
+  }
 }

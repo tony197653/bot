@@ -18,7 +18,7 @@ import {
   TimerState,
 } from './logic.js';
 
-const TEST_MODE = new URLSearchParams(location.search).has('test');
+const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -48,11 +48,16 @@ let blockedAutoplay = false;
 let firstSoundHeard = false;
 /** 目前這段重播是否仍算「重播中」（含暫停後續播） */
 let inReplaySegment = false;
-/** 背景中斷流程中（隱藏或等待按「繼續」），避免遮罩下偷播 */
-let pageHidden = false;
 /** prefers-reduced-motion：倒數條每秒跳一格 */
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let lastTimerDisplaySec = -1;
+/** 顯示「繼續」前的焦點（N4） */
+let focusBeforeResume = null;
+
+/** 是否處於背景中斷：讀 document.hidden，或作答中的「繼續」遮罩仍開著 */
+function isInterrupted() {
+  return document.hidden || !el.resumeMask.hidden;
+}
 
 const el = {
   start: document.getElementById('screen-start'),
@@ -390,7 +395,7 @@ function playCurrent({ fromStart = false, asReplay = false, asFeedback = false }
 }
 
 function onAudioError() {
-  if (!autoRetryUsed && !answered && shouldAutoRetryAudio({ pageHidden: pageHidden || !el.resumeMask.hidden })) {
+  if (!autoRetryUsed && !answered && shouldAutoRetryAudio({ pageHidden: isInterrupted() })) {
     autoRetryUsed = true;
     const item = currentItem();
     el.audio.src = item.question.audio + `?retry=${Date.now()}`;
@@ -401,9 +406,8 @@ function onAudioError() {
     });
     return;
   }
-  // 隱藏中：不自動重試，也不立刻跳失敗（等回來再處理）；已用過重試則顯示失敗
-  if (pageHidden || !el.resumeMask.hidden) {
-    if (autoRetryUsed) return;
+  // 隱藏／遮罩中：不自動重試，也不立刻跳失敗（等回來再處理）
+  if (isInterrupted()) {
     return;
   }
   showAudioFail();
@@ -471,7 +475,7 @@ function onFirstSound() {
   if (playPhase === 'feedback') return;
   if (
     shouldSuppressPlayingWhileHidden({
-      pageHidden,
+      pageHidden: document.hidden,
       resumeVisible: !el.resumeMask.hidden,
       firstSoundHeard,
     })
@@ -558,6 +562,13 @@ function finishQuestion({ picked, timedOut, skipped }) {
   setTimeout(() => {
     if (answered) el.btnNext.disabled = false;
   }, 400);
+
+  // N3：窄螢幕 sticky 下一題不蓋住回饋／正解
+  queueMicrotask(() => {
+    try {
+      el.feedbackCard.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    } catch { /* ignore */ }
+  });
 }
 
 function goNext() {
@@ -613,14 +624,17 @@ function showResult() {
       markLabel = '對';
     }
     const listenCell = a.skipped ? '—' : `${a.listens}次`;
+    const markText =
+      a.skipped ? '跳過' : a.timedOut ? '逾時' : a.correct ? '答對' : '答錯';
+    row.setAttribute('role', 'listitem');
     row.innerHTML =
       `<div class="review-title"><span class="num">${i + 1}</span>` +
       `<span class="song" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</span></div>` +
       `<div class="review-meta">` +
-      `<span class="mark ${markClass}">${mark}</span>` +
+      `<span class="mark ${markClass}"><span class="vh">${markText}</span>${mark}</span>` +
       `<span class="meta">${listenCell}</span>` +
       `<span class="meta">${a.points}分</span>` +
-      `<a class="mv-link" href="${a.youtube}" target="_blank" rel="noopener">MV</a>` +
+      `<a class="mv-link" href="${a.youtube}" target="_blank" rel="noopener" aria-label="看${escapeHtml(a.title)} MV">MV</a>` +
       `</div>`;
     el.reviewList.appendChild(row);
   });
@@ -644,9 +658,26 @@ function hideResume() {
   el.resumeMask.hidden = true;
   el.quiz.removeAttribute('inert');
   el.resumeMask.removeAttribute('aria-modal');
+  // N4：還原焦點；沒有可還原時落到播放鍵
+  const restore = focusBeforeResume;
+  focusBeforeResume = null;
+  queueMicrotask(() => {
+    const target =
+      restore &&
+      restore instanceof HTMLElement &&
+      document.contains(restore) &&
+      typeof restore.focus === 'function' &&
+      !restore.disabled
+        ? restore
+        : el.btnPlay;
+    try {
+      target.focus();
+    } catch { /* ignore */ }
+  });
 }
 
 function showResume() {
+  focusBeforeResume = document.activeElement;
   el.resumeMask.classList.remove('hidden');
   el.resumeMask.hidden = false;
   el.resumeMask.setAttribute('role', 'dialog');
@@ -751,18 +782,19 @@ el.btnSkipQ.addEventListener('click', () => {
   finishQuestion({ picked: null, timedOut: false, skipped: true });
 });
 el.btnResume.addEventListener('click', () => {
-  pageHidden = false;
+  const shouldResumeAudio = wasPlayingBeforeHide;
   hideResume();
+  wasPlayingBeforeHide = false;
   const reason = timer.pauseReason;
   const audioPlaying = !el.audio.paused && !el.audio.ended;
 
   // 續播音樂（同一使用者手勢內同步 play，重取 iOS 播放權）
-  if (wasPlayingBeforeHide || timer.state === TimerState.IDLE) {
-    if (inReplaySegment && !answered && wasPlayingBeforeHide) {
+  if (shouldResumeAudio || timer.state === TimerState.IDLE) {
+    if (inReplaySegment && !answered && shouldResumeAudio) {
       playCurrent({ fromStart: false, asReplay: true });
     } else if (timer.state === TimerState.IDLE && !firstSoundHeard) {
       playCurrent({ fromStart: false });
-    } else if (wasPlayingBeforeHide) {
+    } else if (shouldResumeAudio) {
       playCurrent({ fromStart: false, asReplay: inReplaySegment && !answered });
     }
   }
@@ -772,14 +804,13 @@ el.btnResume.addEventListener('click', () => {
     shouldResumeCountdownAfterContinue({
       pauseReason: reason,
       inReplaySegment,
-      audioPlaying: wasPlayingBeforeHide || audioPlaying,
+      audioPlaying: shouldResumeAudio || audioPlaying,
     })
   ) {
     timer.resume();
-  } else if (inReplaySegment && (wasPlayingBeforeHide || audioPlaying) && timer.state === TimerState.PAUSED) {
+  } else if (inReplaySegment && (shouldResumeAudio || audioPlaying) && timer.state === TimerState.PAUSED) {
     // 維持暫停；確保 reason 記成 replay，方便 ended 時恢復
     if (timer.pauseReason === 'background') {
-      // 轉記為 replay 語意（仍暫停）
       timer.resume();
       timer.pause('replay');
     }
@@ -822,8 +853,10 @@ el.audio.addEventListener('error', () => {
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
-    pageHidden = true;
-    wasPlayingBeforeHide = !el.audio.paused && !el.audio.ended;
+    // N2：只在遮罩尚未顯示時記錄「離開前是否在播」，避免第二次隱藏覆寫成 false
+    if (el.resumeMask.hidden) {
+      wasPlayingBeforeHide = !el.audio.paused && !el.audio.ended;
+    }
     if (!el.audio.paused) el.audio.pause();
     const onQuizAnswering = el.quiz.classList.contains('is-active') && !answered;
     if (onQuizAnswering) {
@@ -831,10 +864,22 @@ document.addEventListener('visibilitychange', () => {
         timer.pause('background');
       }
       // 載入中／重播暫停回來也要按「繼續」
-      showResume();
+      if (el.resumeMask.hidden) showResume();
       updateTimerUi();
     }
-    // 回饋／開始／結果：只暫停音樂，不顯示繼續
+    // 回饋／開始／結果：只暫停音樂，不顯示繼續、不留下 sticky 旗標
+    return;
+  }
+
+  // N1／全畫面 sweep：回到前景且沒有「繼續」遮罩時，中斷狀態結束
+  // （回饋／開始／結果切背景不會出遮罩，必須在這裡清乾淨，否則下一題 playing 被抑制）
+  if (!el.resumeMask.hidden) {
+    // 作答中斷：等使用者按「繼續」
+    return;
+  }
+  // 遮罩未開：不留 pageHidden；wasPlaying 僅在作答遮罩流程使用，此處清掉以免污染
+  if (!el.quiz.classList.contains('is-active') || answered) {
+    wasPlayingBeforeHide = false;
   }
 });
 
@@ -972,12 +1017,10 @@ if (TEST_MODE) {
     },
     showResumeMask() {
       if (timer.state === TimerState.RUNNING) timer.pause('background');
-      pageHidden = true;
       showResume();
       updateTimerUi();
     },
     hideResumeMask() {
-      pageHidden = false;
       hideResume();
     },
     pickCorrect() {

@@ -1,9 +1,0 @@
-{
-  "name": "stay-quiz",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "test": "node --test ../stay-quiz-test/logic.test.js",
-    "capture": "node ../stay-quiz-test/capture.mjs"
-  }
-}
