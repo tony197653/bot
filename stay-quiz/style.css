@@ -396,11 +396,9 @@ a:focus-visible {
 .options .opt.is-wrong {
   scroll-margin-bottom: calc(72px + var(--safe-b));
 }
-.fb-text { margin: 0; font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
-/* N8：極窄螢幕不要強绑歌名 nowrap，避免把「看 MV」推出卡片／造成橫向捲動 */
-@media (max-width: 360px) {
-  .fb-text .nowrap { white-space: normal; }
-}
+.fb-text { margin: 0; font-weight: 600; flex: 1; min-width: 0; }
+/* N9：標籤與歌名各為 nowrap span，只在兩者之間斷行（360 不再套用取消 nowrap） */
+.fb-text .nowrap { white-space: nowrap; }
 .btn-mv {
   flex: none;
   min-height: 44px;

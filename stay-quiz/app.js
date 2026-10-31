@@ -543,13 +543,20 @@ function finishQuestion({ picked, timedOut, skipped }) {
   el.quizProgress.style.transform = `scaleX(${(qIndex + 1) / 10})`;
 
   if (skipped) {
-    el.fbText.innerHTML = `這題跳過了，<span class="nowrap">正確歌名是 ${escapeHtml(correctTitle)}</span>`;
+    // N9：標籤與歌名各 nowrap，只允許在兩者之間斷行
+    el.fbText.innerHTML =
+      `這題跳過了，<span class="nowrap">正確歌名是</span> ` +
+      `<span class="nowrap">${escapeHtml(correctTitle)}</span>`;
   } else if (timedOut) {
-    el.fbText.innerHTML = `時間到！本題 0 分　<span class="nowrap">正確歌名：${escapeHtml(correctTitle)}</span>`;
+    el.fbText.innerHTML =
+      `時間到！本題 0 分　<span class="nowrap">正確歌名：</span>` +
+      `<span class="nowrap">${escapeHtml(correctTitle)}</span>`;
   } else if (correct) {
     el.fbText.textContent = `答對了！＋${points} 分`;
   } else {
-    el.fbText.innerHTML = `差一點！本題 0 分　<span class="nowrap">正確歌名：${escapeHtml(correctTitle)}</span>`;
+    el.fbText.innerHTML =
+      `差一點！本題 0 分　<span class="nowrap">正確歌名：</span>` +
+      `<span class="nowrap">${escapeHtml(correctTitle)}</span>`;
   }
   el.btnMv.href = item.question.youtube;
   el.feedbackCard.classList.remove('hidden');
