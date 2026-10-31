@@ -308,11 +308,11 @@ function markOptions(picked, correctTitle, timedOut, skipped) {
     if (title === correctTitle) {
       btn.classList.add('is-correct');
       tag.hidden = false;
-      tag.textContent = '✓ 正解';
+      tag.innerHTML = '<span aria-hidden="true">✓</span> 正解';
     } else if (!timedOut && !skipped && title === picked) {
       btn.classList.add('is-wrong');
       tag.hidden = false;
-      tag.textContent = '× 你的答案';
+      tag.innerHTML = '<span aria-hidden="true">×</span> 你的答案';
     } else {
       btn.classList.add('is-dim');
     }
@@ -631,7 +631,7 @@ function showResult() {
       `<div class="review-title"><span class="num">${i + 1}</span>` +
       `<span class="song" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</span></div>` +
       `<div class="review-meta">` +
-      `<span class="mark ${markClass}"><span class="vh">${markText}</span>${mark}</span>` +
+      `<span class="mark ${markClass}"><span class="vh">${markText}</span><span aria-hidden="true">${mark}</span></span>` +
       `<span class="meta">${listenCell}</span>` +
       `<span class="meta">${a.points}分</span>` +
       `<a class="mv-link" href="${a.youtube}" target="_blank" rel="noopener" aria-label="看${escapeHtml(a.title)} MV">MV</a>` +
@@ -658,18 +658,19 @@ function hideResume() {
   el.resumeMask.hidden = true;
   el.quiz.removeAttribute('inert');
   el.resumeMask.removeAttribute('aria-modal');
-  // N4：還原焦點；沒有可還原時落到播放鍵
+  // N4／S1：還原焦點；若先前在 BODY／html 或無法還原 → #btnPlay
   const restore = focusBeforeResume;
   focusBeforeResume = null;
   queueMicrotask(() => {
-    const target =
+    const usable =
       restore &&
       restore instanceof HTMLElement &&
       document.contains(restore) &&
       typeof restore.focus === 'function' &&
-      !restore.disabled
-        ? restore
-        : el.btnPlay;
+      !restore.disabled &&
+      restore !== document.body &&
+      restore !== document.documentElement;
+    const target = usable ? restore : el.btnPlay;
     try {
       target.focus();
     } catch { /* ignore */ }

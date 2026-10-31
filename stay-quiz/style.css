@@ -385,6 +385,7 @@ a:focus-visible {
   border-radius: 14px;
   background: var(--sage-soft);
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
@@ -395,7 +396,11 @@ a:focus-visible {
 .options .opt.is-wrong {
   scroll-margin-bottom: calc(72px + var(--safe-b));
 }
-.fb-text { margin: 0; font-weight: 600; flex: 1; }
+.fb-text { margin: 0; font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+/* N8：極窄螢幕不要強绑歌名 nowrap，避免把「看 MV」推出卡片／造成橫向捲動 */
+@media (max-width: 360px) {
+  .fb-text .nowrap { white-space: normal; }
+}
 .btn-mv {
   flex: none;
   min-height: 44px;
