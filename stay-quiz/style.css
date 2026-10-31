@@ -16,6 +16,8 @@
   --text-sub: #5C665E;
   --accent: #F2B48C;
   --on-accent: #3A2418;
+  /* 開始畫面玩家名（僅 .btn-player 文字；對 #F2B48C ≈ 5.95:1） */
+  --player-name: #6B2A12;
   --accent-edge: #C9622F;
   --accent-urgent: #A9471F;
   --track: #E6E1D8;
@@ -158,7 +160,7 @@ a:focus-visible {
   height: 62px;
   border-radius: 31px;
   background: var(--accent);
-  color: var(--on-accent);
+  color: var(--player-name);
   border: 1.5px solid var(--accent-edge);
   font-size: 20px;
   font-weight: 700;
