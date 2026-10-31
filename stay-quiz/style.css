@@ -475,7 +475,11 @@ a:focus-visible {
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
-.result-comment { margin: 8px 0; color: var(--text-sub); }
+.result-comment {
+  margin: 8px 0;
+  font-size: 18px;
+  color: #000;
+}
 .new-record {
   display: inline-block;
   margin: 4px 0 8px;

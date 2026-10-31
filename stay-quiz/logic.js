@@ -17,15 +17,30 @@ export function potentialPoints(listens) {
   return scoreFor(Math.max(1, listens | 0), true);
 }
 
+const RESULT_COMMENTS = {
+  0: '滾',
+  10: '不送慢走',
+  20: '你還好嗎？',
+  30: '加油',
+  40: '再練習五下就OK了',
+  50: 'Hello，準Stay',
+  60: 'Stay小隊長',
+  70: '還得是你！優秀',
+  80: 'Stay大隊長',
+  90: 'You got an A.',
+  100: '這就是真愛',
+};
+
 /**
+ * 成績評語：分數以 10 為階（非整十則向下取整到最近 10）。
  * @param {number} score
  * @returns {string}
  */
 export function commentFor(score) {
-  if (score >= 100) return '滿分！你就是最強 STAY';
-  if (score >= 80) return '超強！真正的 STAY';
-  if (score >= 50) return '很棒！再多聽幾次 MV';
-  return '一起去補 MV 吧！';
+  const n = Number(score);
+  const clamped = Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
+  const key = Math.floor(clamped / 10) * 10;
+  return RESULT_COMMENTS[key] ?? RESULT_COMMENTS[0];
 }
 
 /**
