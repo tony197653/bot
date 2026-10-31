@@ -52,11 +52,31 @@ describe('計分 scoreFor', () => {
 });
 
 describe('評語', () => {
-  it('分數區間', () => {
-    assert.match(commentFor(100), /滿分/);
-    assert.match(commentFor(80), /超強/);
-    assert.match(commentFor(50), /很棒/);
-    assert.match(commentFor(49), /補 MV/);
+  const EXPECTED = {
+    0: '滾',
+    10: '不送慢走',
+    20: '你還好嗎？',
+    30: '加油',
+    40: '再練習五下就OK了',
+    50: 'Hello，準Stay',
+    60: 'Stay小隊長',
+    70: '還得是你！優秀',
+    80: 'Stay大隊長',
+    90: 'You got an A.',
+    100: '這就是真愛',
+  };
+
+  it('11 個整十分對應原文', () => {
+    for (const [score, text] of Object.entries(EXPECTED)) {
+      assert.equal(commentFor(Number(score)), text, `score ${score}`);
+    }
+  });
+
+  it('非 10 倍數向下取整到最近 10', () => {
+    assert.equal(commentFor(29), EXPECTED[20]);
+    assert.equal(commentFor(41), EXPECTED[40]);
+    assert.equal(commentFor(99), EXPECTED[90]);
+    assert.equal(commentFor(7), EXPECTED[0]);
   });
 });
 
