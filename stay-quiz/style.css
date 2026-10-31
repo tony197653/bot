@@ -23,8 +23,10 @@
   --bad: #9C3D2B;
   --focus: #2E3A31;
   --safe-b: env(safe-area-inset-bottom, 0px);
-  --font-ui: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
-  --font-song: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-ui: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", "Noto Sans CJK TC", sans-serif;
+  --font-song: "Inter", "Segoe UI Variable Text", "Segoe UI", -apple-system, Roboto, "Noto Sans", sans-serif;
+  --sage-mv: #4A5D4C;
+  --dim-text: #6B756C;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -50,6 +52,8 @@ button {
   color: inherit;
 }
 button:disabled { cursor: not-allowed; opacity: 0.55; }
+/* QA #4：答題後選項不可用整卡 opacity（會把正解／✓ 壓到對比不足） */
+.opt:disabled { opacity: 1; cursor: default; }
 button:focus-visible,
 a:focus-visible {
   outline: 2px solid var(--focus);
@@ -106,8 +110,9 @@ a:focus-visible {
   padding: 14px 16px;
   color: var(--text);
 }
-.rules p { margin: 0 0 4px; }
+.rules p { margin: 0 0 4px; text-wrap: pretty; }
 .rules p:last-child { margin-bottom: 0; }
+.nowrap { white-space: nowrap; }
 
 .highscore {
   margin: 16px 0;
@@ -159,7 +164,6 @@ a:focus-visible {
   color: var(--text-sub);
   font-size: 15px;
 }
-.q-index { font-size: 20px; font-weight: 700; color: var(--text); }
 .progress-track,
 .timer-track,
 .clip-track {
@@ -174,10 +178,12 @@ a:focus-visible {
 .clip-track > i {
   display: block;
   height: 100%;
-  width: 0%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
   background: var(--sage);
   border-radius: inherit;
-  transition: width 200ms linear;
+  transition: transform 200ms linear;
 }
 .timer-row {
   display: grid;
@@ -189,12 +195,19 @@ a:focus-visible {
 .timer-track { height: 12px; }
 .timer-track > i {
   background: var(--accent-edge);
-  transition: width 100ms linear, background-color 200ms ease;
+  transition: transform 100ms linear, background-color 200ms ease;
 }
 .timer-row.is-urgent .timer-track > i { background: var(--accent-urgent); }
 .timer-row.is-urgent .timer-label { font-weight: 700; color: var(--accent-urgent); }
 .timer-row.is-paused .timer-label { color: var(--text-sub); font-weight: 600; }
 .timer-label { font-size: 15px; white-space: nowrap; min-width: 7.5em; text-align: right; }
+.q-index {
+  margin: 4px 0 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
 
 .play-panel {
   position: relative;
@@ -205,12 +218,13 @@ a:focus-visible {
 }
 .btn-replay {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  min-width: 72px;
-  height: 40px;
+  top: 10px;
+  right: 10px;
+  min-width: 88px;
+  min-height: 44px;
+  height: 44px;
   padding: 0 14px;
-  border-radius: 20px;
+  border-radius: 22px;
   background: var(--surface);
   color: var(--sage);
   border: 1.5px solid var(--sage);
@@ -219,6 +233,12 @@ a:focus-visible {
   transition: transform 100ms ease;
 }
 .btn-replay:not(:disabled):active { transform: scale(0.97); }
+.btn-play.is-loading {
+  opacity: 0.85;
+}
+.btn-play.is-loading .ico-play,
+.btn-play.is-loading .ico-pause { display: none; }
+.btn-play.is-loading .play-hint { display: grid; }
 
 .btn-play {
   width: 96px;
@@ -304,7 +324,8 @@ a:focus-visible {
   background: var(--surface);
   border: 1.5px solid var(--line);
   text-align: left;
-  transition: transform 100ms ease, border-color 200ms ease, opacity 200ms ease;
+  box-shadow: inset 0 0 0 0 transparent;
+  transition: transform 100ms ease, border-color 200ms ease, box-shadow 200ms ease, color 200ms ease;
 }
 .opt:not(:disabled):active { transform: scale(0.97); }
 .opt-letter {
@@ -318,26 +339,34 @@ a:focus-visible {
   font-family: var(--font-song);
   font-size: 18px;
   font-weight: 600;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .opt-tag {
   flex: none;
   font-size: 13px;
   font-weight: 700;
 }
+/* QA #16：框線粗細固定，用 box-shadow 加粗，避免文字位移 */
 .opt.is-correct {
-  border-width: 3px;
   border-color: var(--ok);
   border-style: solid;
+  box-shadow: inset 0 0 0 1.5px var(--ok);
 }
 .opt.is-correct .opt-tag { color: var(--ok); }
 .opt.is-wrong {
-  border-width: 3px;
   border-color: var(--bad);
   border-style: dashed;
+  box-shadow: inset 0 0 0 1.5px var(--bad);
 }
 .opt.is-wrong .opt-tag { color: var(--bad); }
-.opt.is-dim { opacity: 0.45; }
+/* QA #4：未選選項用文字色降對比，不用整卡 opacity */
+.opt.is-dim {
+  opacity: 1;
+  color: var(--dim-text);
+  border-color: #B7C0B5;
+}
+.opt.is-dim .opt-letter,
+.opt.is-dim .opt-title { color: var(--dim-text); }
 
 .feedback-card {
   margin-top: 14px;
@@ -355,8 +384,9 @@ a:focus-visible {
   min-height: 44px;
   padding: 8px 14px;
   border-radius: 22px;
-  border: 1.5px solid var(--sage);
-  color: var(--sage);
+  border: 1.5px solid var(--sage-mv);
+  background: var(--surface);
+  color: var(--sage-mv);
   text-decoration: none;
   font-weight: 700;
   display: inline-flex;
@@ -367,11 +397,25 @@ a:focus-visible {
   text-align: center;
   color: var(--text-sub);
 }
+.next-bar {
+  margin-top: 14px;
+}
+/* QA #10：窄螢幕回饋時下一題固定在拇指區 */
+@media (max-width: 430px) {
+  #screen-quiz.is-feedback .next-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: 12px -8px 0;
+    padding: 10px 8px calc(10px + var(--safe-b));
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+  }
+}
 .btn-primary {
   display: block;
   width: 100%;
   height: 56px;
-  margin-top: 14px;
+  margin-top: 0;
   border-radius: 28px;
   background: var(--accent);
   color: var(--on-accent);
@@ -381,6 +425,7 @@ a:focus-visible {
   transition: transform 100ms ease;
 }
 .btn-primary:not(:disabled):active { transform: scale(0.97); }
+.result-shell .btn-primary { margin-top: 14px; }
 @media (hover: hover) {
   .btn-primary:not(:disabled):hover,
   .btn-mv:hover,
@@ -410,43 +455,65 @@ a:focus-visible {
 }
 .result-shell .btn-primary { max-width: 320px; margin-left: auto; margin-right: auto; }
 
+/* QA #5：拿掉內層 max-height，改整頁捲動，10 列一次看完 */
+.review-wrap { margin-bottom: 8px; }
 .review {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: min(52vh, 420px);
-  overflow: auto;
-  margin-bottom: 12px;
-  -webkit-overflow-scrolling: touch;
+  margin-bottom: 4px;
 }
 .review-row {
-  display: grid;
-  grid-template-columns: 28px 1fr auto auto auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  align-items: center;
   padding: 10px 12px;
   background: var(--surface);
   border: 1px solid var(--track);
   border-radius: 12px;
   font-size: 14px;
 }
+.review-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.review-title .num {
+  flex: none;
+  width: 1.5em;
+  color: var(--text-sub);
+  font-weight: 700;
+}
 .review-row .song {
   font-family: var(--font-song);
   font-weight: 600;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+.review-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding-left: calc(1.5em + 8px);
 }
 .review-row .mark { font-weight: 700; }
 .review-row .mark.ok { color: var(--ok); }
 .review-row .mark.bad { color: var(--bad); }
 .review-row .meta { color: var(--text-sub); font-size: 12px; white-space: nowrap; }
-.review-row a {
-  color: var(--sage);
+.review-row .mv-link {
+  color: var(--sage-mv);
   font-weight: 700;
   text-decoration: none;
   font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -10px 0;
+  padding: 0 10px;
 }
 
 /* —— 繼續遮罩 —— */
@@ -479,11 +546,9 @@ a:focus-visible {
 }
 
 @media (max-width: 360px) {
-  .review-row {
-    grid-template-columns: 22px 1fr auto auto auto;
-    font-size: 12px;
-  }
+  .review-row { font-size: 13px; }
   .review-row .meta { font-size: 11px; }
+  .brand { font-size: 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

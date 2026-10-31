@@ -2,14 +2,23 @@ import {
   STORAGE_KEY,
   commentFor,
   createCountdown,
+  isBenignPlayAbort,
+  isPlayButtonDisabledWhileLoading,
   normalizeBest,
   potentialPoints,
   prepareRound,
   scoreFor,
+  shouldAutoRetryAudio,
+  shouldCountPlayFromStartAsReplay,
+  shouldResumeCountdownAfterContinue,
+  shouldResumeCountdownOnReplayEnded,
+  shouldSuppressPlayingWhileHidden,
   shouldUpdateBest,
   taiwanDate,
   TimerState,
 } from './logic.js';
+
+const TEST_MODE = new URLSearchParams(location.search).has('test');
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 
@@ -39,6 +48,11 @@ let blockedAutoplay = false;
 let firstSoundHeard = false;
 /** 目前這段重播是否仍算「重播中」（含暫停後續播） */
 let inReplaySegment = false;
+/** 背景中斷流程中（隱藏或等待按「繼續」），避免遮罩下偷播 */
+let pageHidden = false;
+/** prefers-reduced-motion：倒數條每秒跳一格 */
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let lastTimerDisplaySec = -1;
 
 const el = {
   start: document.getElementById('screen-start'),
@@ -174,11 +188,26 @@ function updateListenHint(mode) {
   el.listenHint.textContent = `已聽 ${listens} 次・本題可得 ${potentialPoints(listens)} 分`;
 }
 
+function timerBarPct(rem, total) {
+  if (timer.state === TimerState.IDLE) return 100;
+  if (reduceMotion) {
+    const sec = Math.max(0, Math.ceil(rem / 1000));
+    const totalSec = Math.round(total / 1000);
+    return totalSec ? (sec / totalSec) * 100 : 0;
+  }
+  return (rem / total) * 100;
+}
+
 function updateTimerUi() {
   const rem = timer.remainingMs;
   const total = (data?.seconds ?? 15) * 1000;
-  const pct = timer.state === TimerState.IDLE ? 100 : (rem / total) * 100;
-  el.timerBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+  const sec = timer.displaySeconds();
+  // 減少動態：寬度只在秒數變化時更新（每秒一格）
+  if (!reduceMotion || sec !== lastTimerDisplaySec || timer.state === TimerState.IDLE || timer.state === TimerState.ENDED) {
+    lastTimerDisplaySec = sec;
+    const pct = timerBarPct(rem, total);
+    el.timerBar.style.transform = `scaleX(${Math.max(0, Math.min(1, pct / 100))})`;
+  }
 
   const urgent = rem <= 5000 && timer.state !== TimerState.IDLE && timer.state !== TimerState.ENDED;
   el.timerRow.classList.toggle('is-urgent', urgent);
@@ -191,7 +220,23 @@ function updateTimerUi() {
   } else if (timer.state === TimerState.PAUSED && timer.pauseReason === 'replay') {
     el.timerLabel.textContent = '重播中，倒數暫停';
   } else {
-    el.timerLabel.textContent = `剩 ${timer.displaySeconds()} 秒`;
+    el.timerLabel.textContent = `剩 ${sec} 秒`;
+  }
+}
+
+function syncPlayEnabled() {
+  const disable = isPlayButtonDisabledWhileLoading({
+    firstSoundHeard,
+    loadFailed,
+    blockedAutoplay,
+  });
+  el.btnPlay.disabled = disable && !answered;
+  el.btnPlay.classList.toggle('is-loading', disable && !blockedAutoplay && !loadFailed && !answered);
+  if (disable && !blockedAutoplay && !loadFailed && !answered) {
+    el.playHint.textContent = '載入中';
+    el.playHint.classList.remove('hidden');
+  } else if (!blockedAutoplay) {
+    el.playHint.classList.add('hidden');
   }
 }
 
@@ -218,7 +263,7 @@ function updateClipProgress() {
   const dur = a.duration;
   const cur = a.currentTime || 0;
   if (Number.isFinite(dur) && dur > 0) {
-    el.clipBar.style.width = `${(cur / dur) * 100}%`;
+    el.clipBar.style.transform = `scaleX(${Math.max(0, Math.min(1, cur / dur))})`;
     el.clipDur.textContent = fmtTime(dur);
   }
   el.clipCur.textContent = fmtTime(cur);
@@ -292,7 +337,6 @@ function playCurrent({ fromStart = false, asReplay = false, asFeedback = false }
   loadFailed = false;
   el.audioError.classList.add('hidden');
   el.btnPlay.classList.remove('is-blocked');
-  el.playHint.classList.add('hidden');
 
   if (asFeedback) {
     playPhase = 'feedback';
@@ -315,17 +359,27 @@ function playCurrent({ fromStart = false, asReplay = false, asFeedback = false }
     } catch { /* ignore */ }
   }
 
+  syncPlayEnabled();
+
   const p = a.play();
   if (p && typeof p.then === 'function') {
     return p.then(() => {
       setPlayingUi(true);
       blockedAutoplay = false;
+      syncPlayEnabled();
     }).catch((err) => {
       setPlayingUi(false);
+      if (isBenignPlayAbort(err)) {
+        // 載入中連按／切背景造成的中斷：不重試、不誤計
+        return;
+      }
       if (err && err.name === 'NotAllowedError') {
         blockedAutoplay = true;
         el.btnPlay.classList.add('is-blocked');
+        el.btnPlay.disabled = false;
+        el.playHint.textContent = '點我播放';
         el.playHint.classList.remove('hidden');
+        el.btnPlay.classList.remove('is-loading');
         return;
       }
       onAudioError();
@@ -336,12 +390,20 @@ function playCurrent({ fromStart = false, asReplay = false, asFeedback = false }
 }
 
 function onAudioError() {
-  if (!autoRetryUsed && !answered) {
+  if (!autoRetryUsed && !answered && shouldAutoRetryAudio({ pageHidden: pageHidden || !el.resumeMask.hidden })) {
     autoRetryUsed = true;
     const item = currentItem();
     el.audio.src = item.question.audio + `?retry=${Date.now()}`;
     el.audio.load();
-    el.audio.play().catch(() => showAudioFail());
+    el.audio.play().catch((err) => {
+      if (isBenignPlayAbort(err)) return;
+      showAudioFail();
+    });
+    return;
+  }
+  // 隱藏中：不自動重試，也不立刻跳失敗（等回來再處理）；已用過重試則顯示失敗
+  if (pageHidden || !el.resumeMask.hidden) {
+    if (autoRetryUsed) return;
     return;
   }
   showAudioFail();
@@ -373,23 +435,26 @@ function beginQuestion(syncPlay) {
   timer = createCountdown({ durationMs: (data.seconds || 15) * 1000 });
   el.feedbackCard.classList.add('hidden');
   el.btnNext.classList.add('hidden');
+  el.quiz.classList.remove('is-feedback');
   el.btnNext.disabled = true;
   el.footerHint.classList.remove('hidden');
   el.footerHint.textContent = '選一個答案吧';
   el.audioError.classList.add('hidden');
   el.btnPlay.classList.remove('is-blocked', 'is-playing');
-  el.playHint.classList.add('hidden');
   el.btnReplay.disabled = true;
   el.btnReplay.textContent = '重播';
+  el.btnReplay.removeAttribute('aria-label');
+  lastTimerDisplaySec = -1;
 
   const item = currentItem();
   el.quizPlayer.textContent = `玩家：${player}`;
   el.quizScore.textContent = `總分 ${totalScore}`;
   el.quizIndex.textContent = `第 ${qIndex + 1} 題／共 10 題`;
-  el.quizProgress.style.width = `${((qIndex) / 10) * 100}%`;
+  el.quizProgress.style.transform = `scaleX(${qIndex / 10})`;
   updateListenHint('play');
   renderOptions(false);
   updateTimerUi();
+  syncPlayEnabled();
   startTimerUi();
 
   // 設定 src 並同步 play（iOS）
@@ -404,10 +469,25 @@ function beginQuestion(syncPlay) {
 function onFirstSound() {
   if (answered) return;
   if (playPhase === 'feedback') return;
+  if (
+    shouldSuppressPlayingWhileHidden({
+      pageHidden,
+      resumeVisible: !el.resumeMask.hidden,
+      firstSoundHeard,
+    })
+  ) {
+    // QA #3：遮罩／背景期間尚未發聲 → 立刻暫停，倒數保持 idle
+    try {
+      el.audio.pause();
+    } catch { /* ignore */ }
+    setPlayingUi(false);
+    return;
+  }
   if (!firstSoundHeard && playPhase === 'first') {
     firstSoundHeard = true;
     timer.start();
     el.btnReplay.disabled = false;
+    syncPlayEnabled();
     updateTimerUi();
   }
 }
@@ -453,25 +533,26 @@ function finishQuestion({ picked, timedOut, skipped }) {
   el.footerHint.classList.add('hidden');
   el.btnReplay.textContent = '再聽一次';
   el.btnReplay.disabled = false;
+  el.btnPlay.disabled = false;
+  el.btnPlay.classList.remove('is-loading');
   el.quizScore.textContent = `總分 ${totalScore}`;
-  el.quizProgress.style.width = `${((qIndex + 1) / 10) * 100}%`;
+  el.quizProgress.style.transform = `scaleX(${(qIndex + 1) / 10})`;
 
-  let msg;
   if (skipped) {
-    msg = `這題跳過了，正確歌名是 ${correctTitle}`;
+    el.fbText.innerHTML = `這題跳過了，<span class="nowrap">正確歌名是 ${escapeHtml(correctTitle)}</span>`;
   } else if (timedOut) {
-    msg = `時間到！本題 0 分　正確歌名：${correctTitle}`;
+    el.fbText.innerHTML = `時間到！本題 0 分　<span class="nowrap">正確歌名：${escapeHtml(correctTitle)}</span>`;
   } else if (correct) {
-    msg = `答對了！＋${points} 分`;
+    el.fbText.textContent = `答對了！＋${points} 分`;
   } else {
-    msg = `差一點！本題 0 分　正確歌名：${correctTitle}`;
+    el.fbText.innerHTML = `差一點！本題 0 分　<span class="nowrap">正確歌名：${escapeHtml(correctTitle)}</span>`;
   }
-  el.fbText.textContent = msg;
   el.btnMv.href = item.question.youtube;
   el.feedbackCard.classList.remove('hidden');
 
   el.btnNext.textContent = qIndex >= 9 ? '看結果' : '下一題 →';
   el.btnNext.classList.remove('hidden');
+  el.quiz.classList.add('is-feedback');
   el.btnNext.disabled = true;
   nextArmedAt = performance.now() + 400;
   setTimeout(() => {
@@ -533,12 +614,14 @@ function showResult() {
     }
     const listenCell = a.skipped ? '—' : `${a.listens}次`;
     row.innerHTML =
-      `<span>${i + 1}</span>` +
-      `<span class="song" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</span>` +
-      `<span class="mark ${markClass}" aria-label="${markLabel}">${mark}</span>` +
+      `<div class="review-title"><span class="num">${i + 1}</span>` +
+      `<span class="song" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</span></div>` +
+      `<div class="review-meta">` +
+      `<span class="mark ${markClass}">${mark}</span>` +
       `<span class="meta">${listenCell}</span>` +
       `<span class="meta">${a.points}分</span>` +
-      `<a href="${a.youtube}" target="_blank" rel="noopener">MV</a>`;
+      `<a class="mv-link" href="${a.youtube}" target="_blank" rel="noopener">MV</a>` +
+      `</div>`;
     el.reviewList.appendChild(row);
   });
 }
@@ -559,21 +642,37 @@ function startRound(who, gesture) {
 function hideResume() {
   el.resumeMask.classList.add('hidden');
   el.resumeMask.hidden = true;
+  el.quiz.removeAttribute('inert');
+  el.resumeMask.removeAttribute('aria-modal');
 }
 
 function showResume() {
   el.resumeMask.classList.remove('hidden');
   el.resumeMask.hidden = false;
+  el.resumeMask.setAttribute('role', 'dialog');
+  el.resumeMask.setAttribute('aria-modal', 'true');
+  el.resumeMask.setAttribute('aria-label', '繼續測驗');
+  el.quiz.setAttribute('inert', '');
+  // 焦點移到「繼續」，避免 Tab 進到遮罩下方
+  queueMicrotask(() => el.btnResume.focus());
 }
 
 /* —— 事件 —— */
 el.btnPlay.addEventListener('click', () => {
+  if (!el.resumeMask.hidden) return;
   if (answered && playPhase !== 'feedback') return;
   const a = el.audio;
   if (blockedAutoplay) {
     // 第一次手動播放＝已聽 1
     listens = 1;
     playCurrent({ fromStart: true });
+    return;
+  }
+  // QA #2：第一次發聲前不可操作（disabled）；雙保險
+  if (
+    isPlayButtonDisabledWhileLoading({ firstSoundHeard, loadFailed, blockedAutoplay }) &&
+    !answered
+  ) {
     return;
   }
   if (!a.paused && !a.ended) {
@@ -591,14 +690,18 @@ el.btnPlay.addEventListener('click', () => {
   }
   // 暫停後續播或播完再播
   if (a.ended || a.currentTime === 0 || a.currentTime >= (a.duration || 0) - 0.05) {
-    // 從頭播：算重播（回饋除外）
     if (!answered) {
-      listens += 1;
-      updateListenHint('play');
-      if (timer.state === TimerState.RUNNING) timer.pause('replay');
-      inReplaySegment = true;
-      playPhase = 'replay';
-      playCurrent({ fromStart: true, asReplay: true });
+      // QA #2：第一次發聲前不算重播
+      if (shouldCountPlayFromStartAsReplay({ firstSoundHeard, answered })) {
+        listens += 1;
+        updateListenHint('play');
+        if (timer.state === TimerState.RUNNING) timer.pause('replay');
+        inReplaySegment = true;
+        playPhase = 'replay';
+        playCurrent({ fromStart: true, asReplay: true });
+      } else {
+        playCurrent({ fromStart: true, asReplay: false });
+      }
     } else {
       playCurrent({ fromStart: true, asFeedback: true });
     }
@@ -648,21 +751,38 @@ el.btnSkipQ.addEventListener('click', () => {
   finishQuestion({ picked: null, timedOut: false, skipped: true });
 });
 el.btnResume.addEventListener('click', () => {
+  pageHidden = false;
   hideResume();
-  const bgPaused = timer.state === TimerState.PAUSED && timer.pauseReason === 'background';
+  const reason = timer.pauseReason;
+  const audioPlaying = !el.audio.paused && !el.audio.ended;
 
   // 續播音樂（同一使用者手勢內同步 play，重取 iOS 播放權）
   if (wasPlayingBeforeHide || timer.state === TimerState.IDLE) {
-    if (inReplaySegment && !answered) {
+    if (inReplaySegment && !answered && wasPlayingBeforeHide) {
       playCurrent({ fromStart: false, asReplay: true });
-    } else {
+    } else if (timer.state === TimerState.IDLE && !firstSoundHeard) {
       playCurrent({ fromStart: false });
+    } else if (wasPlayingBeforeHide) {
+      playCurrent({ fromStart: false, asReplay: inReplaySegment && !answered });
     }
   }
 
-  // 背景造成的倒數暫停：恢復；若離開前正在重播，倒數維持暫停到重播結束
-  if (bgPaused && !inReplaySegment) {
+  // QA #1：背景暫停後，若不是「正在播放的重播」就 resume
+  if (
+    shouldResumeCountdownAfterContinue({
+      pauseReason: reason,
+      inReplaySegment,
+      audioPlaying: wasPlayingBeforeHide || audioPlaying,
+    })
+  ) {
     timer.resume();
+  } else if (inReplaySegment && (wasPlayingBeforeHide || audioPlaying) && timer.state === TimerState.PAUSED) {
+    // 維持暫停；確保 reason 記成 replay，方便 ended 時恢復
+    if (timer.pauseReason === 'background') {
+      // 轉記為 replay 語意（仍暫停）
+      timer.resume();
+      timer.pause('replay');
+    }
   }
   updateTimerUi();
 });
@@ -683,7 +803,10 @@ el.audio.addEventListener('ended', () => {
   setPlayingUi(false);
   if (!answered && inReplaySegment) {
     inReplaySegment = false;
-    if (timer.state === TimerState.PAUSED && timer.pauseReason === 'replay') {
+    if (
+      timer.state === TimerState.PAUSED &&
+      shouldResumeCountdownOnReplayEnded(timer.pauseReason)
+    ) {
       timer.resume();
       updateTimerUi();
     }
@@ -699,6 +822,7 @@ el.audio.addEventListener('error', () => {
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
+    pageHidden = true;
     wasPlayingBeforeHide = !el.audio.paused && !el.audio.ended;
     if (!el.audio.paused) el.audio.pause();
     const onQuizAnswering = el.quiz.classList.contains('is-active') && !answered;
@@ -782,80 +906,90 @@ async function boot() {
 
 boot();
 
-// 測試／截圖輔助（僅供 Playwright／除錯）
-window.__stayQuiz = {
-  get state() {
-    return {
-      player,
-      qIndex,
-      totalScore,
-      listens,
-      answered,
-      timerState: timer.state,
-      remainingMs: timer.remainingMs,
-      pauseReason: timer.pauseReason,
-      inReplaySegment,
-      firstSoundHeard,
-      playPhase,
-    };
-  },
-  scoreFor,
-  potentialPoints,
-  readBest,
-  writeBest,
-  startRound,
-  forceTimeout: () => onTimeout(),
-  /** 模擬第一次發聲（倒數開始） */
-  forceFirstSound() {
-    if (!firstSoundHeard) {
+// QA #15：測試 hook 僅在 ?test 時掛上，正式頁面不可作弊
+if (TEST_MODE) {
+  window.__stayQuiz = {
+    get state() {
+      return {
+        player,
+        qIndex,
+        totalScore,
+        listens,
+        answered,
+        timerState: timer.state,
+        remainingMs: timer.remainingMs,
+        pauseReason: timer.pauseReason,
+        inReplaySegment,
+        firstSoundHeard,
+        playPhase,
+      };
+    },
+    scoreFor,
+    potentialPoints,
+    readBest,
+    writeBest,
+    startRound,
+    forceTimeout: () => onTimeout(),
+    forceFirstSound() {
+      if (firstSoundHeard) return;
       playPhase = 'first';
-      onFirstSound();
-    }
-  },
-  /** 把剩餘毫秒設成指定值（未開始則先 start） */
-  injectRemaining(ms) {
-    if (timer.state === TimerState.IDLE) {
-      playPhase = 'first';
-      onFirstSound();
-    }
-    timer._injectRemaining(ms);
-    updateTimerUi();
-  },
-  /** 測試用：強制計時中並設剩餘（清掉重播／背景暫停） */
-  forceRunning(ms) {
-    inReplaySegment = false;
-    if (timer.state === TimerState.IDLE) {
-      playPhase = 'first';
-      onFirstSound();
-    } else if (timer.state === TimerState.PAUSED) {
-      timer.resume();
-    } else if (timer.state === TimerState.ENDED) {
-      timer.reset();
+      firstSoundHeard = true;
       timer.start();
-    }
-    timer._injectRemaining(ms);
-    updateTimerUi();
-  },
-  pauseReplay() {
-    if (timer.state === TimerState.RUNNING) timer.pause('replay');
-    inReplaySegment = true;
-    updateTimerUi();
-  },
-  showResumeMask() {
-    if (timer.state === TimerState.RUNNING) timer.pause('background');
-    showResume();
-    updateTimerUi();
-  },
-  hideResumeMask: hideResume,
-  pickCorrect() {
-    const title = currentItem().question.title;
-    onPick(title);
-  },
-  pickWrong() {
-    const item = currentItem();
-    const wrong = item.choices.find((c) => c !== item.question.title);
-    onPick(wrong);
-  },
-  goResult: showResult,
-  updateTimerUi,
-};
+      el.btnReplay.disabled = false;
+      syncPlayEnabled();
+      updateTimerUi();
+    },
+    injectRemaining(ms) {
+      if (timer.state === TimerState.IDLE) {
+        playPhase = 'first';
+        firstSoundHeard = true;
+        timer.start();
+        syncPlayEnabled();
+      }
+      timer._injectRemaining(ms);
+      updateTimerUi();
+    },
+    forceRunning(ms) {
+      inReplaySegment = false;
+      if (timer.state === TimerState.IDLE) {
+        playPhase = 'first';
+        firstSoundHeard = true;
+        timer.start();
+        syncPlayEnabled();
+      } else if (timer.state === TimerState.PAUSED) {
+        timer.resume();
+      } else if (timer.state === TimerState.ENDED) {
+        timer.reset();
+        timer.start();
+      }
+      timer._injectRemaining(ms);
+      updateTimerUi();
+    },
+    pauseReplay() {
+      if (timer.state === TimerState.RUNNING) timer.pause('replay');
+      inReplaySegment = true;
+      updateTimerUi();
+    },
+    showResumeMask() {
+      if (timer.state === TimerState.RUNNING) timer.pause('background');
+      pageHidden = true;
+      showResume();
+      updateTimerUi();
+    },
+    hideResumeMask() {
+      pageHidden = false;
+      hideResume();
+    },
+    pickCorrect() {
+      const title = currentItem().question.title;
+      onPick(title);
+    },
+    pickWrong() {
+      const item = currentItem();
+      const wrong = item.choices.find((c) => c !== item.question.title);
+      onPick(wrong);
+    },
+    goResult: showResult,
+    updateTimerUi,
+  };
+}

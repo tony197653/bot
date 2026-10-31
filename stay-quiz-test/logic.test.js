@@ -4,21 +4,28 @@ import {
   buildChoices,
   commentFor,
   createCountdown,
+  isBenignPlayAbort,
+  isPlayButtonDisabledWhileLoading,
   normalizeBest,
   potentialPoints,
   prepareRound,
   sampleDistractors,
   scoreFor,
+  shouldAutoRetryAudio,
+  shouldCountPlayFromStartAsReplay,
+  shouldResumeCountdownAfterContinue,
+  shouldResumeCountdownOnReplayEnded,
+  shouldSuppressPlayingWhileHidden,
   shouldUpdateBest,
   shuffle,
   TimerState,
-} from '../logic.js';
+} from '../stay-quiz/logic.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const data = JSON.parse(readFileSync(join(__dirname, '../data/questions.json'), 'utf8'));
+const data = JSON.parse(readFileSync(join(__dirname, '../stay-quiz/data/questions.json'), 'utf8'));
 
 describe('計分 scoreFor', () => {
   it('聽 1 次答對＝10、2＝9、3＝8、5＝8', () => {
@@ -202,6 +209,178 @@ describe('倒數暫停／恢復', () => {
     t += 2000;
     assert.equal(c.state, TimerState.PAUSED);
     assert.equal(c.remainingMs, 9500);
+  });
+});
+
+describe('QA #1 重播暫停＋背景＋繼續（倒數不可永久凍結）', () => {
+  it('重播中暫停後切背景，繼續時即使 inReplaySegment 仍應 resume（音訊未在播）', () => {
+    let t = 0;
+    const c = createCountdown({ durationMs: 15000, now: () => t });
+    c.start();
+    t += 1200;
+    c.pause('replay'); // 按重播
+    t += 400;
+    c.resume(); // 重播中按暫停 → 倒數恢復
+    t += 300;
+    assert.equal(c.state, TimerState.RUNNING);
+    c.pause('background'); // 切背景
+    const inReplaySegment = true;
+    const audioPlaying = false;
+
+    // 舊邏輯 bug：`bgPaused && !inReplaySegment` → false，倒數永遠卡住
+    const buggyWouldResume = c.pauseReason === 'background' && !inReplaySegment;
+    assert.equal(buggyWouldResume, false);
+
+    assert.equal(
+      shouldResumeCountdownAfterContinue({
+        pauseReason: c.pauseReason,
+        inReplaySegment,
+        audioPlaying,
+      }),
+      true,
+    );
+    assert.ok(c.resume());
+    t += 1000;
+    assert.equal(c.state, TimerState.RUNNING);
+    assert.equal(c.remainingMs, 15000 - 1200 - 300 - 1000);
+  });
+
+  it('背景回來時若重播音訊仍在播，倒數維持暫停', () => {
+    assert.equal(
+      shouldResumeCountdownAfterContinue({
+        pauseReason: 'background',
+        inReplaySegment: true,
+        audioPlaying: true,
+      }),
+      false,
+    );
+  });
+
+  it('重播 ended 時 background 暫停也要恢復（與 replay 同等）', () => {
+    assert.equal(shouldResumeCountdownOnReplayEnded('replay'), true);
+    assert.equal(shouldResumeCountdownOnReplayEnded('background'), true);
+    assert.equal(shouldResumeCountdownOnReplayEnded(null), false);
+
+    let t = 0;
+    const c = createCountdown({ durationMs: 15000, now: () => t });
+    c.start();
+    t += 2000;
+    c.pause('replay');
+    // 重播中又被背景蓋成 background（可見性）
+    // 模擬：先 resume 再 background — 實際 app 在 RUNNING 時才 background
+    // 此處直接：重播暫停中不會再 background；但 ended 時若仍是 background（#1 變體）
+    c.resume();
+    t += 100;
+    c.pause('background');
+    assert.equal(shouldResumeCountdownOnReplayEnded(c.pauseReason), true);
+    c.resume();
+    assert.equal(c.state, TimerState.RUNNING);
+  });
+});
+
+describe('QA #2 載入中播放鍵與重播誤計', () => {
+  it('第一次發聲前播放鍵應停用', () => {
+    assert.equal(
+      isPlayButtonDisabledWhileLoading({
+        firstSoundHeard: false,
+        loadFailed: false,
+        blockedAutoplay: false,
+      }),
+      true,
+    );
+    assert.equal(
+      isPlayButtonDisabledWhileLoading({
+        firstSoundHeard: true,
+        loadFailed: false,
+        blockedAutoplay: false,
+      }),
+      false,
+    );
+    // 自動播放被擋時要能按「點我播放」
+    assert.equal(
+      isPlayButtonDisabledWhileLoading({
+        firstSoundHeard: false,
+        loadFailed: false,
+        blockedAutoplay: true,
+      }),
+      false,
+    );
+  });
+
+  it('第一次發聲前從頭播放不算重播', () => {
+    assert.equal(
+      shouldCountPlayFromStartAsReplay({ firstSoundHeard: false, answered: false }),
+      false,
+    );
+    assert.equal(
+      shouldCountPlayFromStartAsReplay({ firstSoundHeard: true, answered: false }),
+      true,
+    );
+  });
+
+  it('AbortError 視為良性中斷，不走音檔失敗', () => {
+    assert.equal(isBenignPlayAbort({ name: 'AbortError' }), true);
+    assert.equal(isBenignPlayAbort({ name: 'NotAllowedError' }), false);
+    assert.equal(isBenignPlayAbort({ name: 'NotSupportedError' }), false);
+  });
+});
+
+describe('QA #3 載入中切背景不可偷播／偷跑倒數', () => {
+  it('頁面隱藏時不做自動重試', () => {
+    assert.equal(shouldAutoRetryAudio({ pageHidden: true }), false);
+    assert.equal(shouldAutoRetryAudio({ pageHidden: false }), true);
+  });
+
+  it('隱藏或繼續遮罩期間、尚未發聲：playing 應被抑制', () => {
+    assert.equal(
+      shouldSuppressPlayingWhileHidden({
+        pageHidden: true,
+        resumeVisible: false,
+        firstSoundHeard: false,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldSuppressPlayingWhileHidden({
+        pageHidden: false,
+        resumeVisible: true,
+        firstSoundHeard: false,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldSuppressPlayingWhileHidden({
+        pageHidden: false,
+        resumeVisible: false,
+        firstSoundHeard: false,
+      }),
+      false,
+    );
+    // 已發聲後的背景續播由「繼續」處理，不走抑制
+    assert.equal(
+      shouldSuppressPlayingWhileHidden({
+        pageHidden: true,
+        resumeVisible: true,
+        firstSoundHeard: true,
+      }),
+      false,
+    );
+  });
+
+  it('抑制期間倒數保持 idle', () => {
+    const c = createCountdown({ durationMs: 15000, now: () => 0 });
+    assert.equal(c.state, TimerState.IDLE);
+    // 模擬：playing 被抑制 → 不呼叫 start
+    if (
+      !shouldSuppressPlayingWhileHidden({
+        pageHidden: true,
+        resumeVisible: true,
+        firstSoundHeard: false,
+      })
+    ) {
+      c.start();
+    }
+    assert.equal(c.state, TimerState.IDLE);
   });
 });
 

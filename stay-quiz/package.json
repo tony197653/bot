@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/*.test.js",
-    "capture": "node test/capture.mjs"
+    "test": "node --test ../stay-quiz-test/logic.test.js",
+    "capture": "node ../stay-quiz-test/capture.mjs"
   }
 }

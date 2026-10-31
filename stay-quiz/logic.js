@@ -147,6 +147,68 @@ export const TimerState = {
 };
 
 /**
+ * QA #1：按「繼續」後是否應恢復倒數。
+ * 背景暫停後，若音訊並非「正在播放的重播」，一律 resume。
+ * （重播中使用者已暫停 → inReplaySegment 仍為 true，但音訊沒在播 → 必須 resume）
+ * @param {{ pauseReason: string|null, inReplaySegment: boolean, audioPlaying: boolean }} s
+ */
+export function shouldResumeCountdownAfterContinue(s) {
+  if (s.pauseReason !== 'background') return false;
+  if (s.inReplaySegment && s.audioPlaying) return false;
+  return true;
+}
+
+/**
+ * QA #1：重播片段 ended 時，哪些 pauseReason 應恢復倒數。
+ * @param {string|null} pauseReason
+ */
+export function shouldResumeCountdownOnReplayEnded(pauseReason) {
+  return pauseReason === 'replay' || pauseReason === 'background';
+}
+
+/**
+ * QA #2：第一次發聲前，播放鍵應停用（載入中不可連按）。
+ * @param {{ firstSoundHeard: boolean, loadFailed: boolean, blockedAutoplay: boolean }} s
+ */
+export function isPlayButtonDisabledWhileLoading(s) {
+  if (s.loadFailed || s.blockedAutoplay) return false;
+  return !s.firstSoundHeard;
+}
+
+/**
+ * QA #2：是否應把這次從頭播放算成「重播」（已聽 +1）。
+ * 第一次發聲前不計重播。
+ * @param {{ firstSoundHeard: boolean, answered: boolean }} s
+ */
+export function shouldCountPlayFromStartAsReplay(s) {
+  return s.firstSoundHeard && !s.answered;
+}
+
+/**
+ * QA #2：play() 被中斷（AbortError）不應走音檔失敗／自動重試。
+ * @param {{ name?: string }|null|undefined} err
+ */
+export function isBenignPlayAbort(err) {
+  return !!(err && err.name === 'AbortError');
+}
+
+/**
+ * QA #3：頁面隱藏時不可自動重試 play（避免遮罩下偷播＋倒數偷跑）。
+ * @param {{ pageHidden: boolean }} s
+ */
+export function shouldAutoRetryAudio(s) {
+  return !s.pageHidden;
+}
+
+/**
+ * QA #3：隱藏期間若收到 playing，應立刻暫停且不啟動倒數。
+ * @param {{ pageHidden: boolean, resumeVisible: boolean, firstSoundHeard: boolean }} s
+ */
+export function shouldSuppressPlayingWhileHidden(s) {
+  return (s.pageHidden || s.resumeVisible) && !s.firstSoundHeard;
+}
+
+/**
  * 15 秒倒數狀態機（以剩餘毫秒記錄）。
  * @param {{durationMs?: number, now?: () => number}} [opts]
  */

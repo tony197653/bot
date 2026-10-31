@@ -6,20 +6,21 @@
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#F7F5F0">
 <title>STAY 猜歌測驗</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%235E7260'/%3E%3Cpath d='M10 22V10l12 6-12 6z' fill='%23F7F5F0'/%3E%3C/svg%3E">
 <link rel="preload" href="fonts/inter-latin-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <audio id="audio" preload="auto" playsinline></audio>
 
+<main id="app">
 <!-- ① 開始＋選玩家 -->
 <section id="screen-start" class="screen is-active" aria-label="開始畫面">
   <div class="shell start-shell">
     <h1 class="brand">STAY 猜歌測驗</h1>
-    <div class="hero" aria-hidden="true">
+    <div class="hero">
       <p class="hero-line">聽片段，選出正確歌名</p>
-      <svg class="wave" viewBox="0 0 280 56" role="img" aria-label="音樂波形插圖">
-        <title>音樂波形插圖</title>
+      <svg class="wave" viewBox="0 0 280 56" aria-hidden="true" focusable="false">
         <g fill="none" stroke="#5E7260" stroke-width="3" stroke-linecap="round">
           <path d="M8 28v0"/><path d="M20 18v20"/><path d="M32 10v36"/><path d="M44 22v12"/>
           <path d="M56 8v40"/><path d="M68 16v24"/><path d="M80 24v8"/><path d="M92 12v32"/>
@@ -32,8 +33,7 @@
     </div>
     <div class="rules" id="rulesBox">
       <p>・共 10 題，每題 4 選 1，15 秒內作答</p>
-      <p>・聽 1 次答對 10 分、2 次 9 分、</p>
-      <p>　3 次以上 8 分；答錯或逾時 0 分</p>
+      <p>・聽 1 次答對 10 分、2 次 9 分、3 次以上 8 分；答錯或逾時 0 分</p>
     </div>
     <p class="highscore" id="startHigh" aria-live="polite">還沒有紀錄</p>
     <p class="pick-label">選擇玩家，按下就開始</p>
@@ -46,17 +46,15 @@
   </div>
 </section>
 
-<!-- ②／③ 作答＋回饋（同一殼，狀態切換） -->
-<section id="screen-quiz" class="screen" aria-label="作答畫面" hidden>
+<!-- ②／③ 作答＋回饋 -->
+<section id="screen-quiz" class="screen" aria-labelledby="quizHeading" hidden>
   <div class="shell quiz-shell">
     <header class="quiz-top">
       <div class="quiz-top-row">
         <span id="quizPlayer">玩家：—</span>
         <span id="quizScore">總分 0</span>
       </div>
-      <div class="quiz-top-row quiz-progress-row">
-        <span class="q-index" id="quizIndex">第 1 題／共 10 題</span>
-      </div>
+      <h2 class="q-index" id="quizHeading"><span id="quizIndex">第 1 題／共 10 題</span></h2>
       <div class="progress-track" aria-hidden="true"><i id="quizProgress"></i></div>
     </header>
 
@@ -68,11 +66,11 @@
     <div class="quiz-body">
       <div class="play-col">
         <div class="play-panel" id="playPanel">
-          <button type="button" class="btn-replay" id="btnReplay" disabled aria-label="重播">重播</button>
-          <button type="button" class="btn-play" id="btnPlay" aria-label="播放">
+          <button type="button" class="btn-replay" id="btnReplay" disabled>重播</button>
+          <button type="button" class="btn-play" id="btnPlay" aria-label="播放" disabled>
             <svg class="ico-play" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
             <svg class="ico-pause" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
-            <span class="play-hint hidden" id="playHint">點我播放</span>
+            <span class="play-hint hidden" id="playHint">載入中</span>
           </button>
           <div class="clip-row">
             <div class="clip-track" aria-hidden="true"><i id="clipBar"></i></div>
@@ -96,25 +94,30 @@
           <a class="btn-mv" id="btnMv" href="#" target="_blank" rel="noopener">看 MV</a>
         </div>
         <p class="footer-hint" id="footerHint">選一個答案吧</p>
-        <button type="button" class="btn-primary hidden" id="btnNext" disabled>下一題 →</button>
+        <div class="next-bar">
+          <button type="button" class="btn-primary hidden" id="btnNext" disabled>下一題 →</button>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
 <!-- ④ 結果 -->
-<section id="screen-result" class="screen" aria-label="結果頁" hidden>
+<section id="screen-result" class="screen" aria-labelledby="resultHeading" hidden>
   <div class="shell result-shell">
     <div class="result-score-block">
-      <p class="result-score" id="resultScore">0／100</p>
+      <h1 class="result-score" id="resultHeading"><span id="resultScore">0／100</span></h1>
       <p class="result-comment" id="resultComment"></p>
       <p class="new-record hidden" id="newRecord">新紀錄！</p>
       <p class="highscore" id="resultHigh"></p>
     </div>
-    <div class="review" id="reviewList" aria-label="每題回顧"></div>
+    <div class="review-wrap">
+      <div class="review" id="reviewList" aria-label="每題回顧"></div>
+    </div>
     <button type="button" class="btn-primary" id="btnAgain">再玩一次</button>
   </div>
 </section>
+</main>
 
 <!-- 背景回來：繼續遮罩（僅作答中） -->
 <div id="resumeMask" class="resume-mask hidden" hidden>

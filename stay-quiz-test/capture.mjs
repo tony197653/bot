@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, '..');
+const ROOT = join(__dirname, '../stay-quiz');
 const OUT = '/opt/cursor/artifacts';
 mkdirSync(OUT, { recursive: true });
 
@@ -76,7 +76,7 @@ async function shot(page, name) {
 }
 
 async function waitReady(page, base) {
-  await page.goto(`${base}/index.html`, { waitUntil: 'networkidle' });
+  await page.goto(`${base}/index.html?test=1`, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => {
     const b = document.querySelector('.btn-player');
     return b && !b.disabled && b.textContent !== '準備中…';
@@ -238,28 +238,55 @@ const browser = await chromium.launch({
 });
 
 try {
-  const phone = await captureViewport(browser, base, 390, 844, '390');
-  const desk = await captureViewport(browser, base, 1280, 800, '1280');
+  const viewports = [
+    [320, 568, '320'],
+    [360, 640, '360'],
+    [390, 844, '390'],
+    [1280, 800, '1280'],
+    [1440, 900, '1440'],
+  ];
+  const runs = [];
+  for (const [w, h, tag] of viewports) {
+    runs.push(await captureViewport(browser, base, w, h, tag));
+  }
+
+  // reduced-motion：倒數條寬度應按整秒跳變
+  const rmPage = await browser.newPage();
+  const rmErrors = [];
+  await rmPage.emulateMedia({ reducedMotion: 'reduce' });
+  await rmPage.setViewportSize({ width: 390, height: 844 });
+  await quietConsole(rmPage, rmErrors);
+  await rmPage.addInitScript(() => { try { localStorage.clear(); } catch {} });
+  await waitReady(rmPage, base);
+  await rmPage.click('.btn-player[data-player="Stay"]');
+  await rmPage.waitForSelector('#screen-quiz.is-active');
+  await rmPage.evaluate(() => window.__stayQuiz.forceFirstSound());
+  const widths = [];
+  for (const ms of [14900, 14000, 13500, 12900, 12000, 11500]) {
+    await rmPage.evaluate((m) => window.__stayQuiz.forceRunning(m), ms);
+    const t = await rmPage.evaluate(() => getComputedStyle(document.getElementById('timerBar')).transform);
+    widths.push(t);
+  }
+  const uniqueWidths = new Set(widths);
+  // 6 個取樣對應約 15/14/13/12 秒 → unique 應明顯少於 6（每秒一格）
+  const reducedMotionOk = uniqueWidths.size <= 4 && rmErrors.length === 0;
+  await rmPage.close();
+
   const video = await recordFullPlay(browser, base);
 
   const report = {
     ok:
-      phone.consoleErrors.length === 0 &&
-      desk.consoleErrors.length === 0 &&
+      runs.every((r) => r.consoleErrors.length === 0 && r.overflow.every((o) => !o.overflow)) &&
       video.consoleErrors.length === 0 &&
-      phone.overflow.every((o) => !o.overflow) &&
-      desk.overflow.every((o) => !o.overflow) &&
-      !!video.video,
-    phone: {
-      consoleErrors: phone.consoleErrors,
-      overflow: phone.overflow,
-      files: phone.files,
-    },
-    desk: {
-      consoleErrors: desk.consoleErrors,
-      overflow: desk.overflow,
-      files: desk.files,
-    },
+      !!video.video &&
+      reducedMotionOk,
+    runs: runs.map((r, i) => ({
+      tag: viewports[i][2],
+      consoleErrors: r.consoleErrors,
+      overflow: r.overflow,
+      files: r.files,
+    })),
+    reducedMotion: { ok: reducedMotionOk, transforms: widths, errors: rmErrors },
     video,
   };
   console.log(JSON.stringify(report, null, 2));
