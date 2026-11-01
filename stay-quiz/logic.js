@@ -121,6 +121,21 @@ export function shouldUpdateBest(score, best) {
 }
 
 /**
+ * 「新紀錄！」徽章（與儲存規則分離，方便之後改同分行為）。
+ * 以同步後的權威顯示最高分為準：若畫面最高分高於本局、或同分但是他人，不顯示。
+ * 待 PM：同分是否顯示——將下一行 `>=` 改為 `>` 即可只認嚴格更高。
+ * @param {number} roundScore
+ * @param {string} roundPlayer
+ * @param {{score:number,player:string}|null|undefined} displayAfterSync
+ */
+export function isNewRecordBadge(roundScore, roundPlayer, displayAfterSync) {
+  if (!displayAfterSync || typeof displayAfterSync.score !== 'number') return true;
+  if (displayAfterSync.score > roundScore) return false;
+  if (displayAfterSync.score === roundScore && displayAfterSync.player !== roundPlayer) return false;
+  return roundScore >= displayAfterSync.score;
+}
+
+/**
  * 雲端寫入條件（對局結束）：缺雲端或新分 ≥ 雲端分。
  * @param {number} score
  * @param {number|null|undefined} cloudScore

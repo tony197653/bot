@@ -4,6 +4,7 @@ import {
   createCountdown,
   isBenignPlayAbort,
   isPlayButtonDisabledWhileLoading,
+  isNewRecordBadge,
   normalizeBest,
   pickDisplayBest,
   potentialPoints,
@@ -16,10 +17,14 @@ import {
   shouldSuppressPlayingWhileHidden,
   shouldUpdateBest,
   TimerState,
-  CLOUD_CACHE_KEY,
-  PENDING_KEY,
 } from './logic.js';
-import { bindOnlineFlush, loadBest, submitScore } from './sync.js';
+import {
+  bindOnlineFlush,
+  getCloudCache,
+  getPendingRecord,
+  loadBest,
+  submitScore,
+} from './sync.js';
 
 const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
 
@@ -167,36 +172,18 @@ function storageAvailable() {
   }
 }
 
-function readCloudCacheSafe() {
-  try {
-    const raw = localStorage.getItem(CLOUD_CACHE_KEY);
-    if (!raw) return null;
-    const v = JSON.parse(raw);
-    if (!v || typeof v.score !== 'number' || typeof v.player !== 'string') return null;
-    return v;
-  } catch {
-    return null;
-  }
-}
-
-function readPendingSafe() {
-  try {
-    const raw = localStorage.getItem(PENDING_KEY);
-    if (!raw) return null;
-    const v = JSON.parse(raw);
-    if (!v || typeof v.score !== 'number' || typeof v.player !== 'string') return null;
-    return v;
-  } catch {
-    return null;
-  }
-}
-
-/** 顯示規則：cloud／local／pending 取最高（同分取最新） */
+/** 顯示規則：cloud（含 mem）／local／pending 取最高（同分取最新） */
 function currentDisplayBest() {
-  return pickDisplayBest(readCloudCacheSafe(), readBest(), readPendingSafe());
+  return pickDisplayBest(getCloudCache(), readBest(), getPendingRecord());
 }
 
 function applyHighDisplay(best) {
+  // 無儲存且雲／本地皆無：與 main 相同隱藏區塊（#2）
+  if (!best && !storageAvailable()) {
+    el.startHigh.classList.add('hidden');
+    el.resultHigh.classList.add('hidden');
+    return;
+  }
   el.startHigh.classList.remove('hidden');
   el.startHigh.textContent = formatHigh(best);
   if (!el.result.hidden) {
@@ -650,19 +637,19 @@ function showResult() {
   el.resultScore.textContent = `${totalScore}／100`;
   el.resultComment.textContent = commentFor(totalScore);
 
-  let isNew = false;
   if (storageAvailable()) {
     const best = readBest();
     if (shouldUpdateBest(totalScore, best)) {
       writeBest(totalScore, player, Date.now());
-      isNew = true;
     }
   }
   applyHighDisplay(currentDisplayBest());
-  el.newRecord.classList.toggle('hidden', !isNew);
-  // 雲端同步（0 分不上傳；失敗靜默 pending）；完成後刷新顯示
+  // 徽章以同步後權威顯示分為準（#1）；條件集中在 isNewRecordBadge
+  el.newRecord.classList.add('hidden');
   void submitScore(totalScore, player).then(() => {
-    applyHighDisplay(currentDisplayBest());
+    const shown = currentDisplayBest();
+    applyHighDisplay(shown);
+    el.newRecord.classList.toggle('hidden', !isNewRecordBadge(totalScore, player, shown));
   });
 
   el.reviewList.innerHTML = '';
