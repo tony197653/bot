@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>元件風格庫｜按鈕、表格、卡片、輸入框、標籤、切換鈕</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDEEE9;--surface:#FBFBF8;--ink:#2F312D;--mute:#696C64;--line:#D6D9D0;--line-soft:#E4E6DF;
+  --sage:#66745F;--sage-deep:#505C4A;--sage-soft:#DFE4DA;--rose:#9C7C74;--rose-soft:#EFE4E0;
+  --sand:#8F7B5E;--sand-soft:#ECE6DA;--slate:#5F6B78;--slate-soft:#E1E5EA;--danger:#A4483C;--danger-soft:#F3E2DE;
+  --black:#1F201D;
+  --r:12px;--r-sm:8px;
+  --shadow:0 1px 2px rgba(40,42,36,.05),0 4px 16px rgba(40,42,36,.05);
+  --shadow-up:0 2px 4px rgba(40,42,36,.06),0 14px 32px rgba(40,42,36,.10);
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --font:"Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px;scrollbar-gutter:stable;overflow-x:hidden;overflow-x:clip}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none}
+::selection{background:var(--sage-soft);color:var(--ink)}
+:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+h1,h2,h3{line-height:1.3;text-wrap:balance;margin:0;font-weight:600}
+p{margin:0;text-wrap:pretty;line-break:strict}
+.nw{white-space:nowrap}
+.wrap{max-width:1160px;margin:0 auto;padding:0 max(20px,env(safe-area-inset-left))}
+
+/* 頁首與目錄 */
+header.top{padding:72px 0 40px}
+header.top h1{font-size:clamp(28px,4vw,40px);letter-spacing:-.01em}
+header.top .lead{margin-top:14px;color:var(--mute);font-size:16px;max-width:46em}
+header.top .meta{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--mute);font-size:13px}
+header.top .meta b{color:var(--ink);font-weight:600}
+nav.toc{position:sticky;top:0;z-index:20;background:rgba(237,238,233,.86);backdrop-filter:saturate(1.2) blur(10px);-webkit-backdrop-filter:saturate(1.2) blur(10px);border-bottom:1px solid var(--line)}
+nav.toc .wrap{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-top:12px;padding-bottom:12px}
+nav.toc .wrap::-webkit-scrollbar{display:none}
+nav.toc a{flex:none;display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;color:var(--ink);text-decoration:none;font-size:14px;border:1px solid transparent;transition:background .2s,border-color .2s}
+nav.toc a span{font-weight:600;color:var(--sage);font-variant-numeric:tabular-nums}
+nav.toc a:hover{background:var(--surface);border-color:var(--line)}
+nav.toc a.on{background:var(--surface);border-color:var(--line);box-shadow:var(--shadow)}
+
+/* 分類區塊 */
+section.cat{padding:64px 0 8px}
+.cat-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:24px}
+.cat-head h2{font-size:24px}
+.cat-head p{color:var(--mute);font-size:14px}
+.grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+.grid.wide{grid-template-columns:repeat(auto-fill,minmax(500px,1fr))}
+.spec{background:var(--surface);border:1px solid var(--line-soft);border-radius:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0}
+.spec-head{padding:18px 20px 0;display:flex;gap:12px;align-items:flex-start}
+.code{flex:none;display:inline-grid;place-items:center;min-width:40px;height:26px;padding:0 8px;border-radius:7px;background:var(--ink);color:#fff;font-size:13px;font-weight:600;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.spec-head h3{font-size:16px}
+.spec-head p{color:var(--mute);font-size:13.5px;margin-top:2px}
+.stage{flex:1;margin:16px;padding:28px 20px;border-radius:12px;background:var(--bg);display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:center;min-height:150px;position:relative}
+.stage.plain{background:transparent;padding:4px 4px 8px;display:block;min-height:0}
+.stage.col{flex-direction:column;align-items:stretch;justify-content:flex-start}
+.hint{padding:0 20px 18px;color:var(--mute);font-size:12.5px}
+.sample-tag{font-size:12px;color:var(--mute);margin:0 0 8px 2px}
+
+/* ========== 按鈕 ========== */
+.btn{font:inherit;font-size:14.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;cursor:pointer;border:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;white-space:nowrap;transition:background-color .18s var(--ease),color .18s,box-shadow .2s var(--ease),transform .12s var(--ease),border-color .18s}
+.btn:disabled{cursor:not-allowed}
+.btn .spin{width:15px;height:15px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite;display:none}
+.btn.loading{pointer-events:none}
+.btn.loading .spin{display:inline-block}
+.btn.loading .lbl-idle{display:none}
+.btn .lbl-load{display:none}
+.btn.loading .lbl-load{display:inline}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.b1{background:var(--black);color:#fff;border-radius:999px}
+.b1:hover{background:#3A3C37}
+.b1:active{transform:scale(.97)}
+.b1:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+.b1:disabled{background:#C9CBC4;color:#F3F3EF}
+
+.b2{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:8px}
+.b2:hover{background:#fff;border-color:#BFC3B8}
+.b2:active{background:var(--sage-soft)}
+.b2:focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--slate)}
+.b2:disabled{color:#A9ACA3;border-color:var(--line-soft);background:transparent}
+
+.b3{background:var(--sage);color:#fff;border-radius:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 1px 2px rgba(40,50,35,.2),0 4px 12px rgba(80,92,74,.18)}
+.b3:hover{background:var(--sage-deep);box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 2px 4px rgba(40,50,35,.2),0 8px 20px rgba(80,92,74,.26);transform:translateY(-1px)}
+.b3:active{transform:translateY(0);box-shadow:inset 0 1px 2px rgba(0,0,0,.18)}
+.b3:focus-visible{outline:2px solid var(--sage-deep);outline-offset:3px}
+.b3:disabled{background:#B9C0B4;box-shadow:none;transform:none}
+
+.b4{background:var(--slate-soft);color:#3E4955;border-radius:12px;font-weight:600}
+.b4:hover{background:#D3D9E0}
+.b4:active{background:#C6CED7;transform:scale(.98)}
+.b4:focus-visible{outline:3px solid rgba(95,107,120,.45);outline-offset:2px}
+.b4:disabled{background:#ECEEF0;color:#A7AEB6}
+
+.b5{background:none;color:var(--ink);padding:0 4px;border-radius:4px;font-weight:500}
+.b5::after{content:"";position:absolute;left:4px;right:4px;bottom:9px;height:1px;background:currentColor;transform:scaleX(.35);transform-origin:left;transition:transform .35s var(--ease)}
+.b5:hover{color:var(--rose)}
+.b5:hover::after{transform:scaleX(1)}
+.b5:active{opacity:.7}
+.b5:disabled{color:#AEB0A9}
+.b5:disabled::after{transform:scaleX(0)}
+
+.b6{background:#F6F1E8;color:#5A4A33;border:1px solid #D9CDB8;border-radius:10px;box-shadow:0 3px 0 #D2C4AC;transform:translateY(-1px)}
+.b6:hover{background:#FBF7F0}
+.b6:active{transform:translateY(2px);box-shadow:0 0 0 #D2C4AC}
+.b6:focus-visible{outline:2px solid var(--sand);outline-offset:4px}
+.b6:disabled{background:#EFECE6;color:#B4AB9C;box-shadow:0 1px 0 #E0D9CC;border-color:#E3DDD1;transform:none}
+
+/* ========== 表格 ========== */
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th{font-weight:500;text-align:left;white-space:nowrap}
+td{white-space:nowrap}
+.num{text-align:right}
+.sort{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.sort .ar{display:inline-block;width:8px;height:8px;opacity:.35;transition:transform .2s,opacity .2s}
+.sort .ar::before{content:"";display:block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:5px solid currentColor;margin-top:1px}
+.sort[aria-sort="ascending"] .ar{opacity:1}
+.sort[aria-sort="descending"] .ar{opacity:1;transform:rotate(180deg)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:1px}
+
+.t1 th,.t1 td{padding:12px 14px;border-bottom:1px solid var(--line-soft)}
+.t1 th{color:var(--mute);font-size:13px;border-bottom-color:var(--line)}
+.t1 tbody tr{transition:background .15s}
+.t1 tbody tr:hover{background:#F3F4EF}
+.t1 tbody tr:last-child td{border-bottom:0}
+
+.t2 th,.t2 td{padding:12px 16px}
+.t2 thead th{background:var(--sage);color:#fff;font-size:13px}
+.t2 thead th:first-child{border-top-left-radius:10px}
+.t2 thead th:last-child{border-top-right-radius:10px}
+.t2 tbody tr:nth-child(even){background:#F2F3EE}
+.t2 tbody tr:hover{background:var(--sage-soft)}
+.t2 tbody tr{transition:background .15s}
+
+.t3 th,.t3 td{padding:11px 12px;border-bottom:1px solid var(--line-soft)}
+.t3 thead th{font-size:13px;color:var(--mute)}
+.t3 tbody tr{transition:background .15s;cursor:pointer}
+.t3 tbody tr:hover{background:#F4F4F0}
+.t3 tbody tr.sel{background:#EEF1EA}
+.t3 tbody tr.sel td:first-child{box-shadow:inset 2px 0 0 var(--sage)}
+.t3 .bar{display:flex;align-items:center;justify-content:space-between;min-height:36px;padding:0 4px 8px;font-size:13px;color:var(--mute)}
+.chk{appearance:none;-webkit-appearance:none;width:18px;height:18px;margin:0;border:1.5px solid #B6BAAF;border-radius:5px;display:grid;place-items:center;cursor:pointer;background:#fff;transition:background .15s,border-color .15s;vertical-align:middle}
+.chk::after{content:"";width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px) scale(0);transition:transform .15s var(--ease)}
+.chk:checked{background:var(--sage);border-color:var(--sage)}
+.chk:checked::after{transform:rotate(-45deg) translate(1px,-1px) scale(1)}
+.chk:indeterminate{background:var(--sage);border-color:var(--sage)}
+.chk:indeterminate::after{width:8px;height:0;border-left:0;transform:none}
+
+.t4{border-collapse:separate;border-spacing:0 8px}
+.t4 th{font-size:12.5px;color:var(--mute);padding:0 16px 2px}
+.t4 td{background:#fff;padding:14px 16px;border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);transition:background .2s,box-shadow .2s}
+.t4 td:first-child{border-left:1px solid var(--line-soft);border-radius:10px 0 0 10px}
+.t4 td:last-child{border-right:1px solid var(--line-soft);border-radius:0 10px 10px 0}
+.t4 tbody tr{transition:transform .2s var(--ease)}
+.t4 tbody tr:hover td{background:#FDFDFB;box-shadow:0 6px 14px -8px rgba(40,42,36,.25)}
+.t4 .who{display:flex;align-items:center;gap:10px}
+.t4 .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:12.5px;font-weight:600;color:#fff;flex:none}
+
+.t5{font-size:13px}
+.t5-wrap{max-height:236px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fff}
+.t5 th,.t5 td{padding:7px 10px;border-bottom:1px solid #EDEEE9}
+.t5 thead th{position:sticky;top:0;background:#F5F6F2;font-size:12px;color:var(--mute);border-bottom:1px solid var(--line);z-index:1}
+.t5 td+td,.t5 th+th{border-left:1px solid #EDEEE9}
+.t5 tbody tr:hover td{background:#F6F7FA}
+.t5 .up{color:#4E6B45}.t5 .down{color:var(--danger)}
+
+/* ========== 卡片 ========== */
+.card{border-radius:14px;background:#fff;text-decoration:none;color:inherit;display:block;width:100%;max-width:300px}
+.card h4{margin:0;font-size:16px;font-weight:600;line-height:1.4}
+.card p{font-size:13.5px;color:var(--mute);margin-top:6px}
+.card small{font-size:12.5px;color:var(--mute)}
+
+.c1{padding:22px;border:1px solid var(--line);transition:transform .3s var(--ease),box-shadow .3s var(--ease),border-color .3s}
+.c1:hover{transform:translateY(-4px);box-shadow:var(--shadow-up);border-color:#C6CABF}
+.c1 .row{display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding-top:14px;border-top:1px solid var(--line-soft)}
+
+.c2{overflow:hidden;box-shadow:var(--shadow);transition:box-shadow .4s var(--ease)}
+.c2 .ph{aspect-ratio:4/3;overflow:hidden;background:#D8D6CF}
+.c2 img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s var(--ease)}
+.c2 .bd{padding:16px 18px 18px}
+.c2:hover{box-shadow:var(--shadow-up)}
+.c2:hover img{transform:scale(1.05)}
+
+.c3{padding:22px;background:#FDFDFB;border:1px solid var(--line-soft);position:relative;overflow:hidden;isolation:isolate}
+.c3::before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(260px circle at var(--mx,50%) var(--my,-40%),rgba(102,116,95,.16),transparent 60%);opacity:0;transition:opacity .3s}
+.c3::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:radial-gradient(200px circle at var(--mx,50%) var(--my,-40%),rgba(102,116,95,.7),transparent 60%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .3s;pointer-events:none}
+.c3:hover::before,.c3:hover::after{opacity:1}
+.c3 .big{font-size:30px;font-weight:600;letter-spacing:-.01em;margin-top:10px;font-variant-numeric:tabular-nums}
+
+.c4wrap{position:relative;width:100%;max-width:290px;margin:10px 0}
+.c4wrap::before,.c4wrap::after{content:"";position:absolute;inset:0;border-radius:14px;background:#fff;border:1px solid var(--line);transition:transform .45s var(--ease)}
+.c4wrap::before{transform:rotate(-3deg) translateY(4px);background:#F4F1EA}
+.c4wrap::after{transform:rotate(2deg) translateY(2px);background:#F8F7F3}
+.c4wrap:hover::before{transform:rotate(-7deg) translate(-10px,6px)}
+.c4wrap:hover::after{transform:rotate(5deg) translate(10px,2px)}
+.c4{position:relative;z-index:1;padding:20px;border:1px solid var(--line);transition:transform .45s var(--ease)}
+.c4wrap:hover .c4{transform:translateY(-3px)}
+.c4 .thumb{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.c4 .thumb img{width:46px;height:46px;border-radius:10px;object-fit:cover}
+
+.c5{padding:22px;background:#2B2D29;color:#ECEDE7;border:1px solid #3A3D37;transition:border-color .3s,box-shadow .3s,transform .3s var(--ease)}
+.c5 p,.c5 small{color:#A9ADA2}
+.c5:hover{border-color:#6F7E68;box-shadow:0 0 0 4px rgba(102,116,95,.18),0 18px 36px -12px rgba(0,0,0,.45);transform:translateY(-2px)}
+.c5 .meter{height:4px;border-radius:4px;background:#41443E;margin-top:16px;overflow:hidden}
+.c5 .meter i{display:block;height:100%;width:68%;background:#9DB08F;border-radius:inherit;transition:width .6s var(--ease)}
+.c5:hover .meter i{width:74%}
+
+/* ========== 輸入框 ========== */
+.field{width:100%;max-width:300px;display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13.5px;font-weight:500}
+.field .help{font-size:12.5px;color:var(--mute);min-height:1.5em}
+.field.err .help{color:var(--danger)}
+.in{font:inherit;font-size:15px;color:var(--ink);width:100%;min-height:44px;transition:border-color .2s,box-shadow .2s,background .2s}
+.in::placeholder{color:#9EA198}
+.in:disabled{cursor:not-allowed;opacity:.6}
+
+.i1 .in{padding:0 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.i1 .in:hover{border-color:#BFC3B8}
+.i1 .in:focus{outline:none;border-color:var(--slate);box-shadow:0 0 0 3px rgba(95,107,120,.18)}
+.i1.err .in{border-color:var(--danger)}
+.i1.err .in:focus{box-shadow:0 0 0 3px rgba(164,72,60,.16)}
+
+.i2{position:relative}
+.i2 .in{padding:0 2px;border:0;border-bottom:1px solid #B9BCB3;border-radius:0;background:transparent}
+.i2 .ul{position:relative}
+.i2 .line{position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--ink);transform:scaleX(0);transition:transform .35s var(--ease)}
+.i2 .in:focus{outline:none}
+.i2 .in:focus ~ .line{transform:scaleX(1)}
+.i2.err .in{border-bottom-color:var(--danger)}
+.i2.err .line{background:var(--danger)}
+.i2 label{font-size:12.5px;color:var(--mute);font-weight:500}
+
+.i3 .box{position:relative}
+.i3 .in{padding:20px 12px 4px;min-height:54px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.i3 .box label{position:absolute;left:13px;top:15px;font-size:15px;font-weight:400;color:#8C8F86;pointer-events:none;transform-origin:left top;transition:transform .2s var(--ease),color .2s}
+.i3 .in:focus{outline:none;border-color:var(--sage);box-shadow:0 0 0 1px var(--sage)}
+.i3 .in:focus + label,.i3 .in:not(:placeholder-shown) + label{transform:translateY(-9px) scale(.78);color:var(--sage)}
+.i3 .in::placeholder{color:transparent}
+.i3.err .in{border-color:var(--danger);box-shadow:0 0 0 1px var(--danger)}
+.i3.err .in + label{color:var(--danger)}
+
+.i4 .in{padding:0 14px;border:1px solid transparent;border-radius:12px;background:#E6E7E1}
+.i4 .in:hover{background:#E0E1DA}
+.i4 .in:focus{outline:none;background:#fff;border-color:var(--line);box-shadow:0 2px 10px rgba(40,42,36,.08)}
+.i4.err .in{background:var(--danger-soft);border-color:transparent}
+.i4.err .in:focus{border-color:#D9A89F;background:#fff}
+
+.i5 .grp{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;transition:border-color .2s,box-shadow .2s}
+.i5 .grp span{display:grid;place-items:center;padding:0 12px;background:#F4F4F0;color:var(--mute);font-size:13.5px;white-space:nowrap}
+.i5 .grp span:first-child{border-right:1px solid var(--line-soft)}
+.i5 .grp span:last-child{border-left:1px solid var(--line-soft)}
+.i5 .in{border:0;padding:0 12px;background:transparent;text-align:right;font-variant-numeric:tabular-nums;min-width:0}
+.i5 .in:focus{outline:none}
+.i5 .grp:focus-within{border-color:var(--sand);box-shadow:0 0 0 3px rgba(143,123,94,.18)}
+.i5.err .grp{border-color:var(--danger)}
+.i5.err .grp:focus-within{box-shadow:0 0 0 3px rgba(164,72,60,.15)}
+
+/* ========== 標籤 ========== */
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:1;white-space:nowrap}
+.l1{padding:7px 12px;border-radius:999px;font-weight:500}
+.l1.s{background:var(--sage-soft);color:#45523F}.l1.r{background:var(--rose-soft);color:#7A5A52}.l1.d{background:var(--sand-soft);color:#6B5A40}.l1.t{background:var(--slate-soft);color:#46525F}
+.l2{padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.l2 i{width:7px;height:7px;border-radius:50%}
+.l2.live i{background:#6E9A5F;box-shadow:0 0 0 0 rgba(110,154,95,.5);animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 6px rgba(110,154,95,0)}100%{box-shadow:0 0 0 0 rgba(110,154,95,0)}}
+.l3{padding:5px 8px;border-radius:5px;font-size:12px;font-weight:600;letter-spacing:.02em}
+.l3.k{background:var(--black);color:#fff}.l3.o{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}.l3.a{background:#C9622F;color:#fff}
+.l4{padding:5px 6px 5px 12px;border-radius:8px;background:#fff;border:1px solid var(--line);transition:opacity .25s,transform .25s var(--ease)}
+.l4 button{width:22px;height:22px;border-radius:6px;border:0;background:none;color:var(--mute);cursor:pointer;display:grid;place-items:center;font-size:15px;line-height:1;transition:background .15s,color .15s}
+.l4 button:hover{background:var(--rose-soft);color:var(--danger)}
+.l4.out{opacity:0;transform:scale(.85)}
+.restore{font:inherit;font-size:12.5px;color:var(--mute);background:none;border:0;text-decoration:underline;cursor:pointer;padding:4px}
+.l5box{position:relative;display:inline-grid;place-items:center;width:46px;height:46px;border-radius:12px;background:#fff;border:1px solid var(--line);color:var(--ink)}
+.l5box svg{width:22px;height:22px}
+.l5{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--danger);color:#fff;font-size:11.5px;font-weight:600;display:grid;place-items:center;border:2px solid var(--bg);font-variant-numeric:tabular-nums}
+.l5.soft{background:var(--sage)}
+.l5inline{display:inline-flex;align-items:center;gap:8px;font-size:14px}
+.l5inline b{min-width:22px;height:22px;padding:0 7px;border-radius:7px;background:var(--sage-soft);color:#45523F;font-size:12px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+
+/* ========== 切換鈕 ========== */
+.sw-row{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;max-width:280px;font-size:14.5px}
+.sw{position:relative;flex:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.sw:disabled{cursor:not-allowed;opacity:.45}
+.sw .k{position:absolute;transition:transform .32s cubic-bezier(.3,1.4,.5,1),width .2s,background .2s}
+
+.s1{width:51px;height:31px;border-radius:999px;background:#D3D5CE;transition:background .25s}
+.s1 .k{top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.18),0 0 0 .5px rgba(0,0,0,.05)}
+.s1:active .k{width:32px}
+.s1[aria-checked="true"]{background:var(--sage)}
+.s1[aria-checked="true"] .k{transform:translateX(20px)}
+.s1[aria-checked="true"]:active .k{transform:translateX(15px)}
+
+.s2{width:36px;height:14px;border-radius:999px;background:#C7CAC1;transition:background .25s;margin:6px}
+.s2 .k{top:-5px;left:-4px;width:24px;height:24px;border-radius:50%;background:#FAFAF7;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.s2:hover .k{box-shadow:0 1px 3px rgba(0,0,0,.25),0 0 0 8px rgba(95,107,120,.10)}
+.s2[aria-checked="true"]{background:#AEB7C1}
+.s2[aria-checked="true"] .k{transform:translateX(20px);background:var(--slate)}
+
+.seg{position:relative;display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;padding:3px;border-radius:10px;background:#E2E3DC;isolation:isolate}
+.seg button{font:inherit;font-size:14px;min-height:36px;padding:0 18px;border:0;background:none;color:var(--mute);cursor:pointer;border-radius:8px;transition:color .2s;white-space:nowrap}
+.seg button[aria-checked="true"]{color:var(--ink);font-weight:500}
+.seg .ind{position:absolute;z-index:-1;top:3px;bottom:3px;left:3px;border-radius:8px;background:#fff;box-shadow:0 1px 3px rgba(40,42,36,.12),0 0 0 .5px rgba(40,42,36,.06);transition:transform .35s var(--ease)}
+
+.s4{width:76px;height:34px;border-radius:999px;background:#E8E3D8;box-shadow:inset 0 0 0 1px #D8D0BF;transition:background .3s;font:inherit;font-size:12.5px;font-weight:600}
+.s4 .t{position:absolute;top:0;bottom:0;display:grid;place-items:center;width:40px;transition:opacity .2s}
+.s4 .t.on{left:6px;color:#fff;opacity:0}.s4 .t.off{right:4px;color:#8A7E68}
+.s4 .k{top:3px;left:3px;width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.18);display:grid;place-items:center;color:#8A7E68}
+.s4 .k svg{width:15px;height:15px}
+.s4[aria-checked="true"]{background:var(--sand);box-shadow:none}
+.s4[aria-checked="true"] .t.on{opacity:1}.s4[aria-checked="true"] .t.off{opacity:0}
+.s4[aria-checked="true"] .k{transform:translateX(42px);color:var(--sand)}
+
+footer{padding:72px 0 56px;color:var(--mute);font-size:13px}
+footer .wrap{border-top:1px solid var(--line);padding-top:24px;display:flex;flex-direction:column;gap:6px}
+
+@media (max-width:620px){
+  header.top{padding:44px 0 28px}
+  header.top .lead{font-size:15px}
+  section.cat{padding:44px 0 4px}
+  .grid,.grid.wide{grid-template-columns:1fr;gap:16px}
+  .stage{margin:14px;padding:22px 14px}
+  .cat-head h2{font-size:21px}
+}
+@media (hover:none){.kbd-hint{display:none}}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
+  .btn .spin{animation:spin 1.6s linear infinite!important}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <h1>元件風格庫</h1>
+    <p class="lead">每個元件都有編號，滑過、按下、用 Tab 鍵移動都能看到真實效果。挑好後，之後做網頁就能直接說「按鈕用 B3、表格用 T1」。</p>
+    <div class="meta"><span>第一批：<b>6 類 29 個</b></span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式</span></div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="元件分類">
+  <div class="wrap">
+    <a href="#buttons"><span>B</span>按鈕</a>
+    <a href="#tables"><span>T</span>表格</a>
+    <a href="#cards"><span>C</span>卡片</a>
+    <a href="#inputs"><span>I</span>輸入框</a>
+    <a href="#labels"><span>L</span>標籤</a>
+    <a href="#switches"><span>S</span>切換鈕</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- 按鈕 -->
+<section class="cat" id="buttons">
+  <div class="cat-head"><h2>按鈕</h2><p>每組有一般、處理中（按下去看）和停用三種狀態。</p></div>
+  <div class="grid">
+    <article class="spec"><div class="spec-head"><span class="code">B1</span><div><h3>墨黑膠囊</h3><p>全圓角實心黑，最俐落的主要動作；滑過微亮、按下縮一點。</p></div></div>
+      <div class="stage"><button class="btn b1 js-load"><span class="spin"></span><span class="lbl-idle">送出訂單</span><span class="lbl-load">送出中</span></button><button class="btn b1" disabled>已售完</button></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">B2</span><div><h3>細框透明</h3><p>一條細框加透明底，當次要按鈕最不搶戲；聚焦時外圍出現雙環。</p></div></div>
+      <div class="stage"><button class="btn b2 js-load"><span class="spin"></span><span class="lbl-idle">儲存草稿</span><span class="lbl-load">儲存中</span></button><button class="btn b2" disabled>無法匯出</button></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">B3</span><div><h3>鼠尾草浮起</h3><p>莫蘭迪綠實心，頂緣一道細亮光；滑過浮起 1px，按下沉回去。</p></div></div>
+      <div class="stage"><button class="btn b3 js-load"><span class="spin"></span><span class="lbl-idle">預約體驗課</span><span class="lbl-load">預約中</span></button><button class="btn b3" disabled>名額已滿</button></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">B4</span><div><h3>淡底填色</h3><p>仿 Apple 的淡色底深色字，柔和但看得出能按；按下底色加深。</p></div></div>
+      <div class="stage"><button class="btn b4 js-load"><span class="spin"></span><span class="lbl-idle">加入收藏</span><span class="lbl-load">處理中</span></button><button class="btn b4" disabled>已收藏</button></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">B5</span><div><h3>文字底線</h3><p>雜誌感的純文字鈕，滑過底線從短變長、字轉為玫瑰灰。</p></div></div>
+      <div class="stage"><button class="btn b5 js-load"><span class="spin"></span><span class="lbl-idle">看全部作品</span><span class="lbl-load">載入中</span></button><button class="btn b5" disabled>沒有更多</button></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">B6</span><div><h3>米色按壓</h3><p>帶厚度的實體按鍵感，按下會真的往下壓 3px，適合小遊戲或測驗。</p></div></div>
+      <div class="stage"><button class="btn b6 js-load"><span class="spin"></span><span class="lbl-idle">下一題</span><span class="lbl-load">準備中</span></button><button class="btn b6" disabled>先作答</button></div></article>
+  </div>
+</section>
+
+<!-- 表格 -->
+<section class="cat" id="tables">
+  <div class="cat-head"><h2>表格</h2><p>表頭可點來排序，T3 可勾選。以下皆為範例資料。</p></div>
+  <div class="grid wide">
+    <article class="spec"><div class="spec-head"><span class="code">T1</span><div><h3>極簡細線</h3><p>只用細分隔線和灰色表頭，留白最多；點表頭可升降冪排序。</p></div></div>
+      <div class="stage plain"><p class="sample-tag">範例資料・本月訂單</p><div class="tbl-wrap"><table class="t1 js-sort">
+        <thead><tr><th><button class="sort" data-k="0">品項<span class="ar"></span></button></th><th class="num"><button class="sort" data-k="1" data-n>數量<span class="ar"></span></button></th><th class="num"><button class="sort" data-k="2" data-n>金額<span class="ar"></span></button></th></tr></thead>
+        <tbody><tr><td>霧白長頸瓶</td><td class="num">12</td><td class="num">NT$ 14,280</td></tr><tr><td>灰釉深盤</td><td class="num">31</td><td class="num">NT$ 20,770</td></tr><tr><td>米黃小茶杯</td><td class="num">48</td><td class="num">NT$ 9,120</td></tr><tr><td>粗陶花器</td><td class="num">7</td><td class="num">NT$ 11,935</td></tr></tbody></table></div></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">T2</span><div><h3>綠頭斑馬紋</h3><p>實心莫蘭迪綠表頭配隔行淡底，長表格也不會看錯行。</p></div></div>
+      <div class="stage plain"><p class="sample-tag">範例資料・體驗課報名</p><div class="tbl-wrap"><table class="t2 js-sort">
+        <thead><tr><th><button class="sort" data-k="0">日期<span class="ar"></span></button></th><th><button class="sort" data-k="1">課程<span class="ar"></span></button></th><th class="num"><button class="sort" data-k="2" data-n>人數<span class="ar"></span></button></th></tr></thead>
+        <tbody><tr><td>11 月 8 日</td><td>手捏小碗</td><td class="num">6</td></tr><tr><td>11 月 9 日</td><td>拉坯入門</td><td class="num">4</td></tr><tr><td>11 月 15 日</td><td>釉色調配</td><td class="num">9</td></tr><tr><td>11 月 22 日</td><td>手捏小碗</td><td class="num">5</td></tr><tr><td>11 月 29 日</td><td>柴燒觀摩</td><td class="num">12</td></tr></tbody></table></div></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">T3</span><div><h3>勾選資料表</h3><p>仿 shadcn 資料表，可單選、全選，選中的列左側出現綠線。</p></div></div>
+      <div class="stage plain"><div class="bar"><span>範例資料・待出貨</span><span class="js-count">已選 0 筆</span></div><div class="tbl-wrap"><table class="t3 js-select">
+        <thead><tr><th style="width:36px"><input type="checkbox" class="chk js-all" aria-label="全選"></th><th>訂單</th><th>收件人</th><th class="num">金額</th></tr></thead>
+        <tbody><tr><td><input type="checkbox" class="chk" aria-label="選取 #1043"></td><td>#1043</td><td>林品妤</td><td class="num">NT$ 2,380</td></tr><tr><td><input type="checkbox" class="chk" aria-label="選取 #1044"></td><td>#1044</td><td>陳冠廷</td><td class="num">NT$ 860</td></tr><tr><td><input type="checkbox" class="chk" aria-label="選取 #1046"></td><td>#1046</td><td>吳宜蓁</td><td class="num">NT$ 4,125</td></tr><tr><td><input type="checkbox" class="chk" aria-label="選取 #1047"></td><td>#1047</td><td>張書豪</td><td class="num">NT$ 1,540</td></tr></tbody></table></div></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">T4</span><div><h3>分列卡片</h3><p>每一列是一條獨立圓角白條，滑過有淡淡陰影，像 Stripe 的清單。</p></div></div>
+      <div class="stage plain"><p class="sample-tag">範例資料・駐店陶藝師</p><div class="tbl-wrap"><table class="t4">
+        <thead><tr><th>陶藝師</th><th>專長</th><th class="num">本月作品</th></tr></thead>
+        <tbody><tr><td><div class="who"><span class="av" style="background:#66745F">森</span>森田葵</div></td><td>柴燒</td><td class="num">14</td></tr><tr><td><div class="who"><span class="av" style="background:#9C7C74">許</span>許雅涵</div></td><td>青瓷釉</td><td class="num">9</td></tr><tr><td><div class="who"><span class="av" style="background:#5F6B78">歐</span>歐陽承恩</div></td><td>拉坯</td><td class="num">21</td></tr></tbody></table></div></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">T5</span><div><h3>密集報表</h3><p>小字距、直橫格線、固定表頭可在框內捲動，適合資訊密集的儀表板。</p></div></div>
+      <div class="stage plain"><p class="sample-tag">範例資料・各通路週報（框內可捲動）</p><div class="t5-wrap"><table class="t5 js-sort">
+        <thead><tr><th><button class="sort" data-k="0">通路<span class="ar"></span></button></th><th class="num"><button class="sort" data-k="1" data-n>營收<span class="ar"></span></button></th><th class="num"><button class="sort" data-k="2" data-n>週變化<span class="ar"></span></button></th><th>狀態</th></tr></thead>
+        <tbody>
+        <tr><td>官網</td><td class="num">38,420</td><td class="num up">+4.21%</td><td><span class="dot" style="background:#6E9A5F"></span>正常</td></tr>
+        <tr><td>市集攤位</td><td class="num">12,960</td><td class="num down">−2.08%</td><td><span class="dot" style="background:#C9A24A"></span>觀察</td></tr>
+        <tr><td>選物店寄賣</td><td class="num">21,305</td><td class="num up">+0.67%</td><td><span class="dot" style="background:#6E9A5F"></span>正常</td></tr>
+        <tr><td>體驗課</td><td class="num">17,400</td><td class="num up">+11.30%</td><td><span class="dot" style="background:#6E9A5F"></span>正常</td></tr>
+        <tr><td>企業訂製</td><td class="num">45,000</td><td class="num down">−8.75%</td><td><span class="dot" style="background:#A4483C"></span>待追蹤</td></tr>
+        <tr><td>海外網店</td><td class="num">6,812</td><td class="num up">+1.93%</td><td><span class="dot" style="background:#6E9A5F"></span>正常</td></tr>
+        <tr><td>快閃展</td><td class="num">9,275</td><td class="num down">−0.42%</td><td><span class="dot" style="background:#C9A24A"></span>觀察</td></tr>
+        <tr><td>禮品卡</td><td class="num">3,150</td><td class="num up">+6.04%</td><td><span class="dot" style="background:#6E9A5F"></span>正常</td></tr>
+        </tbody></table></div></div></article>
+  </div>
+</section>
+
+<!-- 卡片 -->
+<section class="cat" id="cards">
+  <div class="cat-head"><h2>卡片</h2><p>把滑鼠移上去看效果，手機上點一下也會觸發。</p></div>
+  <div class="grid">
+    <article class="spec"><div class="spec-head"><span class="code">C1</span><div><h3>留白文字卡</h3><p>白底細框，只放文字；滑過整張浮起 4px、框線加深。</p></div></div>
+      <div class="stage"><a class="card c1" href="#cards"><small>課程・入門</small><h4 style="margin-top:6px">手捏小碗體驗</h4><p>兩小時做出一只自己的飯碗，三週後燒好寄到家。</p><div class="row"><small>每週六 14:00</small><small style="color:var(--ink);font-weight:600">NT$ 1,280</small></div></a></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">C2</span><div><h3>照片主角卡</h3><p>上方大照片、下方短文字；滑過照片慢慢放大，陰影加深。</p></div></div>
+      <div class="stage"><a class="card c2" href="#cards"><div class="ph"><img src="https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=640&q=70&auto=format&fit=crop" width="640" height="480" alt="白色陶瓶在灰牆前"></div><div class="bd"><h4>霧白長頸瓶</h4><p>無光釉，適合單枝乾燥花。</p></div></a></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">C3</span><div><h3>聚光數據卡</h3><p>仿 Linear 的聚光效果，一圈淡綠光跟著滑鼠移動，連邊框都會亮。</p></div></div>
+      <div class="stage"><a class="card c3 js-spot" href="#cards"><small>本月營收（範例）</small><div class="big">NT$ 154,322</div><p>比上月多 3.84%，體驗課貢獻最多。</p></a></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">C4</span><div><h3>疊紙卡</h3><p>後面疊著兩張紙，滑過時像扇子散開，有手作的溫度。</p></div></div>
+      <div class="stage"><div class="c4wrap"><a class="card c4" href="#cards"><div class="thumb"><img src="https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=160&q=70&auto=format&fit=crop" width="46" height="46" alt="米黃色陶杯"><div><h4>米黃小茶杯</h4><small>3 件組</small></div></div><p>手拉坯、每只花紋都不一樣，附檜木盒。</p></a></div></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">C5</span><div><h3>深色進度卡</h3><p>墨綠深底反白字，滑過邊框亮起一圈光暈，進度條往前推一點。</p></div></div>
+      <div class="stage"><a class="card c5" href="#cards"><small>窯燒進度</small><h4 style="margin-top:6px">第 12 窯・柴燒</h4><p>已燒 34 小時，預計週四開窯。</p><div class="meter"><i></i></div></a></div></article>
+  </div>
+</section>
+
+<!-- 輸入框 -->
+<section class="cat" id="inputs">
+  <div class="cat-head"><h2>輸入框</h2><p>上面一個點進去看聚焦樣式，下面一個是錯誤狀態；輸入內容會即時檢查。</p></div>
+  <div class="grid">
+    <article class="spec"><div class="spec-head"><span class="code">I1</span><div><h3>細框聚焦環</h3><p>仿 shadcn：細灰框，聚焦時外圍出現柔和藍灰光環。</p></div></div>
+      <div class="stage col">
+        <div class="field i1"><label for="i1a">收件人姓名</label><input id="i1a" class="in" placeholder="例如：林品妤"><span class="help">寫在包裹上的名字。</span></div>
+        <div class="field i1 err js-email"><label for="i1b">電子郵件</label><input id="i1b" class="in" value="pinyu@mail" aria-invalid="true" aria-describedby="i1bh"><span class="help" id="i1bh">格式不完整，少了「.com」之類的結尾。</span></div>
+      </div></article>
+    <article class="spec"><div class="spec-head"><span class="code">I2</span><div><h3>底線展開</h3><p>只有一條底線，聚焦時一條深色線從左到右展開，最安靜。</p></div></div>
+      <div class="stage col">
+        <div class="field i2"><label for="i2a">作品名稱</label><div class="ul"><input id="i2a" class="in" placeholder="例如：秋日灰釉盤"><span class="line"></span></div><span class="help">最多 20 個字。</span></div>
+        <div class="field i2 err js-len"><label for="i2b">作品名稱</label><div class="ul"><input id="i2b" class="in" value="今年秋天在山上柴窯裡燒出來的第一只灰釉深盤" aria-invalid="true" aria-describedby="i2bh"><span class="line"></span></div><span class="help" id="i2bh">超過 20 個字，請縮短。</span></div>
+      </div></article>
+    <article class="spec"><div class="spec-head"><span class="code">I3</span><div><h3>浮動標籤</h3><p>標籤先放在框內當提示，點進去後縮小浮到上方，省空間。</p></div></div>
+      <div class="stage col">
+        <div class="field i3"><div class="box"><input id="i3a" class="in" placeholder=" "><label for="i3a">手機號碼</label></div><span class="help">出貨時會傳簡訊通知。</span></div>
+        <div class="field i3 err js-phone"><div class="box"><input id="i3b" class="in" placeholder=" " value="0912-34" aria-invalid="true" aria-describedby="i3bh"><label for="i3b">手機號碼</label></div><span class="help" id="i3bh">手機號碼是 10 碼，目前只有 6 碼。</span></div>
+      </div></article>
+    <article class="spec"><div class="spec-head"><span class="code">I4</span><div><h3>淡灰填色</h3><p>仿 Apple 的灰底無框，聚焦時變白底並浮起；錯誤時整格轉淡紅。</p></div></div>
+      <div class="stage col">
+        <div class="field i4"><label for="i4a">優惠碼</label><input id="i4a" class="in" placeholder="輸入 8 碼優惠碼"><span class="help">每筆訂單限用一組。</span></div>
+        <div class="field i4 err js-code"><label for="i4b">優惠碼</label><input id="i4b" class="in" value="AUTUMN" aria-invalid="true" aria-describedby="i4bh"><span class="help" id="i4bh">找不到這組優惠碼，請確認大小寫。</span></div>
+      </div></article>
+    <article class="spec"><div class="spec-head"><span class="code">I5</span><div><h3>前後綴組合</h3><p>仿 Stripe 金額欄，左右帶單位、數字靠右對齊，聚焦時整組亮框。</p></div></div>
+      <div class="stage col">
+        <div class="field i5"><label for="i5a">訂製預算</label><div class="grp"><span>NT$</span><input id="i5a" class="in" inputmode="numeric" placeholder="3,000"><span>元</span></div><span class="help">最低 NT$ 3,000 起。</span></div>
+        <div class="field i5 err js-min"><label for="i5b">訂製預算</label><div class="grp"><span>NT$</span><input id="i5b" class="in" inputmode="numeric" value="1,200" aria-invalid="true" aria-describedby="i5bh"><span>元</span></div><span class="help" id="i5bh">低於最低金額 NT$ 3,000。</span></div>
+      </div></article>
+  </div>
+</section>
+
+<!-- 標籤 -->
+<section class="cat" id="labels">
+  <div class="cat-head"><h2>標籤</h2><p>分類標籤（Tag）與狀態徽章（Badge）。</p></div>
+  <div class="grid">
+    <article class="spec"><div class="spec-head"><span class="code">L1</span><div><h3>莫蘭迪淡底</h3><p>大地色淡底膠囊，分類清楚又安靜。</p></div></div>
+      <div class="stage"><span class="tag l1 s">柴燒</span><span class="tag l1 r">青瓷</span><span class="tag l1 d">粗陶</span><span class="tag l1 t">白瓷</span></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">L2</span><div><h3>細框圓點</h3><p>白底細框加狀態圓點，「進行中」的綠點會輕輕呼吸。</p></div></div>
+      <div class="stage"><span class="tag l2 live"><i></i>窯燒中</span><span class="tag l2"><i style="background:#C9A24A"></i>待上釉</span><span class="tag l2"><i style="background:#A9ACA3"></i>已封存</span></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">L3</span><div><h3>方角小標</h3><p>小圓角、粗字、實心或線框，像商品吊牌，適合「新品」「限量」。</p></div></div>
+      <div class="stage"><span class="tag l3 k">新品</span><span class="tag l3 o">限量 30 件</span><span class="tag l3 a">最後 2 件</span></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">L4</span><div><h3>可移除篩選</h3><p>帶 × 的篩選標籤，按 × 會縮小淡出移除，可以按「全部還原」再試。</p></div></div>
+      <div class="stage js-chips"><span class="tag l4">價格 1,000 元以下<button aria-label="移除 價格 1,000 元以下">×</button></span><span class="tag l4">現貨<button aria-label="移除 現貨">×</button></span><span class="tag l4">手作茶器<button aria-label="移除 手作茶器">×</button></span><button class="restore" type="button">全部還原</button></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">L5</span><div><h3>數字徽章</h3><p>疊在圖示右上角的紅色數字，或跟在文字後的淡綠計數。</p></div></div>
+      <div class="stage">
+        <span class="l5box" aria-label="購物車，3 件商品"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14l-1.2 10.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg><span class="l5">3</span></span>
+        <span class="l5box" aria-label="通知，12 則"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="l5 soft">12</span></span>
+        <span class="l5inline">待出貨 <b>4</b></span>
+      </div></article>
+  </div>
+</section>
+
+<!-- 切換鈕 -->
+<section class="cat" id="switches">
+  <div class="cat-head"><h2>切換鈕</h2><p>每個都能實際切換，也可以用鍵盤空白鍵切換。</p></div>
+  <div class="grid">
+    <article class="spec"><div class="spec-head"><span class="code">S1</span><div><h3>經典圓鈕</h3><p>仿 iOS 的大圓鈕，按住時圓鈕會拉長，放開帶一點彈性滑過去。</p></div></div>
+      <div class="stage col" style="align-items:center"><div class="sw-row"><span id="s1a">出貨簡訊通知</span><button class="sw s1" role="switch" aria-checked="true" aria-labelledby="s1a"><span class="k"></span></button></div><div class="sw-row"><span id="s1b">電子報</span><button class="sw s1" role="switch" aria-checked="false" aria-labelledby="s1b"><span class="k"></span></button></div><div class="sw-row"><span id="s1c" style="color:var(--mute)">海外配送（暫停）</span><button class="sw s1" role="switch" aria-checked="false" aria-labelledby="s1c" disabled><span class="k"></span></button></div></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">S2</span><div><h3>細軌大鈕</h3><p>細細的軌道配一顆比軌道大的圓鈕，滑過時圓鈕外圍有淡淡光圈。</p></div></div>
+      <div class="stage col" style="align-items:center"><div class="sw-row"><span id="s2a">顯示售完商品</span><button class="sw s2" role="switch" aria-checked="false" aria-labelledby="s2a"><span class="k"></span></button></div><div class="sw-row"><span id="s2b">自動接受預約</span><button class="sw s2" role="switch" aria-checked="true" aria-labelledby="s2b"><span class="k"></span></button></div></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">S3</span><div><h3>分段滑塊</h3><p>兩到四個選項並排，白色滑塊平滑滑到選中的那一格。</p></div></div>
+      <div class="stage col" style="align-items:center;gap:16px"><div class="seg js-seg" role="radiogroup" aria-label="顯示期間"><span class="ind"></span><button role="radio" aria-checked="true">本週</button><button role="radio" aria-checked="false">本月</button><button role="radio" aria-checked="false">今年</button></div><div class="seg js-seg" role="radiogroup" aria-label="排列方式"><span class="ind"></span><button role="radio" aria-checked="false">格狀</button><button role="radio" aria-checked="true">清單</button></div></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">S4</span><div><h3>文字圖示開關</h3><p>軌道上直接寫「開／關」，圓鈕裡的圖示跟著換，意思最清楚。</p></div></div>
+      <div class="stage col" style="align-items:center"><div class="sw-row"><span id="s4a">夜間模式</span><button class="sw s4 js-icon" role="switch" aria-checked="false" aria-labelledby="s4a"><span class="t on">開</span><span class="t off">關</span><span class="k"></span></button></div><div class="sw-row"><span id="s4b">背景音樂</span><button class="sw s4 js-icon" role="switch" aria-checked="true" aria-labelledby="s4b"><span class="t on">開</span><span class="t off">關</span><span class="k"></span></button></div></div></article>
+  </div>
+</section>
+
+</main>
+
+<footer><div class="wrap">
+  <span>元件風格庫・第一批（按鈕、表格、卡片、輸入框、標籤、切換鈕）</span>
+  <span>做法參考 shadcn/ui、Radix、Linear、Vercel Geist、Stripe、Apple HIG、Tailwind UI 的公開設計，程式碼全部自行撰寫。照片來自 Unsplash。</span>
+</div></footer>
+
+<script>
+(function(){
+  // 按鈕：處理中狀態
+  document.querySelectorAll('.js-load').forEach(function(b){
+    b.addEventListener('click',function(){
+      if(b.classList.contains('loading'))return;
+      b.classList.add('loading');b.setAttribute('aria-busy','true');
+      setTimeout(function(){b.classList.remove('loading');b.removeAttribute('aria-busy');},1600);
+    });
+  });
+  // 表格排序
+  document.querySelectorAll('.js-sort').forEach(function(t){
+    var btns=t.querySelectorAll('.sort');
+    btns.forEach(function(b){
+      b.addEventListener('click',function(){
+        var k=+b.dataset.k,isN=b.hasAttribute('data-n');
+        var dir=b.getAttribute('aria-sort')==='ascending'?'descending':'ascending';
+        btns.forEach(function(x){x.removeAttribute('aria-sort');x.closest('th').removeAttribute('aria-sort');});
+        b.setAttribute('aria-sort',dir);b.closest('th').setAttribute('aria-sort',dir);
+        var tb=t.tBodies[0],rows=[].slice.call(tb.rows);
+        var val=function(r){var s=r.cells[k].textContent.trim();return isN?parseFloat(s.replace(/[^\d.\-−+]/g,'').replace('−','-')):s;};
+        rows.sort(function(a,c){var x=val(a),y=val(c);var r=isN?x-y:String(x).localeCompare(String(y),'zh-Hant');return dir==='ascending'?r:-r;});
+        rows.forEach(function(r){tb.appendChild(r);});
+      });
+    });
+  });
+  // 表格勾選
+  document.querySelectorAll('.js-select').forEach(function(t){
+    var all=t.querySelector('.js-all'),boxes=[].slice.call(t.tBodies[0].querySelectorAll('.chk'));
+    var count=t.closest('.stage').querySelector('.js-count');
+    function sync(){var n=boxes.filter(function(b){return b.checked;}).length;
+      boxes.forEach(function(b){b.closest('tr').classList.toggle('sel',b.checked);});
+      all.checked=n===boxes.length;all.indeterminate=n>0&&n<boxes.length;count.textContent='已選 '+n+' 筆';}
+    all.addEventListener('change',function(){boxes.forEach(function(b){b.checked=all.checked;});sync();});
+    boxes.forEach(function(b){b.addEventListener('change',sync);});
+    [].forEach.call(t.tBodies[0].rows,function(r){r.addEventListener('click',function(e){if(e.target.tagName!=='INPUT'){var c=r.querySelector('.chk');c.checked=!c.checked;sync();}});});
+  });
+  // C3 聚光
+  document.querySelectorAll('.js-spot').forEach(function(c){
+    c.addEventListener('pointermove',function(e){var r=c.getBoundingClientRect();c.style.setProperty('--mx',(e.clientX-r.left)+'px');c.style.setProperty('--my',(e.clientY-r.top)+'px');});
+  });
+  document.querySelectorAll('a.card').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();});});
+  // 輸入即時檢查
+  function live(sel,ok,msgBad,msgOk){
+    var f=document.querySelector(sel);if(!f)return;var i=f.querySelector('input'),h=f.querySelector('.help');
+    i.addEventListener('input',function(){var g=ok(i.value);f.classList.toggle('err',!g);i.setAttribute('aria-invalid',String(!g));h.textContent=g?msgOk:msgBad(i.value);});
+  }
+  live('.js-email',function(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);},function(){return '格式不完整，少了「.com」之類的結尾。';},'格式正確。');
+  live('.js-len',function(v){return v.length<=20;},function(v){return '超過 20 個字（目前 '+v.length+' 字），請縮短。';},'長度可以。');
+  live('.js-phone',function(v){return v.replace(/\D/g,'').length===10;},function(v){return '手機號碼是 10 碼，目前只有 '+v.replace(/\D/g,'').length+' 碼。';},'號碼格式正確。');
+  live('.js-code',function(v){return /^[A-Z0-9]{8}$/.test(v);},function(){return '找不到這組優惠碼，請確認大小寫。';},'優惠碼可使用。');
+  live('.js-min',function(v){return +v.replace(/\D/g,'')>=3000;},function(){return '低於最低金額 NT$ 3,000。';},'金額可以。');
+  // 標籤移除
+  document.querySelectorAll('.js-chips').forEach(function(s){
+    s.addEventListener('click',function(e){
+      var b=e.target.closest('.l4 button');
+      if(b){var c=b.parentElement;c.classList.add('out');setTimeout(function(){c.hidden=true;},250);}
+      if(e.target.closest('.restore')){s.querySelectorAll('.l4').forEach(function(c){c.hidden=false;requestAnimationFrame(function(){c.classList.remove('out');});});}
+    });
+  });
+  // 開關
+  var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>';
+  function icon(b){if(b.classList.contains('js-icon'))b.querySelector('.k').innerHTML=b.getAttribute('aria-checked')==='true'?moon:sun;}
+  document.querySelectorAll('.sw[role=switch]').forEach(function(b){
+    icon(b);
+    b.addEventListener('click',function(){b.setAttribute('aria-checked',b.getAttribute('aria-checked')==='true'?'false':'true');icon(b);});
+  });
+  // 分段
+  document.querySelectorAll('.js-seg').forEach(function(g){
+    var ind=g.querySelector('.ind'),bs=[].slice.call(g.querySelectorAll('button'));
+    function place(){var on=bs.filter(function(b){return b.getAttribute('aria-checked')==='true';})[0];ind.style.width=on.offsetWidth+'px';ind.style.transform='translateX('+(on.offsetLeft-3)+'px)';bs.forEach(function(b){b.tabIndex=b===on?0:-1;});}
+    bs.forEach(function(b,i){
+      b.addEventListener('click',function(){bs.forEach(function(x){x.setAttribute('aria-checked',String(x===b));});place();});
+      b.addEventListener('keydown',function(e){var d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;if(!d)return;e.preventDefault();var n=bs[(i+d+bs.length)%bs.length];n.click();n.focus();});
+    });
+    place();window.addEventListener('resize',place);if(document.fonts)document.fonts.ready.then(place);
+  });
+  // 目錄高亮
+  var links=[].slice.call(document.querySelectorAll('nav.toc a'));
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(l){l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-40% 0px -55% 0px'});
+    document.querySelectorAll('section.cat').forEach(function(s){io.observe(s);});
+  }
+})();
+</script>
+</body>
+</html>
