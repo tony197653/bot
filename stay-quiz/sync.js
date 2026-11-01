@@ -198,6 +198,27 @@ function applySkippedCloud(cloud) {
   refreshDisplay();
 }
 
+/** permission-denied：重讀雲端一次並套用快取（不 console.error） */
+async function recoverAfterPermissionDenied() {
+  if (!syncEnabled || !fsApi || !db) {
+    refreshDisplay();
+    return;
+  }
+  try {
+    const cloud = await withTimeout(fetchCloudBest(), GET_TIMEOUT_MS);
+    if (cloud === 'missing') {
+      clearCloudCache();
+      refreshDisplay();
+    } else if (cloud) {
+      applySkippedCloud(cloud);
+    } else {
+      refreshDisplay();
+    }
+  } catch {
+    refreshDisplay();
+  }
+}
+
 async function ensureFirebase() {
   if (syncDisabledThisSession) return false;
   if (db && fsApi) {
@@ -323,7 +344,7 @@ async function migrateOnce() {
     markMigrated();
   } catch (err) {
     if (isPermissionDenied(err)) {
-      console.error(err);
+      await recoverAfterPermissionDenied();
       markMigrated();
       return;
     }
@@ -354,7 +375,7 @@ async function flushPending() {
     }
   } catch (err) {
     if (isPermissionDenied(err)) {
-      console.error(err);
+      await recoverAfterPermissionDenied();
       clearPending();
       return;
     }
@@ -440,7 +461,8 @@ export async function submitScore(score, player) {
     else applySkippedCloud(outcome.cloud);
   } catch (err) {
     if (isPermissionDenied(err)) {
-      console.error(err);
+      // 交錯提交被規則拒絕：重讀雲端並刷新（不印 console）
+      await recoverAfterPermissionDenied();
     } else {
       writePending(score, player);
       refreshDisplay();
@@ -449,7 +471,11 @@ export async function submitScore(score, player) {
           if (outcome.result === 'wrote') successWrapUp({ score, player });
           else applySkippedCloud(outcome.cloud);
         })
-        .catch(() => {});
+        .catch((e) => {
+          if (isPermissionDenied(e)) {
+            void recoverAfterPermissionDenied();
+          }
+        });
     }
   } finally {
     busy = false;

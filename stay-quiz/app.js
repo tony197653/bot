@@ -644,12 +644,16 @@ function showResult() {
     }
   }
   applyHighDisplay(currentDisplayBest());
-  // 徽章以同步後權威顯示分為準（#1）；條件集中在 isNewRecordBadge
-  el.newRecord.classList.add('hidden');
+  // 立刻依本地／memCloud 顯示徽章；用 visibility 占位避免「再玩一次」位移
+  const showBadgeNow = isNewRecordBadge(totalScore, player, currentDisplayBest());
+  el.newRecord.classList.remove('hidden');
+  el.newRecord.classList.toggle('is-quiet', !showBadgeNow);
   void submitScore(totalScore, player).then(() => {
     const shown = currentDisplayBest();
     applyHighDisplay(shown);
-    el.newRecord.classList.toggle('hidden', !isNewRecordBadge(totalScore, player, shown));
+    const showAfter = isNewRecordBadge(totalScore, player, shown);
+    el.newRecord.classList.remove('hidden');
+    el.newRecord.classList.toggle('is-quiet', !showAfter);
   });
 
   el.reviewList.innerHTML = '';
