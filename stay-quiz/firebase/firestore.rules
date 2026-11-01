@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    match /stayQuiz/best {
+      allow read: if true;
+      allow create: if valid(request.resource.data);
+      allow update: if valid(request.resource.data)
+                    && request.resource.data.score >= resource.data.score;
+      allow delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+  function valid(d) {
+    return d.keys().hasOnly(['score','player','at'])
+        && d.keys().hasAll(['score','player','at'])
+        && d.score is int && d.score >= 0 && d.score <= 100
+        && d.player in ['羽蕎','容亘','Stay']
+        && d.at == request.time;
+  }
+}
