@@ -59,8 +59,8 @@ th{font-weight:500;text-align:left;white-space:nowrap}
 .t1 tbody tr{transition:background .15s}
 .t1 tbody tr:hover{background:#F3F4EF}
 .t1 tbody tr:last-child td{border-bottom:0}
-.fname{font-weight:600;white-space:nowrap}
-.extra{margin-left:6px;font-size:11.5px;font-weight:500;color:var(--sand);background:var(--sand-soft);padding:2px 7px;border-radius:5px;vertical-align:1px}
+.fname{font-weight:600;white-space:normal;overflow-wrap:anywhere}
+.extra{margin-left:6px;font-size:11.5px;font-weight:500;color:#6E5D43;background:var(--sand-soft);padding:2px 7px;border-radius:5px;vertical-align:1px}
 
 /* 標籤：L2 狀態圓點 */
 .tag{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:1;white-space:nowrap}
@@ -96,7 +96,7 @@ footer{padding:48px 0 calc(40px + env(safe-area-inset-bottom));color:var(--mute)
 footer .wrap{border-top:1px solid var(--line);padding-top:20px}
 
 /* 手機：每列變卡片，不需要左右捲 */
-@media (max-width:720px){
+@media (max-width:840px){
   .t1 thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   .t1,.t1 tbody,.t1 tr,.t1 td{display:block;width:100%}
   .panel{background:transparent;border:0;box-shadow:none;overflow:visible}
@@ -111,7 +111,7 @@ footer .wrap{border-top:1px solid var(--line);padding-top:20px}
   .t1 td.c-opt::before{content:attr(data-label);display:block;font-size:12px;color:var(--mute);margin-bottom:4px}
   .t1 td.c-name .skill{flex-basis:100%;margin:2px 0 0}
 }
-@media (min-width:721px){ .t1 td.c-name .tag, .t1 td.c-name .skill{display:none} }
+@media (min-width:841px){ .t1 td.c-name .tag, .t1 td.c-name .skill{display:none} }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
 }
