@@ -110,21 +110,97 @@ export function prepareRound(data, rng = Math.random) {
 }
 
 /**
- * 最高分：僅當新分數嚴格大於舊分（或尚無紀錄）才更新。
+ * 最高分：新分數 ≥ 舊分（或尚無紀錄）才更新；同分可換玩家名。
  * 第一輪含 0 分也算新紀錄。
  * @param {number} score
- * @param {{score: number, player: string, at?: string}|null} best
+ * @param {{score: number, player: string, at?: string|number}|null} best
  */
 export function shouldUpdateBest(score, best) {
   if (!best || typeof best.score !== 'number') return true;
-  return score > best.score;
+  return score >= best.score;
+}
+
+/**
+ * 雲端寫入條件（對局結束）：缺雲端或新分 ≥ 雲端分。
+ * @param {number} score
+ * @param {number|null|undefined} cloudScore
+ */
+export function shouldWriteCloudRoundEnd(score, cloudScore) {
+  if (score === 0) return false;
+  if (cloudScore == null || typeof cloudScore !== 'number') return true;
+  return score >= cloudScore;
+}
+
+/**
+ * 雲端寫入條件（遷移）：缺雲端或本地分 > 雲端分（嚴格）。
+ * @param {number} localScore
+ * @param {number|null|undefined} cloudScore
+ */
+export function shouldWriteCloudMigration(localScore, cloudScore) {
+  if (localScore === 0) return false;
+  if (cloudScore == null || typeof cloudScore !== 'number') return true;
+  return localScore > cloudScore;
+}
+
+/**
+ * 雲端寫入條件（pending 重傳）：缺雲端或 pending > 雲端（嚴格）。
+ * @param {number} pendingScore
+ * @param {number|null|undefined} cloudScore
+ */
+export function shouldWriteCloudPending(pendingScore, cloudScore) {
+  if (pendingScore === 0) return false;
+  if (cloudScore == null || typeof cloudScore !== 'number') return true;
+  return pendingScore > cloudScore;
+}
+
+/** 0 分不上傳雲端、不存 pending */
+export function shouldSkipCloudUpload(score) {
+  return score === 0;
+}
+
+/**
+ * 把 best.at 轉成可比較的毫秒（數字原樣；YYYY-MM-DD 當台北日開始）。
+ * @param {unknown} at
+ */
+export function bestAtMillis(at) {
+  if (typeof at === 'number' && Number.isFinite(at)) return at;
+  if (typeof at === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(at)) {
+    const ms = Date.parse(`${at}T00:00:00+08:00`);
+    return Number.isFinite(ms) ? ms : 0;
+  }
+  return 0;
+}
+
+/**
+ * 顯示用最高分：在 cloud／local／pending 中取最高分；同分取最新 at。
+ * @param  {...({score:number,player:string,at?:string|number}|null|undefined)} candidates
+ * @returns {{score:number,player:string,at:string|number}|null}
+ */
+export function pickDisplayBest(...candidates) {
+  /** @type {{score:number,player:string,at:string|number}|null} */
+  let win = null;
+  for (const c of candidates) {
+    if (!c || typeof c.score !== 'number' || typeof c.player !== 'string') continue;
+    if (!win) {
+      win = c;
+      continue;
+    }
+    if (c.score > win.score) {
+      win = c;
+      continue;
+    }
+    if (c.score === win.score && bestAtMillis(c.at) >= bestAtMillis(win.at)) {
+      win = c;
+    }
+  }
+  return win;
 }
 
 /**
  * 驗證 localStorage 讀出的 best 形狀。
  * @param {unknown} value
  * @param {string[]} players
- * @returns {{score: number, player: string, at: string}|null}
+ * @returns {{score: number, player: string, at: string|number}|null}
  */
 export function normalizeBest(value, players) {
   if (!value || typeof value !== 'object') return null;
@@ -134,11 +210,17 @@ export function normalizeBest(value, players) {
   const player = best.player;
   if (!Number.isInteger(score) || score < 0 || score > 100) return null;
   if (typeof player !== 'string' || !players.includes(player)) return null;
-  const at = typeof best.at === 'string' ? best.at : '';
+  /** @type {string|number} */
+  let at = '';
+  if (typeof best.at === 'number' && Number.isFinite(best.at)) at = best.at;
+  else if (typeof best.at === 'string') at = best.at;
   return { score, player, at };
 }
 
 export const STORAGE_KEY = 'stayQuiz.v2';
+export const CLOUD_CACHE_KEY = 'stayQuiz.v2.cloud';
+export const PENDING_KEY = 'stayQuiz.v2.pending';
+export const MIGRATED_KEY = 'stayQuiz.v2.migrated';
 
 /**
  * 台灣時間 YYYY-MM-DD

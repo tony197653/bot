@@ -5,6 +5,7 @@ import {
   isBenignPlayAbort,
   isPlayButtonDisabledWhileLoading,
   normalizeBest,
+  pickDisplayBest,
   potentialPoints,
   prepareRound,
   scoreFor,
@@ -14,9 +15,11 @@ import {
   shouldResumeCountdownOnReplayEnded,
   shouldSuppressPlayingWhileHidden,
   shouldUpdateBest,
-  taiwanDate,
   TimerState,
+  CLOUD_CACHE_KEY,
+  PENDING_KEY,
 } from './logic.js';
+import { bindOnlineFlush, loadBest, submitScore } from './sync.js';
 
 const TEST_MODE = new URLSearchParams(location.search).get('test') === '1';
 
@@ -136,11 +139,11 @@ function readBest() {
   }
 }
 
-function writeBest(score, who) {
+function writeBest(score, who, atMs = Date.now()) {
   try {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ best: { score, player: who, at: taiwanDate() } }),
+      JSON.stringify({ best: { score, player: who, at: atMs } }),
     );
     return true;
   } catch {
@@ -164,13 +167,46 @@ function storageAvailable() {
   }
 }
 
-function refreshStartHigh() {
-  if (!storageAvailable()) {
-    el.startHigh.classList.add('hidden');
-    return;
+function readCloudCacheSafe() {
+  try {
+    const raw = localStorage.getItem(CLOUD_CACHE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    if (!v || typeof v.score !== 'number' || typeof v.player !== 'string') return null;
+    return v;
+  } catch {
+    return null;
   }
+}
+
+function readPendingSafe() {
+  try {
+    const raw = localStorage.getItem(PENDING_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    if (!v || typeof v.score !== 'number' || typeof v.player !== 'string') return null;
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+/** 顯示規則：cloud／local／pending 取最高（同分取最新） */
+function currentDisplayBest() {
+  return pickDisplayBest(readCloudCacheSafe(), readBest(), readPendingSafe());
+}
+
+function applyHighDisplay(best) {
   el.startHigh.classList.remove('hidden');
-  el.startHigh.textContent = formatHigh(readBest());
+  el.startHigh.textContent = formatHigh(best);
+  if (!el.result.hidden) {
+    el.resultHigh.classList.remove('hidden');
+    el.resultHigh.textContent = formatHigh(best);
+  }
+}
+
+function refreshStartHigh() {
+  applyHighDisplay(currentDisplayBest());
 }
 
 function fmtTime(sec) {
@@ -618,16 +654,16 @@ function showResult() {
   if (storageAvailable()) {
     const best = readBest();
     if (shouldUpdateBest(totalScore, best)) {
-      writeBest(totalScore, player);
+      writeBest(totalScore, player, Date.now());
       isNew = true;
     }
-    el.resultHigh.classList.remove('hidden');
-    el.resultHigh.textContent = formatHigh(readBest());
-    el.newRecord.classList.toggle('hidden', !isNew);
-  } else {
-    el.resultHigh.classList.add('hidden');
-    el.newRecord.classList.add('hidden');
   }
+  applyHighDisplay(currentDisplayBest());
+  el.newRecord.classList.toggle('hidden', !isNew);
+  // 雲端同步（0 分不上傳；失敗靜默 pending）；完成後刷新顯示
+  void submitScore(totalScore, player).then(() => {
+    applyHighDisplay(currentDisplayBest());
+  });
 
   el.reviewList.innerHTML = '';
   answers.forEach((a, i) => {
@@ -976,7 +1012,14 @@ async function boot() {
       startRound(name, true);
     });
   });
+  // 1) 立刻顯示本地；背景拉雲端／遷移／pending
   refreshStartHigh();
+  bindOnlineFlush();
+  void loadBest({
+    getLocalBest: () => readBest(),
+    setLocalBest: (s, p, at) => writeBest(s, p, at),
+    onDisplay: (best) => applyHighDisplay(best),
+  });
 }
 
 boot();
