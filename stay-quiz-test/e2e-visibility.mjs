@@ -59,7 +59,7 @@ async function setHidden(page, hidden) {
 }
 
 async function startQuiz(page, base) {
-  await page.goto(`${base}/index.html?test=1`, { waitUntil: 'networkidle' });
+  await page.goto(`${base}/index.html?test=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => {
     const b = document.querySelector('.btn-player');
     return b && !b.disabled;
@@ -197,7 +197,7 @@ try {
     const page = await browser.newPage();
     const name = 'start screen bg then start quiz timer works';
     try {
-      await page.goto(`${base}/index.html?test=1`, { waitUntil: 'networkidle' });
+      await page.goto(`${base}/index.html?test=1`, { waitUntil: 'load' });
       await page.waitForFunction(() => document.querySelector('.btn-player:not([disabled])'));
       await setHidden(page, true);
       await setHidden(page, false);

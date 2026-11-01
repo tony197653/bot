@@ -51,7 +51,7 @@ function startServer() {
 }
 
 async function bootStart(page, base) {
-  await page.goto(`${base}/index.html?test=1`, { waitUntil: 'networkidle' });
+  await page.goto(`${base}/index.html?test=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => {
     const b = document.querySelector('.btn-player');
     return b && !b.disabled;

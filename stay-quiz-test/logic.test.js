@@ -23,6 +23,11 @@ const {
   shouldResumeCountdownOnReplayEnded,
   shouldSuppressPlayingWhileHidden,
   shouldUpdateBest,
+  shouldWriteCloudRoundEnd,
+  shouldWriteCloudMigration,
+  shouldWriteCloudPending,
+  shouldSkipCloudUpload,
+  pickDisplayBest,
   shuffle,
   TimerState,
 } = await import(pathToFileURL(join(QUIZ_ROOT, 'logic.js')).href);
@@ -135,10 +140,10 @@ describe('最高分同分規則', () => {
     assert.equal(shouldUpdateBest(0, null), true);
     assert.equal(shouldUpdateBest(50, null), true);
   });
-  it('嚴格大於才更新；同分保留先達成者', () => {
+  it('≥ 才更新；同分可換玩家', () => {
     const best = { score: 80, player: '羽蕎', at: '2026-11-01' };
     assert.equal(shouldUpdateBest(81, best), true);
-    assert.equal(shouldUpdateBest(80, best), false);
+    assert.equal(shouldUpdateBest(80, best), true);
     assert.equal(shouldUpdateBest(79, best), false);
   });
   it('normalizeBest 拒絕壞資料', () => {
@@ -149,6 +154,31 @@ describe('最高分同分規則', () => {
       normalizeBest({ best: { score: 92, player: '容亘', at: '2026-11-01' } }, data.players),
       { score: 92, player: '容亘', at: '2026-11-01' },
     );
+  });
+});
+
+describe('雲端寫入條件與顯示挑選', () => {
+  it('對局結束 ≥；遷移／pending 嚴格 >；0 分跳過', () => {
+    assert.equal(shouldSkipCloudUpload(0), true);
+    assert.equal(shouldSkipCloudUpload(10), false);
+    assert.equal(shouldWriteCloudRoundEnd(0, null), false);
+    assert.equal(shouldWriteCloudRoundEnd(60, null), true);
+    assert.equal(shouldWriteCloudRoundEnd(60, 60), true);
+    assert.equal(shouldWriteCloudRoundEnd(50, 60), false);
+    assert.equal(shouldWriteCloudMigration(70, 70), false);
+    assert.equal(shouldWriteCloudMigration(70, 60), true);
+    assert.equal(shouldWriteCloudMigration(70, null), true);
+    assert.equal(shouldWriteCloudPending(70, 70), false);
+    assert.equal(shouldWriteCloudPending(80, 70), true);
+  });
+
+  it('pickDisplayBest 取最高分；同分取最新 at', () => {
+    const a = { score: 60, player: '羽蕎', at: 100 };
+    const b = { score: 60, player: 'Stay', at: 200 };
+    const c = { score: 50, player: '容亘', at: 999 };
+    assert.equal(pickDisplayBest(a, b, c).player, 'Stay');
+    assert.equal(pickDisplayBest(c, a).score, 60);
+    assert.equal(pickDisplayBest(null, null), null);
   });
 });
 

@@ -93,7 +93,7 @@ try {
     for (const mode of ['wrong', 'correct', 'timeout', 'skip']) {
       const page = await browser.newPage();
       await page.setViewportSize({ width: w, height: h });
-      await page.goto(`${base}/index.html?test=1`, { waitUntil: 'networkidle' });
+      await page.goto(`${base}/index.html?test=1`, { waitUntil: 'load' });
       await page.waitForSelector('.btn-player:not([disabled])');
       await page.click('.btn-player[data-player="羽蕎"]');
       await page.waitForSelector('#screen-quiz.is-active');

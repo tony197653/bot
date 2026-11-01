@@ -76,7 +76,7 @@ async function shot(page, name) {
 }
 
 async function waitReady(page, base) {
-  await page.goto(`${base}/index.html?test=1`, { waitUntil: 'networkidle' });
+  await page.goto(`${base}/index.html?test=1`, { waitUntil: 'load' });
   await page.waitForFunction(() => {
     const b = document.querySelector('.btn-player');
     return b && !b.disabled && b.textContent !== '準備中…';
@@ -129,7 +129,7 @@ async function captureViewport(browser, base, w, h, tag) {
       JSON.stringify({ best: { score: 92, player: '羽蕎', at: '2026-11-01' } }),
     );
   });
-  await page.reload({ waitUntil: 'networkidle' });
+  await page.reload({ waitUntil: 'load' });
   await waitReady(page, base);
   files.push(await shot(page, `${tag}-01b-highscore`));
 

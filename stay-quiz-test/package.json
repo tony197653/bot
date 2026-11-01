@@ -6,6 +6,8 @@
     "test": "node --test logic.test.js",
     "test:e2e": "node e2e-visibility.mjs",
     "test:replay": "node e2e-replay.mjs",
-    "capture": "node capture.mjs"
+    "capture": "node capture.mjs",
+    "test:sync": "node --test sync-scenarios.test.js",
+    "test:e2e-sync": "node e2e-sync.mjs"
   }
 }
