@@ -1,0 +1,181 @@
+{
+  "_說明": "功能庫資料檔。格式說明請看同資料夾的 README.md。改完存檔即可，不必動 index.html。",
+  "updated": "2026-11-02",
+  "source": "技能 feature-index（含 references/ 比較表）",
+  "notes": [
+    {
+      "title": "付款尚未確認",
+      "items": [
+        "GitHub Pages 沒有後端，任何 secret key（Stripe secret key、綠界 HashKey／HashIV、PayPal client secret）都不能放前端，只能用金流商代管的收款連結／付款按鈕。",
+        "藍新、LINE Pay 能否免後端使用：未確認。Stripe 台灣公司能否直接開戶：未確認。"
+      ]
+    },
+    {
+      "title": "已知地雷",
+      "items": [
+        "InstantDB 停止新註冊，雲端 app 於 2027-08-31 關閉。",
+        "PocketBase repo 已 archived，且要自架伺服器。",
+        "PartyKit 託管平台 2026-10-23 已關閉。",
+        "Firebase Cloud Storage 自 2026-02-03 起 Spark 免費方案不能用（要綁卡升級 Blaze）。",
+        "Cusdis 已 archived；utterances、Staticman、y-webrtc、Lunr.js 超過一年沒更新。",
+        "ApexCharts 改雙授權，年營收／預算 200 萬美元以上的組織不能用免費版。",
+        "Decap CMS 放 GitHub Pages 要另架 OAuth 代理，改用 Sveltia CMS 可免。"
+      ]
+    },
+    {
+      "title": "提醒",
+      "items": [
+        "免費額度會變，正式採用前重新打開官方網址確認一次。"
+      ]
+    }
+  ],
+  "features": [
+    {
+      "name": "登入",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "Firebase Authentication（Google 登入）", "url": "https://github.com/firebase/firebase-js-sdk", "note": "跟 Firestore 同專案，50K MAU 免費" },
+      "alternatives": [
+        { "name": "Supabase Auth", "url": "https://github.com/supabase/supabase-js", "note": "50K MAU 免費，專案改用 Supabase 時一起用" }
+      ]
+    },
+    {
+      "name": "雲端資料庫",
+      "status": "已驗證",
+      "skill": "firebase-record-sync",
+      "primary": { "name": "Cloud Firestore", "url": "https://github.com/firebase/firebase-js-sdk", "note": "每日 50K 讀／20K 寫免費" },
+      "alternatives": [
+        { "name": "Supabase", "url": "https://github.com/supabase/supabase", "note": "要 SQL 時用；閒置 1 週會暫停" }
+      ]
+    },
+    {
+      "name": "排行榜／紀錄",
+      "status": "已驗證",
+      "skill": "firebase-record-sync",
+      "primary": { "name": "Firestore＋firebase-record-sync", "url": "https://github.com/firebase/firebase-js-sdk", "note": "含只准加分規則與 localStorage 備援" },
+      "alternatives": [
+        { "name": "Supabase 資料表＋RLS", "url": "https://github.com/supabase/supabase", "note": "整個專案已用 Supabase 時才換" }
+      ]
+    },
+    {
+      "name": "即時同步／多人房間",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "Firebase Realtime Database", "url": "https://github.com/firebase/firebase-js-sdk", "note": "同時 100 連線，onDisconnect 做上線狀態" },
+      "alternatives": [
+        { "name": "Supabase Realtime", "url": "https://github.com/supabase/realtime", "note": "同時 200 連線，Broadcast 適合遊戲房" }
+      ]
+    },
+    {
+      "name": "圖片上傳",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "Cloudinary Upload Widget（unsigned）", "url": "https://cloudinary.com/documentation/upload_widget", "note": "免後端、免綁卡，每月 25 credits" },
+      "alternatives": [
+        { "name": "Supabase Storage", "url": "https://github.com/supabase/storage", "note": "1 GB、單檔 50 MB" }
+      ]
+    },
+    {
+      "name": "付款",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "綠界 ECPay 收款連結", "url": "https://www.ecpay.com.tw/Business/QuickCollect_Info", "note": "台灣信用卡／ATM／超商，個人可申請、免寫程式" },
+      "alternatives": [
+        { "name": "PayPal 付款連結／Buy Button", "url": "https://github.com/paypal/paypal-js", "note": "收海外款" }
+      ]
+    },
+    {
+      "name": "通知",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "OneSignal Web Push", "url": "https://github.com/OneSignal/OneSignal-Website-SDK", "note": "推播給訪客，免自己的伺服器" },
+      "alternatives": [
+        { "name": "EmailJS", "url": "https://github.com/emailjs-com/emailjs-sdk", "note": "通知自己，每月 200 封免費" }
+      ]
+    },
+    {
+      "name": "表單送出",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "Web3Forms", "url": "https://web3forms.com/", "note": "每月 250 筆免費，貼 HTML 就能用" },
+      "alternatives": [
+        { "name": "Formspree", "url": "https://github.com/formspree/formspree-js", "note": "每月 50 筆，老牌穩定" }
+      ]
+    },
+    {
+      "name": "搜尋",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "Pagefind", "url": "https://github.com/Pagefind/pagefind", "note": "靜態站專用，建置時自動索引" },
+      "alternatives": [
+        { "name": "Fuse.js", "url": "https://github.com/krisk/Fuse", "note": "小 JSON 資料的模糊搜尋" }
+      ]
+    },
+    {
+      "name": "分享",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "Web Share API＋LINE 分享網址", "url": "https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share", "note": "瀏覽器內建、零函式庫，LINE 網址當備援" },
+      "alternatives": [
+        { "name": "shareon", "url": "https://github.com/kytta/shareon", "note": "輕量、無追蹤的分享按鈕" }
+      ]
+    },
+    {
+      "name": "多語系（i18n）",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "i18next", "url": "https://github.com/i18next/i18next", "note": "不綁框架、CDN 可用" },
+      "alternatives": [
+        { "name": "原生 Intl＋JSON 字典", "url": "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl", "note": "小頁面免函式庫" }
+      ]
+    },
+    {
+      "name": "後台管理",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "Sveltia CMS（內容後台）", "url": "https://github.com/sveltia/sveltia-cms", "note": "權杖登入，不需 OAuth 伺服器" },
+      "alternatives": [
+        { "name": "Firebase 主控台＋自製 admin 頁（資料後台）", "url": "https://github.com/firebase/firebase-js-sdk", "note": "資料已在 Firestore 時最省事" }
+      ]
+    },
+    {
+      "name": "圖表",
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "Chart.js", "url": "https://github.com/chartjs/Chart.js", "note": "最好上手、MIT" },
+      "alternatives": [
+        { "name": "Apache ECharts", "url": "https://github.com/apache/echarts", "note": "地圖／大量資料／儀表板" }
+      ]
+    },
+    {
+      "name": "分析統計",
+      "extra": true,
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "GoatCounter", "url": "https://github.com/arp242/goatcounter", "note": "免費、無 cookie、一行 script" },
+      "alternatives": [
+        { "name": "Cloudflare Web Analytics", "url": "https://developers.cloudflare.com/web-analytics/get-started/", "note": "免費、無 cookie" }
+      ]
+    },
+    {
+      "name": "留言／評論",
+      "extra": true,
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "giscus", "url": "https://github.com/giscus/giscus", "note": "存在 GitHub Discussions，免伺服器" },
+      "alternatives": [
+        { "name": "Twikoo", "url": "https://github.com/twikoojs/twikoo", "note": "可匿名留言，需部署 Vercel 雲函式" }
+      ]
+    },
+    {
+      "name": "地圖",
+      "extra": true,
+      "status": "候選",
+      "skill": "",
+      "primary": { "name": "Leaflet＋OpenStreetMap", "url": "https://github.com/Leaflet/Leaflet", "note": "最輕、免費（限輕度使用）" },
+      "alternatives": [
+        { "name": "MapLibre GL JS＋MapTiler", "url": "https://github.com/maplibre/maplibre-gl-js", "note": "向量地圖，免費版限非商用" }
+      ]
+    }
+  ]
+}

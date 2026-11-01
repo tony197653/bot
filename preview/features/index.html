@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>功能庫｜常用功能該用哪個方案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 變數、字體、配色沿用元件風格庫 /bot/components/ */
+:root{
+  --bg:#EDEEE9;--surface:#FBFBF8;--ink:#2F312D;--mute:#696C64;--line:#D6D9D0;--line-soft:#E4E6DF;
+  --sage:#66745F;--sage-deep:#505C4A;--sage-soft:#DFE4DA;--rose:#9C7C74;--rose-soft:#EFE4E0;
+  --sand:#8F7B5E;--sand-soft:#ECE6DA;--slate:#5F6B78;--slate-soft:#E1E5EA;--danger:#A4483C;--danger-soft:#F3E2DE;
+  --black:#1F201D;
+  --r:12px;--r-sm:8px;
+  --shadow:0 1px 2px rgba(40,42,36,.05),0 4px 16px rgba(40,42,36,.05);
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --font:"Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{overflow-x:hidden;overflow-x:clip;scrollbar-gutter:stable}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden;overflow-x:clip}
+::selection{background:var(--sage-soft);color:var(--ink)}
+:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+h1,h2{line-height:1.3;text-wrap:balance;margin:0;font-weight:600}
+p{margin:0;text-wrap:pretty;line-break:strict}
+.wrap{max-width:1160px;margin:0 auto;padding:0 max(20px,env(safe-area-inset-left))}
+
+/* 頁首 */
+header.top{padding:44px 0 24px}
+header.top h1{font-size:clamp(28px,4vw,40px);letter-spacing:-.01em}
+header.top .lead{margin-top:12px;color:var(--mute);font-size:15px;max-width:46em}
+header.top .meta{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--mute);font-size:13px}
+header.top .meta b{color:var(--ink);font-weight:600}
+
+/* 工具列：S1 切換鈕 */
+.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;margin-bottom:16px}
+.sw-row{display:flex;align-items:center;gap:12px;font-size:15px;min-height:44px;cursor:pointer}
+.sw{position:relative;flex:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.sw .k{position:absolute;transition:transform .32s cubic-bezier(.3,1.4,.5,1),width .2s,background .2s}
+.s1{width:51px;height:31px;border-radius:999px;background:#D3D5CE;transition:background .25s}
+.s1 .k{top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.18),0 0 0 .5px rgba(0,0,0,.05)}
+.s1:active .k{width:32px}
+.s1[aria-checked="true"]{background:var(--sage)}
+.s1[aria-checked="true"] .k{transform:translateX(20px)}
+.s1[aria-checked="true"]:active .k{transform:translateX(15px)}
+.count{color:var(--mute);font-size:13.5px;font-variant-numeric:tabular-nums}
+.count b{color:var(--ink);font-weight:600}
+
+/* 表格：T1 極簡細線 */
+.panel{background:var(--surface);border:1px solid var(--line-soft);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th{font-weight:500;text-align:left;white-space:nowrap}
+.t1 th,.t1 td{padding:14px 16px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+.t1 th{color:var(--mute);font-size:13px;border-bottom-color:var(--line);background:var(--surface)}
+.t1 tbody tr{transition:background .15s}
+.t1 tbody tr:hover{background:#F3F4EF}
+.t1 tbody tr:last-child td{border-bottom:0}
+.fname{font-weight:600;white-space:nowrap}
+.extra{margin-left:6px;font-size:11.5px;font-weight:500;color:var(--sand);background:var(--sand-soft);padding:2px 7px;border-radius:5px;vertical-align:1px}
+
+/* 標籤：L2 狀態圓點 */
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:1;white-space:nowrap}
+.l2{padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.l2 i{width:7px;height:7px;border-radius:50%;background:#B9BCB3}
+.l2.ok i{background:#6E9A5F}
+.skill{display:block;margin-top:6px;font-size:12.5px;color:var(--sage-deep);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.skill::before{content:"技能 ";font-family:var(--font);color:var(--mute)}
+.t1 td.c-status{white-space:nowrap;min-width:190px}
+
+/* 連結：B5 文字底線 */
+.opt + .opt{margin-top:10px}
+.lnk{position:relative;display:inline;color:var(--ink);font-weight:500;text-decoration:none;transition:color .2s}
+.lnk::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:1px;background:currentColor;transform:scaleX(.35);transform-origin:left;transition:transform .35s var(--ease)}
+.lnk:hover{color:var(--rose)}
+.lnk:hover::after{transform:scaleX(1)}
+.lnk:active{opacity:.7}
+.src{margin-left:6px;font-size:11.5px;color:var(--mute);white-space:nowrap}
+.why{display:block;color:var(--mute);font-size:13px;margin-top:2px}
+
+.empty,.err{padding:28px 16px;text-align:center;color:var(--mute)}
+.err{color:var(--danger)}
+
+/* 注意事項 */
+.notes{margin-top:28px;display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.note{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);padding:16px 18px}
+.note h2{font-size:15px;margin-bottom:6px}
+.note.warn h2{color:var(--danger)}
+.note ul{margin:0;padding-left:1.1em;color:var(--mute);font-size:13.5px}
+.note li + li{margin-top:4px}
+
+footer{padding:48px 0 calc(40px + env(safe-area-inset-bottom));color:var(--mute);font-size:13px}
+footer .wrap{border-top:1px solid var(--line);padding-top:20px}
+
+/* 手機：每列變卡片，不需要左右捲 */
+@media (max-width:720px){
+  .t1 thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .t1,.t1 tbody,.t1 tr,.t1 td{display:block;width:100%}
+  .panel{background:transparent;border:0;box-shadow:none;overflow:visible}
+  .t1 tbody{display:grid;gap:12px}
+  .t1 tbody tr{background:var(--surface);border:1px solid var(--line-soft);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px}
+  .t1 tbody tr:hover{background:var(--surface)}
+  .t1 td{padding:0;border:0}
+  .t1 td.c-name{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .t1 td.c-status{display:none}
+  .t1 td.c-name .tag{display:inline-flex}
+  .t1 td.c-opt{margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft)}
+  .t1 td.c-opt::before{content:attr(data-label);display:block;font-size:12px;color:var(--mute);margin-bottom:4px}
+  .t1 td.c-name .skill{flex-basis:100%;margin:2px 0 0}
+}
+@media (min-width:721px){ .t1 td.c-name .tag, .t1 td.c-name .skill{display:none} }
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>功能庫</h1>
+    <p class="lead">做網頁時常用的功能，各挑一個首選和一個備選。「已驗證」代表實際做過、已存成技能，可以直接照做。</p>
+    <div class="meta"><span>最後更新 <b id="updated">—</b></span><span>共 <b id="total">—</b> 項功能</span></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="bar">
+    <label class="sw-row" id="fl-label">
+      <button class="sw s1" id="only-ok" role="switch" aria-checked="false" aria-labelledby="fl-text"><span class="k"></span></button>
+      <span id="fl-text">只看已驗證</span>
+    </label>
+    <span class="count" id="count" aria-live="polite"></span>
+  </div>
+
+  <div class="panel">
+    <table class="t1">
+      <thead><tr><th scope="col">功能名稱</th><th scope="col">狀態</th><th scope="col">首選</th><th scope="col">備選</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="4" class="empty">載入中…</td></tr></tbody>
+    </table>
+  </div>
+
+  <section class="notes" id="notes" aria-label="注意事項"></section>
+</main>
+
+<footer><div class="wrap"><span id="source">資料來源：技能 feature-index</span></div></footer>
+
+<script>
+(function(){
+  var rowsEl=document.getElementById('rows'), sw=document.getElementById('only-ok'), countEl=document.getElementById('count');
+  var data=null;
+
+  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function isOk(f){return f.status==='已驗證';}
+  function statusTag(f){
+    return '<span class="tag l2'+(isOk(f)?' ok':'')+'"><i></i>'+esc(f.status)+'</span>'+
+      (isOk(f)&&f.skill?'<span class="skill">'+esc(f.skill)+'</span>':'');
+  }
+  function opt(o){
+    if(!o||!o.name) return '';
+    var gh=/^https:\/\/github\.com\//.test(o.url||'');
+    var label=gh?'GitHub':'官方文件';
+    var name=o.url?'<a class="lnk" href="'+esc(o.url)+'" target="_blank" rel="noopener">'+esc(o.name)+'</a><span class="src">'+label+' ↗</span>':esc(o.name);
+    return '<div class="opt">'+name+(o.note?'<span class="why">'+esc(o.note)+'</span>':'')+'</div>';
+  }
+
+  function render(){
+    var only=sw.getAttribute('aria-checked')==='true';
+    var list=data.features.filter(function(f){return !only||isOk(f);});
+    rowsEl.innerHTML=list.length?list.map(function(f){
+      return '<tr>'+
+        '<td class="c-name"><span class="fname">'+esc(f.name)+(f.extra?'<span class="extra">加開</span>':'')+'</span>'+statusTag(f)+'</td>'+
+        '<td class="c-status">'+statusTag(f)+'</td>'+
+        '<td class="c-opt" data-label="首選">'+opt(f.primary)+'</td>'+
+        '<td class="c-opt" data-label="備選">'+((f.alternatives||[]).map(opt).join('')||'—')+'</td>'+
+      '</tr>';
+    }).join(''):'<tr><td colspan="4" class="empty">目前沒有符合的功能。</td></tr>';
+    var ok=data.features.filter(isOk).length;
+    countEl.innerHTML=only?'顯示 <b>'+list.length+'</b> 項已驗證':'已驗證 <b>'+ok+'</b>／候選 <b>'+(data.features.length-ok)+'</b>';
+  }
+
+  function renderNotes(){
+    var el=document.getElementById('notes');
+    el.innerHTML=(data.notes||[]).map(function(n,i){
+      return '<div class="note'+(/地雷|付款/.test(n.title)?' warn':'')+'"><h2>'+esc(n.title)+'</h2><ul>'+
+        (n.items||[]).map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul></div>';
+    }).join('');
+  }
+
+  sw.addEventListener('click',function(e){
+    e.preventDefault();
+    sw.setAttribute('aria-checked',sw.getAttribute('aria-checked')==='true'?'false':'true');
+    if(data) render();
+  });
+
+  fetch('features.json',{cache:'no-cache'}).then(function(r){
+    if(!r.ok) throw new Error(r.status);
+    return r.json();
+  }).then(function(d){
+    data=d;
+    document.getElementById('updated').textContent=d.updated||'—';
+    document.getElementById('total').textContent=(d.features||[]).length;
+    if(d.source) document.getElementById('source').textContent='資料來源：'+d.source;
+    render(); renderNotes();
+  }).catch(function(){
+    rowsEl.innerHTML='<tr><td colspan="4" class="err">資料載入失敗，請重新整理再試一次。</td></tr>';
+  });
+})();
+</script>
+</body>
+</html>
