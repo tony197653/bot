@@ -4,16 +4,9 @@
 
 ## 設定
 
-打開 `app.js` 最上方 `CONFIG`：
+正式值已寫在 `app.js` 最上方 `CONFIG`（Worker `ask-api.tony197653.workers.dev`＋Turnstile Invisible sitekey）。
 
-```js
-const CONFIG = {
-  workerUrl: "https://ask-api.<你的帳號>.workers.dev",
-  turnstileSiteKey: "<Turnstile Invisible site key>",
-};
-```
-
-本機／`*.pages.dev` 預覽也可：`?worker=http://127.0.0.1:8787&sitekey=1x00000000000000000000BB`（正式 github.io 會忽略這兩個 query）。
+本機／`*.pages.dev` 預覽可覆寫：`?worker=http://127.0.0.1:8787&sitekey=1x00000000000000000000BB`（正式 `tony197653.github.io` 會忽略這兩個 query）。CI／Playwright 用 `__ASK_BOOT__` 指到 mock worker。
 
 ## 本機預覽
 

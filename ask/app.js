@@ -1,11 +1,9 @@
-/* ===== 預覽／正式切換：只改這裡 ===== */
+/* ===== 正式 CONFIG（公開 sitekey；預覽／測試靠下方覆寫） ===== */
 const CONFIG = {
-  // TODO(launch): 正式 Worker 上線後改成實際 workers.dev 網址
-  workerUrl: "https://ask-api.example.workers.dev",
-  // TODO(launch): 正式 Turnstile Invisible site key；預設為 Cloudflare 隱形測試 key
-  turnstileSiteKey: "1x00000000000000000000BB",
+  workerUrl: "https://ask-api.tony197653.workers.dev",
+  turnstileSiteKey: "0x4AAAAAAFwNX5b4cxFIXd6U",
 };
-/* ===================================== */
+/* ============================================================ */
 
 (function () {
   "use strict";
