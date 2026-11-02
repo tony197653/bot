@@ -257,9 +257,9 @@ export async function createRoom(fb, opts) {
       throw e;
     }
   }
-  throw Object.assign(lastErr || new Error('牌桌太多，稍後再試'), {
+  throw Object.assign(lastErr || new Error('牌桌太多'), {
     code: 'too-many-tables',
-    message: '牌桌太多，稍後再試',
+    message: '現在牌桌太多，房號暫時用完了，請稍後再按一次開房',
   });
 }
 

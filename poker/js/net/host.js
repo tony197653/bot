@@ -61,6 +61,10 @@ export function createHostLoop(fb, opts) {
   const awaySince = {};
   let seatedAt = [0, 0, 0, 0, 0, 0];
   let topUpReqs = {};
+  /** @type {Record<number, number>} seat → deniedAt ms (M2 #13 / §4.1 6-d) */
+  let topUpDenied = {};
+  /** Published so whole table sees §2 / M2 #10 exits when host hits 8,000. */
+  let quotaStop = false;
   let pendingSeats = [];
   let deadlineLocal = null;
   let hostClockAt = null;
@@ -113,6 +117,8 @@ export function createHostLoop(fb, opts) {
     seatedAt = room.pub?.seatedAt ? [...room.pub.seatedAt] : seatedAt;
     away = { ...(room.pub?.away || {}) };
     topUpReqs = { ...(room.pub?.topUpReqs || {}) };
+    topUpDenied = { ...(room.pub?.topUpDenied || {}) };
+    quotaStop = !!room.pub?.quotaStop;
     // Drop pending seats that already sat (QA #9)
     pendingSeats = (room.pub?.pendingSeats || []).filter(
       (x) => x?.uid && !room.seatUids.includes(x.uid),
@@ -149,9 +155,11 @@ export function createHostLoop(fb, opts) {
       hostClockAt,
       pendingSeats: [...pendingSeats],
       topUpReqs: { ...topUpReqs },
+      topUpDenied: { ...topUpDenied },
       rejects: { ...rejects },
     });
     if (pubVoided || extra.voided) pub.voided = true;
+    if (quotaStop) pub.quotaStop = true;
     return pub;
   }
 
@@ -356,6 +364,7 @@ export function createHostLoop(fb, opts) {
       const seat = room.seatUids.indexOf(intentUid);
       if (seat >= 0) {
         topUpReqs[seat] = true;
+        delete topUpDenied[seat];
         queueWrite();
       }
       return;
@@ -621,6 +630,7 @@ export function createHostLoop(fb, opts) {
     const sess = [...room.sess];
     sess[seat] = { ...s0, topUps: n, topUpChips: s0.topUpChips + amt };
     delete topUpReqs[seat];
+    delete topUpDenied[seat];
 
     engine = applyAction(engine, { type: 'TOP_UP', seat, amount: amt });
     actionSeq += 1;
@@ -656,8 +666,28 @@ export function createHostLoop(fb, opts) {
     onLocalState?.(engine);
   }
 
+  /** M2 #13 / §4.1 6-d: host declines top-up; publish deniedAt for 1-min cooldown UI. */
+  async function denyTopUp(seat) {
+    const room = getRoom();
+    if (!room) return;
+    delete topUpReqs[seat];
+    topUpDenied[seat] = Date.now();
+    const batch = fs.writeBatch(db);
+    batch.update(fs.doc(db, 'pokerRooms', roomId), {
+      rev: room.rev + 1,
+      updatedAt: fs.serverTimestamp(),
+      pub: buildPub(room),
+    });
+    await batch.commit();
+    lastWriteAt = Date.now();
+    recordWrite();
+    onLocalState?.(engine);
+  }
+
   function startHand() {
     if (hostMustStopNewHand(true)) {
+      quotaStop = true;
+      queueWrite();
       opts.onQuotaStop?.();
       return false;
     }
@@ -839,6 +869,7 @@ export function createHostLoop(fb, opts) {
     hostAction,
     voidHand,
     approveTopUp,
+    denyTopUp,
     cashoutSeat,
     seatPlayer,
     getEngine: () => engine,

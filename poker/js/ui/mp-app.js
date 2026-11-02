@@ -56,7 +56,11 @@ import {
   listenHole,
 } from '../net/client.js';
 import { startPresence, maybeTakeover } from '../net/presence.js';
-import { hostShouldWarn, resetTimeTaipeiLabel } from '../net/quota.js';
+import {
+  hostShouldWarn,
+  hostMustStopNewHand,
+  resetTimeTaipeiLabel,
+} from '../net/quota.js';
 import { decideRescue } from '../net/rescue.js';
 import {
   renderMpLobby,
@@ -118,34 +122,127 @@ let joining = false;
 let joinError = '';
 let joinEnded = false;
 /** Persist create-form draft across re-renders (UI/UX #11). */
-let createDraft = { name: '週五牌局', sb: 10, chips: 2000 };
+let createDraft = { name: '', sb: 10, chips: 2000 };
 let sittingBusy = false;
 let openJoinBusy = false;
+let rescueBusy = false;
+let approveBusy = false;
+let denyBusy = false;
+let leaveBusy = false;
+/** Local tick for M2 #13「再申請一次」countdown. */
+let topUpDenyTick = null;
 
-/** Map low-level errors to plain 發生什麼 + 怎麼做 (UI/UX #13). */
+/** Map low-level errors to plain 發生什麼 + 怎麼做（附錄 M3）. */
 function friendlyError(err, fallback) {
   const raw = String(err?.message || err?.code || err || '');
   const code = String(err?.code || '');
-  if (/timeout|逾時|Deadline|network|unavailable|Failed to fetch/i.test(raw + code)) {
-    return '連線逾時，請檢查網路後再試一次';
+  if (/timeout|逾時|Deadline/i.test(raw + code)) {
+    return '連線太慢，沒有加入成功。請按 Enter 再試一次';
   }
-  if (/permission-denied|PERMISSION_DENIED|insufficient/i.test(raw + code)) {
-    return '目前無法完成這項操作，請重新整理後再試；若仍不行，請請房主協助';
+  if (/network|unavailable|Failed to fetch|offline/i.test(raw + code)) {
+    return '沒有送出去，可能是網路斷了。請再按一次';
+  }
+  if (/permission-denied|PERMISSION_DENIED|closed|r 不符|mismatch/i.test(raw + code)) {
+    return '這桌已經結束了，回大廳看看其他牌桌';
   }
   if (/not-found|NOT_FOUND|找不到|不存在/i.test(raw + code)) {
-    return '找不到這桌，請確認房號後再試';
+    return raw.includes('房號') ? raw : '房號不存在，請再確認';
   }
   if (/too-many|牌桌太多/i.test(raw + code)) {
-    return '現在牌桌太多，請稍後再試';
+    return '現在牌桌太多，房號暫時用完了，請稍後再按一次開房';
   }
   if (/未滿\s*10|10\s*分鐘/i.test(raw)) {
     return '還不能結帳：房主失聯未滿 10 分鐘，請再等一下或請房主回來';
+  }
+  if (/籌碼.*對不上|ledger|chip.?mismatch/i.test(raw)) {
+    return '籌碼數字對不上，為了不算錯先停住。請房主收桌，大家的籌碼會照桌上數字結回帳戶';
   }
   // Strip Firebase-looking codes from otherwise OK Chinese messages
   if (/[\u4e00-\u9fff]/.test(raw) && !/permission-|firebase|INTERNAL|FAILED_PRECONDITION/i.test(raw)) {
     return raw.replace(/\s*\([^)]*\)\s*$/, '').trim() || fallback;
   }
   return fallback;
+}
+
+function clearRoomUrlParams() {
+  try {
+    const u = new URL(location.href);
+    if (!u.searchParams.has('room') && !u.searchParams.has('r')) return;
+    u.searchParams.delete('room');
+    u.searchParams.delete('r');
+    history.replaceState({}, '', u.pathname + (u.search || '') + u.hash);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** M2 #5: stay on table with result card; do not auto-kick. */
+function showCloseResultCard({ chips = 0, auto = false } = {}) {
+  let el = document.getElementById('mpCloseResult');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'mpCloseResult';
+    el.className = 'mp-close-result';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'mpCloseResultT');
+    document.body.appendChild(el);
+  }
+  const n = Number(chips) || 0;
+  const autoLine = auto
+    ? '<p class="mp-close-result-d">沒人在線 30 分鐘，已自動收桌</p>'
+    : '';
+  el.innerHTML = `
+    <div class="mp-close-result-card">
+      <h2 id="mpCloseResultT">牌桌已收桌，你帶回 ${n.toLocaleString('en-US')} 籌碼</h2>
+      ${autoLine}
+      <button type="button" class="mp-btn-primary" id="mpCloseLobby">回大廳</button>
+      <button type="button" class="mp-b2" id="mpCloseStats">看戰績</button>
+    </div>`;
+  el.hidden = false;
+  $('#mpCloseLobby', el)?.addEventListener('click', () => {
+    el.hidden = true;
+    clearRoomUrlParams();
+    clearLastRoom();
+    autoResumeTried = false;
+    leaveToLobby();
+  });
+  $('#mpCloseStats', el)?.addEventListener('click', () => {
+    el.hidden = true;
+    clearRoomUrlParams();
+    clearLastRoom();
+    autoResumeTried = false;
+    tearDownRoom();
+    openStats();
+  });
+}
+
+/** M2 #12: host alone leave → 「收桌」/「先不要」 (not native confirm). */
+function showHostAloneLeaveDialog() {
+  let el = document.getElementById('mpHostAlone');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'mpHostAlone';
+    el.className = 'mp-close-result';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'mpHostAloneT');
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `
+    <div class="mp-close-result-card">
+      <h2 id="mpHostAloneT">桌上只剩你，不能交給別人。要結束的話請收桌，或等有人入座</h2>
+      <button type="button" class="mp-btn-primary" id="mpHostAloneClose">收桌</button>
+      <button type="button" class="mp-b2" id="mpHostAloneCancel">先不要</button>
+    </div>`;
+  el.hidden = false;
+  $('#mpHostAloneClose', el)?.addEventListener('click', () => {
+    el.hidden = true;
+    mpCloseRoom();
+  });
+  $('#mpHostAloneCancel', el)?.addEventListener('click', () => {
+    el.hidden = true;
+  });
 }
 let statsMode = 'total';
 let statsRows = [];
@@ -603,6 +700,7 @@ function paint() {
       },
       onEnter: () => enterRoom(shareInfo.roomId, { asHostSit: true }),
       onLobby: () => {
+        clearRoomUrlParams();
         screen = 'lobby';
         paint();
       },
@@ -618,6 +716,7 @@ function paint() {
       error: joinError,
       ended: joinEnded,
       onBack: () => {
+        clearRoomUrlParams();
         screen = 'lobby';
         paint();
       },
@@ -628,6 +727,10 @@ function paint() {
       },
       onJoin: () => doJoin(joinDigits),
       onLobby: () => {
+        clearRoomUrlParams();
+        joinEnded = false;
+        joinError = '';
+        joinDigits = '';
         screen = 'lobby';
         paint();
       },
@@ -709,13 +812,11 @@ async function enterOpenTable(roomId) {
   try {
     const res = await joinByRoomId(fb, roomId, user.uid);
     if (res.ended || res.error) {
+      // M2 #2: just-closed from open list
       toast(
-        friendlyError(
-          res.error,
-          res.ended
-            ? '這桌已結束，請選其他桌或開一桌新的'
-            : '無法加入這桌，請再試一次或換一桌',
-        ),
+        res.ended
+          ? '這桌剛收桌了，換一桌或開新牌桌'
+          : friendlyError(res.error, '無法加入這桌，請再試一次或換一桌'),
       );
       if (screen === 'lobby') paint();
       return;
@@ -863,10 +964,13 @@ async function doCreate(data) {
   createError = '';
   paint();
   try {
+    const displayName = user.displayName || '玩家';
+    const tableName =
+      String(data.name || '').trim() || `${displayName}的牌桌`;
     const res = await createRoom(fb, {
       uid: user.uid,
-      name: data.name,
-      displayName: user.displayName || '',
+      name: tableName,
+      displayName,
       photoURL: user.photoURL || null,
       sb: data.sb,
       bb: data.bb,
@@ -880,7 +984,7 @@ async function doCreate(data) {
       return;
     }
     shareInfo = res;
-    createDraft = { name: '週五牌局', sb: 10, chips: 2000 };
+    createDraft = { name: '', sb: 10, chips: 2000 };
     // createRoom writes hostRoomId in the same txn; refresh local player doc
     try {
       playerDoc = await getPlayer(fb, user.uid);
@@ -890,7 +994,10 @@ async function doCreate(data) {
     screen = 'share';
   } catch (e) {
     console.error(e);
-    createError = friendlyError(e, '開房失敗，請再按一次「開房」');
+    createError = friendlyError(
+      e,
+      '牌桌沒開成功，可能是網路斷了，請再按一次',
+    );
   }
   creating = false;
   paint();
@@ -911,17 +1018,17 @@ async function doJoin(code, expectedR = null) {
       new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000)),
     ]);
     if (res.ended || res.error) {
-      // Keep digits so B-boxes can select-all for overwrite (BD §4)
+      // M2 #3: keep digits for select-all overwrite
       const digits = joinDigits;
-      joinError =
-        res.error && /找不到|不存在/.test(res.error)
-          ? `房號 ${digits} 不存在，請再確認`
-          : res.error || '牌桌已結束';
-      joinEnded = !!res.ended;
-      if (joinEnded && expectedR) {
-        // deep-link mismatch → ended screen
+      if (res.ended || /permission-denied|closed|結束/i.test(String(res.error || ''))) {
+        joinError = '這桌已經結束了，回大廳看看其他牌桌';
+        joinEnded = true;
+      } else if (res.error && /找不到|不存在/.test(res.error)) {
+        joinError = `房號 ${digits} 不存在，請再確認`;
+        joinEnded = false;
       } else {
-        // stay on lobby with error state
+        joinError = friendlyError(res.error, '這桌已經結束了，回大廳看看其他牌桌');
+        joinEnded = !!res.ended;
       }
     } else if (res.roomId) {
       joinDigits = '';
@@ -932,8 +1039,8 @@ async function doJoin(code, expectedR = null) {
   } catch (e) {
     joinError =
       e?.message === 'timeout'
-        ? '連線逾時，請檢查網路後再打一次房號'
-        : friendlyError(e, `房號 ${joinDigits} 加入失敗，請確認號碼後再試`);
+        ? '連線太慢，沒有加入成功。請按 Enter 再試一次'
+        : friendlyError(e, `房號 ${joinDigits} 不存在，請再確認`);
   }
   joining = false;
   paint();
@@ -1028,10 +1135,18 @@ async function enterRoom(id, { asHostSit = false } = {}) {
       room = r;
       lastRecvAt = Date.now();
       if (r.status === 'closed') {
-        toast('牌桌已結束');
+        // M2 #5: result card — do not auto-kick to lobby
+        const uid = getUser()?.uid;
+        const seat = uid ? r.seatUids?.indexOf(uid) ?? -1 : -1;
+        const chips =
+          seat >= 0
+            ? Number(r.stacks?.[seat] || 0)
+            : Number(playerDoc?.inPlay || 0);
+        const auto = !!(r.lobby?.autoClosed || r.autoClosed);
         clearLastRoom();
         autoResumeTried = false;
-        leaveToLobby();
+        showCloseResultCard({ chips, auto });
+        paintTableChrome();
         return;
       }
 
@@ -1090,8 +1205,13 @@ async function enterRoom(id, { asHostSit = false } = {}) {
             getRoom: () => room,
             displayNameOf,
             onLocalState: () => paintTableChrome(),
-            onChipMismatch: () => toast('籌碼對不上，請收桌'),
-            onQuotaStop: () => toast('今天到這裡'),
+            onChipMismatch: () =>
+              toast(
+                '籌碼數字對不上，為了不算錯先停住。請房主收桌，大家的籌碼會照桌上數字結回帳戶',
+              ),
+            onQuotaStop: () => {
+              paintTableChrome();
+            },
           });
           hostLoop.start();
         }
@@ -1209,7 +1329,12 @@ async function enterRoom(id, { asHostSit = false } = {}) {
 
 function paintTableChrome() {
   // Host loop keeps running in lobby (§6.2) — skip DOM work off-table
-  if (!room || screen !== 'table') return;
+  const back = $('#btnBackLobby');
+  if (!room || screen !== 'table') {
+    if (back) back.hidden = true;
+    return;
+  }
+  if (back) back.hidden = false;
   const user = getUser();
   const title = $('#roomTitle');
   if (title) title.textContent = room.name || '週五牌局';
@@ -1422,6 +1547,118 @@ function SLOT_FALLBACK(seat, viewer) {
   return { 0: 'hero', 1: 3, 2: 4, 3: 0, 4: 1, 5: 2 }[rel] ?? 0;
 }
 
+/** M2 #13 / §4.1 6-d: host approve+deny buttons + player deny cooldown. */
+function topUpHostHtml(pub) {
+  const reqs = Object.keys(pub.topUpReqs || {});
+  if (!reqs.length) return '';
+  return reqs
+    .map(
+      (s) =>
+        `<button type="button" class="primary" data-approve="${s}">核准補碼 座位${+s + 1}</button>` +
+        `<button type="button" class="ghost" data-deny="${s}">先不要</button>`,
+    )
+    .join('');
+}
+
+function topUpPlayerHtml(pub, mySeat, stacks) {
+  if (mySeat < 0 || (stacks[mySeat] || 0) !== 0) return '';
+  if (pub.topUpReqs?.[mySeat] || pub.topUpReqs?.[String(mySeat)]) {
+    return `<button type="button" class="ghost" id="mpTopupCancel">取消申請</button>
+      <span class="mp-spec">等房主核准…</span>`;
+  }
+  const deniedAt = Number(
+    pub.topUpDenied?.[mySeat] ?? pub.topUpDenied?.[String(mySeat)] ?? 0,
+  );
+  if (deniedAt) {
+    const left = Math.max(0, 60 - Math.floor((Date.now() - deniedAt) / 1000));
+    if (left > 0) {
+      if (!topUpDenyTick) {
+        topUpDenyTick = setInterval(() => paintTableChrome(), 1000);
+      }
+      return `<div class="mp-spec">房主這次先不補。你可以 1 分鐘後再申請，或離座把籌碼結回帳戶</div>
+        <button type="button" class="primary" id="mpTopup" disabled aria-disabled="true">再申請一次（${left}s）</button>
+        <button type="button" class="ghost" id="mpLeave">離座</button>`;
+    }
+    if (topUpDenyTick) {
+      clearInterval(topUpDenyTick);
+      topUpDenyTick = null;
+    }
+    return `<div class="mp-spec">房主這次先不補。你可以再申請一次，或離座把籌碼結回帳戶</div>
+      <button type="button" class="primary" id="mpTopup">再申請一次</button>
+      <button type="button" class="ghost" id="mpLeave">離座</button>`;
+  }
+  return `<button type="button" class="primary" id="mpTopup">申請補 2,000</button>`;
+}
+
+function wireTopUpActions(btns, pub, mySeat) {
+  $('#mpTopup', btns)?.addEventListener('click', () => {
+    const btn = $('#mpTopup', btns);
+    if (btn?.disabled) return;
+    btn.disabled = true;
+    btn.textContent = '申請中…';
+    intents?.send(
+      {
+        type: 'TOPUP_REQ',
+        handNo: (Number(pub.handNo) || 0) | 0,
+        turn: (Number(pub.actionSeq) || 0) | 0,
+        seat: mySeat,
+      },
+      {
+        onFail: () => {
+          toast('沒有送出去，可能是網路斷了。請再按一次');
+          paintTableChrome();
+        },
+      },
+    );
+  });
+  $('#mpTopupCancel', btns)?.addEventListener('click', () => {
+    intents?.send({
+      type: 'TOPUP_CANCEL',
+      handNo: (Number(pub.handNo) || 0) | 0,
+      turn: (Number(pub.actionSeq) || 0) | 0,
+      seat: mySeat,
+    });
+  });
+  btns.querySelectorAll('[data-approve]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      if (approveBusy || denyBusy) return;
+      approveBusy = true;
+      const seat = Number(el.getAttribute('data-approve'));
+      btns.querySelectorAll(`[data-approve="${seat}"],[data-deny="${seat}"]`).forEach((b) => {
+        b.disabled = true;
+      });
+      el.textContent = '核准中…';
+      try {
+        await hostLoop?.approveTopUp(seat);
+      } catch (e) {
+        toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
+        paintTableChrome();
+      } finally {
+        approveBusy = false;
+      }
+    });
+  });
+  btns.querySelectorAll('[data-deny]').forEach((el) => {
+    el.addEventListener('click', async () => {
+      if (approveBusy || denyBusy) return;
+      denyBusy = true;
+      const seat = Number(el.getAttribute('data-deny'));
+      btns.querySelectorAll(`[data-approve="${seat}"],[data-deny="${seat}"]`).forEach((b) => {
+        b.disabled = true;
+      });
+      el.textContent = '處理中…';
+      try {
+        await hostLoop?.denyTopUp(seat);
+      } catch (e) {
+        toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
+        paintTableChrome();
+      } finally {
+        denyBusy = false;
+      }
+    });
+  });
+}
+
 function renderActBar() {
   const act = $('#act');
   const btns = $('#btns');
@@ -1496,50 +1733,32 @@ function renderActBar() {
   }
 
   if (between && isHost && seatedCount >= 2 && pub.phase === 'hand_over') {
+    const playerTop = topUpPlayerHtml(pub, mySeat, room.stacks);
+    // Denied player block already includes 離座
+    const hasLeaveInTop = /id="mpLeave"/.test(playerTop);
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始下一手（${seatedCount}人）</button>
       <button type="button" class="ghost" id="mpBtnLeaveLobby">回大廳</button>
-      <button type="button" class="ghost" id="mpLeave">離座</button>
-      ${(room.stacks[mySeat] || 0) === 0 ? `<button type="button" class="primary" id="mpTopup">申請補 2,000</button>` : ''}
-      ${Object.keys(pub.topUpReqs || {})
-        .map((s) => `<button type="button" class="primary" data-approve="${s}">核准補碼 座位${+s + 1}</button>`)
-        .join('')}`;
+      ${hasLeaveInTop ? '' : '<button type="button" class="ghost" id="mpLeave">離座</button>'}
+      ${playerTop}
+      ${topUpHostHtml(pub)}`;
     $('#mpStart')?.addEventListener('click', () => hostLoop?.startHand());
     wireLeaveLobbyBtn();
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
-    $('#mpTopup')?.addEventListener('click', () =>
-      intents?.send({
-        type: 'TOPUP_REQ',
-        handNo: (Number(pub.handNo) || 0) | 0,
-        turn: (Number(pub.actionSeq) || 0) | 0,
-        seat: mySeat,
-      }),
-    );
-    btns.querySelectorAll('[data-approve]').forEach((el) => {
-      el.addEventListener('click', () => hostLoop?.approveTopUp(Number(el.getAttribute('data-approve'))));
-    });
+    wireTopUpActions(btns, pub, mySeat);
     return;
   }
 
   if (between) {
-    const broke = (room.stacks[mySeat] || 0) === 0;
+    const playerTop = topUpPlayerHtml(pub, mySeat, room.stacks);
+    const hasLeaveInTop = /id="mpLeave"/.test(playerTop);
     btns.innerHTML = `
-      ${broke ? `<button type="button" class="primary" id="mpTopup">申請補 2,000</button>` : ''}
-      ${isHost && pub.topUpReqs ? Object.keys(pub.topUpReqs || {}).map((s) => `<button type="button" class="primary" data-approve="${s}">核准補碼 座位${+s + 1}</button>`).join('') : ''}
+      ${playerTop}
+      ${isHost ? topUpHostHtml(pub) : ''}
       <button type="button" class="ghost" id="mpBtnLeaveLobby">回大廳</button>
-      <button type="button" class="ghost" id="mpLeave">離座</button>`;
-    $('#mpTopup')?.addEventListener('click', () =>
-      intents?.send({
-        type: 'TOPUP_REQ',
-        handNo: (Number(pub.handNo) || 0) | 0,
-        turn: (Number(pub.actionSeq) || 0) | 0,
-        seat: mySeat,
-      }),
-    );
+      ${hasLeaveInTop ? '' : '<button type="button" class="ghost" id="mpLeave">離座</button>'}`;
     wireLeaveLobbyBtn();
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
-    btns.querySelectorAll('[data-approve]').forEach((el) => {
-      el.addEventListener('click', () => hostLoop?.approveTopUp(Number(el.getAttribute('data-approve'))));
-    });
+    wireTopUpActions(btns, pub, mySeat);
     return;
   }
 
@@ -1695,29 +1914,37 @@ async function sitDown(seat) {
 
 async function requestLeave() {
   const user = getUser();
-  if (!room || !user) return;
+  if (!room || !user || leaveBusy) return;
   const pub = room.pub || {};
   const mySeat = room.seatUids.indexOf(user.uid);
   if (mySeat < 0) return;
   if (room.hostUid === user.uid) {
     const others = room.seatUids.filter((u) => u && u !== user.uid);
     if (!others.length) {
-      toast('先收桌，或等有人入座');
+      // M2 #12: 「收桌」／「先不要」
+      showHostAloneLeaveDialog();
       return;
     }
   }
-  await intents?.send({
-    type: 'LEAVE',
-    seat: mySeat,
-    handNo: (Number(pub.handNo) || 0) | 0,
-    turn: (Number(pub.actionSeq) || 0) | 0,
-  });
-  if (room.hostUid === user.uid) {
-    // Host processes on HAND_OVER via host loop; if between hands, cash out now
-    if (pub.phase === 'lobby' || pub.phase === 'hand_over') {
-      const order = room.seatUids.filter((u) => u && u !== user.uid);
-      await hostLoop?.cashoutSeat(mySeat, user.uid, { handOffTo: order[0] });
+  leaveBusy = true;
+  try {
+    await intents?.send({
+      type: 'LEAVE',
+      seat: mySeat,
+      handNo: (Number(pub.handNo) || 0) | 0,
+      turn: (Number(pub.actionSeq) || 0) | 0,
+    });
+    if (room.hostUid === user.uid) {
+      // Host processes on HAND_OVER via host loop; if between hands, cash out now
+      if (pub.phase === 'lobby' || pub.phase === 'hand_over') {
+        const order = room.seatUids.filter((u) => u && u !== user.uid);
+        await hostLoop?.cashoutSeat(mySeat, user.uid, { handOffTo: order[0] });
+      }
     }
+  } catch (e) {
+    toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
+  } finally {
+    leaveBusy = false;
   }
 }
 
@@ -1725,9 +1952,28 @@ function renderBanner() {
   const el = $('#mpBanner');
   if (!el || !room) return;
   const user = getUser();
-  if (hostShouldWarn(room.hostUid === user?.uid)) {
+  const isHost = room.hostUid === user?.uid;
+  const mySeat = user ? room.seatUids.indexOf(user.uid) : -1;
+  const stop =
+    !!room.pub?.quotaStop ||
+    (isHost && hostMustStopNewHand(true));
+  const warn = !stop && hostShouldWarn(isHost);
+  if (stop) {
+    // M2 #10 / §2 @ 8,000: exits — 收桌／離座／回大廳
     el.hidden = false;
-    el.textContent = `寫入次數偏高，約台北 ${resetTimeTaipeiLabel()} 重置`;
+    const msg = `今天的免費用量快用完了，這手打完先停。台北時間 ${resetTimeTaipeiLabel()} 後可以再開`;
+    const actions = isHost
+      ? `<button type="button" class="mp-banner-act" id="mpQuotaClose">收桌</button>`
+      : `${mySeat >= 0 ? '<button type="button" class="mp-banner-act" id="mpQuotaLeave">離座</button>' : ''}<button type="button" class="mp-banner-act" id="mpQuotaLobby">回大廳</button>`;
+    el.innerHTML = `<span class="mp-banner-msg">${esc(msg)}</span><span class="mp-banner-acts">${actions}</span>`;
+    $('#mpQuotaClose', el)?.addEventListener('click', () => mpCloseRoom());
+    $('#mpQuotaLeave', el)?.addEventListener('click', () => requestLeave());
+    $('#mpQuotaLobby', el)?.addEventListener('click', () => leaveToLobby());
+    return;
+  }
+  if (warn) {
+    el.hidden = false;
+    el.textContent = `今天的免費用量快用完了。台北時間 ${resetTimeTaipeiLabel()} 後重置；快到 8,000 時會停開新手牌。`;
     return;
   }
   if (room.pub?.voided) {
@@ -1736,6 +1982,7 @@ function renderBanner() {
     return;
   }
   el.hidden = true;
+  el.textContent = '';
 }
 
 function renderSidePanels(pub, mySeat) {
@@ -1781,17 +2028,27 @@ function phaseZh(phase) {
 async function doRescue() {
   const fb = getFirebase();
   const user = getUser();
-  if (!fb || !user || !playerDoc?.tableRoomId) return;
+  if (!fb || !user || !playerDoc?.tableRoomId || rescueBusy) return;
+  rescueBusy = true;
   try {
     const id = playerDoc.tableRoomId;
     const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', id));
-    if (!snap.exists()) throw new Error('房間不存在');
+    if (!snap.exists()) throw new Error('這桌已經結束了，回大廳看看其他牌桌');
     await selfRescueCashout(fb, user.uid, { id, ...snap.data() });
     playerDoc = await getPlayer(fb, user.uid);
     toast('已結帳回帳戶');
     paint();
   } catch (e) {
-    toast(friendlyError(e, '結帳失敗，請稍後再試或請房主協助'));
+    // M2 #8: keep card; plain retry copy
+    toast('結帳沒成功，籌碼還在桌上不會不見。請再按一次');
+    const card = document.querySelector('.mp-my[data-act="rescue"]');
+    if (card) {
+      card.removeAttribute('aria-busy');
+      const act = card.querySelector('.mp-act');
+      if (act) act.textContent = '結帳離開（請再按一次）';
+    }
+  } finally {
+    rescueBusy = false;
   }
 }
 
@@ -1845,6 +2102,8 @@ function silenceSoloScreens() {
 
 function openSolo() {
   tearDownRoom();
+  const back = $('#btnBackLobby');
+  if (back) back.hidden = true;
   const root = $('#mpRoot');
   if (root) root.hidden = true;
   clearSoloInert();
@@ -1917,6 +2176,8 @@ function leaveToLobby() {
     if (!playerDoc?.tableRoomId) autoResumeTried = false;
   }
   screen = 'lobby';
+  const back = $('#btnBackLobby');
+  if (back) back.hidden = true;
   paint();
 }
 
@@ -1938,6 +2199,14 @@ function tearDownRoom() {
   myHole = null;
   membersPanelOpen = false;
   raiseOpen = false;
+  if (topUpDenyTick) {
+    clearInterval(topUpDenyTick);
+    topUpDenyTick = null;
+  }
+  const closeCard = document.getElementById('mpCloseResult');
+  if (closeCard) closeCard.hidden = true;
+  const alone = document.getElementById('mpHostAlone');
+  if (alone) alone.hidden = true;
   removeMpMenuExtras();
 }
 
@@ -1970,6 +2239,18 @@ function ensureMpMenu() {
     },
     true,
   );
+  // M2: fixed top 「‹ 大廳」(soft leave, keep seat)
+  if (!$('#btnBackLobby')?.dataset.mpWired) {
+    const back = $('#btnBackLobby');
+    if (back) {
+      back.dataset.mpWired = '1';
+      back.addEventListener('click', () => {
+        if (!room) return;
+        closeMpMenu();
+        leaveToLobby();
+      });
+    }
+  }
   $('#mpBtnCopyLink')?.addEventListener('click', async () => {
     closeMpMenu();
     const url = shareUrl(room.code, room.id);
@@ -2057,11 +2338,26 @@ export function mpCloseRoom() {
   if (!fb || !room) return;
   if (!confirm('確定收桌？在座的人會結帳回帳戶。')) return;
   const id = room.id;
+  const btn = document.getElementById('btnEndMenu');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '收桌中…';
+  }
+  const uid = getUser()?.uid;
+  const seat = uid ? room.seatUids?.indexOf(uid) ?? -1 : -1;
+  const chips = seat >= 0 ? Number(room.stacks?.[seat] || 0) : Number(playerDoc?.inPlay || 0);
   closeRoom(fb, id)
     .then(() => {
       clearLastRoom();
       autoResumeTried = false;
-      leaveToLobby();
+      // Stay on table; listenRoom closed branch also fires — show card here too for host
+      showCloseResultCard({ chips, auto: false });
     })
-    .catch((e) => toast(friendlyError(e, '收桌失敗，請再試一次；若仍不行請重整頁面')));
+    .catch((e) => {
+      toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '結束牌局';
+      }
+    });
 }

@@ -364,7 +364,11 @@ export function renderMpLobby(root, vm) {
   const openPanel = `<section class="mp-panel mp-open" aria-labelledby="mpOpenH">
     <div class="mp-panel-h">
       <h2 id="mpOpenH">可加入的牌桌</h2>
-      <span id="mpOpenCount"><i class="mp-live-dot" aria-hidden="true"></i><span id="mpOpenN">${openTables.length}</span> 桌 · 即時</span>
+      <span id="mpOpenCount">${
+        offline
+          ? '離線，不是最新'
+          : `<i class="mp-live-dot" aria-hidden="true"></i><span id="mpOpenN">${openTables.length}</span> 桌 · 即時`
+      }</span>
     </div>
     <ul class="mp-rows" id="mpOpenList" ${openTables.length ? '' : 'hidden'}>${openRows}</ul>
     <div class="mp-empty" id="mpOpenEmpty" data-e1 ${openTables.length ? 'hidden' : ''}>
@@ -375,7 +379,10 @@ export function renderMpLobby(root, vm) {
   </section>`;
 
   const createBtn = showCreateBtn
-    ? `<button type="button" class="mp-btn-primary" data-act="create">${PLUS_SVG}開新牌桌</button>`
+    ? offline
+      ? `<button type="button" class="mp-btn-primary" data-act="create" disabled aria-disabled="true">${PLUS_SVG}開新牌桌</button>
+         <p class="mp-meta">沒有網路，連上後才能開桌或加入</p>`
+      : `<button type="button" class="mp-btn-primary" data-act="create">${PLUS_SVG}開新牌桌</button>`
     : '';
 
   const joinState = joining ? 'joining' : joinError ? 'error' : joinDigits ? 'typing' : 'empty';
@@ -411,8 +418,9 @@ export function renderMpLobby(root, vm) {
         <input id="mpJoinCode" name="roomcode" type="text" inputmode="numeric" pattern="[0-9]*"
           maxlength="${CODE_DIGITS}" autocomplete="off" autocorrect="off" autocapitalize="off"
           spellcheck="false" enterkeyhint="go" value="${esc(joinDigits)}"
-          ${joining ? 'readonly' : ''} aria-busy="${joining ? 'true' : 'false'}"
-          aria-invalid="${joinError ? 'true' : 'false'}" aria-describedby="mpJoinStatus">
+          ${joining || offline ? 'readonly' : ''} aria-busy="${joining ? 'true' : 'false'}"
+          aria-invalid="${joinError ? 'true' : 'false'}" aria-describedby="mpJoinStatus"
+          ${offline ? 'aria-disabled="true"' : ''}>
       </div>
     </div>
     <div class="mp-join-status" id="mpJoinStatus" data-s="${joinState}" aria-live="polite">${statusMsg}</div>
@@ -865,7 +873,7 @@ export function renderCreateRoom(root, vm) {
     const fd = new FormData(e.target);
     const [sb, bb] = String(fd.get('blinds') || '10/20').split('/').map(Number);
     const chips = Number(fd.get('chips'));
-    const name = String(fd.get('name') || '').trim() || '週五牌局';
+    const name = String(fd.get('name') || '').trim(); // M4: blank → "{名字}的牌桌" in doCreate
     onSubmit({ name, sb, bb, newPlayerChips: chips });
   });
 }
@@ -899,7 +907,7 @@ export function renderShareRoom(root, vm) {
 export function renderJoinCode(root, vm) {
   const { onLobby, ended, error } = vm;
   const lead = ended
-    ? error || '牌桌已結束'
+    ? error || '這桌已經結束了，回大廳看看其他牌桌'
     : error
       ? error
       : `請在大廳輸入 ${CODE_DIGITS} 位房號。`;
