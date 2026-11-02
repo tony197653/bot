@@ -37,9 +37,17 @@ p{margin:0}
 .spec-head h2{font-size:16px}
 .spec-head p{color:var(--mute);font-size:13.5px;margin-top:2px}
 .stage{flex:1;margin:16px;padding:28px 20px;border-radius:var(--r-sm);background:var(--bg)}
-.zoom{display:flex;justify-content:center;gap:28px;margin:0 16px 16px;padding:18px 12px;border-radius:var(--r-sm);background:#fff;border:1px solid var(--line-soft)}
-.zoom figure{margin:0;text-align:center;font-size:12px;color:var(--mute)}
-.zoom .pt{transform:scale(2.4);margin:22px auto 30px}
+.note{color:var(--mute);font-size:12.5px;margin-top:2px}
+/* 開頁第一眼：A、B 放大並排，手機也左右並排在首屏內 */
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+.cmp figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:12px;padding:22px 8px 16px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line-soft);box-shadow:var(--shadow)}
+.cmp figcaption{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500}
+.cmp figcaption .code{min-width:28px;height:22px;font-size:12px}
+.big{position:relative;width:76px;height:76px;border-radius:50%;border:2.5px solid var(--sage);background:#fff;display:grid;place-items:center}
+.big>*{grid-area:1/1}
+.va .big .arm{position:relative;display:block;width:24px;height:24px}
+.vb .big .arm{display:block;position:absolute;inset:0;border-radius:50%;transform-origin:50% 50%;animation:p5-swing 1s var(--ease-sine) infinite alternate}
+.vb .big i{position:absolute;left:50%;bottom:6px;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:var(--sage-deep)}
 
 /* 按鈕：B2、B5（照元件庫） */
 .btn{font:inherit;font-size:14.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;cursor:pointer;border:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;white-space:nowrap;transition:background-color .18s var(--ease),color .18s var(--ease),transform .12s var(--ease),border-color .18s var(--ease)}
@@ -78,31 +86,25 @@ p{margin:0}
 /* ── A 呼吸：點在正中，放大＋變亮、縮小＋變淡，每次吸滿時放出一圈淡光（只動 transform、opacity） ── */
 .va .pt .arm{position:relative;display:none;width:8px;height:8px}
 .va [data-state=current] .pt .arm{display:block}
-.va .pt i{position:absolute;inset:0;border-radius:50%;background:var(--sage)}
-.va .pt i::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--sage);opacity:0}
-.va [data-state=current] .pt i{animation:p5-breathe 2.4s var(--ease-sine) infinite}
-.va [data-state=current] .pt i::after{animation:p5-halo 2.4s var(--ease-sine) infinite}
+.va .pt i,.va .big i{position:absolute;inset:0;border-radius:50%;background:var(--sage)}
+.va .pt i::after,.va .big i::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--sage);opacity:0}
+.va [data-state=current] .pt i,.va .big i{animation:p5-breathe 2.4s var(--ease-sine) infinite}
+.va [data-state=current] .pt i::after,.va .big i::after{animation:p5-halo 2.4s var(--ease-sine) infinite}
 @keyframes p5-breathe{0%,100%{transform:scale(.78);opacity:.72}50%{transform:scale(1.08);opacity:1}}
 @keyframes p5-halo{0%,45%{transform:scale(1);opacity:0}50%{transform:scale(1);opacity:.28}100%{transform:scale(2.1);opacity:0}}
 
 /* ── B 底弧滾動：轉臂以圓圈中心為軸，小點在內圈底部左右各擺 50°，像鐘擺；兩端用正弦曲線自然減速 ── */
 .vb [data-state=current] .pt .arm{display:block;position:absolute;inset:0;border-radius:50%;transform-origin:50% 50%;animation:p5-swing 1s var(--ease-sine) infinite alternate}
-.vb .pt i{position:absolute;left:50%;bottom:2px;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:var(--sage)}
+.vb .pt i{position:absolute;left:50%;bottom:1.5px;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;background:var(--sage-deep)}
 @keyframes p5-swing{from{transform:rotate(-50deg)}to{transform:rotate(50deg)}}
 
-/* ── 減少動態：A 不縮放、不放光，只剩慢慢的明暗；B 停在正中的靜止點。兩種都還看得出「這一步正在進行」 ── */
+/* ── 減少動態（只在勾選「模擬」時套用）：這頁是比手感用，系統開了減少動態也照常播放；正式元件庫仍遵守系統設定 ── */
 @keyframes p5-breathe-rm{0%,100%{opacity:.55}50%{opacity:1}}
-@media (prefers-reduced-motion:reduce){
-  .btn,.p5 li::after,.pt,.p5 .tt{transition-duration:.01ms}
-  .va [data-state=current] .pt i{animation:p5-breathe-rm 3.6s ease-in-out infinite}
-  .va [data-state=current] .pt i::after{animation:none}
-  .vb [data-state=current] .pt .arm{animation:none}
-  .vb .pt i{bottom:50%;margin-bottom:-3px}
-}
-.rm .va [data-state=current] .pt i{animation:p5-breathe-rm 3.6s ease-in-out infinite}
-.rm .va [data-state=current] .pt i::after{animation:none}
-.rm .vb [data-state=current] .pt .arm{animation:none}
-.rm .vb .pt i{bottom:50%;margin-bottom:-3px}
+.rm .va [data-state=current] .pt i,.rm .va .big i{animation:p5-breathe-rm 3.6s ease-in-out infinite}
+.rm .va [data-state=current] .pt i::after,.rm .va .big i::after{animation:none}
+.rm .vb [data-state=current] .pt .arm,.rm .vb .big .arm{animation:none}
+.rm .vb .pt i{bottom:50%;margin-bottom:-3.5px}
+.rm .vb .big i{bottom:50%;margin-bottom:-8px}
 </style>
 </head>
 <body>
@@ -110,15 +112,18 @@ p{margin:0}
 <main class="wrap">
   <header class="top">
     <h1>P5 目前步驟的點：兩種動法</h1>
-    <p>顏色、版面都和元件庫的 P5 一樣，只比「目前這一步」的點怎麼動。按「模擬下一步」看它換到下一步。勾選下方選項，可以看「減少動態」開啟時的樣子。</p>
+    <p>顏色、版面和元件庫的 P5 一樣，只比「目前這一步」的點怎麼動。先看下面放大並排，再往下看實際進度軸。</p>
+    <div class="cmp" aria-hidden="true">
+      <figure class="va"><span class="big"><span class="arm"><i></i></span></span><figcaption><span class="code">A</span>呼吸</figcaption></figure>
+      <figure class="vb"><span class="big"><span class="arm"><i></i></span></span><figcaption><span class="code">B</span>底弧滾動</figcaption></figure>
+    </div>
     <div class="opts"><label><input type="checkbox" id="rm">模擬「減少動態」</label></div>
+    <p class="note">此頁為比較手感，系統開啟「減少動態」時也照常播放；勾選上方可看降級後的樣子（正式元件庫仍遵守系統設定）。</p>
   </header>
   <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">A</span><div><h2>呼吸</h2><p>點在圓圈正中，約 2.4 秒一次輕輕放大變亮，吸滿時放出一圈淡光。減少動態時只剩明暗變化。</p></div></div>
-      <div class="zoom" aria-hidden="true"><figure><div class="va"><div data-state="current"><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span></div></div>放大看</figure></div>
+    <article class="spec"><div class="spec-head"><span class="code">A</span><div><h2>呼吸</h2><p>點在圓圈正中，約 2.4 秒一次輕輕放大變亮，吸滿時放出一圈淡光。模擬減少動態時只剩明暗變化。</p></div></div>
       <div class="stage"><div class="stp p5 va js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達"></div></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">B</span><div><h2>底弧滾動</h2><p>小點沿圓圈內側底部左右來回擺動，各 50°，約 2 秒一來回，兩端自然減速。減少動態時停在正中。</p></div></div>
-      <div class="zoom" aria-hidden="true"><figure><div class="vb"><div data-state="current"><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span></div></div>放大看</figure></div>
+    <article class="spec"><div class="spec-head"><span class="code">B</span><div><h2>底弧滾動</h2><p>小點沿圓圈內側底部左右來回擺動，各 50°，約 2 秒一來回，兩端自然減速。模擬減少動態時停在正中。</p></div></div>
       <div class="stage"><div class="stp p5 vb js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達"></div></div></article>
   </div>
 </main>
