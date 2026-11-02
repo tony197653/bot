@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <!--
-  德撲大廳 BD 風格定稿樣張（我的牌桌 4 種狀態、自動離座 toast、可加入的牌桌、開新牌桌主按鈕、3 位房號 B 三格）
+  德撲大廳 BD 風格定稿樣張（頂部名字下的狀態列＋帳戶／牌桌金額框＋功能清單、我的牌桌卡 4 種狀態、自動離座 toast、可加入的牌桌、開新牌桌主按鈕、3 位房號 B 三格）
   只用德撲 tokens（僅衍生透明度）；按下／hover／選取只變顏色、陰影、透明度，不縮放、不位移；動畫只用 opacity。
   展示用假資料：房號 123 成功，其他 700ms 後顯示「房號不存在」；可加入的牌桌每 2.6 秒模擬人數變動。
 -->
@@ -66,11 +66,56 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 .demo .row-d{display:flex;flex-direction:column;gap:6px;width:100%}
 
 /* ── 頂部 ── */
-.top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px}
-.who{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;min-width:0}
-.av{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-family:var(--tf);font-size:17px;color:var(--ink);background:rgba(16,27,20,.9);border:2px solid var(--gold)}
-.bal{display:flex;flex-direction:column;align-items:flex-end;font-size:12px;color:var(--mute);gap:2px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.bal strong{color:var(--ink);font-size:13px}
+/* 頂部：頭像｜名字／狀態｜帳戶／牌桌金額框｜功能清單鈕（兩列格線，高度固定） */
+.top{position:relative;z-index:25;display:grid;grid-template-columns:40px minmax(0,1fr) auto 44px;grid-template-rows:30px 30px;column-gap:10px;row-gap:6px;align-items:center;height:66px}
+.av{grid-row:1/3;grid-column:1;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-family:var(--tf);font-size:17px;color:var(--ink);background:rgba(16,27,20,.9);border:2px solid var(--gold)}
+.nm{grid-row:1;grid-column:2;min-width:0;font-size:16px;font-weight:700;line-height:30px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px}
+.stl{grid-row:2;grid-column:2;position:relative;justify-self:start;max-width:100%;min-width:0;height:30px;display:flex;align-items:center;gap:6px;padding:0 6px;border-radius:var(--radius-sm);
+  font-size:13px;font-weight:500;color:var(--ink);border:1px solid transparent;
+  transition:background-color var(--t) var(--ease),border-color var(--t) var(--ease),box-shadow var(--t) var(--ease),color var(--t) var(--ease)}
+.stl::after{content:"";position:absolute;left:0;right:0;top:-7px;bottom:-7px} /* 點擊範圍 44px 高 */
+.stl .stt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stl .sd{flex:none;width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(230,191,90,.18)}
+.stl .chev{flex:none;width:14px;height:14px;color:var(--accent);opacity:.8;transition:opacity var(--t) var(--ease)}
+.stl[data-k="settle"] .sd{background:var(--mute);box-shadow:0 0 0 3px rgba(201,191,159,.14)}
+.stl[data-k="settle"] .chev{color:var(--mute)}
+.stl[data-k="none"]{color:var(--mute);cursor:default}
+.stl[data-k="none"] .sd,.stl[data-k="none"] .chev{display:none}
+.stl[aria-busy="true"]{color:var(--mute)}
+.stl[aria-busy="true"] .chev{opacity:0}
+@media (hover:hover) and (pointer:fine){.stl:not([data-k="none"]):hover{background:rgba(214,180,90,.08)}.stl:not([data-k="none"]):hover .chev{opacity:1}}
+.stl:not([data-k="none"]):active{background:rgba(16,27,20,.9);box-shadow:inset 0 1px 3px rgba(16,27,20,.7);transition-duration:.06s}
+.stl.attn{background:rgba(214,180,90,.1);border-color:rgba(214,180,90,.6);box-shadow:0 0 0 1px rgba(214,180,90,.3),0 0 14px 1px rgba(214,180,90,.22)}
+.amt{grid-column:3;width:112px;height:30px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px;border-radius:var(--radius-sm);
+  border:1px solid rgba(214,180,90,.38);background:rgba(16,27,20,.55);white-space:nowrap}
+.amt small{font-size:11.5px;color:var(--mute)}
+.amt b{font-size:14.5px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;text-align:right;transition:opacity .11s var(--ease)}
+.amt b.swap{opacity:0}
+.amt b.zero{color:var(--mute);font-weight:500}
+#amtAcc{grid-row:1}#amtTab{grid-row:2}
+.mw{grid-row:1/3;grid-column:4;position:relative;width:44px;height:44px}
+.mbtn{width:44px;height:44px;display:grid;place-items:center;border-radius:var(--radius-md);color:var(--ink);border:1px solid rgba(214,180,90,.3);background:rgba(16,27,20,.55);
+  transition:background-color var(--t) var(--ease),border-color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
+.mbtn svg{width:20px;height:20px}
+@media (hover:hover) and (pointer:fine){.mbtn:hover{background:rgba(214,180,90,.1);border-color:rgba(214,180,90,.5)}}
+.mbtn:active{background:rgba(16,27,20,.9);box-shadow:inset 0 1px 3px rgba(16,27,20,.7);transition-duration:.06s}
+.mbtn[aria-expanded="true"]{border-color:var(--gold);background:rgba(214,180,90,.12)}
+.menu{position:absolute;right:0;top:calc(100% + 8px);min-width:216px;padding:6px;border-radius:var(--radius-md);list-style:none;
+  background:rgba(16,27,20,.97);border:1px solid rgba(214,180,90,.32);box-shadow:0 14px 34px -8px rgba(16,27,20,.8),0 2px 6px rgba(16,27,20,.5);
+  opacity:0;visibility:hidden;transition:opacity .18s var(--ease),visibility 0s linear .18s}
+.menu.on{opacity:1;visibility:visible;transition:opacity var(--t) var(--ease),visibility 0s}
+.mi{width:100%;min-height:44px;display:flex;align-items:center;gap:10px;padding:0 12px;border-radius:var(--radius-sm);font-size:14.5px;text-align:left;color:var(--ink);white-space:nowrap;
+  transition:background-color var(--t) var(--ease),color var(--t) var(--ease)}
+.mi svg{width:18px;height:18px;flex:none;color:var(--mute)}
+.mi.pri{font-weight:700;color:var(--accent)}
+.mi.pri svg{color:var(--accent)}
+.mi.pri.settle{color:var(--ink)}
+.mi .num{color:var(--gold);font-variant-numeric:tabular-nums}
+.mi:focus-visible{outline:2px solid var(--ring);outline-offset:-2px}
+@media (hover:hover) and (pointer:fine){.mi:hover{background:rgba(214,180,90,.08)}}
+.mi:active{background:rgba(214,180,90,.14);transition-duration:.06s}
+.menu .sep{height:1px;margin:4px 8px;background:rgba(214,180,90,.14)}
+.menu .sep[hidden]{display:none}
 
 .cols{display:flex;flex-direction:column;gap:14px}
 .main{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -242,13 +287,12 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 /* ── 戰績 ── */
 .ranks{list-style:none;padding:0;display:flex;flex-direction:column;gap:8px}
 .ranks li{display:flex;justify-content:space-between;gap:12px;font-size:14px}
-.foot{display:flex;justify-content:space-between;margin-top:auto;padding-top:20px;gap:8px}
-.link{color:var(--mute);text-decoration:underline;text-underline-offset:3px;font-size:14px;padding:8px;min-height:44px}
 
 [hidden]{display:none!important}
 
 @media (min-width:1024px){
   .shell{max-width:1080px;padding:28px 32px}
+  .amt{width:128px}
   .cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px;align-items:start}
 }
 @media (prefers-reduced-motion:reduce){
@@ -264,8 +308,8 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 <div class="shell">
 
   <div class="demo" role="group" aria-label="樣張控制（正式版沒有）">
-    <div class="row-d"><small>我的牌桌狀態</small>
-      <div class="chips" role="radiogroup" aria-label="我的牌桌狀態" id="stSel">
+    <div class="row-d"><small>我的牌桌狀態（頂部狀態列與卡片同步）</small>
+      <div class="chips" role="radiogroup" aria-label="我的狀態" id="stSel">
         <label class="chip"><input type="radio" name="my" value="none"><span>無牌桌</span></label>
         <label class="chip"><input type="radio" name="my" value="host" checked><span>我是房主</span></label>
         <label class="chip"><input type="radio" name="my" value="guest"><span>坐在別人桌</span></label>
@@ -277,12 +321,27 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
   </div>
 
   <header class="top">
-    <div class="who"><span class="av" aria-hidden="true">謝</span><span>謝宗良</span></div>
-    <div class="bal" id="bal"><span>帳戶 <span id="bAcc">160</span></span><span>牌桌中 <span id="bTab">1,840</span></span><strong>總計 2,000</strong></div>
+    <span class="av" aria-hidden="true">謝</span>
+    <span class="nm">謝宗良</span>
+    <button type="button" class="stl" id="stl" data-k="seat"><span class="sd" aria-hidden="true"></span><span class="stt" id="stt">我是房主</span><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
+    <span class="amt" id="amtAcc"><small>帳戶</small><b id="bAcc">160</b></span>
+    <span class="amt" id="amtTab"><small>牌桌</small><b id="bTab">1,840</b></span>
+    <div class="mw">
+      <button type="button" class="mbtn" id="mbtn" aria-label="功能清單" aria-haspopup="menu" aria-expanded="false" aria-controls="menu"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="10" r="1.7"/><circle cx="10" cy="10" r="1.7"/><circle cx="15.5" cy="10" r="1.7"/></svg></button>
+      <div class="menu" id="menu" role="menu" aria-label="功能清單">
+        <button type="button" class="mi pri" role="menuitem" id="miAct" tabindex="-1"></button>
+        <div class="sep" id="miSep" role="separator"></div>
+        <button type="button" class="mi" role="menuitem" data-go="stats" tabindex="-1"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3.5 14.5v-4M9 14.5v-9M14.5 14.5v-6"/></svg>戰績</button>
+        <button type="button" class="mi" role="menuitem" data-go="set" tabindex="-1"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="2.4"/><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2M4.4 4.4l1.4 1.4M12.2 12.2l1.4 1.4M4.4 13.6l1.4-1.4M12.2 5.8l1.4-1.4"/></svg>設定</button>
+        <button type="button" class="mi" role="menuitem" data-go="pass" tabindex="-1"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="8" height="13" rx="1.8"/><path d="M8 12.8h2"/></svg>同一支手機輪流玩</button>
+        <button type="button" class="mi" role="menuitem" data-go="out" tabindex="-1"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3.5H4.5v11H7M11 6l3 3-3 3M14 9H7.5"/></svg>登出</button>
+      </div>
+    </div>
   </header>
 
   <div class="cols">
     <div class="main">
+
 
       <section class="panel mine" id="mine" aria-labelledby="myH">
         <div class="panel-h"><h2 id="myH">我的牌桌</h2><span id="myNote">點一下回到牌桌</span></div>
@@ -297,7 +356,6 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
           <span class="act" id="myAct"></span>
         </button>
       </section>
-
       <section class="panel open" aria-labelledby="openH">
         <div class="panel-h"><h2 id="openH">可加入的牌桌</h2><span id="openCount"><i class="live-dot" aria-hidden="true"></i><span id="openN">5</span> 桌 · 即時</span></div>
         <ul class="rows" id="openList"></ul>
@@ -356,10 +414,6 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
     <button type="button" class="nx" id="ntcX" aria-label="關閉通知"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
   </div>
 
-  <footer class="foot">
-    <button type="button" class="link">同一支手機輪流玩</button>
-    <button type="button" class="link">登出</button>
-  </footer>
 </div>
 
 <script>
@@ -527,25 +581,43 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
   ntc.addEventListener('focusout', (e) => { if (!ntc.contains(e.relatedTarget) && ntc.classList.contains('on')) armNtc(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ntc.classList.contains('on')) hideNtc(); });
 
-  /* ── 我的牌桌：狀態 ── */
-  const ARROW = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>';
+  /* ── 頂部狀態（名字下面）＋金額框＋功能清單 ── */
+  const ARROW = '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 12 9l-5 5"/></svg>';
+  const CASH = '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="6"/><path d="M9 6v6M6.5 9.2 9 12l2.5-2.8"/></svg>';
   const fmt = (n) => n.toLocaleString('en-US');
   const MY = {
-    host:   { k: 'seat', name: '週五牌局', tag: '房主', meta: '房號 482 · 盲注 10/20 · 4/6 人 · 座位 3', chipL: '我的籌碼', chips: 1840, note: '點一下回到牌桌', btn: false, acc: 160, tab: 1840 },
-    guest:  { k: 'seat', name: '週六家族盃', tag: '入座中', meta: '房主 阿姨 · 房號 317 · 盲注 10/20 · 3/6 人', chipL: '我的籌碼', chips: 1840, note: '點一下回到牌桌', btn: true, acc: 160, tab: 1840 },
-    settle: { k: 'settle', name: '週五牌局', tag: '已收桌', meta: '沒人在線 30 分鐘，已自動收桌', chipL: '可帶回', chips: 1840, note: '結帳後籌碼回到帳戶', btn: true, acc: 160, tab: 1840 },
-    none:   { none: true, btn: true, acc: 2000, tab: 0 },
-    away:   { none: true, btn: true, acc: 2000, tab: 0 }
+    host:   { k: 'seat',   word: '我是房主',   name: '週五牌局',   chips: 1840, btn: false, tag: '房主',   meta: '房號 482 · 盲注 10/20 · 4/6 人 · 座位 3', chipL: '我的籌碼', note: '點一下回到牌桌' },
+    guest:  { k: 'seat',   word: '已入座',   name: '週六家族盃', chips: 1840, btn: true,  tag: '入座中', meta: '房主 阿姨 · 房號 317 · 盲注 10/20 · 3/6 人', chipL: '我的籌碼', note: '點一下回到牌桌' },
+    settle: { k: 'settle', word: '待結帳', name: '週五牌局',   chips: 1840, btn: true,  tag: '已收桌', meta: '沒人在線 30 分鐘，已自動收桌', chipL: '可帶回', note: '結帳後籌碼回到帳戶' },
+    none:   { k: 'none', word: '在大廳', btn: true },
+    away:   { k: 'none', word: '已自動離座', btn: true }
   };
-  const mine = document.getElementById('mine'), my = document.getElementById('myCard'), btn = document.getElementById('btnCreate');
-  let cur = 'host', busyT = 0;
-  function render(k) {
+  const TOTAL = 2000;
+  const stl = document.getElementById('stl'), stt = document.getElementById('stt'), btn = document.getElementById('btnCreate');
+  const mine = document.getElementById('mine'), my = document.getElementById('myCard');
+  const bAcc = document.getElementById('bAcc'), bTab = document.getElementById('bTab');
+  const miAct = document.getElementById('miAct'), miSep = document.getElementById('miSep');
+  let cur = 'host', busyT = 0, attnT = 0;
+  function setAmt(el, n, animate) {
+    const apply = () => { el.textContent = n ? fmt(n) : '—'; el.classList.toggle('zero', !n); };
+    if (!animate) return apply();
+    el.classList.add('swap'); setTimeout(() => { apply(); el.classList.remove('swap'); }, 110);
+  }
+  function render(k, animate) {
     cur = k; const d = MY[k];
-    clearTimeout(busyT); my.removeAttribute('aria-busy'); mine.classList.remove('attn');
-    toast.classList.remove('on');
-    mine.hidden = !!d.none; btn.hidden = !d.btn;
-    document.getElementById('bAcc').textContent = fmt(d.acc); document.getElementById('bTab').textContent = fmt(d.tab);
-    if (d.none) return;
+    clearTimeout(busyT); stl.removeAttribute('aria-busy'); stl.classList.remove('attn');
+    my.removeAttribute('aria-busy'); mine.classList.remove('attn'); mine.hidden = d.k === 'none';
+    toast.classList.remove('on'); closeMenu(false);
+    btn.hidden = !d.btn; stl.dataset.k = d.k;
+    const tab = d.k === 'none' ? 0 : d.chips;
+    setAmt(bAcc, TOTAL - tab, animate); setAmt(bTab, tab, animate);
+    document.getElementById('amtAcc').setAttribute('aria-label', `帳戶 ${fmt(TOTAL - tab)}`);
+    document.getElementById('amtTab').setAttribute('aria-label', `牌桌 ${tab ? fmt(tab) : 0}`);
+    if (d.k === 'none') {
+      stt.textContent = d.word; stl.disabled = true; stl.removeAttribute('aria-label');
+      miAct.hidden = true; miSep.hidden = true; return;
+    }
+    stl.disabled = false; stt.textContent = d.word;
     my.dataset.k = d.k;
     document.getElementById('myName').textContent = d.name;
     document.getElementById('myTag').textContent = d.tag;
@@ -553,32 +625,73 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
     document.getElementById('myChipL').textContent = d.chipL;
     document.getElementById('myChips').textContent = fmt(d.chips);
     document.getElementById('myNote').textContent = d.note;
-    setAct(d);
+    setCardAct(d, false);
+    miAct.hidden = false; miSep.hidden = false;
+    miAct.classList.toggle('settle', d.k === 'settle');
+    if (d.k === 'settle') {
+      stl.setAttribute('aria-label', `待結帳：${d.name}。點一下結帳離開，帶回 ${fmt(d.chips)}`);
+      miAct.innerHTML = `${CASH}<span>結帳離開（帶回 <span class="num">${fmt(d.chips)}</span>）</span>`;
+    } else {
+      stl.setAttribute('aria-label', `${d.word}：${d.name}。點一下回到牌桌`);
+      miAct.innerHTML = `${ARROW}<span>回到牌桌</span>`;
+    }
   }
-  function setAct(d, busy) {
+  function setCardAct(d, busy) {
     const act = document.getElementById('myAct');
     if (d.k === 'settle') {
       act.innerHTML = busy ? '結帳中…' : `<span>結帳離開（帶回 <span class="num">${fmt(d.chips)}</span>）</span>`;
       my.setAttribute('aria-label', `${d.name}，已自動收桌。結帳離開，帶回 ${fmt(d.chips)} 籌碼`);
     } else {
-      act.innerHTML = busy ? '回座中…' : `回到牌桌${ARROW}`;
+      act.innerHTML = busy ? '回座中…' : `回到牌桌<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>`;
       my.setAttribute('aria-label', `回到牌桌：${d.name}，${d.tag}，${d.meta.replace(/ · /g, '，')}，我的籌碼 ${fmt(d.chips)}`);
     }
   }
-  my.addEventListener('click', () => {
-    if (my.getAttribute('aria-busy') === 'true') return;
-    const d = MY[cur]; my.setAttribute('aria-busy', 'true'); setAct(d, true);
+  function doAction() {
+    const d = MY[cur]; if (d.k === 'none' || stl.getAttribute('aria-busy') === 'true') return;
+    stl.setAttribute('aria-busy', 'true'); stl.classList.remove('attn'); mine.classList.remove('attn');
+    my.setAttribute('aria-busy', 'true'); setCardAct(d, true);
+    stt.textContent = d.k === 'settle' ? '結帳中…' : '回座中…';
     busyT = setTimeout(() => {
-      my.removeAttribute('aria-busy');
-      if (d.k === 'settle') { setRadio('none'); render('none'); flash(null, `（樣張）已結帳，${fmt(d.chips)} 回到帳戶`); }
-      else { setAct(d); flash(null, `（樣張）已回到「${d.name}」`); }
+      stl.removeAttribute('aria-busy'); my.removeAttribute('aria-busy');
+      if (d.k === 'settle') { setRadio('none'); render('none', true); flash(null, `（樣張）已結帳，${fmt(d.chips)} 回到帳戶`); }
+      else { stt.textContent = d.word; setCardAct(d, false); flash(null, `（樣張）已回到「${d.name}」`); }
     }, DELAY);
+  }
+  stl.addEventListener('click', doAction);
+  my.addEventListener('click', doAction);
+
+  /* 功能清單：opacity 開關；Esc、點外面、選了項目都會關 */
+  const mbtn = document.getElementById('mbtn'), menu = document.getElementById('menu');
+  const items = () => [...menu.querySelectorAll('.mi')].filter((x) => !x.hidden);
+  function openMenu() { menu.classList.add('on'); mbtn.setAttribute('aria-expanded', 'true'); requestAnimationFrame(() => items()[0].focus()); }
+  function closeMenu(refocus) {
+    if (!menu.classList.contains('on')) return;
+    menu.classList.remove('on'); mbtn.setAttribute('aria-expanded', 'false'); if (refocus) mbtn.focus();
+  }
+  mbtn.addEventListener('click', () => (menu.classList.contains('on') ? closeMenu(false) : openMenu()));
+  document.addEventListener('pointerdown', (e) => { if (menu.classList.contains('on') && !e.target.closest('.mw')) closeMenu(false); });
+  menu.addEventListener('keydown', (e) => {
+    const list = items(), i = list.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); list[(i + 1) % list.length].focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); list[(i - 1 + list.length) % list.length].focus(); }
+    else if (e.key === 'Home') { e.preventDefault(); list[0].focus(); }
+    else if (e.key === 'End') { e.preventDefault(); list[list.length - 1].focus(); }
+    else if (e.key === 'Tab') closeMenu(false);
   });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && menu.classList.contains('on')) { e.stopPropagation(); closeMenu(true); } }, true);
+  miAct.addEventListener('click', () => { closeMenu(true); doAction(); });
+  menu.querySelectorAll('[data-go]').forEach((el) => el.addEventListener('click', () => {
+    closeMenu(true);
+    if (el.dataset.go === 'stats') { const c = document.getElementById('stH').closest('.card'); c.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
+    else flash(null, `（樣張）${el.textContent.trim()}`);
+  }));
+
   btn.addEventListener('click', () => {
     if (cur === 'guest') {
       const d = MY.guest;
-      notify(`先離開「${d.name}」`, '你正坐在這桌，離座結帳後才能開新牌桌。', { label: '回到這一桌', run: () => my.click() });
-      mine.classList.add('attn'); setTimeout(() => mine.classList.remove('attn'), 1600);
+      notify(`先離開「${d.name}」`, '你正坐在這桌，離座結帳後才能開新牌桌。', { label: '回到這一桌', run: doAction });
+      clearTimeout(attnT); stl.classList.add('attn'); mine.classList.add('attn');
+      attnT = setTimeout(() => { stl.classList.remove('attn'); mine.classList.remove('attn'); }, 1600);
       return;
     }
     flash(null, '（樣張）開新牌桌 → 進入開房頁');
@@ -591,7 +704,7 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
   });
   render('host');
 
-  window.__demo = { B, tables, setSeated, render, notify, hideNtc, NTC_MS, stop: () => clearInterval(tick) };
+  window.__demo = { B, tables, setSeated, render, notify, hideNtc, NTC_MS, openMenu, closeMenu, stop: () => clearInterval(tick) };
 })();
 </script>
 </body>
