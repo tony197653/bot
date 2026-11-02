@@ -11,14 +11,23 @@ import {
   getUser,
   getFirebase,
   detectInAppBrowser,
+  qaEmuSignIn,
 } from '../../../lib/auth/auth.js';
 import { renderAuthUi, AUTH_UI_CSS } from '../../../lib/auth/auth-ui.js';
-import { FIREBASE_CONFIG, LS_PREFIX } from '../net/firebase-config.js';
+import {
+  FIREBASE_CONFIG,
+  EMU_FIREBASE_CONFIG,
+  EMU_PORTS,
+  isEmuMode,
+  LS_PREFIX,
+} from '../net/firebase-config.js';
 import {
   createRoom,
   joinByCode,
   listenRoom,
   getLastRoom,
+  rememberLastRoom,
+  clearLastRoom,
   shareUrl,
   formatCode,
   extendCode,
@@ -111,22 +120,46 @@ let animQ = null;
 let rescueOk = false;
 let membersPanelOpen = false;
 let raiseOpen = false;
+let autoResumeTried = false;
+
+function looksLikeUidStub(name, uid) {
+  if (!name || !uid) return !name;
+  return name === uid || name === uid.slice(0, 8);
+}
 
 function displayNameOf(uid) {
   if (!uid) return '';
-  if (nameCache[uid]) return nameCache[uid];
+  if (nameCache[uid] && !looksLikeUidStub(nameCache[uid], uid)) return nameCache[uid];
   const fromPub = room?.pub?.seats?.find((s) => s && (s.id === uid || s.uid === uid));
+  if (fromPub?.name && !looksLikeUidStub(fromPub.name, uid)) return fromPub.name;
+  if (nameCache[uid]) return nameCache[uid];
   if (fromPub?.name) return fromPub.name;
-  return uid.slice(0, 8);
+  return '';
+}
+
+function nameOrStub(uid, ...fallbacks) {
+  const candidates = [
+    displayNameOf(uid),
+    ...fallbacks,
+    uid ? uid.slice(0, 8) : '',
+  ];
+  for (const c of candidates) {
+    if (c && !looksLikeUidStub(c, uid)) return c;
+  }
+  return candidates.find((c) => !!c) || '';
 }
 
 async function cachePlayerName(uid) {
-  if (!uid || nameCache[uid]) return;
+  if (!uid) return;
+  if (nameCache[uid] && !looksLikeUidStub(nameCache[uid], uid)) return;
   const fb = getFirebase();
   if (!fb) return;
   try {
     const p = await getPlayer(fb, uid);
-    if (p?.displayName) nameCache[uid] = p.displayName;
+    if (p?.displayName) {
+      nameCache[uid] = p.displayName;
+      if (screen === 'table') paintTableChrome();
+    }
   } catch {
     /* offline */
   }
@@ -144,13 +177,26 @@ export async function startMpApp() {
   const deepRoom = params.get('room');
   const deepR = params.get('r');
 
+  const emu = isEmuMode();
   await initAuth({
-    firebaseConfig: FIREBASE_CONFIG,
+    firebaseConfig: emu ? EMU_FIREBASE_CONFIG : FIREBASE_CONFIG,
     mode: 'auto',
-    sameDomainAuth: true,
-    storageKey: 'auth.v1',
+    sameDomainAuth: !emu,
+    storageKey: emu ? 'auth.emu.v1' : 'auth.v1',
     timeoutMs: 8000,
+    emulator: emu
+      ? {
+          auth: { host: '127.0.0.1', port: EMU_PORTS.auth },
+          firestore: { host: '127.0.0.1', port: EMU_PORTS.firestore },
+        }
+      : null,
   });
+
+  if (emu) {
+    window.__qaSignIn = async (uid, displayName) => {
+      await qaEmuSignIn(uid, displayName || uid);
+    };
+  }
 
   onUser(async (ev) => {
     authState = ev;
@@ -239,10 +285,7 @@ function paint() {
   if (screen === 'auth') {
     root.hidden = false;
     root.classList.remove('mp-root-table');
-    if (soloLobby) {
-      soloLobby.classList.add('hidden');
-      soloLobby.classList.remove('is-on');
-    }
+    silenceSoloScreens();
     if (app) app.classList.add('hidden');
     renderAuthUi(root, authState, {
       brand: '週五牌局',
@@ -268,22 +311,38 @@ function paint() {
     root.hidden = false;
     root.classList.remove('mp-root-table');
     if (app) app.classList.add('hidden');
-    if (soloLobby) {
-      soloLobby.classList.add('hidden');
-      soloLobby.classList.remove('is-on');
-      soloLobby.inert = true;
-      soloLobby.setAttribute('aria-hidden', 'true');
-    }
+    silenceSoloScreens();
     const last = getLastRoom();
+    // Auto-resume open table after host refresh (QA round-2)
+    if (
+      last?.roomId &&
+      playerDoc?.tableRoomId === last.roomId &&
+      !rescueOk &&
+      !autoResumeTried
+    ) {
+      autoResumeTried = true;
+      enterRoom(last.roomId);
+      return;
+    }
     // Refresh rescue eligibility (host gone ≥10m) without blocking paint
     maybeRefreshRescue().then((changed) => {
       if (changed && screen === 'lobby') paint();
     });
+    // Enrich seat labels for continue card
+    const seatIdx =
+      last && room?.seatUids
+        ? room.seatUids.indexOf(authState.user?.uid)
+        : last?.seat;
     renderMpLobby(root, {
       user: authState.user,
       player: playerDoc,
       lastRoom: last
-        ? { ...last, name: room?.name || last.name, chips: playerDoc?.inPlay }
+        ? {
+            ...last,
+            name: room?.name || last.name,
+            chips: playerDoc?.inPlay,
+            seat: seatIdx >= 0 ? seatIdx : last.seat,
+          }
         : null,
       leaderPreview,
       offline: authState.status === 'offline',
@@ -408,21 +467,8 @@ function paint() {
   if (screen === 'table') {
     root.hidden = true;
     root.classList.add('mp-root-table');
-    if (soloLobby) {
-      soloLobby.classList.add('hidden');
-      soloLobby.classList.remove('is-on');
-      soloLobby.inert = true;
-      soloLobby.setAttribute('aria-hidden', 'true');
-    }
-    if (app) {
-      app.classList.remove('hidden');
-      // Keep solo dialogs out of tab order while at the MP table
-      document.querySelectorAll('.screen').forEach((el) => {
-        el.inert = true;
-        el.setAttribute('aria-hidden', 'true');
-        el.classList.remove('is-on');
-      });
-    }
+    silenceSoloScreens();
+    if (app) app.classList.remove('hidden');
     ensureMpMenu();
     paintTableChrome();
   }
@@ -567,6 +613,8 @@ async function enterRoom(id, { asHostSit = false } = {}) {
       lastRecvAt = Date.now();
       if (r.status === 'closed') {
         toast('牌桌已結束');
+        clearLastRoom();
+        autoResumeTried = false;
         leaveToLobby();
         return;
       }
@@ -602,11 +650,16 @@ async function enterRoom(id, { asHostSit = false } = {}) {
         // Cache names for seated + members
         for (const u of r.seatUids) if (u) cachePlayerName(u);
         for (const u of r.members || []) if (u) cachePlayerName(u);
-        // Seed from pub seats
+        // Seed from pub seats (skip uid stubs)
         for (const s of r.pub?.seats || []) {
-          if (s?.id && s.name) nameCache[s.id] = s.name;
+          if (s?.id && s.name && !looksLikeUidStub(s.name, s.id)) nameCache[s.id] = s.name;
         }
-        nameCache[user.uid] = user.displayName || nameCache[user.uid] || '玩家';
+        if (user.displayName) nameCache[user.uid] = user.displayName;
+        rememberLastRoom(id, r.code, {
+          name: r.name,
+          seat: r.seatUids.indexOf(user.uid),
+          chips: playerDoc?.inPlay,
+        });
 
         if (r.hostUid === user.uid) {
           hostLoop = createHostLoop(fb, {
@@ -787,7 +840,7 @@ function renderSeatOverlays() {
     if (seat === mySeat) continue; // hero uses #meRoot
     const uid = room.seatUids[seat];
     const ps = pub.seats?.[seat];
-    const name = displayNameOf(uid) || ps?.name || uid.slice(0, 8);
+    const name = nameOrStub(uid, ps?.name, `座位 ${seat + 1}`);
     const chips = between
       ? room.stacks[seat] || 0
       : (ps?.chips ?? room.stacks[seat] ?? 0);
@@ -827,7 +880,7 @@ function renderSeatOverlays() {
     }
   }
 
-  // Empty-seat hit targets only for spectators (also listed in act bar)
+  // Empty-seat hit targets on the felt (spectators only — no duplicate bottom strip)
   if (mySeat < 0) {
     for (let i = 0; i < 6; i++) {
       if (room.seatUids[i]) continue;
@@ -844,6 +897,8 @@ function renderSeatOverlays() {
     }
   }
 
+  renderSidePanels(pub, mySeat);
+
   // Dealer button
   if (dealer && Number.isInteger(pub.button)) {
     const btnPos = seatToPos.get(pub.button);
@@ -857,7 +912,7 @@ function renderSeatOverlays() {
   if (mySeat >= 0) {
     const uid = user.uid;
     const ps = pub.seats?.[mySeat];
-    const name = displayNameOf(uid) || user.displayName || '你';
+    const name = nameOrStub(uid, user.displayName, '你');
     const chips = between
       ? room.stacks[mySeat] || 0
       : (ps?.chips ?? room.stacks[mySeat] ?? 0);
@@ -915,22 +970,48 @@ function renderActBar() {
   const seatedCount = room.seatUids.filter(Boolean).length;
   const between = pub.phase === 'lobby' || pub.phase === 'hand_over' || !pub.phase;
 
-  // Remove spectator seat-pick strip once seated / in-hand (QA #8)
+  // No bottom seat-pick strip (empty seats are on the felt only)
   $('#mpSeatPick')?.remove();
 
   if (mySeat < 0) {
-    const empty = [];
-    for (let i = 0; i < 6; i++) if (!room.seatUids[i]) empty.push(i);
     btns.innerHTML = `<div class="mp-spec">你正在觀戰，點牌桌上的空位就坐下<br><small>坐下時整筆帶入你的帳戶 ${fmtChips(playerDoc?.bank || 0)}</small></div>
-      ${empty.length ? `<div class="mp-seat-pick" id="mpSeatPick">${empty.map((i) => `<button type="button" data-seat="${i}" class="mp-seat-btn">座位 ${i + 1}</button>`).join('')}</div>` : ''}
       <button type="button" class="ghost" id="mpBtnLeaveLobby">回大廳</button>`;
     $('#mpBtnLeaveLobby')?.addEventListener('click', leaveToLobby);
-    $('#mpSeatPick')?.addEventListener('click', (e) => {
-      const t = e.target;
-      if (!(t instanceof HTMLElement)) return;
-      const seat = Number(t.getAttribute('data-seat'));
-      if (Number.isInteger(seat)) sitDown(seat);
-    });
+    return;
+  }
+
+  // Showdown: 亮牌 / 不亮 (spec §5-c); host auto-mucks after 5s
+  if (pub.phase === 'showdown') {
+    const pending = pub.showdown?.pending || [];
+    const myPending = pending.includes(mySeat);
+    if (myPending) {
+      btns.innerHTML = `
+        <button type="button" class="primary" id="mpShow">亮牌</button>
+        <button type="button" class="ghost" id="mpMuck">不亮</button>`;
+      const sendReveal = (type) => {
+        btns.querySelectorAll('button').forEach((b) => {
+          b.disabled = true;
+          b.classList.add('is-pending');
+        });
+        const payload = {
+          type,
+          seat: mySeat,
+          handNo: (Number(pub.handNo) || 0) | 0,
+          turn: (Number(pub.actionSeq) || 0) | 0,
+        };
+        intents?.send(payload, {
+          onFail: () => {
+            toast('沒送到，再按一次');
+            paintTableChrome();
+          },
+        });
+        if (isHost) hostLoop?.hostAction({ type, seat: mySeat, mode: 'both' });
+      };
+      $('#mpShow')?.addEventListener('click', () => sendReveal('SHOW'));
+      $('#mpMuck')?.addEventListener('click', () => sendReveal('MUCK'));
+    } else {
+      btns.innerHTML = `<div class="mp-spec">等待其他人選擇亮牌…</div>`;
+    }
     return;
   }
 
@@ -957,7 +1038,12 @@ function renderActBar() {
     $('#mpStart')?.addEventListener('click', () => hostLoop?.startHand());
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     $('#mpTopup')?.addEventListener('click', () =>
-      intents?.send({ type: 'TOPUP_REQ', handNo: pub.handNo || 0, turn: pub.actionSeq || 0, seat: mySeat }),
+      intents?.send({
+        type: 'TOPUP_REQ',
+        handNo: (Number(pub.handNo) || 0) | 0,
+        turn: (Number(pub.actionSeq) || 0) | 0,
+        seat: mySeat,
+      }),
     );
     btns.querySelectorAll('[data-approve]').forEach((el) => {
       el.addEventListener('click', () => hostLoop?.approveTopUp(Number(el.getAttribute('data-approve'))));
@@ -972,7 +1058,12 @@ function renderActBar() {
       ${isHost && pub.topUpReqs ? Object.keys(pub.topUpReqs || {}).map((s) => `<button type="button" class="primary" data-approve="${s}">核准補碼 座位${+s + 1}</button>`).join('') : ''}
       <button type="button" class="ghost" id="mpLeave">離座</button>`;
     $('#mpTopup')?.addEventListener('click', () =>
-      intents?.send({ type: 'TOPUP_REQ', handNo: pub.handNo || 0, turn: pub.actionSeq || 0, seat: mySeat }),
+      intents?.send({
+        type: 'TOPUP_REQ',
+        handNo: (Number(pub.handNo) || 0) | 0,
+        turn: (Number(pub.actionSeq) || 0) | 0,
+        seat: mySeat,
+      }),
     );
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     btns.querySelectorAll('[data-approve]').forEach((el) => {
@@ -1003,18 +1094,23 @@ function renderActBar() {
     const payload = {
       type,
       seat: mySeat,
-      handNo: pub.handNo || 0,
-      turn: pub.actionSeq || 0,
+      handNo: (Number(pub.handNo) || 0) | 0,
+      turn: (Number(pub.actionSeq) || 0) | 0,
     };
-    if (amount != null) payload.amount = amount;
+    if (amount != null) payload.amount = Math.floor(Number(amount));
+    // Host applies locally; still write intent for audit / takeover handoff
+    if (isHost) {
+      hostLoop?.hostAction({ type, amount: payload.amount, seat: mySeat });
+    }
     intents?.send(payload, {
       onPending: () => toast('送出中…'),
       onFail: () => {
-        toast('沒送到，再按一次');
-        paintTableChrome();
+        if (!isHost) {
+          toast('沒送到，再按一次');
+          paintTableChrome();
+        }
       },
     });
-    if (isHost) hostLoop?.hostAction({ type, amount, seat: mySeat });
   };
   $('#mpFold')?.addEventListener('click', () => send('FOLD'));
   $('#mpCheck')?.addEventListener('click', () => send('CHECK'));
@@ -1048,11 +1144,27 @@ function openMpRaise(minRaiseTo, send) {
   };
   range.oninput = sync;
   panel.hidden = false;
-  if (scrim) scrim.hidden = false;
+  panel.inert = false;
+  panel.removeAttribute('aria-hidden');
+  if (scrim) {
+    scrim.hidden = false;
+    scrim.inert = false;
+  }
+  requestAnimationFrame(() => {
+    panel.classList.add('is-on');
+    scrim?.classList.add('is-on');
+  });
   raiseOpen = true;
   const close = () => {
+    panel.classList.remove('is-on');
+    scrim?.classList.remove('is-on');
     panel.hidden = true;
-    if (scrim) scrim.hidden = true;
+    panel.inert = true;
+    panel.setAttribute('aria-hidden', 'true');
+    if (scrim) {
+      scrim.hidden = true;
+      scrim.inert = true;
+    }
     raiseOpen = false;
   };
   $('#raiseCancel').onclick = () => {
@@ -1096,8 +1208,8 @@ async function sitDown(seat) {
     await intents?.send({
       type: 'SIT',
       seat,
-      handNo: pub.handNo || 0,
-      turn: pub.actionSeq || 0,
+      handNo: (Number(pub.handNo) || 0) | 0,
+      turn: (Number(pub.actionSeq) || 0) | 0,
     });
     if (room.hostUid === user.uid) {
       await hostLoop?.seatPlayer(seat, user.uid);
@@ -1123,8 +1235,8 @@ async function requestLeave() {
   await intents?.send({
     type: 'LEAVE',
     seat: mySeat,
-    handNo: pub.handNo || 0,
-    turn: pub.actionSeq || 0,
+    handNo: (Number(pub.handNo) || 0) | 0,
+    turn: (Number(pub.actionSeq) || 0) | 0,
   });
   if (room.hostUid === user.uid) {
     // Host processes on HAND_OVER via host loop; if between hands, cash out now
@@ -1150,6 +1262,46 @@ function renderBanner() {
     return;
   }
   el.hidden = true;
+}
+
+function renderSidePanels(pub, mySeat) {
+  const info = $('#sideInfo');
+  if (info && room) {
+    const seated = room.seatUids.filter(Boolean).length;
+    const hostName = nameOrStub(room.hostUid) || '—';
+    info.innerHTML = `<h2>牌局資訊</h2><dl>
+      <dt>盲注</dt><dd>${room.config.sb}／${room.config.bb}</dd>
+      <dt>手數</dt><dd>第 ${pub.handNo || 0} 手</dd>
+      <dt>在座</dt><dd>${seated} 人</dd>
+      <dt>房主</dt><dd>${esc(hostName)}</dd>
+      <dt>階段</dt><dd>${esc(phaseZh(pub.phase))}</dd>
+    </dl>`;
+  }
+  const log = $('#sideLog');
+  if (log) {
+    const items = (pub.log || [])
+      .map((x) =>
+        x.kind === 'street'
+          ? `<li class="street">${esc(x.text)}</li>`
+          : `<li>${esc(x.text || '')}</li>`,
+      )
+      .join('');
+    log.innerHTML = `<h2>這一手</h2><ol>${items || '<li class="street">尚未開始</li>'}</ol>`;
+  }
+  void mySeat;
+}
+
+function phaseZh(phase) {
+  const m = {
+    lobby: '大廳',
+    preflop: '翻前',
+    flop: '翻牌',
+    turn: '轉牌',
+    river: '河牌',
+    showdown: '攤牌',
+    hand_over: '手結束',
+  };
+  return m[phase] || phase || '—';
 }
 
 async function doRescue() {
@@ -1189,15 +1341,52 @@ async function loadStats() {
   }
 }
 
+function clearSoloInert() {
+  document.querySelectorAll('.screen, #lobbyScreen').forEach((el) => {
+    el.inert = false;
+    el.removeAttribute('aria-hidden');
+  });
+}
+
+function silenceSoloScreens() {
+  document.querySelectorAll('.screen, #lobbyScreen').forEach((el) => {
+    el.inert = true;
+    el.setAttribute('aria-hidden', 'true');
+    el.classList.remove('is-on');
+    el.classList.add('hidden');
+  });
+  // Raise panel lives outside #app — keep closed panels out of tab order
+  const raise = $('#raisePanel');
+  const scrim = $('#raiseScrim');
+  if (raise && !raise.classList.contains('is-on')) {
+    raise.inert = true;
+    raise.setAttribute('aria-hidden', 'true');
+    raise.hidden = true;
+  }
+  if (scrim && !scrim.classList.contains('is-on')) {
+    scrim.inert = true;
+    scrim.hidden = true;
+  }
+}
+
 function openSolo() {
   tearDownRoom();
   const root = $('#mpRoot');
   if (root) root.hidden = true;
+  clearSoloInert();
+  const lobby = $('#lobbyScreen');
+  if (lobby) {
+    lobby.classList.remove('hidden');
+    lobby.inert = false;
+    lobby.removeAttribute('aria-hidden');
+  }
   openSoloFn({ fromMp: true });
 }
 
 function leaveToLobby() {
   tearDownRoom();
+  // Allow auto-resume only when still seated at an open table
+  if (!playerDoc?.tableRoomId) autoResumeTried = false;
   screen = 'lobby';
   paint();
 }
@@ -1337,5 +1526,12 @@ export function mpCloseRoom() {
   const fb = getFirebase();
   if (!fb || !room) return;
   if (!confirm('確定收桌？在座的人會結帳回帳戶。')) return;
-  closeRoom(fb, room.id).then(() => leaveToLobby());
+  const id = room.id;
+  closeRoom(fb, id)
+    .then(() => {
+      clearLastRoom();
+      autoResumeTried = false;
+      leaveToLobby();
+    })
+    .catch((e) => toast(String(e.message || '收桌失敗')));
 }

@@ -9,6 +9,9 @@ import {
   publicState,
   PHASE,
   cardKey,
+  REVEAL_MS,
+  HOLD_MS_SHOWDOWN,
+  HOLD_MS_FOLD_WIN,
 } from '../engine/index.js';
 import { estimateMpDealTotalMs, MP_FX } from '../ui/fx-mp.js';
 import { DEAL_FX } from '../ui/fx.js';
@@ -58,6 +61,18 @@ export function createHostLoop(fb, opts) {
   let hostClockAt = null;
   let rejects = {};
   let running = false;
+  /** @type {ReturnType<typeof setTimeout>|null} */
+  let revealTimer = null;
+  /** @type {ReturnType<typeof setTimeout>|null} */
+  let nextHandTimer = null;
+  let lastHandsBumpHandNo = 0;
+
+  function playerName(uid, fallback) {
+    const n = displayNameOf?.(uid);
+    if (n && n !== uid && n !== uid.slice(0, 8)) return n;
+    if (fallback && fallback !== uid.slice(0, 8)) return fallback;
+    return n || fallback || uid.slice(0, 8);
+  }
 
   function ensureEngine(room) {
     if (engine) return engine;
@@ -81,7 +96,7 @@ export function createHostLoop(fb, opts) {
         seat: i,
         uid: u,
         id: u,
-        name: displayNameOf?.(u) || pubSeat?.name || u.slice(0, 8),
+        name: playerName(u, pubSeat?.name),
         chips: room.stacks[i] || 0,
         isHost: u === room.hostUid,
       });
@@ -157,8 +172,18 @@ export function createHostLoop(fb, opts) {
 
       if (between) {
         // Update stacks to current chips without changing chipTotal unless money event
-        const next = engine.seats.map((p, i) => (p ? p.chips : 0));
+        const next = engine.seats.map((p) => (p ? p.chips : 0));
         if (sumStacks(next) === chipTotal) stacks = next;
+        // Bump sess.hands once per finished hand (roomWriteOk allows hands↑ without money)
+        if (
+          engine.phase === PHASE.HAND_OVER &&
+          engine.handNumber > lastHandsBumpHandNo
+        ) {
+          lastHandsBumpHandNo = engine.handNumber;
+          sess = sess.map((x) =>
+            x ? { ...x, hands: (x.hands || 0) + 1 } : null,
+          );
+        }
       }
 
       const pub = buildPub(latest);
@@ -187,6 +212,54 @@ export function createHostLoop(fb, opts) {
     return writeChain;
   }
 
+  function clearRevealTimer() {
+    if (revealTimer) clearTimeout(revealTimer);
+    revealTimer = null;
+  }
+
+  function clearNextHandTimer() {
+    if (nextHandTimer) clearTimeout(nextHandTimer);
+    nextHandTimer = null;
+  }
+
+  function scheduleNextHand(ms) {
+    clearNextHandTimer();
+    nextHandTimer = setTimeout(() => {
+      nextHandTimer = null;
+      if (!running || !engine) return;
+      if (engine.phase !== PHASE.HAND_OVER) return;
+      try {
+        engine = applyAction(engine, { type: 'ACK_HAND' }, { now: Date.now() });
+      } catch {
+        /* ignore */
+      }
+      startHand();
+    }, ms);
+  }
+
+  function afterEngineChange() {
+    onLocalState?.(engine);
+    if (!engine) return;
+    if (
+      engine.phase === PHASE.SHOWDOWN &&
+      (engine.showdown?.pending || []).length
+    ) {
+      clearRevealTimer();
+      revealTimer = setTimeout(() => {
+        revealTimer = null;
+        if (!engine || engine.phase !== PHASE.SHOWDOWN) return;
+        applyAndPublish({ type: 'REVEAL_TIMEOUT' });
+      }, REVEAL_MS + 30);
+      return;
+    }
+    if (engine.phase === PHASE.HAND_OVER) {
+      clearRevealTimer();
+      const foldWin = !!engine.lastHandSummary?.foldWin;
+      scheduleNextHand(foldWin ? HOLD_MS_FOLD_WIN : HOLD_MS_SHOWDOWN);
+      drainSitLeave();
+    }
+  }
+
   function applyAndPublish(action, meta = {}) {
     try {
       engine = applyAction(engine, action, { now: Date.now() });
@@ -195,7 +268,7 @@ export function createHostLoop(fb, opts) {
       return false;
     }
     actionSeq += 1;
-    onLocalState?.(engine);
+    afterEngineChange();
     if (meta.lastAction) {
       queueWrite(() => ({ }));
     } else {
@@ -207,6 +280,7 @@ export function createHostLoop(fb, opts) {
   async function processIntent(intentUid, data) {
     const room = getRoom();
     if (!room || room.hostUid !== uid) return;
+    if (!engine) ensureEngine(room);
     const type = data.type;
     const handNo = data.handNo;
     const turn = data.turn;
@@ -240,7 +314,22 @@ export function createHostLoop(fb, opts) {
       return;
     }
 
-    // Game actions: require matching handNo + turn
+    // Show/muck: eligible during SHOWDOWN pending (not actor-gated)
+    if (type === 'SHOW' || type === 'MUCK') {
+      if (handNo !== engine.handNumber) return;
+      if (engine.phase !== PHASE.SHOWDOWN) return;
+      const seat = room.seatUids.indexOf(intentUid);
+      if (seat < 0) return;
+      if (!engine.showdown?.pending?.includes(seat)) return;
+      applyAndPublish(
+        { type, seat, mode: 'both' },
+        { uid: intentUid, lastAction: { seat, type, amount: null } },
+      );
+      await writeHoles();
+      return;
+    }
+
+    // Street actions: require matching handNo + turn + actor
     if (handNo !== engine.handNumber) return;
     if (turn != null && turn !== actionSeq) return;
     const seat = room.seatUids.indexOf(intentUid);
@@ -252,8 +341,6 @@ export function createHostLoop(fb, opts) {
       CALL: { type: 'CALL', seat },
       BET_RAISE: { type: 'BET_RAISE', seat, amount: data.amount },
       ALL_IN: { type: 'ALL_IN', seat },
-      SHOW: { type: 'SHOW', seat },
-      MUCK: { type: 'MUCK', seat },
     };
     const action = map[type];
     if (!action) return;
@@ -362,7 +449,7 @@ export function createHostLoop(fb, opts) {
       seat,
       uid: playerUid,
       id: playerUid,
-      name: displayNameOf?.(playerUid) || p.displayName || playerUid.slice(0, 8),
+      name: p.displayName || playerName(playerUid, p.displayName),
       chips: amount,
     });
     actionSeq += 1;
@@ -501,16 +588,18 @@ export function createHostLoop(fb, opts) {
     }
     const room = getRoom();
     ensureEngine(room);
+    clearNextHandTimer();
+    clearRevealTimer();
     // Sync away into engine
     for (let i = 0; i < 6; i++) {
       if (away[i] && engine.seats[i]) {
         engine = applyAction(engine, { type: 'SET_AWAY', seat: i, away: true });
       }
     }
+    // Snapshot stacks BEFORE blinds (hand-start checkpoint = chipTotal)
+    const stacks = engine.seats.map((p) => (p ? p.chips : 0));
     const ok = applyAndPublish({ type: 'START_HAND' });
     if (!ok) return false;
-    // Snapshot stacks at hand start
-    const stacks = engine.seats.map((p) => (p ? p.chips : 0));
     writeHoles();
     const n = engine.seats.filter((p) => p && p.hasHole).length;
     const dealMs = estimateMpDealTotalMs(DEAL_FX, n);
@@ -520,17 +609,29 @@ export function createHostLoop(fb, opts) {
       engine = applyAction(engine, { type: 'ARM_DEADLINE' }, { now: hostClockAt });
       queueWrite();
     }, dealMs);
-    // Persist stacks snapshot
+    // Persist pre-blind stacks snapshot (same chipTotal)
     queueWrite((latest) => ({ stacks, chipTotal: latest.chipTotal }));
     return true;
   }
 
   function hostAction(action) {
     const room = getRoom();
-    const seat = room.seatUids.indexOf(uid);
-    applyAndPublish({ ...action, seat }, {
-      lastAction: { seat, type: action.type, amount: action.amount ?? null },
-    });
+    const seat =
+      action.seat != null ? action.seat : room.seatUids.indexOf(uid);
+    if (action.type === 'SHOW' || action.type === 'MUCK') {
+      if (engine?.phase !== PHASE.SHOWDOWN) return;
+      if (!engine.showdown?.pending?.includes(seat)) return;
+      applyAndPublish(
+        { type: action.type, seat, mode: action.mode || 'both' },
+        { lastAction: { seat, type: action.type, amount: null } },
+      );
+      writeHoles();
+      return;
+    }
+    applyAndPublish(
+      { ...action, seat },
+      { lastAction: { seat, type: action.type, amount: action.amount ?? null } },
+    );
     writeHoles();
   }
 
@@ -632,6 +733,8 @@ export function createHostLoop(fb, opts) {
   function stop() {
     running = false;
     if (tickTimer) clearInterval(tickTimer);
+    clearRevealTimer();
+    clearNextHandTimer();
     stopIntentListen?.();
     stopPresenceListen?.();
   }

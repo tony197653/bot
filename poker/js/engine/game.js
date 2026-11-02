@@ -662,7 +662,21 @@ function awardUncontested(s, seat) {
   s.currentBet = 0;
   s.actor = null;
   s.deadline = null;
-  // Fold-win: architect default — only the winner chooses (FOLD_WIN_ONLY_WINNER_CHOOSES)
+  // Multiplayer: fold-win skips show/muck — pot already awarded; go straight to hand_over
+  if (s.config.multiplayer) {
+    s.phase = PHASE.SHOWDOWN;
+    s.showdown = {
+      pending: [],
+      revealed: {},
+      ranks: {},
+      bestBySeat: {},
+      revealOrder: [],
+      foldWin: true,
+      revealDeadline: null,
+    };
+    return finishShowdown(s);
+  }
+  // Solo: architect default — only the winner chooses (FOLD_WIN_ONLY_WINNER_CHOOSES)
   return beginRevealPhase(s, { autoRevealSeats: new Set(), foldWin: true });
 }
 

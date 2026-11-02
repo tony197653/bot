@@ -70,10 +70,6 @@ service cloud.firestore {
     // 帶入、補碼、結帳只能在兩手之間（pub.phase 是 lobby 或 hand_over）
     function betweenHands(p) { return p is map && p.get('phase', '') in ['lobby', 'hand_over']; }
 
-    // 座位 k 沒變，或這次的帳務事件就是座位 k（一次寫入最多一筆帳務事件）
-    function seatSame(d, k, ms) {
-      return ms == k || d.seatUids[k] == resource.data.seatUids[k];
-    }
     // 座位帳（sess）在沒有帳務事件時只能讓 hands 變多，其他欄位不能動（房主不能改別人的帶入、補碼紀錄）
     function sessKeep(a, b) {
       // [FIX-2] 先比整格相等（1 個運算式）；不相等時只允許 hands 變多（用 diff 取代逐欄比較，省運算式）
@@ -200,6 +196,7 @@ service cloud.firestore {
           && d.updatedAt == request.time
           && d.pub is map
           && (d.deadlineAt == null || d.deadlineAt is int)
+          && d.diff(r).affectedKeys().hasOnly(['pub', 'deadlineAt', 'rev', 'updatedAt', 'stacks'])
           && d.seatUids == r.seatUids
           && d.sess == r.sess
           && d.chipTotal == r.chipTotal

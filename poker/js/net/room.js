@@ -180,8 +180,9 @@ export async function extendCode(fb, code, hostUid) {
 
 export async function expireCodeNow(fb, code) {
   const { db, fs } = fb;
+  // Rules require expiresAt == request.time (serverTimestamp), not client clock
   await fs.updateDoc(fs.doc(db, 'pokerCodes', code), {
-    expiresAt: fs.Timestamp.fromMillis(Date.now()),
+    expiresAt: fs.serverTimestamp(),
   });
   recordWrite();
 }
@@ -216,12 +217,27 @@ export function listenRoom(fb, roomId, onData, onErr) {
   );
 }
 
-function rememberLastRoom(roomId, code) {
+export function rememberLastRoom(roomId, code, extra = {}) {
   try {
     localStorage.setItem(
       `${LS_PREFIX}.lastRoom`,
-      JSON.stringify({ roomId, code, at: Date.now() }),
+      JSON.stringify({
+        roomId,
+        code,
+        at: Date.now(),
+        name: extra.name || '',
+        seat: extra.seat ?? null,
+        chips: extra.chips ?? null,
+      }),
     );
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearLastRoom() {
+  try {
+    localStorage.removeItem(`${LS_PREFIX}.lastRoom`);
   } catch {
     /* ignore */
   }

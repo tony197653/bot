@@ -167,6 +167,7 @@ export function publicState(state, extra = {}) {
       ? {
           pending: state.showdown.pending,
           revealed: state.showdown.revealed,
+          foldWin: !!state.showdown.foldWin,
         }
       : null,
     seats,

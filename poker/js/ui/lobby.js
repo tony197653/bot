@@ -68,9 +68,9 @@ export function renderMpLobby(root, vm) {
   root.innerHTML = `
     <div class="mp-shell mp-lobby">
       <header class="mp-top">
-        <button type="button" class="mp-avatar" data-act="avatar" aria-label="${esc(name)}">
+        <button type="button" class="mp-avatar" data-act="avatar" aria-label="${esc(name)} 的帳號">
           ${avatarHtml(user)}
-          <span>${esc(name)}</span>
+          <span aria-hidden="true">${esc(name)}</span>
         </button>
         <div class="mp-bal">
           <span>帳戶 ${fmtChips(bank)}</span>
