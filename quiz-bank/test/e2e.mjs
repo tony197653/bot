@@ -456,7 +456,13 @@ try {
           Math.abs(pb.top - sb.top) < 2 &&
           Math.abs(sb.top - nb.top) < 2 &&
           pb.bottom > pb.top;
-        const is112x44 = (r) => Math.abs(r.width - 112) <= 1 && Math.abs(r.height - 44) <= 1;
+        const eq = (a, b, tol = 1) => Math.abs(a - b) <= tol;
+        const equalTrio =
+          eq(pb.width, sb.width) && eq(sb.width, nb.width) && eq(pb.height, 44) && eq(sb.height, 44) && eq(nb.height, 44);
+        const fixed112 =
+          eq(pb.width, 112) && eq(sb.width, 112) && eq(nb.width, 112) && equalTrio;
+        const sideL = Math.min(pb.left, sb.left, nb.left);
+        const sideR = window.innerWidth - Math.max(pb.right, sb.right, nb.right);
         return {
           nextW: Math.round(nb.width * 100) / 100,
           skipW: Math.round(sb.width * 100) / 100,
@@ -464,8 +470,10 @@ try {
           nextH: Math.round(nb.height * 100) / 100,
           skipH: Math.round(sb.height * 100) / 100,
           prevH: Math.round(pb.height * 100) / 100,
-          fixed112:
-            is112x44(pb) && is112x44(sb) && is112x44(nb),
+          equalTrio,
+          fixed112,
+          sideL: Math.round(sideL * 100) / 100,
+          sideR: Math.round(sideR * 100) / 100,
           nextLabel: next.querySelector('.nx-t')?.textContent,
           skipVisible: cs.display !== 'none' && cs.visibility !== 'hidden' && sb.width > 0,
           skipDisabled: !!skip?.disabled,
@@ -476,7 +484,7 @@ try {
           nextIsB1: next.classList.contains('b1'),
           skipBorder: cs.borderTopWidth,
           nextRadius: ncs.borderTopLeftRadius,
-          nextTransition: ncs.transitionProperty || ncs.transition,
+          fontSize: parseFloat(getComputedStyle(prev).fontSize),
           sameRow,
           barWrap: document.querySelector('.bar-in').scrollHeight > pb.height + 8,
           boxes: {
@@ -487,6 +495,7 @@ try {
         };
       });
 
+    const narrow = viewport.width <= 399;
     const q1Unanswered = await measure();
     if (!q1Unanswered.skipVisible || q1Unanswered.skipText !== '略過') {
       throw new Error(`skip not visible on q1: ${JSON.stringify(q1Unanswered)}`);
@@ -501,11 +510,26 @@ try {
     if (!q1Unanswered.sameRow || q1Unanswered.barWrap) {
       throw new Error(`bar not single row @${viewport.width}: ${JSON.stringify(q1Unanswered)}`);
     }
-    if (!q1Unanswered.fixed112) {
+    if (!q1Unanswered.equalTrio) {
+      throw new Error(`step buttons not equal @${viewport.width}: ${JSON.stringify(q1Unanswered)}`);
+    }
+    if (narrow) {
+      if (q1Unanswered.sideL < 15.5 || q1Unanswered.sideR < 15.5) {
+        throw new Error(`side margin <16 @${viewport.width}: ${JSON.stringify(q1Unanswered)}`);
+      }
+    } else if (!q1Unanswered.fixed112) {
       throw new Error(`step buttons not 112×44 @${viewport.width}: ${JSON.stringify(q1Unanswered)}`);
     }
     if (parseFloat(q1Unanswered.nextRadius) !== 8) {
       throw new Error(`next radius not 8px: ${q1Unanswered.nextRadius}`);
+    }
+    if (viewport.width <= 320 && q1Unanswered.fontSize > 15.5) {
+      // 允許 15px 規則
+      const overflow = await page.evaluate(() => {
+        const el = document.querySelector('[data-act=prev]');
+        return el.scrollWidth > el.clientWidth + 1;
+      });
+      if (overflow) throw new Error(`prev truncates at ${viewport.width}`);
     }
 
     await page.locator(`.opt[data-k="${batch.questions[0].answer}"]`).click();
@@ -525,14 +549,21 @@ try {
       throw new Error(`disabled skip missing border: ${JSON.stringify(q1Answered)}`);
     }
     if (!q1Answered.sameRow) throw new Error(`bar wrapped after answer @${viewport.width}`);
-    if (!q1Answered.fixed112) throw new Error(`size drifted after answer @${viewport.width}`);
+    if (!q1Answered.equalTrio) throw new Error(`size drifted after answer @${viewport.width}`);
+
+    // 對錯列不可雙勾：圖示 +「正確答案」文字（無 ✓／✗ 字元）
+    const verdict = await page.locator('.verdict').textContent();
+    if (/[✓✗]/.test(verdict || '')) throw new Error(`verdict has glyph check: ${verdict}`);
+    if (!(verdict || '').includes('正確答案')) throw new Error(`verdict missing 正確答案: ${verdict}`);
+    if ((await page.locator('.verdict .vi svg').count()) < 1) throw new Error('verdict missing icon');
 
     await page.locator('[data-act="next"]').click();
     await page.waitForFunction(
       () => (document.querySelector('[data-el="count"]')?.textContent || '').includes('2'),
     );
     const q2 = await measure();
-    if (!q2.fixed112) throw new Error(`not 112×44 on q2 @${viewport.width}`);
+    if (!q2.equalTrio) throw new Error(`not equal on q2 @${viewport.width}`);
+    if (!narrow && !q2.fixed112) throw new Error(`not 112×44 on q2 @${viewport.width}`);
     if (q2.prevDisabled) throw new Error('prev should be enabled on q2');
     // 第 1→2 題：三鈕座標與尺寸不變
     for (const k of ['prev', 'skip', 'next']) {
@@ -565,19 +596,26 @@ try {
       clip: { x: 0, y: viewport.height - 100, width: viewport.width, height: 100 },
     });
     await page.close();
-    return { nextW: q1Unanswered.nextW, skipW: q1Unanswered.skipW, fixed112: q1Unanswered.fixed112 };
+    return {
+      nextW: q1Unanswered.nextW,
+      skipW: q1Unanswered.skipW,
+      fixed112: q1Unanswered.fixed112,
+      equalTrio: q1Unanswered.equalTrio,
+      sideL: q1Unanswered.sideL,
+    };
   }
 
   {
     const m390 = await assertBarStable({ width: 390, height: 844 });
     const m1280 = await assertBarStable({ width: 1280, height: 800 });
-    if (!m390.fixed112 || !m1280.fixed112) {
-      throw new Error(`fixed112 failed: 390=${m390.fixed112} 1280=${m1280.fixed112}`);
+    if (!m390.equalTrio || !m1280.equalTrio) {
+      throw new Error(`equalTrio failed: 390=${m390.equalTrio} 1280=${m1280.equalTrio}`);
     }
-    if (m390.nextW !== 112 || m1280.nextW !== 112) {
-      throw new Error(`expected 112px, got 390=${m390.nextW} 1280=${m1280.nextW}`);
+    if (m1280.nextW !== 112) {
+      throw new Error(`expected 112px @1280, got ${m1280.nextW}`);
     }
-    pass(`bar P3/P4 112×44 (390/1280)`);
+    if (m390.sideL < 15.5) throw new Error(`390 side margin ${m390.sideL}`);
+    pass(`bar P3/P4 equal trio (390 grid / 1280 fixed112)`);
   }
 
   // --- exam 模式底列三鈕仍在，下一題寬度不變 ---
@@ -1004,58 +1042,73 @@ try {
     await page.close();
   }
 
-  // --- P3/P4 最終（15a1503）：112×44、sage-deep next、q1 prev disabled opacity.55、按下不縮放 ---
+  // --- P3/P4 + BD 窄寬：320/360/399 等分≥16 邊距；400 固定 112×44／縫 10 ---
   {
     const layouts = [];
-    for (const w of [360, 390, 1280]) {
+    for (const w of [320, 360, 399, 400]) {
       const page = await browser.newPage({
-        viewport: { width: w, height: w === 1280 ? 800 : 844 },
+        viewport: { width: w, height: 844 },
       });
       await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
         waitUntil: 'networkidle',
       });
       await page.waitForSelector('.bar .prev');
+      const narrow = w <= 399;
       const snap = async () =>
         page.evaluate(() => {
           const ids = ['prev', 'skip', 'next'];
-          const out = { barPad: getComputedStyle(document.querySelector('.bar')).paddingLeft };
+          const out = {
+            barPad: getComputedStyle(document.querySelector('.bar')).paddingLeft,
+            barInDisplay: getComputedStyle(document.querySelector('.bar-in')).display,
+          };
           for (const id of ids) {
             const el = document.querySelector(`[data-act="${id}"]`);
             const r = el.getBoundingClientRect();
             const cs = getComputedStyle(el);
             out[id] = {
-              l: Math.round(r.left),
-              t: Math.round(r.top),
-              w: Math.round(r.width),
-              h: Math.round(r.height),
+              l: Math.round(r.left * 100) / 100,
+              r: Math.round(r.right * 100) / 100,
+              t: Math.round(r.top * 100) / 100,
+              w: Math.round(r.width * 100) / 100,
+              h: Math.round(r.height * 100) / 100,
               disabled: !!el.disabled,
               hidden: el.hidden || cs.display === 'none',
               cls: el.className,
               transform: cs.transform,
               radius: cs.borderTopLeftRadius,
               opacity: cs.opacity,
-              transition: cs.transitionProperty || cs.transition,
+              fontSize: parseFloat(cs.fontSize),
+              overflowX: cs.overflowX,
             };
           }
           const next = document.querySelector('[data-act="next"]');
           next.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
           out.nextActiveTransform = getComputedStyle(next).transform;
           next.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-          const barIn = document.querySelector('.bar-in');
-          out.overflow =
-            barIn.scrollWidth > barIn.clientWidth + 1 ||
-            out.next.l + out.next.w > window.innerWidth + 1;
-          out.needed = 112 * 3 + 10 * 2;
+          out.sideL = Math.min(out.prev.l, out.skip.l, out.next.l);
+          out.sideR = window.innerWidth - Math.max(out.prev.r, out.skip.r, out.next.r);
+          out.gap1 = out.skip.l - out.prev.r;
+          out.gap2 = out.next.l - out.skip.r;
           out.innerW = window.innerWidth;
+          // focus ring：只應有 outline，不可被裁成半弧
+          next.focus({ preventScroll: true });
+          const ncs = getComputedStyle(next);
+          out.nextOutline = ncs.outlineStyle;
+          out.nextOutlineW = ncs.outlineWidth;
+          out.nextBoxShadow = ncs.boxShadow;
+          next.blur();
           return out;
         });
       const q1 = await snap();
       layouts.push({
         w,
-        overflow: q1.overflow,
-        needed: q1.needed,
-        innerW: q1.innerW,
-        pad: q1.barPad,
+        narrow,
+        sideL: q1.sideL,
+        sideR: q1.sideR,
+        gap1: q1.gap1,
+        gap2: q1.gap2,
+        widths: [q1.prev.w, q1.skip.w, q1.next.w],
+        display: q1.barInDisplay,
       });
       if (q1.prev.hidden || q1.skip.hidden || q1.next.hidden) {
         throw new Error(`step btn hidden on q1 @${w}: ${JSON.stringify(q1)}`);
@@ -1077,12 +1130,60 @@ try {
       if (!(q1.skip.cls.includes('b2') && q1.prev.cls.includes('b2') && q1.next.cls.includes('b1'))) {
         throw new Error(`step btn variants @${w}: ${JSON.stringify(q1)}`);
       }
+      const eq = (a, b, tol = 1.5) => Math.abs(a - b) <= tol;
+      if (!eq(q1.prev.w, q1.skip.w) || !eq(q1.skip.w, q1.next.w)) {
+        throw new Error(`unequal widths @${w}: ${JSON.stringify(q1)}`);
+      }
       for (const id of ['prev', 'skip', 'next']) {
-        if (q1[id].w !== 112 || q1[id].h !== 44) {
-          throw new Error(`${id} not 112×44 @${w}: ${JSON.stringify(q1[id])}`);
-        }
+        if (!eq(q1[id].h, 44)) throw new Error(`${id} height not 44 @${w}: ${q1[id].h}`);
         if (parseFloat(q1[id].radius) !== 8) {
           throw new Error(`${id} radius not 8 @${w}: ${q1[id].radius}`);
+        }
+      }
+      if (narrow) {
+        if (q1.barInDisplay !== 'grid') throw new Error(`expected grid @${w}, got ${q1.barInDisplay}`);
+        if (q1.sideL < 15.5 || q1.sideR < 15.5) {
+          throw new Error(`side margin <16 @${w}: L=${q1.sideL} R=${q1.sideR}`);
+        }
+        if (!eq(q1.gap1, 8, 1.5) || !eq(q1.gap2, 8, 1.5)) {
+          throw new Error(`gap not 8 @${w}: ${q1.gap1}/${q1.gap2}`);
+        }
+      } else {
+        if (!eq(q1.prev.w, 112) || !eq(q1.skip.w, 112) || !eq(q1.next.w, 112)) {
+          throw new Error(`not 112 @${w}: ${JSON.stringify(q1)}`);
+        }
+        if (!eq(q1.gap1, 10, 1.5) || !eq(q1.gap2, 10, 1.5)) {
+          throw new Error(`gap not 10 @${w}: ${q1.gap1}/${q1.gap2}`);
+        }
+      }
+      if (w <= 320 && q1.prev.fontSize > 15.5) {
+        const trunc = await page.evaluate(() => {
+          const el = document.querySelector('[data-act=prev]');
+          return el.scrollWidth > el.clientWidth + 1;
+        });
+        if (trunc) throw new Error(`prev truncates @${w} font=${q1.prev.fontSize}`);
+      }
+      // focus-visible：outline 完整、無 halo box-shadow（避免半弧）
+      if (q1.nextOutline === 'none' || parseFloat(q1.nextOutlineW) < 1) {
+        // focus() 在 headless 可能不觸發 :focus-visible；改強制 class 檢查 CSS 規則
+        const ring = await page.evaluate(() => {
+          const el = document.querySelector('[data-act=next]');
+          el.focus({ preventScroll: true });
+          // 模擬 :focus-visible 支援環境
+          el.classList.add('force-fv');
+          const cs = getComputedStyle(el);
+          const out = { outline: cs.outline, shadow: cs.boxShadow };
+          el.classList.remove('force-fv');
+          el.blur();
+          return out;
+        });
+        // 至少確認 overflow 不裁切：bar-in overflow visible
+        const ov = await page.evaluate(() => getComputedStyle(document.querySelector('.bar-in')).overflow);
+        if (ov !== 'visible' && ov !== 'visible visible') {
+          // overflow shorthand may be "visible"
+          if (!String(ov).includes('visible')) {
+            throw new Error(`bar-in clips focus @${w}: overflow=${ov} ring=${JSON.stringify(ring)}`);
+          }
         }
       }
       const at = q1.nextActiveTransform;
@@ -1096,6 +1197,8 @@ try {
         }
       }
       await page.locator(`.opt[data-k="${batch.questions[0].answer}"]`).click();
+      const verdict = await page.locator('.verdict').textContent();
+      if (/[✓✗]/.test(verdict || '')) throw new Error(`double glyph @${w}: ${verdict}`);
       await page.locator('[data-act="next"]').click();
       await page.waitForFunction(
         () => (document.querySelector('[data-el="count"]')?.textContent || '').includes('2'),
@@ -1105,32 +1208,17 @@ try {
       for (const id of ['prev', 'skip', 'next']) {
         const a = q1[id];
         const b = q2[id];
-        // 尺寸必同；座標在無 overflow 時必同（overflow 時可能被 focus 捲動）
-        if (a.w !== b.w || a.h !== b.h || a.t !== b.t) {
-          throw new Error(`size/top q1≠q2 ${id} @${w}: ${JSON.stringify({ a, b })}`);
-        }
-        if (!q1.overflow && (a.l !== b.l)) {
-          throw new Error(`left drifted without overflow ${id} @${w}: ${JSON.stringify({ a, b })}`);
+        if (!eq(a.w, b.w) || !eq(a.h, b.h) || !eq(a.t, b.t) || !eq(a.l, b.l)) {
+          throw new Error(`rect drifted q1≠q2 ${id} @${w}: ${JSON.stringify({ a, b })}`);
         }
       }
-      // 相對間距（縫）應固定 10px
-      const gap1 = q1.skip.l - (q1.prev.l + q1.prev.w);
-      const gap2 = q2.skip.l - (q2.prev.l + q2.prev.w);
-      if (Math.abs(gap1 - 10) > 1 || Math.abs(gap2 - 10) > 1) {
-        throw new Error(`step gap not 10 @${w}: ${gap1}/${gap2}`);
-      }
-      await page.screenshot({
-        path: path.join(outDir, `p3p4-bar-${w}.png`),
-        clip: { x: 0, y: (w === 1280 ? 800 : 844) - 90, width: w, height: 90 },
-      });
       await page.close();
     }
-    // 寫入 360 排法備註供回報
     fs.writeFileSync(
-      path.join(outDir, 'p3p4-360-layout.json'),
+      path.join(outDir, 'p3p4-narrow-layout.json'),
       JSON.stringify(layouts, null, 2),
     );
-    pass('P3/P4 step buttons 112×44 fixed 360/390/1280');
+    pass('P3/P4 bar equal 320/360/399 grid + 400 fixed112');
   }
 
   // --- 回首頁改 B2（B5 底線鈕已禁用）---

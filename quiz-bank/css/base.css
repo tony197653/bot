@@ -93,38 +93,53 @@ body[data-view=result] .count,body[data-view=result] .prog{visibility:hidden}
 .report{margin-top:6px;font-size:14px}
 /* G 操作列 */
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--bar-bg);padding:10px max(16px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));transition:transform .3s var(--ease-out),opacity .3s var(--ease-out)}
-/* P3/P4 步驟鈕（15a1503）：112×44、8px；下一題 sage-deep；上一題／略過白底 #A9ADA3 框；disabled .55；只過渡底色／透明度 */
+/* P3/P4 步驟鈕（15a1503 + BD 窄寬）：≥400 固定 112×44／縫 10；≤399 三欄等分／縫 8／左右 16 */
+.bar{overflow:visible}
 .bar-in{
   max-width:776px;margin:0 auto;display:flex;justify-content:center;align-items:center;gap:10px;
-  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
-  -webkit-user-select:none;user-select:none
+  overflow:visible;-webkit-user-select:none;user-select:none
 }
 .bar .prev,.bar .skip,.bar .submit,.bar .next{
   flex:0 0 112px;width:112px;min-width:112px;max-width:112px;margin:0;
   height:44px;min-height:44px;max-height:44px;padding:0 12px;
   border:1px solid transparent;border-radius:var(--r-sm);box-sizing:border-box;justify-content:center;
-  transform:none;opacity:1;transition:background-color .22s var(--ease),opacity .22s var(--ease)
+  transform:none;opacity:1;transition:background-color .22s var(--ease),opacity .22s var(--ease);
+  white-space:nowrap;font-size:inherit
 }
 .bar .btn:active,.bar .b1:active,.bar .b2:active{transform:none}
-.bar .next.b1{background:var(--sage-deep);color:#fff;border-color:transparent}
+/* next 邊框跟底色同色，避免透明框在圓角上露出淺色半弧 */
+.bar .next.b1{background:var(--sage-deep);color:#fff;border-color:var(--sage-deep)}
 .bar .prev.b2,.bar .skip.b2,.bar .submit.b2{background:#fff;color:var(--ink);border-color:#A9ADA3}
 @media (hover:hover) and (pointer:fine){
- .bar .next.b1:not(:disabled):hover{background:#454F40}
+ .bar .next.b1:not(:disabled):hover{background:#454F40;border-color:#454F40}
  .bar .prev.b2:not(:disabled):hover,.bar .skip.b2:not(:disabled):hover,.bar .submit.b2:not(:disabled):hover{background:var(--bg);border-color:#A9ADA3}
 }
-.bar .next.b1:not(:disabled):active{background:#3B4436}
+.bar .next.b1:not(:disabled):active{background:#3B4436;border-color:#3B4436}
 .bar .prev.b2:not(:disabled):active,.bar .skip.b2:not(:disabled):active,.bar .submit.b2:not(:disabled):active{background:var(--sage-soft)}
 .bar .btn:disabled{opacity:.55;cursor:not-allowed}
-.bar .next.b1:disabled{background:var(--sage-deep);color:#fff;opacity:.55}
+.bar .next.b1:disabled{background:var(--sage-deep);color:#fff;border-color:var(--sage-deep);opacity:.55}
 .bar .prev.b2:disabled,.bar .skip.b2:disabled{background:#fff;color:var(--ink);border-color:#A9ADA3;opacity:.55}
-.bar .next.b1:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
-.bar .prev.b2:focus-visible,.bar .skip.b2:focus-visible,.bar .submit.b2:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+/* 焦點環：只留 outline，關掉 .btn 的 halo，避免 overflow 裁成半弧 */
+.bar .btn:focus-visible,.bar .b1:focus-visible,.bar .b2:focus-visible,
+.bar .next.b1:focus-visible,.bar .prev.b2:focus-visible,.bar .skip.b2:focus-visible,.bar .submit.b2:focus-visible{
+  outline:2px solid var(--sage);outline-offset:3px;box-shadow:none
+}
+.bar .btn:focus:not(:focus-visible){outline:none;box-shadow:none}
 .bar .submit{display:none}
-.bar .next .nx-t{display:block;width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* 360：三顆 112＋兩縫 10＝356，左右各留 2px 才能不捲；仍不縮鈕 */
-@media (max-width:360px){
- .bar{padding-left:max(2px,env(safe-area-inset-left));padding-right:max(2px,env(safe-area-inset-right))}
- .bar-in{gap:10px}
+.bar .next .nx-t{display:block;width:100%;text-align:center;white-space:nowrap;overflow:visible;text-overflow:clip}
+@media (max-width:399px){
+ .bar{padding-left:max(0px,env(safe-area-inset-left));padding-right:max(0px,env(safe-area-inset-right))}
+ .bar-in{
+   display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px;
+   max-width:none;width:100%;box-sizing:border-box;justify-content:stretch;align-items:center
+ }
+ .bar .prev,.bar .skip,.bar .submit,.bar .next{
+   flex:none;width:auto;min-width:0;max-width:none;height:44px;min-height:44px;max-height:44px;
+   padding:0 8px;border-radius:var(--r-sm);white-space:nowrap
+ }
+}
+@media (max-width:320px){
+ .bar .prev,.bar .skip,.bar .submit,.bar .next{font-size:15px}
 }
 .warn{max-width:776px;margin:0 auto;font-size:14px;color:var(--bad-ink);line-height:1.6;height:0;opacity:0;overflow:hidden;transition:opacity .22s var(--ease)}
 .warn.on{height:auto;opacity:1;padding:0 2px 8px}

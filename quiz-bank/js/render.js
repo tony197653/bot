@@ -224,7 +224,7 @@ export function feedbackHtml(q, a, opts = {}) {
         }</button>`;
   return `<div class="fb ${ok ? 'is-ok' : 'is-bad'}">
     <p class="verdict"><span class="vi" aria-hidden="true">${ok ? ICON.ok : ICON.bad}</span>
-      <span class="vt">${ok ? '✓ 正確答案' : `✗ 你的答案 ${L[a]} · 正確答案 ${L[q.answer]}`}</span></p>
+      <span class="vt">${ok ? '正確答案' : `你的答案 ${L[a]} · 正確答案 ${L[q.answer]}`}</span></p>
     <div class="acc a1"><div class="acc-i">
       <h3 class="acc-h"><button type="button" class="acc-b" aria-expanded="false" aria-controls="acc-p">
         <span class="t">看詳解</span>${ICON.chev}</button></h3>
