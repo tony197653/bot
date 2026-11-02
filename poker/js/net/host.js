@@ -210,7 +210,7 @@ export function createHostLoop(fb, opts) {
         { ...latest, name: latest.name, config: latest.config, seatUids: latest.seatUids },
         {
           hostName: playerName(latest.hostUid, latest.lobby?.hostName),
-          hostPhoto: latest.lobby?.hostPhoto ?? null,
+          hostPhoto: latest.lobby?.hostPhoto || '',
         },
       );
       const patch = {
@@ -232,6 +232,35 @@ export function createHostLoop(fb, opts) {
       recordWrite();
     }).catch((e) => console.warn('[host] write', e));
     return writeChain;
+  }
+
+  /** Non-money follow-up: refresh public lobby summary after seat/cashout. */
+  async function refreshLobbySummary(roomLike) {
+    const latest = getRoom() || roomLike;
+    if (!latest || latest.hostUid !== uid) return;
+    const seatUids = roomLike?.seatUids || latest.seatUids;
+    const hostUid = roomLike?.hostUid || latest.hostUid;
+    const lobby = buildLobbySummary(
+      { ...latest, seatUids, hostUid },
+      {
+        hostName: playerName(hostUid, latest.lobby?.hostName),
+        hostPhoto:
+          hostUid === latest.hostUid ? latest.lobby?.hostPhoto || '' : '',
+      },
+    );
+    try {
+      const cur = getRoom() || latest;
+      await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), {
+        rev: (cur.rev || 0) + 1,
+        updatedAt: fs.serverTimestamp(),
+        lobby,
+        status: roomLike?.status || cur.status || 'lobby',
+      });
+      lastWriteAt = Date.now();
+      recordWrite();
+    } catch (e) {
+      console.warn('[host] lobby refresh', e);
+    }
   }
 
   function clearRevealTimer() {
@@ -482,6 +511,7 @@ export function createHostLoop(fb, opts) {
     onLocalState?.(engine);
 
     const nextRoom = { ...room, seatUids, stacks, sess };
+    // Money write must not touch lobby (rules 1000-expr budget); refresh lobby after.
     await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), {
       rev: room.rev + 1,
       updatedAt: fs.serverTimestamp(),
@@ -499,13 +529,10 @@ export function createHostLoop(fb, opts) {
       pub: buildPub(nextRoom),
       deadlineAt: null,
       status: 'lobby',
-      lobby: buildLobbySummary(nextRoom, {
-        hostName: playerName(room.hostUid, room.lobby?.hostName),
-        hostPhoto: room.lobby?.hostPhoto ?? null,
-      }),
     });
     lastWriteAt = Date.now();
     recordWrite();
+    await refreshLobbySummary({ ...nextRoom, rev: room.rev + 1, status: 'lobby' });
   }
 
   async function cashoutSeat(seat, playerUid, { handOffTo } = {}) {
@@ -554,11 +581,6 @@ export function createHostLoop(fb, opts) {
       pub: buildPub(nextRoom),
       deadlineAt: null,
       status: 'lobby',
-      lobby: buildLobbySummary(nextRoom, {
-        hostName: playerName(nextHost, room.lobby?.hostName),
-        hostPhoto:
-          nextHost === room.hostUid ? room.lobby?.hostPhoto ?? null : null,
-      }),
       ...(handOffTo
         ? { hostUid: handOffTo, hostSince: fs.serverTimestamp() }
         : {}),
@@ -577,6 +599,12 @@ export function createHostLoop(fb, opts) {
     delete awaySince[seat];
     lastWriteAt = Date.now();
     onLocalState?.(engine);
+    await refreshLobbySummary({
+      ...nextRoom,
+      rev: room.rev + 1,
+      status: 'lobby',
+      hostUid: nextHost,
+    });
   }
 
   async function approveTopUp(seat) {

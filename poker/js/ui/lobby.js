@@ -115,12 +115,16 @@ function buildMyCard(vm) {
     settleAmt,
     inPlay,
   } = vm;
-  if (!needRescue && !myTable) return { html: '', kind: 'none', showCreate: true };
+  if (!needRescue && !myTable) {
+    return { html: '', kind: 'none', showCreate: true, statusWord: '在大廳' };
+  }
 
   const isHost =
     !!(player?.hostRoomId && myTable && player.hostRoomId === myTable.roomId);
   const kind = needRescue ? 'settle' : isHost ? 'host' : 'guest';
   const showCreate = kind !== 'host';
+  const statusWord =
+    kind === 'settle' ? '待結帳' : kind === 'host' ? '我是房主' : '已入座';
 
   const name = myTable?.name || '牌桌';
   const code = formatCode(myTable?.code || '');
@@ -190,7 +194,7 @@ function buildMyCard(vm) {
     </button>
   </section>`;
 
-  return { html, kind, showCreate };
+  return { html, kind, showCreate, statusWord };
 }
 
 export function fmtChips(n) {
@@ -216,8 +220,16 @@ function hostAvHtml(hostName, hostPhoto) {
   return `<span class="mp-hav" aria-hidden="true">${esc((hostName || '?')[0])}</span>`;
 }
 
-function openRowHtml(t) {
-  const seated = t.lobby?.seated ?? (t.seatUids || []).filter(Boolean).length;
+function seatedCountOf(t) {
+  const raw = t.lobby?.seated ?? (t.seatUids || []).filter(Boolean).length;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(6, Math.trunc(n)));
+}
+
+/** @param {object} t open-table row */
+export function openRowHtml(t) {
+  const seated = seatedCountOf(t);
   const full = seated >= 6;
   const hostName = t.lobby?.hostName || '房主';
   const blinds = t.lobby?.blinds || `${t.config?.sb || 10}/${t.config?.bb || 20}`;
@@ -233,7 +245,7 @@ function openRowHtml(t) {
       </span>
       <span class="mp-row-side" aria-hidden="true">
         <span class="mp-blinds"><small>盲注</small>${esc(blinds)}</span>
-        <span class="mp-seats"><span class="mp-pips">${pipsHtml(seated)}</span><span class="mp-n">${seated}/6</span></span>
+        <span class="mp-seats"><span class="mp-pips">${pipsHtml(seated)}</span><span class="mp-n">${esc(seated)}/6</span></span>
       </span>
     </button>
   </li>`;
@@ -263,7 +275,7 @@ export function patchOpenTables(root, tables) {
   empty.hidden = tables.length !== 0;
 
   tables.forEach((t) => {
-    const seated = t.lobby?.seated ?? (t.seatUids || []).filter(Boolean).length;
+    const seated = seatedCountOf(t);
     const full = seated >= 6;
     const row = list.querySelector(`.mp-row[data-rid="${CSS.escape(t.id)}"]`);
     if (!row) return;
@@ -273,10 +285,11 @@ export function patchOpenTables(root, tables) {
       p.classList.toggle('on', i < seated);
     });
     const num = row.querySelector('.mp-n');
-    if (num && num.textContent !== `${seated}/6`) {
+    const label = `${seated}/6`;
+    if (num && num.textContent !== label) {
       num.classList.add('swap');
       setTimeout(() => {
-        num.textContent = `${seated}/6`;
+        num.textContent = label;
         num.classList.remove('swap');
       }, 110);
     }
@@ -330,6 +343,15 @@ export function renderMpLobby(root, vm) {
   });
   const myPanel = mineCard.html;
   const showCreateBtn = mineCard.showCreate;
+  const statusWord = vm.lobbyStatus || mineCard.statusWord || '在大廳';
+  const tableBal = shownInPlay > 0 ? fmtChips(shownInPlay) : '—';
+  const tableBalZero = shownInPlay > 0 ? '' : ' zero';
+  const menuPrimary =
+    mineCard.kind === 'settle'
+      ? { act: 'rescue', label: `結帳離開（帶回 <span class="mp-num">${fmtChips(settleAmt)}</span>）`, settle: true }
+      : mineCard.kind === 'host' || mineCard.kind === 'guest'
+        ? { act: 'continue', label: '回到牌桌', settle: false }
+        : null;
 
   const openRows =
     openTables.length === 0
@@ -401,17 +423,41 @@ export function renderMpLobby(root, vm) {
     )
     .join('');
 
+  const menuIco = {
+    back: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.5 6.5 9 11 13.5"/></svg>`,
+    settle: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 9.5h10M9 4.5v10"/></svg>`,
+    stats: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3.5 14.5v-4M9 14.5v-9M14.5 14.5v-6"/></svg>`,
+    set: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="2.4"/><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2M4.4 4.4l1.4 1.4M12.2 12.2l1.4 1.4M4.4 13.6l1.4-1.4M12.2 5.8l1.4-1.4"/></svg>`,
+    pass: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="8" height="13" rx="1.8"/><path d="M8 12.8h2"/></svg>`,
+    out: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3.5H4.5v11H7M11 6l3 3-3 3M14 9H7.5"/></svg>`,
+    dots: `<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="10" r="1.7"/><circle cx="10" cy="10" r="1.7"/><circle cx="15.5" cy="10" r="1.7"/></svg>`,
+  };
+
   root.innerHTML = `
     <div class="mp-shell mp-lobby">
-      <header class="mp-top">
-        <button type="button" class="mp-avatar" data-act="avatar">
-          <span aria-hidden="true">${avatarHtml(user)}</span>
-          <span>${esc(name)}</span><span class="sr-only">的帳號</span>
+      <header class="mp-top" data-status="${esc(statusWord)}">
+        <button type="button" class="mp-av" data-act="avatar" aria-label="${esc(name)}的帳號">
+          ${avatarHtml(user)}
         </button>
-        <div class="mp-bal">
-          <span>帳戶 ${fmtChips(bank)}</span>
-          <span>牌桌中 ${fmtChips(shownInPlay)}</span>
-          <strong>總計 ${fmtChips(shownTotal)}</strong>
+        <span class="mp-nm">${esc(name)}</span>
+        <span class="mp-stl" id="mpStl">${esc(statusWord)}</span>
+        <span class="mp-amt" id="mpAmtAcc" aria-label="帳戶 ${fmtChips(bank)}"><small>帳戶</small><b id="mpBAcc">${fmtChips(bank)}</b></span>
+        <span class="mp-amt" id="mpAmtTab" aria-label="牌桌 ${shownInPlay ? fmtChips(shownInPlay) : 0}"><small>牌桌</small><b id="mpBTab" class="${tableBalZero}">${tableBal}</b></span>
+        <div class="mp-mw">
+          <button type="button" class="mp-mbtn" id="mpMenuBtn" aria-label="功能清單"
+            aria-haspopup="menu" aria-expanded="false" aria-controls="mpMenu">${menuIco.dots}</button>
+          <div class="mp-menu" id="mpMenu" role="menu" aria-label="功能清單" hidden>
+            ${
+              menuPrimary
+                ? `<button type="button" class="mp-mi pri${menuPrimary.settle ? ' settle' : ''}" role="menuitem" data-act="${menuPrimary.act}" tabindex="-1">${menuPrimary.settle ? menuIco.settle : menuIco.back}<span>${menuPrimary.label}</span></button>
+            <div class="mp-sep" role="separator"></div>`
+                : ''
+            }
+            <button type="button" class="mp-mi" role="menuitem" data-act="stats" tabindex="-1">${menuIco.stats}戰績</button>
+            <button type="button" class="mp-mi" role="menuitem" data-act="settings" tabindex="-1">${menuIco.set}設定</button>
+            <button type="button" class="mp-mi" role="menuitem" data-act="solo" tabindex="-1">${menuIco.pass}同一支手機輪流玩</button>
+            <button type="button" class="mp-mi" role="menuitem" data-act="signout" tabindex="-1">${menuIco.out}登出</button>
+          </div>
         </div>
       </header>
       ${offline ? '<p class="mp-offline">離線資料</p>' : ''}
@@ -429,10 +475,6 @@ export function renderMpLobby(root, vm) {
           </article>
         </div>
       </div>
-      <footer class="mp-foot">
-        <button type="button" class="mp-link" data-act="solo">同一支手機輪流玩</button>
-        <button type="button" class="mp-link" data-act="signout">登出</button>
-      </footer>
     </div>`;
 
   wire(root, {
@@ -442,7 +484,11 @@ export function renderMpLobby(root, vm) {
     solo: onSolo,
     signout: onSignOut,
     avatar: onAvatar,
+    settings: () => vm.onSettings?.(),
+    continue: onContinue,
   });
+
+  wireLobbyMenu(root);
 
   // 我的牌桌：整卡按鈕（busy 防連點；固定高度只換動作文案）
   root.querySelectorAll('.mp-my[data-act="continue"], .mp-my[data-act="rescue"]').forEach((el) => {
@@ -452,6 +498,9 @@ export function renderMpLobby(root, vm) {
       const act = el.querySelector('.mp-act');
       const settle = el.getAttribute('data-k') === 'settle';
       if (act) act.textContent = settle ? '結帳中…' : '回座中…';
+      // sync top status busy word
+      const stl = $('#mpStl', root);
+      if (stl) stl.textContent = settle ? '結帳中…' : '回座中…';
       if (settle) onRescue?.();
       else onContinue?.();
     });
@@ -461,12 +510,94 @@ export function renderMpLobby(root, vm) {
     el.addEventListener('click', () => onOpenTable?.(el.getAttribute('data-rid')));
   });
 
+  // menu primary continue/rescue
+  root.querySelectorAll('.mp-menu [data-act="continue"], .mp-menu [data-act="rescue"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      closeLobbyMenu(root);
+      const settle = el.getAttribute('data-act') === 'rescue';
+      const stl = $('#mpStl', root);
+      if (stl) stl.textContent = settle ? '結帳中…' : '回座中…';
+      if (settle) onRescue?.();
+      else onContinue?.();
+    });
+  });
+
   wireJoinBoxes(root, {
     digits: joinDigits,
     joining,
     error: joinError,
     onJoinCode,
   });
+}
+
+function closeLobbyMenu(root) {
+  const btn = $('#mpMenuBtn', root);
+  const menu = $('#mpMenu', root);
+  if (!btn || !menu) return;
+  menu.classList.remove('on');
+  menu.hidden = true;
+  btn.setAttribute('aria-expanded', 'false');
+}
+
+function wireLobbyMenu(root) {
+  const btn = $('#mpMenuBtn', root);
+  const menu = $('#mpMenu', root);
+  if (!btn || !menu) return;
+
+  const items = () => [...menu.querySelectorAll('[role="menuitem"]')];
+
+  const open = () => {
+    menu.hidden = false;
+    requestAnimationFrame(() => menu.classList.add('on'));
+    btn.setAttribute('aria-expanded', 'true');
+    items()[0]?.focus();
+  };
+  const close = () => closeLobbyMenu(root);
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (btn.getAttribute('aria-expanded') === 'true') close();
+    else open();
+  });
+
+  menu.addEventListener('keydown', (e) => {
+    const list = items();
+    const i = list.indexOf(document.activeElement);
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+      btn.focus();
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      list[(i + 1) % list.length]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      list[(i - 1 + list.length) % list.length]?.focus();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      list[0]?.focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      list[list.length - 1]?.focus();
+    } else if (e.key === 'Tab') {
+      close();
+    }
+  });
+
+  // One document listener for outside-close (replace prior)
+  if (typeof window.__mpMenuOutside === 'function') {
+    document.removeEventListener('pointerdown', window.__mpMenuOutside, true);
+  }
+  window.__mpMenuOutside = (e) => {
+    const b = document.getElementById('mpMenuBtn');
+    const m = document.getElementById('mpMenu');
+    if (!m?.classList.contains('on')) return;
+    if (m.contains(e.target) || b?.contains(e.target)) return;
+    closeLobbyMenu(document.getElementById('mpRoot') || document);
+  };
+  document.addEventListener('pointerdown', window.__mpMenuOutside, true);
 }
 
 function wireJoinBoxes(root, { digits, joining, error, onJoinCode }) {
@@ -703,7 +834,7 @@ function wire(root, map) {
   });
 }
 
-function esc(s) {
+export function esc(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

@@ -38,15 +38,20 @@ export function isRoomOpenStatus(status) {
  */
 export function buildLobbySummary(room, { hostName, hostPhoto, seated } = {}) {
   const cfg = room?.config || {};
-  const seatN =
+  const rawSeat =
     seated != null
       ? seated
       : (room?.seatUids || []).filter(Boolean).length;
+  const seatN = Math.max(0, Math.min(6, Math.trunc(Number(rawSeat) || 0)));
+  const photoRaw =
+    hostPhoto !== undefined ? hostPhoto : room?.lobby?.hostPhoto;
+  const photo =
+    typeof photoRaw === 'string' && /^https:\/\//.test(photoRaw) ? photoRaw : '';
   return {
-    name: room?.name || '週五牌局',
-    hostName: hostName || room?.lobby?.hostName || '',
-    hostPhoto: hostPhoto !== undefined ? hostPhoto : room?.lobby?.hostPhoto ?? null,
-    blinds: `${cfg.sb ?? 10}/${cfg.bb ?? 20}`,
+    name: String(room?.name || '週五牌局').slice(0, 20),
+    hostName: String(hostName || room?.lobby?.hostName || '').slice(0, 60),
+    hostPhoto: photo,
+    blinds: String(`${cfg.sb ?? 10}/${cfg.bb ?? 20}`).slice(0, 15),
     seated: seatN,
   };
 }
@@ -81,7 +86,7 @@ export async function createRoom(fb, opts) {
     topUpAmount: 2000,
   };
 
-  // L3: already hosting an open table → return it
+  // L3: already hosting an open table → return it; closed/missing hostRoomId is reclaimable
   const pref = fs.doc(db, 'pokerPlayers', opts.uid);
   const pSnap = await fs.getDoc(pref);
   const existingHost = pSnap.exists() ? pSnap.data()?.hostRoomId : null;
@@ -103,6 +108,11 @@ export async function createRoom(fb, opts) {
       }
     }
   }
+
+  const profile = {
+    displayName: String(opts.displayName || '玩家').slice(0, 60),
+    photoURL: opts.photoURL && /^https:\/\//.test(opts.photoURL) ? opts.photoURL : null,
+  };
 
   let lastErr = null;
   for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
@@ -129,6 +139,7 @@ export async function createRoom(fb, opts) {
                 });
               }
             }
+            // prior gone/closed → replace hostRoomId below
           }
         }
 
@@ -148,8 +159,8 @@ export async function createRoom(fb, opts) {
         const lobby = buildLobbySummary(
           { name, config },
           {
-            hostName: opts.displayName || '',
-            hostPhoto: opts.photoURL ?? null,
+            hostName: profile.displayName,
+            hostPhoto: profile.photoURL || '',
             seated: 0,
           },
         );
@@ -186,10 +197,44 @@ export async function createRoom(fb, opts) {
           lobby,
         });
 
+        // Rules: create requires getAfter(player).hostRoomId == roomId in same txn
         if (pNow.exists()) {
           tx.update(pref, {
             hostRoomId: roomId,
             updatedAt: fs.serverTimestamp(),
+          });
+        } else {
+          const grantId = `${roomId}_0_grant`;
+          tx.set(pref, {
+            displayName: profile.displayName,
+            photoURL: profile.photoURL,
+            bank: config.newPlayerChips,
+            inPlay: 0,
+            total: config.newPlayerChips,
+            tableRoomId: null,
+            sessionNo: 0,
+            topUps: 0,
+            topUpChips: 0,
+            handsPlayed: 0,
+            lastRoomId: roomId,
+            hostRoomId: roomId,
+            createdAt: fs.serverTimestamp(),
+            updatedAt: fs.serverTimestamp(),
+          });
+          tx.set(fs.doc(db, 'pokerPlayers', opts.uid, 'ledger', grantId), {
+            type: 'grant',
+            amount: config.newPlayerChips,
+            roomId,
+            sessionNo: 0,
+            seat: null,
+            buyIn: null,
+            topUps: null,
+            topUpChips: null,
+            hands: null,
+            nightKey: null,
+            bankAfter: config.newPlayerChips,
+            by: opts.uid,
+            at: fs.serverTimestamp(),
           });
         }
       });

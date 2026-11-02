@@ -349,7 +349,10 @@ async function runShowdown(browser, base, viewport, label) {
 /** Lobby →「同一支手機輪流玩」→ full solo hand (not ?solo=1). */
 async function runSoloFromLobby(browser, base, viewport, label) {
   const p = await makePlayer(browser, base, '宜靜', `solo${label}`, viewport);
-  await p.page.click('[data-act="solo"]');
+  // BD §2.1: solo lives in ⋯ menu
+  await p.page.click('#mpMenuBtn');
+  await p.page.waitForSelector('#mpMenu.on [data-act="solo"]', { timeout: 5000 });
+  await p.page.click('#mpMenu [data-act="solo"]');
   await p.page.waitForSelector('#lobbyScreen.is-on', { timeout: 10000 });
   const appHidden = await p.page.evaluate(() =>
     document.getElementById('app')?.classList.contains('hidden'),
@@ -534,7 +537,28 @@ async function runHostLobbyContinue(browser, base, viewport, label) {
     const body = document.body.innerText;
     return { chips, seated: /離座|開始第一手|開始下一手|蓋牌/.test(body) };
   });
-  await host.page.evaluate(() => window.__qaLeaveToLobby());
+  // #mpBtnLeaveLobby must be reachable (soft leave) at 390 and 1280
+  const leaveBtn = host.page.locator('#mpBtnLeaveLobby');
+  await leaveBtn.waitFor({ state: 'visible', timeout: 15000 });
+  const leaveBox = await leaveBtn.boundingBox();
+  const vp = host.page.viewportSize();
+  if (
+    !leaveBox ||
+    leaveBox.y + leaveBox.height > (vp?.height || 0) + 1 ||
+    leaveBox.x + leaveBox.width > (vp?.width || 0) + 1 ||
+    leaveBox.y < 0
+  ) {
+    await host.ctx.close();
+    return {
+      ok: false,
+      roomId,
+      before,
+      reason: '#mpBtnLeaveLobby not fully in viewport',
+      leaveBox,
+      vp,
+    };
+  }
+  await leaveBtn.click();
   await host.page.waitForSelector('.mp-lobby', { timeout: 15000 });
   await host.page.waitForTimeout(800);
   const lobby = await host.page.evaluate(async () => {
@@ -978,7 +1002,12 @@ async function runMineCardStates(browser, base, viewport, label) {
   await guest.page.evaluate(() => window.__qaLeaveToLobby());
   await guest.page.waitForSelector('.mp-lobby', { timeout: 15000 });
   await guest.page.waitForTimeout(800);
-  const guestCard = await guest.page.evaluate(() => window.__qaMineSnapshot());
+  const guestCard = await guest.page.evaluate(() => ({
+    ...window.__qaMineSnapshot(),
+    top: window.__qaTopStatus?.() || '',
+  }));
+  const guestMenu = await guest.page.evaluate(() => window.__qaOpenMenu?.() || []);
+  await guest.page.evaluate(() => document.getElementById('mpMenuBtn')?.click());
   await guest.page.click('.mp-btn-primary[data-act="create"]');
   await guest.page.waitForTimeout(400);
   const leaveHint = await guest.page.evaluate(() => {
@@ -1003,13 +1032,18 @@ async function runMineCardStates(browser, base, viewport, label) {
     await window.__qaRefreshRescue?.();
   });
   await guest.page.waitForTimeout(1200);
-  const settleCard = await guest.page.evaluate(() => window.__qaMineSnapshot());
+  const settleCard = await guest.page.evaluate(() => ({
+    ...window.__qaMineSnapshot(),
+    top: window.__qaTopStatus?.() || '',
+  }));
+  const settleMenu = await guest.page.evaluate(() => window.__qaOpenMenu?.() || []);
+  await guest.page.evaluate(() => document.getElementById('mpMenuBtn')?.click());
   await guest.page.screenshot({
     path: join(ART, `mp-${label}-mine-settle.png`),
     fullPage: true,
   });
 
-  // Away toast
+  // Away toast + top status 「已自動離座」
   const toast = await guest.page.evaluate(() => {
     window.__qaShowAwayToast?.();
     const n = document.getElementById('mpNtc');
@@ -1018,6 +1052,7 @@ async function runMineCardStates(browser, base, viewport, label) {
       title: document.getElementById('mpNtcT')?.textContent || '',
       role: n?.getAttribute('role'),
       style: getComputedStyle(n).transitionProperty || '',
+      top: window.__qaTopStatus?.() || '',
     };
   });
   await guest.page.screenshot({
@@ -1026,7 +1061,23 @@ async function runMineCardStates(browser, base, viewport, label) {
   });
 
   // Host never 房主失聯; height stable across host→(same card)
-  const hostAgain = await host.page.evaluate(() => window.__qaMineSnapshot());
+  const hostAgain = await host.page.evaluate(() => ({
+    ...window.__qaMineSnapshot(),
+    top: window.__qaTopStatus?.() || '',
+  }));
+  const hostMenu = await host.page.evaluate(() => window.__qaOpenMenu?.() || []);
+  const topBar = await host.page.evaluate(() => {
+    const top = document.querySelector('.mp-lobby .mp-top');
+    if (!top) return null;
+    const r = top.getBoundingClientRect();
+    const foot = document.querySelector('.mp-foot');
+    return {
+      h: Math.round(r.height),
+      hasTotal: /總計/.test(document.body.innerText),
+      footHidden: !foot || getComputedStyle(foot).display === 'none',
+      hasMenu: !!document.getElementById('mpMenuBtn'),
+    };
+  });
 
   await host.ctx.close();
   await guest.ctx.close();
@@ -1036,11 +1087,18 @@ async function runMineCardStates(browser, base, viewport, label) {
     /房主/.test(hostCard.tag) &&
     /回到牌桌/.test(hostCard.act) &&
     !hostCard.hasCreate &&
-    !/房主失聯/.test(hostCard.text);
+    !/房主失聯/.test(hostCard.text) &&
+    hostAgain.top === '我是房主' &&
+    hostMenu.some((t) => /回到牌桌/.test(t)) &&
+    hostMenu.some((t) => t === '戰績') &&
+    hostMenu.some((t) => /同一支手機輪流玩/.test(t)) &&
+    hostMenu.some((t) => t === '登出');
   const guestOk =
     guestCard.hasMine &&
     /入座中/.test(guestCard.tag) &&
     guestCard.hasCreate &&
+    guestCard.top === '已入座' &&
+    guestMenu.some((t) => /回到牌桌/.test(t)) &&
     leaveHint.on &&
     /先離開/.test(leaveHint.title) &&
     leaveHint.role === 'status';
@@ -1048,14 +1106,26 @@ async function runMineCardStates(browser, base, viewport, label) {
     settleCard.hasMine &&
     settleCard.dataK === 'settle' &&
     /結帳離開/.test(settleCard.act) &&
-    settleCard.hasCreate;
-  const toastOk = toast.on && /自動離座/.test(toast.title) && toast.role === 'status';
+    settleCard.hasCreate &&
+    settleCard.top === '待結帳' &&
+    settleMenu.some((t) => /結帳離開/.test(t));
+  const toastOk =
+    toast.on &&
+    /自動離座/.test(toast.title) &&
+    toast.role === 'status' &&
+    toast.top === '已自動離座';
   const heightOk =
     h1 > 0 &&
     Math.abs((guestCard.height || 0) - (settleCard.height || 0)) < 8;
+  const barOk =
+    topBar &&
+    topBar.h === 50 &&
+    topBar.footHidden &&
+    !topBar.hasTotal &&
+    topBar.hasMenu;
 
   return {
-    ok: hostOk && guestOk && settleOk && toastOk && heightOk,
+    ok: hostOk && guestOk && settleOk && toastOk && heightOk && barOk,
     hostCard,
     guestCard,
     settleCard,
@@ -1063,6 +1133,10 @@ async function runMineCardStates(browser, base, viewport, label) {
     toast,
     heightOk,
     hostAgain,
+    hostMenu,
+    guestMenu,
+    settleMenu,
+    topBar,
   };
 }
 

@@ -28,6 +28,7 @@ describe('room code L7', () => {
   it('isRoomOpenStatus', () => {
     assert.equal(isRoomOpenStatus('lobby'), true);
     assert.equal(isRoomOpenStatus('playing'), true);
+    assert.equal(isRoomOpenStatus('open'), true);
     assert.equal(isRoomOpenStatus('closed'), false);
   });
 
@@ -43,9 +44,18 @@ describe('room code L7', () => {
     assert.deepEqual(s, {
       name: '週五',
       hostName: '阿明',
-      hostPhoto: null,
+      hostPhoto: '',
       blinds: '10/20',
       seated: 2,
     });
+  });
+
+  it('buildLobbySummary rejects non-https hostPhoto and clamps seated', () => {
+    const s = buildLobbySummary(
+      { name: 'x', config: { sb: 5, bb: 10 }, seatUids: [] },
+      { hostPhoto: 'javascript:alert(1)', seated: 99 },
+    );
+    assert.equal(s.hostPhoto, '');
+    assert.equal(s.seated, 6);
   });
 });

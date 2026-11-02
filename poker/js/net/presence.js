@@ -94,6 +94,10 @@ export function takeoverOrder(room) {
   return rows.map((r) => r.uid);
 }
 
+function isTakeoverStatus(status) {
+  return status === 'lobby' || status === 'playing' || status === 'open';
+}
+
 /**
  * Client-side takeover attempt when room snapshot stale > 30s.
  * @param {{ db:any, fs:any }} fb
@@ -123,7 +127,7 @@ export async function maybeTakeover(fb, room, myUid, lastRecvAt, buildVoidPub) {
       if (!snap.exists()) throw new Error('gone');
       const r = snap.data();
       if (r.hostUid === myUid) return;
-      if (r.status !== 'open') throw new Error('closed');
+      if (!isTakeoverStatus(r.status)) throw new Error('closed');
       if (!r.seatUids.includes(myUid)) throw new Error('not seated');
       const pub = buildVoidPub
         ? buildVoidPub(r.pub)
@@ -163,3 +167,5 @@ export const PRESENCE_MS = {
   TAKEOVER_AFTER_MS,
   TAKEOVER_STAGGER_MS,
 };
+
+export { isTakeoverStatus };
