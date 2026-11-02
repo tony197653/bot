@@ -91,9 +91,9 @@ export function raisePresetsMarkup(presets, selectedId, format = fmtChips) {
 }
 
 /**
- * Title + confirm copy share the same verb: opening bet → 下注, else 加注到.
+ * Title + confirm + min hint share the same verb: opening bet → 下注, else 加注到.
  * @param {boolean} isBet true when currentBet===0 (opening bet / postflop no bet yet)
- * @param {number} amount raise-to total
+ * @param {number} amount raise-to (title/confirm) or min-to (minHint) depending on call site
  * @param {(n: number) => string} [format]
  */
 export function raisePanelCopy(isBet, amount, format = fmtChips) {
@@ -103,6 +103,7 @@ export function raisePanelCopy(isBet, amount, format = fmtChips) {
     verb: isBet ? '下注' : '加注到',
     title: isBet ? `下注 ${n}` : `加注到 ${n}`,
     confirm: isBet ? `確認下注 ${n}` : `確認加注到 ${n}`,
+    minHint: isBet ? `最少下注 ${n}` : `最少加到 ${n}`,
   };
 }
 

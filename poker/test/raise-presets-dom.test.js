@@ -190,6 +190,7 @@ describe('加注面板 DOM：三組快捷鍵＋金額標籤（#20 regression）'
     assert.equal(bet.verb, '下注');
     assert.equal(bet.title, '下注 90');
     assert.equal(bet.confirm, '確認下注 90');
+    assert.equal(bet.minHint, '最少下注 90');
     assert.match(bet.title, /^下注 /);
     assert.match(bet.confirm, /^確認下注 /);
 
@@ -197,6 +198,7 @@ describe('加注面板 DOM：三組快捷鍵＋金額標籤（#20 regression）'
     assert.equal(raise.verb, '加注到');
     assert.equal(raise.title, '加注到 180');
     assert.equal(raise.confirm, '確認加注到 180');
+    assert.equal(raise.minHint, '最少加到 180');
 
     // Postflop opening bet uses same 下注 path as isBet
     let s = createInitialState({ timerEnabled: false, bigBlind: 20, startingStack: 2000 });
@@ -218,6 +220,10 @@ describe('加注面板 DOM：三組快捷鍵＋金額標籤（#20 regression）'
     assert.equal(copy.verb, '下注');
     assert.equal(copy.title, `下注 ${fmtChips(preferred?.to ?? L.minRaiseTo)}`);
     assert.equal(copy.confirm, `確認下注 ${fmtChips(preferred?.to ?? L.minRaiseTo)}`);
+    assert.equal(copy.minHint, `最少下注 ${fmtChips(preferred?.to ?? L.minRaiseTo)}`);
+    // Hint for min uses lo (= minRaiseTo) via same helper
+    assert.equal(raisePanelCopy(true, L.minRaiseTo).minHint, `最少下注 ${fmtChips(L.minRaiseTo)}`);
+    assert.equal(raisePanelCopy(false, L.minRaiseTo).minHint, `最少加到 ${fmtChips(L.minRaiseTo)}`);
   });
 });
 

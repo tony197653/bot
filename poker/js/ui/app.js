@@ -2312,9 +2312,10 @@ function openRaisePanel(legal) {
   const callAmt = legal.callAmount || 0;
   const hint = $('#raiseHint');
   if (hint) {
+    const minHint = raisePanelCopy(!!legal.bet, lo).minHint;
     hint.textContent = legal.check
-      ? `最少加到 ${fmtChips(lo)}`
-      : `跟注 ${fmtChips(callAmt)} · 最少加到 ${fmtChips(lo)}`;
+      ? minHint
+      : `跟注 ${fmtChips(callAmt)} · ${minHint}`;
   }
   syncRaiseUi();
 

@@ -2019,10 +2019,11 @@ function openMpRaise(minRaiseTo, send) {
   const callAmt = Math.max(0, (pub.currentBet || 0) - (ps?.bet || 0));
   const hint = $('#raiseHint');
   if (hint) {
+    const minHint = raisePanelCopy(mpRaiseIsBet(), lo).minHint;
     hint.textContent =
       callAmt <= 0
-        ? `最少加到 ${fmtChips(lo)}`
-        : `跟注 ${fmtChips(callAmt)} · 最少加到 ${fmtChips(lo)}`;
+        ? minHint
+        : `跟注 ${fmtChips(callAmt)} · ${minHint}`;
   }
   syncMpRaiseUi(range);
 
