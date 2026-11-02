@@ -292,7 +292,7 @@ export async function renderHome(mount, ctx) {
       const t = e.target.closest('[data-act],[data-book].round');
       if (!t) return;
       if (t.dataset.act === 'continue') {
-        ctx.navigate('#/quiz');
+        ctx.resumeProgress?.();
         return;
       }
       if (t.dataset.act === 'suggest-first') {

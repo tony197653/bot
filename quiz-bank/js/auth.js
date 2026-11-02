@@ -133,7 +133,7 @@ async function afterSignedIn(fbUser) {
         user: null,
         error: {
           code: 'denied',
-          message: `${ZH.denied}（${String(fbUser.email || '').toLowerCase()}）。請改用允許名單內的 Google 帳號，或請管理者加入。`,
+          message: `${ZH.denied}。請改用允許名單內的 Google 帳號，或請管理者加入。`,
           email: String(fbUser.email || '').toLowerCase(),
         },
       });
@@ -271,8 +271,7 @@ export async function signIn() {
     // GitHub Pages：popup 被擋或 iOS Safari → redirect 備援
     if (
       code === 'auth/popup-blocked' ||
-      code === 'auth/operation-not-supported-in-this-environment' ||
-      /iPhone|iPad|iPod/i.test(navigator.userAgent || '')
+      code === 'auth/operation-not-supported-in-this-environment'
     ) {
       try {
         await authApi.signInWithRedirect(auth, provider);

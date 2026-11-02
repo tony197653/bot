@@ -95,6 +95,14 @@ export function stemHtml(q) {
  * @param {number|null} answer 使用者答案（-1／null＝未答）
  * @param {{revealed?:boolean, mode?:'instant'|'exam', letters?:string}} [opts]
  */
+function optionLabelText(o) {
+  return String(o ?? '')
+    .replace(/\\[\[\(\)\]]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
 export function optionsHtml(q, answer, opts = {}) {
   const L = opts.letters || 'ABCD';
   const revealed = !!opts.revealed;
@@ -120,8 +128,9 @@ export function optionsHtml(q, answer, opts = {}) {
               : ''
           : '';
       const disabled = revealed && mode === 'instant';
+      const ariaLab = `選項 ${L[k]}，${optionLabelText(o)}`;
       return `<button type="button" class="${cls}" data-k="${k}" style="--i:${k}"
-        ${disabled ? 'aria-disabled="true"' : ''} aria-label="選項 ${L[k]}">
+        ${disabled ? 'aria-disabled="true"' : ''} aria-label="${escHtml(ariaLab)}">
         <span class="key">${L[k]}</span>
         <span class="txt"><span class="tx">${escHtml(o)}</span></span>
         <span class="mk" aria-hidden="true">${mk}</span>

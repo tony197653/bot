@@ -1,7 +1,13 @@
 /**
  * 結算頁模組。模板 — 不可寫死書名／科目／專有名詞；標題與摘要開頭由參數傳入。
  */
-import { renderMath, escHtml, ICON } from './render.js';
+import {
+  renderMath,
+  escHtml,
+  ICON,
+  stemHtml,
+  groupPassageHtml,
+} from './render.js';
 
 const RM = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -23,20 +29,10 @@ function unitStatus(correct, total) {
 /**
  * @param {{
  *  mount: HTMLElement,
- *  result: {
- *    title: string,
- *    qids: string[],
- *    answers: number[],
- *    correct: number,
- *    total: number,
- *    score: number,
- *    startedAt: number,
- *    endedAt: number,
- *    byUnit: Array<{unitCode:string,unit:string,correct:number,total:number}>,
- *    questions: object[],
- *    mode: string,
- *  },
+ *  result: object,
  *  summaryPrefix?: string,
+ *  getSummaryText?: () => string,
+ *  summaryTextFn?: () => string,
  *  wrongBookDelta?: number,
  *  cloudStatus?: 'ok'|'pending'|'error',
  *  onRetryWrong: () => void,
@@ -44,11 +40,15 @@ function unitStatus(correct, total) {
  *  onHome: () => void,
  *  onCopySummary?: (text: string) => void,
  *  onRetryCloud?: () => void,
+ *  onReport?: (payload: {qid:string, reason:string, note:string}) => Promise<void>|void,
+ *  reportedIds?: Set<string>|string[],
  * }} opts
  */
 export function showResult(opts) {
   const r = opts.result;
   const qs = r.questions;
+  const groupsMap = Object.fromEntries((r.groups || []).map((g) => [g.groupId, g]));
+  const reported = new Set(opts.reportedIds || []);
   const ms = Math.max(0, (r.endedAt || Date.now()) - (r.startedAt || Date.now()));
   const wrongN = qs.filter((q, n) => r.answers[n] !== q.answer).length;
   const msg =
@@ -76,8 +76,8 @@ export function showResult(opts) {
       ? `<p class="cloud-warn" role="status">還沒存到雲端，<button type="button" class="btn b5" data-act="retry-cloud">重試</button></p>`
       : '';
 
-  // 題目回顧預設「只看錯題」；全對時才預設「全部」（對齊樣張 core.js）
   const showWrongOnly = wrongN > 0;
+  const showExamReport = r.mode === 'exam' && typeof opts.onReport === 'function';
 
   const html = `<section class="result${showWrongOnly ? ' only-wrong' : ''}" data-el="result">
     <div class="r-hero">
@@ -133,14 +133,23 @@ export function showResult(opts) {
               const a = r.answers[n];
               const ok = a === q.answer;
               const L = 'ABCD';
-              return `<li class="rv ${ok ? 'ok' : 'bad'}">
+              const group = q.groupId ? groupsMap[q.groupId] : null;
+              const reportBtn =
+                showExamReport && !ok
+                  ? `<button type="button" class="btn b5 report" data-report-qid="${escHtml(q.id)}" data-report-n="${n}"${
+                      reported.has(q.id) ? ' disabled' : ''
+                    }>${reported.has(q.id) ? '已回報' : '回報題目有誤'}</button>`
+                  : '';
+              return `<li class="rv ${ok ? 'ok' : 'bad'}" data-rv-n="${n}">
                 <p class="rv-q"><span class="rv-st">${ok ? ICON.ok : ICON.bad}<span>${ok ? '對' : '錯'}</span></span>
                   <span class="rv-n">第 ${n + 1} 題</span></p>
-                <div class="rv-stem">${escHtml(q.stem)}</div>
+                ${groupPassageHtml(group, { collapsed: true })}
+                <div class="rv-stem">${stemHtml(q)}</div>
                 <p class="rv-a">你選：${a < 0 ? '未作答' : `(${L[a]}) ${escHtml(q.options[a])}`}${
                   ok ? '' : `　正確：(${L[q.answer]}) ${escHtml(q.options[q.answer])}`
                 }</p>
                 ${ok ? '' : `<div class="rv-ex">${escHtml(q.explain)}</div>`}
+                ${reportBtn}
               </li>`;
             })
             .join('')}
@@ -155,6 +164,27 @@ export function showResult(opts) {
       <button type="button" class="btn b2" data-act="copy">複製摘要</button>
       <button type="button" class="btn b5" data-act="home">回首頁</button>
     </div>
+    <dialog class="report-dlg" data-el="resultReportDlg">
+      <form method="dialog" class="report-form">
+        <h2>回報題目有誤</h2>
+        <input type="hidden" name="qid" value="">
+        <label>原因
+          <select name="reason">
+            <option value="answer">答案錯</option>
+            <option value="typo">題目打錯</option>
+            <option value="figure">圖有問題</option>
+            <option value="other">其他</option>
+          </select>
+        </label>
+        <label>補充說明（選填）
+          <input name="note" maxlength="200" placeholder="一句話說明…">
+        </label>
+        <div class="report-actions">
+          <button type="submit" class="btn b1" value="ok">送出</button>
+          <button type="submit" class="btn b2" value="cancel">取消</button>
+        </div>
+      </form>
+    </dialog>
   </section>`;
 
   opts.mount.innerHTML = html;
@@ -167,11 +197,12 @@ export function showResult(opts) {
     setTimeout(() => resultEl?.classList.remove('in'), 1600);
   }
 
-  // bubble row horizontal scroll if many
   const segs = opts.mount.querySelector('.segs');
   if (segs && qs.length > 12) segs.classList.add('strip-scroll');
 
-  function summaryText() {
+  const reportDlg = opts.mount.querySelector('[data-el="resultReportDlg"]');
+
+  function defaultSummaryText() {
     const d = new Date(r.endedAt || Date.now());
     const p = (x) => String(x).padStart(2, '0');
     const prefix = opts.summaryPrefix || r.title || '測驗';
@@ -190,9 +221,48 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
     }`;
   }
 
+  function summaryText() {
+    if (typeof opts.getSummaryText === 'function') return opts.getSummaryText();
+    if (typeof opts.summaryTextFn === 'function') return opts.summaryTextFn();
+    return defaultSummaryText();
+  }
+
+  async function submitResultReport(qid, reason, note) {
+    if (!opts.onReport || reported.has(qid)) return;
+    try {
+      await opts.onReport({ qid, reason, note });
+      reported.add(qid);
+      opts.mount.querySelectorAll(`[data-report-qid="${CSS.escape(qid)}"]`).forEach((btn) => {
+        btn.disabled = true;
+        btn.textContent = '已回報';
+      });
+      const toast = document.getElementById('app-toast');
+      if (toast) {
+        toast.textContent = '已回報，謝謝';
+        toast.classList.add('on');
+        setTimeout(() => toast.classList.remove('on'), 2000);
+      }
+    } catch (err) {
+      const toast = document.getElementById('app-toast');
+      if (toast) {
+        toast.textContent = err?.message || '回報失敗，請稍後再試';
+        toast.classList.add('on');
+        setTimeout(() => toast.classList.remove('on'), 2200);
+      }
+    }
+  }
+
   const onClick = async (e) => {
     const t = e.target.closest('button');
     if (!t || !opts.mount.contains(t)) return;
+    if (t.matches('.report[data-report-qid]')) {
+      const qid = t.dataset.reportQid;
+      if (reportDlg && typeof reportDlg.showModal === 'function') {
+        reportDlg.querySelector('[name=qid]').value = qid;
+        reportDlg.showModal();
+      }
+      return;
+    }
     const act = t.dataset.act;
     if (t.dataset.f) {
       const w = t.dataset.f === 'wrong';
@@ -221,11 +291,27 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
       }
     }
   };
+
+  function onReportSubmit(e) {
+    const val = e.submitter?.value;
+    if (val === 'ok') {
+      const fd = new FormData(e.target);
+      submitResultReport(
+        String(fd.get('qid') || ''),
+        String(fd.get('reason') || 'other'),
+        String(fd.get('note') || '').slice(0, 200),
+      );
+    }
+  }
+
   opts.mount.addEventListener('click', onClick);
+  reportDlg?.addEventListener('submit', onReportSubmit);
+
   return {
     summaryText,
     destroy() {
       opts.mount.removeEventListener('click', onClick);
+      reportDlg?.removeEventListener('submit', onReportSubmit);
     },
   };
 }

@@ -31,7 +31,14 @@ let session = null;
  *  onLeave?: () => void,
  *  onReport?: (payload: {qid:string, reason:string, note:string}) => Promise<void>|void,
  *  progressKey?: string|null,
+ *  scope?: object|null,
  *  outMs?: number,
+ *  initialAnswers?: number[],
+ *  initialIndex?: number,
+ *  reportedIds?: string[],
+ *  getReportedIds?: () => Promise<string[]>,
+ *  clearProgressOnFinish?: boolean,
+ *  skipLightboxBind?: boolean,
  * }} opts
  */
 export function startQuiz(opts) {
@@ -44,6 +51,21 @@ export function startQuiz(opts) {
   return session;
 }
 
+export function isQuizActive() {
+  return session != null;
+}
+
+/**
+ * @param {(left: boolean) => void} [cb] true＝已離開；false＝取消
+ */
+export function requestLeave(cb) {
+  if (!session?.askLeave) {
+    cb?.(true);
+    return;
+  }
+  session.askLeave(cb);
+}
+
 function shuffleInPlace(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -53,24 +75,15 @@ function shuffleInPlace(arr) {
 }
 
 /** 打亂時題組整組移動 */
-function orderQuestions(questions, groups, shuffle) {
+function orderQuestions(questions, _groups, shuffle) {
   if (!shuffle) return questions.slice();
   const byGroup = new Map();
-  const singles = [];
-  const groupOrder = [];
   for (const q of questions) {
     if (q.groupId) {
-      if (!byGroup.has(q.groupId)) {
-        byGroup.set(q.groupId, []);
-        groupOrder.push({ type: 'g', id: q.groupId });
-      }
+      if (!byGroup.has(q.groupId)) byGroup.set(q.groupId, []);
       byGroup.get(q.groupId).push(q);
-    } else {
-      singles.push(q);
-      groupOrder.push({ type: 'q', q });
     }
   }
-  // Keep intra-group order; shuffle blocks
   const blocks = [];
   const seenG = new Set();
   for (const q of questions) {
@@ -91,14 +104,23 @@ function createSession(opts) {
   const groupsMap = Object.fromEntries((opts.groups || []).map((g) => [g.groupId, g]));
   const qs = orderQuestions(opts.questions, opts.groups || [], !!opts.shuffle);
   const answers = qs.map(() => -1);
-  const reported = new Set();
-  let i = 0;
+  if (Array.isArray(opts.initialAnswers) && opts.initialAnswers.length === qs.length) {
+    opts.initialAnswers.forEach((a, n) => {
+      answers[n] = typeof a === 'number' ? a : -1;
+    });
+  }
+  const reported = new Set(opts.reportedIds || []);
+  let i =
+    typeof opts.initialIndex === 'number'
+      ? Math.min(Math.max(0, opts.initialIndex), qs.length - 1)
+      : 0;
   let busy = false;
   let confirming = false;
   let startedAt = Date.now();
   let destroyed = false;
   const outMs = opts.outMs ?? 200;
   const mount = opts.mount;
+  const clearOnFinish = opts.clearProgressOnFinish === true;
 
   const root = document.createElement('div');
   root.className = 'quiz-root';
@@ -126,6 +148,16 @@ function createSession(opts) {
       </div>
     </footer>
     <div class="toast" data-el="toast" role="status" aria-live="polite"></div>
+    <dialog class="leave-dlg" data-el="leaveDlg">
+      <form method="dialog" class="leave-form">
+        <h2>離開練習？</h2>
+        <p>這回還沒交卷，要離開嗎？進度會留在這台裝置。</p>
+        <div class="leave-actions">
+          <button type="submit" class="btn b2" value="cancel">取消</button>
+          <button type="submit" class="btn b1" value="leave">離開</button>
+        </div>
+      </form>
+    </dialog>
     <dialog class="report-dlg" data-el="reportDlg">
       <form method="dialog" class="report-form">
         <h2>回報題目有誤</h2>
@@ -148,7 +180,7 @@ function createSession(opts) {
     </dialog>`;
   mount.innerHTML = '';
   mount.appendChild(root);
-  bindLightbox(root);
+  if (!opts.skipLightboxBind) bindLightbox(root);
 
   const $ = (sel) => root.querySelector(sel);
   const titleEl = $('[data-el="title"]');
@@ -159,8 +191,12 @@ function createSession(opts) {
   const warnEl = $('[data-el="warn"]');
   const toastEl = $('[data-el="toast"]');
   const reportDlg = $('[data-el="reportDlg"]');
+  const leaveDlg = $('[data-el="leaveDlg"]');
 
   titleEl.textContent = opts.title || '';
+
+  /** @type {((left:boolean)=>void)|null} */
+  let leaveCb = null;
 
   function saveProgress() {
     if (!opts.progressKey) return;
@@ -214,7 +250,6 @@ function createSession(opts) {
     const done = answers.filter((a) => a >= 0).length;
     progEl?.style.setProperty('--p', String(done / qs.length));
     countEl.innerHTML = `<b>${i + 1}</b><span> / ${qs.length}</span>`;
-    // auto-scroll current bubble into view (horizontal strip only)
     const now = stripEl.querySelector('.bub.now');
     if (now && many) {
       now.scrollIntoView({ inline: 'center', block: 'nearest', behavior: RM() ? 'auto' : 'smooth' });
@@ -330,8 +365,7 @@ function createSession(opts) {
       if (j !== k && j !== q.answer) cls += ' dim';
       b.className = cls;
       b.setAttribute('aria-disabled', 'true');
-      b.querySelector('.mk').innerHTML =
-        j === q.answer ? ICON.ok : j === k ? ICON.bad : '';
+      b.querySelector('.mk').innerHTML = j === q.answer ? ICON.ok : j === k ? ICON.bad : '';
     });
     const fb = stageEl.querySelector('[data-el="fb"]');
     if (fb) {
@@ -385,9 +419,9 @@ function createSession(opts) {
   }
 
   function finish() {
-    clearProgress();
+    if (clearOnFinish) clearProgress();
     const result = buildResult();
-    destroy();
+    destroy(true);
     opts.onFinish(result);
   }
 
@@ -412,16 +446,44 @@ function createSession(opts) {
     else go(i + 1);
   }
 
+  function confirmLeave() {
+    saveProgress();
+    destroy(true);
+    opts.onLeave?.();
+    leaveCb?.(true);
+    leaveCb = null;
+  }
+
+  function showLeaveDialog(cb) {
+    leaveCb = cb || null;
+    if (typeof leaveDlg.showModal === 'function') leaveDlg.showModal();
+    else confirmLeave();
+  }
+
+  function onLeaveSubmit(e) {
+    const val = e.submitter?.value;
+    if (val === 'leave') confirmLeave();
+    else {
+      leaveCb?.(false);
+      leaveCb = null;
+    }
+  }
+
   async function doReport(reason, note) {
     const q = qs[i];
     if (!opts.onReport || reported.has(q.id)) return;
-    await opts.onReport({ qid: q.id, reason, note });
-    reported.add(q.id);
-    toast('已回報，謝謝');
     const btn = stageEl.querySelector('.report');
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = '已回報';
+    try {
+      await opts.onReport({ qid: q.id, reason, note });
+      reported.add(q.id);
+      toast('已回報，謝謝');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '已回報';
+      }
+    } catch (err) {
+      toast(err?.message || '回報失敗，請稍後再試');
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -456,14 +518,7 @@ function createSession(opts) {
     else if (act === 'next') next();
     else if (act === 'skip') skip();
     else if (act === 'submit') submit();
-    else if (act === 'leave') {
-      const ok = confirm('這回還沒交卷，要離開嗎？進度會留在這台裝置');
-      if (ok) {
-        saveProgress();
-        destroy();
-        opts.onLeave?.();
-      }
-    }
+    else if (act === 'leave') showLeaveDialog();
   }
 
   function onKey(e) {
@@ -507,32 +562,46 @@ function createSession(opts) {
     }
   }
 
-  function begin() {
+  async function begin() {
+    if (typeof opts.getReportedIds === 'function') {
+      try {
+        const ids = await opts.getReportedIds();
+        if (Array.isArray(ids)) ids.forEach((id) => reported.add(id));
+      } catch {
+        /* ignore prefetch errors */
+      }
+    }
     document.body.dataset.view = 'quiz';
     paint(true, 1);
   }
 
-  function destroy() {
+  function destroy(clearSession = true) {
     if (destroyed) return;
     destroyed = true;
     root.removeEventListener('click', onClick);
     document.removeEventListener('keydown', onKey);
     reportDlg?.removeEventListener('submit', onReportSubmit);
+    leaveDlg?.removeEventListener('submit', onLeaveSubmit);
     window.removeEventListener('beforeunload', onBeforeUnload);
-    if (session === api) session = null;
+    if (clearSession && session === api) session = null;
   }
 
   root.addEventListener('click', onClick);
   document.addEventListener('keydown', onKey);
   reportDlg?.addEventListener('submit', onReportSubmit);
+  leaveDlg?.addEventListener('submit', onLeaveSubmit);
   window.addEventListener('beforeunload', onBeforeUnload);
 
   const api = {
     begin,
     destroy,
+    clearProgress,
     getIndex: () => i,
     getAnswers: () => answers.slice(),
     toast,
+    askLeave(cb) {
+      showLeaveDialog(cb);
+    },
   };
   return api;
 }

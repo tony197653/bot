@@ -23,9 +23,25 @@ body[data-view=result] .app-shell .app-main{max-width:808px}
 .group-pass{margin-bottom:12px}
 .fig-zoom{border:0;padding:0;background:none;cursor:pointer;border-radius:var(--r-sm);display:block;max-width:100%}
 .fig-zoom img{max-width:100%;height:auto;display:block;border-radius:var(--r-sm)}
-.lightbox{position:fixed;inset:0;z-index:100;background:rgba(31,31,29,.72);display:grid;place-items:center;padding:16px}
-.lightbox img{max-width:min(100%,900px);max-height:90dvh;border-radius:var(--r)}
-.lightbox .btn.b2{position:absolute;top:16px;right:16px}
+.lightbox{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px}
+.lightbox-backdrop{position:absolute;inset:0;background:rgba(31,31,29,.72)}
+.lightbox-panel{position:relative;z-index:1;max-width:min(100%,900px)}
+.lightbox-panel img{max-width:100%;max-height:90dvh;border-radius:var(--r);display:block}
+.lightbox-close{position:absolute;top:8px;right:8px;z-index:2}
+.lightbox-open{overflow:hidden}
+body[data-view=result] .result{max-width:808px;margin:0 auto}
+body[data-view=result] .segs{justify-content:center;flex-wrap:wrap}
+body[data-view=result] .r-actions{justify-content:center}
+.katex-error{color:inherit!important;background:none!important}
+.leave-dlg{border:0;border-radius:var(--r-lg);padding:20px;max-width:420px;width:calc(100% - 32px);box-shadow:var(--pop-shadow);margin:auto}
+.leave-dlg::backdrop{background:rgba(31,31,29,.72)}
+.leave-dlg form{display:grid;gap:12px}
+.leave-dlg .leave-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.wrong-detail-dlg{border:0;border-radius:var(--r-lg);padding:20px;max-width:560px;width:calc(100% - 32px);box-shadow:var(--pop-shadow);margin:auto;max-height:90dvh;overflow:auto}
+.wrong-detail-dlg::backdrop{background:rgba(31,31,29,.72)}
+body.signed-out [data-drawer-toggle],
+body.signed-out .app-nav,
+body.signed-out .nav-avatar{display:none}
 .report-dlg{border:0;border-radius:var(--r-lg);padding:20px;max-width:420px;width:calc(100% - 32px);box-shadow:var(--pop-shadow)}
 .report-dlg form{display:grid;gap:12px}
 .report-dlg select,.report-dlg textarea{width:100%;min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px;font:inherit}
