@@ -158,6 +158,32 @@
           && request.auth.uid in d.members
           && d.members.size() <= 30;
       }
+      // 牌局中便宜路徑（語意 ⊆ isHostWrite／roomWriteOk 的「無帳務」分支）。
+      // 不用 diff()/affectedKeys()：大型 mid-hand pub 會把 isHostWrite 推過 1000 運算式上限（QA #3）。
+      // 允許改 pub／deadlineAt／stacks（Σ=chipTotal 不變）；座位／sess／帳務／身分欄位必須整份相等。
+      // 變動那些欄位（含 sess.hands++、帶入／結帳）仍走下方完整 isHostWrite。
+      function isHostPubWrite() {
+        let d = request.resource.data;
+        let r = resource.data;
+        return request.auth.uid == r.hostUid
+          && d.rev == r.rev + 1
+          && d.updatedAt == request.time
+          && d.pub is map
+          && (d.deadlineAt == null || d.deadlineAt is int)
+          && d.seatUids == r.seatUids
+          && d.sess == r.sess
+          && d.chipTotal == r.chipTotal
+          && d.lastMoneyEvent == r.lastMoneyEvent
+          && d.status == r.status
+          && d.hostUid == r.hostUid
+          && d.hostSince == r.hostSince
+          && d.name == r.name
+          && d.code == r.code
+          && d.config == r.config
+          && d.members == r.members
+          && d.createdAt == r.createdAt
+          && stacksOk(d.stacks) && sumOf(d.stacks) == d.chipTotal;
+      }
       // 房主寫入；交棒只能交給在座的人。
       // 房主離座：在 HAND_OVER 用同一筆寫入「交棒＋結帳空出自己的座位」（帳務事件＝自己的 cashout）；
       // 新房主寫入前後都必須在座（d.seatUids 裡也要有），不能交給空位或觀眾。
@@ -217,7 +243,7 @@
         && betweenHands(request.resource.data.pub)
         // 房號文件必須在同一個 batch 指向這個房間
         && getAfter(/databases/$(database)/documents/pokerCodes/$(request.resource.data.code)).data.roomId == roomId;
-      allow update: if signedIn() && (isJoin() || isHostWrite() || isTakeover());
+      allow update: if signedIn() && (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover());
       allow delete: if false;
 
       // 動作意圖：每人一份，覆寫，seq 只能變大；turn＝送出時看到的 pub.actionSeq（房主用來去重）

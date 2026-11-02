@@ -15,7 +15,29 @@
   },
   "hosting": {
     "public": "public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/test/**",
+      "**/test-artifacts/**",
+      "**/*.rules",
+      "**/rules.test.mjs",
+      "**/run-rules-tests.mjs",
+      "**/results*.json",
+      "**/results*.txt",
+      "**/firestore-debug.log",
+      "**/sdkconfig.json",
+      "**/firestore.indexes.json",
+      "**/stage.sh",
+      "**/package.json",
+      "**/package-lock.json",
+      "**/README.md",
+      "**/playground.html",
+      "**/component-library-index.html",
+      "**/style-green-mockup.html",
+      "**/demo.html"
+    ],
     "redirects": [
       { "source": "/", "destination": "/poker/", "type": 302 }
     ],

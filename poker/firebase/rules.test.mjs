@@ -279,6 +279,87 @@ await t('worst', '6 人滿桌：補碼（5 號位 F 輸光）', 'ok', full({ sta
 await t('worst', '帳務事件同一筆順便改別格（結帳 F＋C 的 hands+1）', 'deny', full(), async () => { const r = await cur(); const sess = [...r.sess]; sess[5] = null; sess[2] = { ...sess[2], hands: sess[2].hands + 1 }; return hostCashout(5, 'F', { room: { sess } }); });
 await t('worst', '帳務事件同一筆順便清掉別人座位（結帳 F＋清 E）', 'deny', full(), async () => { const r = await cur(); const seatUids = [...r.seatUids]; seatUids[5] = ''; seatUids[4] = ''; return hostCashout(5, 'F', { room: { seatUids } }); });
 
+// QA #3：滿桌 mid-hand 大型 pub（6 人座位＋公牌＋底池）只改 pub／deadlineAt，不可觸 1000 運算式上限
+function fatMidHandPub(o = {}) {
+  const seat = (i, uid, chips, bet = 0) => ({
+    seat: i, id: uid, name: `玩家${uid}`, chips, bet, contributed: bet + 20,
+    folded: false, allIn: false, lastAction: bet ? 'CALL' : null, sittingOut: false,
+    hasHole: true, hole: null, showChoice: null,
+  });
+  return {
+    version: 1, handNo: 7, actionSeq: 18, lastAction: { seat: 2, type: 'CALL', amount: 40 },
+    button: 0, phase: 'flop', board: [{ r: 14, s: 3 }, { r: 13, s: 2 }, { r: 7, s: 0 }],
+    currentBet: 40, minRaiseTo: 80, actor: 3,
+    pots: [{ amount: 240, eligible: [0, 1, 2, 3, 4, 5] }], potTotal: 240, streetBets: 120,
+    log: [{ text: '翻牌 A♠ K♥ 7♣' }, { text: '玩家C 跟注 40' }],
+    winners: null, winnerPayouts: null, showdown: null,
+    seats: [
+      seat(0, 'H', 4820, 40), seat(1, 'A', 4960, 40), seat(2, 'C', 4960, 40),
+      seat(3, 'D', 5000, 0), seat(4, 'E', 5000, 0), seat(5, 'F', 5000, 0),
+    ],
+    config: { smallBlind: 10, bigBlind: 20, actionTimeoutMs: 30000, topUpAmount: 2000 },
+    room: { name: '家庭桌', hostSeat: 0 },
+    away: {}, seatedAt: [1, 2, 3, 4, 5, 6], hostClockAt: Date.now() - 5000,
+    pendingSeats: [], topUpReqs: {}, rejects: {},
+    ...o,
+  };
+}
+const midHandSeed = (o = {}) => () => seed({
+  room: {
+    members: ['H', 'A', 'B', 'C', 'D', 'E', 'F', 'G'],
+    seatUids: ['H', 'A', 'C', 'D', 'E', 'F'],
+    stacks: [5000, 5000, 5000, 5000, 5000, 5000],
+    chipTotal: 30000,
+    sess: ['H', 'A', 'C', 'D', 'E', 'F'].map((u) => sessOf(u, 1, 5000)),
+    pub: fatMidHandPub(),
+    deadlineAt: Date.now() + 25000,
+    ...o,
+  },
+  players: { C: player(), D: player(), E: player(), F: player() },
+});
+await t('worst', '6 人滿桌 mid-hand：只改 pub（CALL→下一 actor）', 'ok', midHandSeed(), async () => {
+  const r = await cur();
+  const pub = fatMidHandPub({
+    actionSeq: 19, actor: 4,
+    lastAction: { seat: 3, type: 'CALL', amount: 40 },
+    seats: fatMidHandPub().seats.map((s, i) => (i === 3 ? { ...s, bet: 40, chips: 4960, lastAction: 'CALL' } : s)),
+    potTotal: 280, streetBets: 160,
+  });
+  return hostUpd(db('H'), r, { pub, deadlineAt: Date.now() + 30000 });
+});
+await t('worst', '6 人滿桌 mid-hand：pub＋stacks 快照（Σ 不變）', 'ok', midHandSeed(), async () => {
+  const r = await cur();
+  return hostUpd(db('H'), r, {
+    pub: fatMidHandPub({ actionSeq: 19 }),
+    stacks: [4800, 5200, 5000, 5000, 5000, 5000],
+    deadlineAt: Date.now() + 30000,
+  });
+});
+await t('worst', '6 人滿桌 mid-hand：stacks Σ ≠ chipTotal 拒絕', 'deny', midHandSeed(), async () => {
+  const r = await cur();
+  return hostUpd(db('H'), r, {
+    pub: fatMidHandPub({ actionSeq: 19 }),
+    stacks: [6000, 5000, 5000, 5000, 5000, 5000],
+  });
+});
+// 語意守門：便宜路徑不得放寬既有拒絕（改 name／members 不在 hostKeys；改 chipTotal 無帳務事件）
+await t('worst', '6 人滿桌 mid-hand：順便改 name 必須拒絕', 'deny', midHandSeed(), async () => {
+  const r = await cur();
+  return hostUpd(db('H'), r, { pub: fatMidHandPub({ actionSeq: 19 }), name: '駭客桌' });
+});
+await t('worst', '6 人滿桌 mid-hand：順便改 members 必須拒絕', 'deny', midHandSeed(), async () => {
+  const r = await cur();
+  return hostUpd(db('H'), r, { pub: fatMidHandPub({ actionSeq: 19 }), members: [...r.members, 'Z'] });
+});
+await t('worst', '6 人滿桌 mid-hand：無帳務改 chipTotal 必須拒絕', 'deny', midHandSeed(), async () => {
+  const r = await cur();
+  return hostUpd(db('H'), r, { pub: fatMidHandPub({ actionSeq: 19 }), chipTotal: 29999 });
+});
+await t('worst', '6 人滿桌 mid-hand：非房主改 pub 拒絕', 'deny', midHandSeed(), async () => {
+  const r = await cur();
+  return hostUpd(db('A'), r, { pub: fatMidHandPub({ actionSeq: 19 }) });
+});
+
 // FIX-7 pokerCodes expiresAt：request.time+24h ±10 分鐘；收桌 expiresAt==request.time 不變
 const MIN9 = 9 * MIN;
 const MIN11 = 11 * MIN;

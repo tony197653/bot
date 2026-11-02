@@ -37,6 +37,7 @@ export function renderMpLobby(root, vm) {
   const total = player?.total ?? bank + inPlay;
   const needRescue = !!(player?.tableRoomId && vm.rescueAvailable);
 
+  const showCreateHero = !lastRoom && !needRescue;
   const continueCard = lastRoom && !needRescue
     ? `<article class="mp-card mp-c3">
         <h3>繼續上次的牌桌</h3>
@@ -67,7 +68,7 @@ export function renderMpLobby(root, vm) {
   root.innerHTML = `
     <div class="mp-shell mp-lobby">
       <header class="mp-top">
-        <button type="button" class="mp-avatar" data-act="avatar" aria-label="帳號">
+        <button type="button" class="mp-avatar" data-act="avatar" aria-label="${esc(name)}">
           ${avatarHtml(user)}
           <span>${esc(name)}</span>
         </button>
@@ -82,7 +83,7 @@ export function renderMpLobby(root, vm) {
         <div class="mp-main">
           ${continueCard}
           <div class="mp-actions">
-            <button type="button" class="mp-b2" data-act="create" ${needRescue ? 'disabled' : ''}>開新牌桌</button>
+            ${showCreateHero ? '' : `<button type="button" class="mp-b2" data-act="create" ${needRescue ? 'disabled' : ''}>開新牌桌</button>`}
             <button type="button" class="mp-b2" data-act="join">輸入房號加入</button>
           </div>
         </div>

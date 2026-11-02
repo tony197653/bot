@@ -52,8 +52,18 @@ import {
 } from './lobby.js';
 import { renderStats } from './stats.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
+import { cardHtml, cardBackPair, heroBackPair, fmtChips } from './cards-dom.js';
+import { mapSeatsClockwise } from './seating.js';
+import { prefersReducedMotion } from './fx.js';
+import { parseCard } from '../engine/cards.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
+const esc = (s) =>
+  String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
 /** @type {(opts?: {fromMp?:boolean}) => void} */
 let openSoloFn = () => {};
@@ -94,6 +104,33 @@ let statsNight = nightKeyOf();
 let leaderPreview = [];
 let myHole = null;
 let toastTimer = 0;
+/** @type {Record<string, string>} */
+const nameCache = Object.create(null);
+/** @type {ReturnType<typeof createAnimQueue>|null} */
+let animQ = null;
+let rescueOk = false;
+let membersPanelOpen = false;
+let raiseOpen = false;
+
+function displayNameOf(uid) {
+  if (!uid) return '';
+  if (nameCache[uid]) return nameCache[uid];
+  const fromPub = room?.pub?.seats?.find((s) => s && (s.id === uid || s.uid === uid));
+  if (fromPub?.name) return fromPub.name;
+  return uid.slice(0, 8);
+}
+
+async function cachePlayerName(uid) {
+  if (!uid || nameCache[uid]) return;
+  const fb = getFirebase();
+  if (!fb) return;
+  try {
+    const p = await getPlayer(fb, uid);
+    if (p?.displayName) nameCache[uid] = p.displayName;
+  } catch {
+    /* offline */
+  }
+}
 
 export function setSoloOpener(fn) {
   openSoloFn = fn;
@@ -211,12 +248,14 @@ function paint() {
       brand: '週五牌局',
       onRetry: () => signIn(),
     });
-    // Custom 1-a layout: brand + login button centered with table card placeholder
+    // Brand + felt hero image (same footprint as old dashed card) + login
     if (authState.status === 'signed-out' || authState.status === 'offline') {
       root.innerHTML = `
         <div class="mp-shell mp-auth">
           <h1 class="mp-brand">週五牌局</h1>
-          <div class="mp-auth-card" aria-hidden="true"><span>德州撲克</span></div>
+          <div class="mp-auth-card" aria-hidden="true">
+            <img src="assets/auth-felt.svg" width="280" height="160" alt="" class="mp-auth-img">
+          </div>
           ${authState.status === 'offline' ? '<p class="mp-offline">離線資料</p>' : ''}
           <button type="button" class="mp-b1" id="btnGoogle">用 Google 帳號登入</button>
         </div>`;
@@ -232,21 +271,27 @@ function paint() {
     if (soloLobby) {
       soloLobby.classList.add('hidden');
       soloLobby.classList.remove('is-on');
+      soloLobby.inert = true;
+      soloLobby.setAttribute('aria-hidden', 'true');
     }
     const last = getLastRoom();
+    // Refresh rescue eligibility (host gone ≥10m) without blocking paint
+    maybeRefreshRescue().then((changed) => {
+      if (changed && screen === 'lobby') paint();
+    });
     renderMpLobby(root, {
       user: authState.user,
       player: playerDoc,
       lastRoom: last
-        ? { ...last, name: room?.name, chips: playerDoc?.inPlay }
+        ? { ...last, name: room?.name || last.name, chips: playerDoc?.inPlay }
         : null,
       leaderPreview,
       offline: authState.status === 'offline',
-      rescueAvailable: !!playerDoc?.tableRoomId,
+      rescueAvailable: rescueOk,
       onContinue: () => last && enterRoom(last.roomId),
       onCreate: () => {
-        if (playerDoc?.tableRoomId) {
-          toast('先離開目前牌桌');
+        if (playerDoc?.tableRoomId && !rescueOk) {
+          toast('先回到牌桌或等房主失聯後結帳');
           return;
         }
         screen = 'create';
@@ -366,9 +411,47 @@ function paint() {
     if (soloLobby) {
       soloLobby.classList.add('hidden');
       soloLobby.classList.remove('is-on');
+      soloLobby.inert = true;
+      soloLobby.setAttribute('aria-hidden', 'true');
     }
-    if (app) app.classList.remove('hidden');
+    if (app) {
+      app.classList.remove('hidden');
+      // Keep solo dialogs out of tab order while at the MP table
+      document.querySelectorAll('.screen').forEach((el) => {
+        el.inert = true;
+        el.setAttribute('aria-hidden', 'true');
+        el.classList.remove('is-on');
+      });
+    }
+    ensureMpMenu();
     paintTableChrome();
+  }
+}
+
+async function maybeRefreshRescue() {
+  const fb = getFirebase();
+  const uid = getUser()?.uid;
+  const tid = playerDoc?.tableRoomId;
+  if (!fb || !uid || !tid) {
+    const prev = rescueOk;
+    rescueOk = false;
+    return prev !== rescueOk;
+  }
+  try {
+    const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
+    if (!snap.exists()) {
+      const prev = rescueOk;
+      rescueOk = true;
+      return prev !== rescueOk;
+    }
+    const d = snap.data();
+    const updatedMs = d.updatedAt?.toMillis?.() || 0;
+    const gone = d.status === 'closed' || Date.now() - updatedMs >= 10 * 60_000;
+    const prev = rescueOk;
+    rescueOk = gone;
+    return prev !== rescueOk;
+  } catch {
+    return false;
   }
 }
 
@@ -516,18 +599,49 @@ async function enterRoom(id, { asHostSit = false } = {}) {
           paintTableChrome();
         });
 
+        // Cache names for seated + members
+        for (const u of r.seatUids) if (u) cachePlayerName(u);
+        for (const u of r.members || []) if (u) cachePlayerName(u);
+        // Seed from pub seats
+        for (const s of r.pub?.seats || []) {
+          if (s?.id && s.name) nameCache[s.id] = s.name;
+        }
+        nameCache[user.uid] = user.displayName || nameCache[user.uid] || '玩家';
+
         if (r.hostUid === user.uid) {
           hostLoop = createHostLoop(fb, {
             roomId: id,
             uid: user.uid,
             getRoom: () => room,
-            displayNameOf: () => user.displayName,
+            displayNameOf,
             onLocalState: () => paintTableChrome(),
             onChipMismatch: () => toast('籌碼對不上，請收桌'),
             onQuotaStop: () => toast('今天到這裡'),
           });
           hostLoop.start();
         }
+
+        animQ = createAnimQueue(async (ev) => {
+          if (prefersReducedMotion() && ev.type !== 'snap' && ev.type !== 'hostChange') {
+            paintTableChrome();
+            return;
+          }
+          if (ev.type === 'hostChange') {
+            const who = displayNameOf(ev.to);
+            toast(
+              ev.voided
+                ? `房主斷線，由 ${who} 接手；這一手作廢`
+                : `${displayNameOf(ev.from)} 離座，由 ${who} 當房主`,
+            );
+          } else if (ev.type === 'topUp') {
+            toast(`座位 ${ev.seat + 1} 補碼 ${fmtChips(ev.amount)}`);
+          } else if (ev.type === 'seatIn') {
+            toast(`${ev.player?.name || '玩家'} 入座`);
+          } else if (ev.type === 'seatOut') {
+            toast(`${ev.player?.name || '玩家'} 離座`);
+          }
+          paintTableChrome();
+        });
 
         screen = 'table';
         paint();
@@ -548,7 +662,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
             roomId: id,
             uid: user.uid,
             getRoom: () => room,
-            displayNameOf: () => user.displayName,
+            displayNameOf,
             onLocalState: () => paintTableChrome(),
           });
           hostLoop.start();
@@ -557,14 +671,19 @@ async function enterRoom(id, { asHostSit = false } = {}) {
           hostLoop.stop();
           hostLoop = null;
         }
-        // anim diff
+        for (const u of r.seatUids) if (u) cachePlayerName(u);
+        for (const s of r.pub?.seats || []) {
+          if (s?.id && s.name) nameCache[s.id] = s.name;
+        }
+        // anim diff → queue (QA #13)
         const late =
           r.updatedAt?.toMillis &&
           Date.now() - r.updatedAt.toMillis() > MP_FX.skipIfLateMs;
-        diffPubEvents(prevPub, r.pub || {}, {
+        const diff = diffPubEvents(prevPub, r.pub || {}, {
           late,
           wasHidden: document.visibilityState === 'hidden',
         });
+        animQ?.push(diff.events, { skip: diff.skip });
         prevPub = r.pub;
         paintTableChrome();
       }
@@ -598,9 +717,191 @@ function paintTableChrome() {
 
 function renderSeatOverlays() {
   const seatsEl = $('#seats');
+  const betsEl = $('#bets');
+  const boardEl = $('#board');
+  const potAmt = $('#potAmt');
+  const heroHole = $('#heroHole');
+  const heroName = $('#heroName');
+  const heroChips = $('#heroChips');
+  const heroAv = $('#heroAv');
+  const dealer = $('#dealer');
+  const turnTitle = $('#turnTitle');
   if (!seatsEl || !room) return;
-  // Minimal: ensure empty-seat prompts exist as data attributes for CSS
   seatsEl.dataset.mp = '1';
+
+  const user = getUser();
+  const pub = room.pub || {};
+  const mySeat = room.seatUids.indexOf(user?.uid);
+  const between = pub.phase === 'lobby' || pub.phase === 'hand_over' || !pub.phase;
+
+  // Board + pot
+  if (boardEl) {
+    boardEl.innerHTML = (pub.board || [])
+      .map((c) => cardHtml(c, { anim: false }))
+      .join('');
+  }
+  if (potAmt) potAmt.textContent = fmtChips(pub.potTotal || 0);
+
+  // Timer / turn hint
+  if (turnTitle) {
+    if (between) {
+      turnTitle.textContent =
+        pub.phase === 'hand_over' ? `第 ${pub.handNo || 0} 手結束` : '準備中';
+    } else if (pub.actor == null) {
+      turnTitle.textContent = pub.phase || '—';
+    } else if (pub.actor === mySeat) {
+      turnTitle.textContent = '輪到你';
+    } else {
+      const nm =
+        displayNameOf(room.seatUids[pub.actor]) ||
+        pub.seats?.[pub.actor]?.name ||
+        `座位 ${pub.actor + 1}`;
+      turnTitle.textContent = `等待 ${nm}`;
+    }
+  }
+  const rem = remainingMs(room.deadlineAt, pub.hostClockAt, lastRecvAt);
+  const hint = $('#turnHint');
+  if (hint) {
+    hint.textContent =
+      rem != null && !between && pub.actor != null
+        ? `${Math.ceil(rem / 1000)} 秒`
+        : '';
+  }
+
+  // Occupied seats for layout
+  const occupied = [];
+  for (let i = 0; i < 6; i++) if (room.seatUids[i]) occupied.push(i);
+  const viewer = mySeat >= 0 ? mySeat : occupied[0] ?? 0;
+  /** @type {Map<number, number|'hero'>} */
+  let seatToPos = new Map();
+  if (occupied.length && occupied.includes(viewer)) {
+    ({ seatToPos } = mapSeatsClockwise(occupied, viewer));
+  } else {
+    for (let i = 0; i < 6; i++) seatToPos.set(i, SLOT_FALLBACK(i, 0));
+  }
+
+  seatsEl.innerHTML = '';
+  if (betsEl) betsEl.innerHTML = '';
+
+  for (const seat of occupied) {
+    if (seat === mySeat) continue; // hero uses #meRoot
+    const uid = room.seatUids[seat];
+    const ps = pub.seats?.[seat];
+    const name = displayNameOf(uid) || ps?.name || uid.slice(0, 8);
+    const chips = between
+      ? room.stacks[seat] || 0
+      : (ps?.chips ?? room.stacks[seat] ?? 0);
+    const bet = between ? 0 : ps?.bet || 0;
+    const folded = !!ps?.folded;
+    const isActor = pub.actor === seat && !between;
+    const pos = seatToPos.get(seat);
+    if (typeof pos !== 'number') continue;
+    const away = !!(pub.away?.[seat] || pub.away?.[String(seat)]);
+    const pending = (pub.pendingSeats || []).some((x) => x.seat === seat);
+    const el = document.createElement('div');
+    el.className = `seat pos-${pos}${folded ? ' is-folded' : ''}${isActor ? ' is-actor' : ''}${away ? ' is-away' : ''}`;
+    el.dataset.seat = String(seat);
+    const backs =
+      !between && ps?.hasHole && !ps?.hole ? cardBackPair() : '';
+    const reveal =
+      ps?.hole?.length === 2
+        ? `<div class="reveal-hole" data-seat="${seat}">${ps.hole.map((c) => cardHtml(c, { hero: true })).join('')}</div>`
+        : '';
+    el.innerHTML = `
+      ${reveal || backs}
+      <div class="plate plateA">
+        <div class="av"><span>${esc(name.slice(0, 1))}</span></div>
+        <div>
+          <div class="nm">${esc(name)}${seat === room.seatUids.indexOf(room.hostUid) ? '<i class="mp-host-tag">房主</i>' : ''}${pending ? '<i class="mp-host-tag">排隊</i>' : ''}</div>
+          <span class="ch st">${fmtChips(chips)}</span>
+        </div>
+      </div>`;
+    seatsEl.appendChild(el);
+    if (bet > 0 && betsEl && !between) {
+      const b = document.createElement('div');
+      b.className = 'bet is-in';
+      b.dataset.forSeat = String(seat);
+      b.dataset.pos = String(pos);
+      b.innerHTML = `<span class="chips"><i class="a"></i></span><span class="amt">${fmtChips(bet)}</span>`;
+      betsEl.appendChild(b);
+    }
+  }
+
+  // Empty-seat hit targets only for spectators (also listed in act bar)
+  if (mySeat < 0) {
+    for (let i = 0; i < 6; i++) {
+      if (room.seatUids[i]) continue;
+      const pos = SLOT_FALLBACK(i, viewer);
+      if (pos === 'hero') continue;
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = `seat pos-${pos} mp-empty-seat`;
+      el.dataset.seat = String(i);
+      el.setAttribute('aria-label', `坐到座位 ${i + 1}`);
+      el.innerHTML = `<div class="plate plateA mp-empty-plate"><span>空位 ${i + 1}</span></div>`;
+      el.addEventListener('click', () => sitDown(i));
+      seatsEl.appendChild(el);
+    }
+  }
+
+  // Dealer button
+  if (dealer && Number.isInteger(pub.button)) {
+    const btnPos = seatToPos.get(pub.button);
+    dealer.dataset.pos =
+      btnPos === 'hero' || pub.button === mySeat ? 'hero' : String(btnPos ?? 0);
+    dealer.dataset.forSeat = String(pub.button);
+    dealer.hidden = between && pub.handNo === 0;
+  }
+
+  // Hero plate + hole
+  if (mySeat >= 0) {
+    const uid = user.uid;
+    const ps = pub.seats?.[mySeat];
+    const name = displayNameOf(uid) || user.displayName || '你';
+    const chips = between
+      ? room.stacks[mySeat] || 0
+      : (ps?.chips ?? room.stacks[mySeat] ?? 0);
+    if (heroName) heroName.textContent = name;
+    if (heroChips) heroChips.textContent = fmtChips(chips);
+    if (heroAv) heroAv.innerHTML = `<span>${esc(name.slice(0, 1))}</span>`;
+    if (heroHole) {
+      const keys = myHole?.cards;
+      if (!between && keys?.length === 2) {
+        let cards = [];
+        try {
+          cards = keys.map((k) => parseCard(k));
+        } catch {
+          cards = [];
+        }
+        heroHole.innerHTML = cards.length
+          ? cards.map((c) => cardHtml(c, { hero: true })).join('')
+          : heroBackPair({ pending: false });
+      } else if (!between && (ps?.hasHole || myHole)) {
+        heroHole.innerHTML = heroBackPair({ pending: false });
+      } else {
+        heroHole.innerHTML = '';
+      }
+    }
+  } else {
+    if (heroName) heroName.textContent = '觀戰';
+    if (heroChips) heroChips.textContent = '';
+    if (heroHole) heroHole.innerHTML = '';
+  }
+
+  // Menu meta
+  const menuMeta = $('#menuMeta');
+  const menuHost = $('#menuHost');
+  if (menuMeta) {
+    menuMeta.textContent = `第 ${pub.handNo || 0} 手 · 房號 ${formatCode(room.code)}`;
+  }
+  if (menuHost) {
+    menuHost.textContent = `房主 ${displayNameOf(room.hostUid)}`;
+  }
+}
+
+function SLOT_FALLBACK(seat, viewer) {
+  const rel = (seat - viewer + 6) % 6;
+  return { 0: 'hero', 1: 3, 2: 4, 3: 0, 4: 1, 5: 2 }[rel] ?? 0;
 }
 
 function renderActBar() {
@@ -612,22 +913,55 @@ function renderActBar() {
   const pub = room.pub || {};
   const isHost = room.hostUid === user?.uid;
   const seatedCount = room.seatUids.filter(Boolean).length;
-  const between = pub.phase === 'lobby' || pub.phase === 'hand_over';
+  const between = pub.phase === 'lobby' || pub.phase === 'hand_over' || !pub.phase;
+
+  // Remove spectator seat-pick strip once seated / in-hand (QA #8)
+  $('#mpSeatPick')?.remove();
 
   if (mySeat < 0) {
-    btns.innerHTML = `<div class="mp-spec">你正在觀戰，點任一空位就坐下<br><small>坐下時整筆帶入你的帳戶 ${(playerDoc?.bank || 0).toLocaleString('en-US')}</small></div>
+    const empty = [];
+    for (let i = 0; i < 6; i++) if (!room.seatUids[i]) empty.push(i);
+    btns.innerHTML = `<div class="mp-spec">你正在觀戰，點牌桌上的空位就坐下<br><small>坐下時整筆帶入你的帳戶 ${fmtChips(playerDoc?.bank || 0)}</small></div>
+      ${empty.length ? `<div class="mp-seat-pick" id="mpSeatPick">${empty.map((i) => `<button type="button" data-seat="${i}" class="mp-seat-btn">座位 ${i + 1}</button>`).join('')}</div>` : ''}
       <button type="button" class="ghost" id="mpBtnLeaveLobby">回大廳</button>`;
     $('#mpBtnLeaveLobby')?.addEventListener('click', leaveToLobby);
-    // Click empty seats
-    bindEmptySeatClicks();
+    $('#mpSeatPick')?.addEventListener('click', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+      const seat = Number(t.getAttribute('data-seat'));
+      if (Number.isInteger(seat)) sitDown(seat);
+    });
     return;
   }
 
-  if (between && isHost && seatedCount >= 2 && (pub.phase === 'lobby' || pub.handNo === 0)) {
+  if (
+    between &&
+    isHost &&
+    seatedCount >= 2 &&
+    (pub.phase === 'lobby' || !pub.handNo)
+  ) {
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始第一手（${seatedCount}人）</button>
       <button type="button" class="ghost" id="mpLeave">離座</button>`;
     $('#mpStart')?.addEventListener('click', () => hostLoop?.startHand());
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
+    return;
+  }
+
+  if (between && isHost && seatedCount >= 2 && pub.phase === 'hand_over') {
+    btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始下一手（${seatedCount}人）</button>
+      <button type="button" class="ghost" id="mpLeave">離座</button>
+      ${(room.stacks[mySeat] || 0) === 0 ? `<button type="button" class="primary" id="mpTopup">申請補 2,000</button>` : ''}
+      ${Object.keys(pub.topUpReqs || {})
+        .map((s) => `<button type="button" class="primary" data-approve="${s}">核准補碼 座位${+s + 1}</button>`)
+        .join('')}`;
+    $('#mpStart')?.addEventListener('click', () => hostLoop?.startHand());
+    $('#mpLeave')?.addEventListener('click', () => requestLeave());
+    $('#mpTopup')?.addEventListener('click', () =>
+      intents?.send({ type: 'TOPUP_REQ', handNo: pub.handNo || 0, turn: pub.actionSeq || 0, seat: mySeat }),
+    );
+    btns.querySelectorAll('[data-approve]').forEach((el) => {
+      el.addEventListener('click', () => hostLoop?.approveTopUp(Number(el.getAttribute('data-approve'))));
+    });
     return;
   }
 
@@ -647,57 +981,97 @@ function renderActBar() {
     return;
   }
 
-  // In hand — if my turn, show actions
+  // In hand
   const actor = pub.actor;
   const legal = mySeat === actor;
-  const callAmt = pub.currentBet || 0;
+  const myBet = pub.seats?.[mySeat]?.bet || 0;
+  const toCall = Math.max(0, (pub.currentBet || 0) - myBet);
+  const canCheck = toCall === 0;
+  const minRaise = pub.minRaiseTo || (pub.currentBet || 0) + (room.config.bb || 20);
+  const dis = legal ? '' : 'disabled';
   btns.innerHTML = `
-    <button type="button" class="fold" id="mpFold" ${legal ? '' : 'disabled'}>蓋牌</button>
-    <button type="button" class="call" id="mpCall" ${legal ? '' : 'disabled'}>跟注</button>
-    <button type="button" class="raise" id="mpRaise" ${legal ? '' : 'disabled'}>加注</button>`;
+    <button type="button" class="fold" id="mpFold" ${dis}>蓋牌</button>
+    ${canCheck
+      ? `<button type="button" class="call" id="mpCheck" ${dis}>過牌</button>`
+      : `<button type="button" class="call" id="mpCall" ${dis}>跟注 ${fmtChips(toCall)}</button>`}
+    <button type="button" class="raise" id="mpRaise" ${dis}>加注</button>`;
   const send = (type, amount) => {
     btns.querySelectorAll('button').forEach((b) => {
       b.disabled = true;
-      b.style.opacity = '0.5';
+      b.classList.add('is-pending');
     });
-    intents?.send(
-      { type, amount, seat: mySeat, handNo: pub.handNo || 0, turn: pub.actionSeq || 0 },
-      {
-        onPending: () => toast('送出中…'),
-        onFail: () => {
-          toast('沒送到，再按一次');
-          paintTableChrome();
-        },
+    const payload = {
+      type,
+      seat: mySeat,
+      handNo: pub.handNo || 0,
+      turn: pub.actionSeq || 0,
+    };
+    if (amount != null) payload.amount = amount;
+    intents?.send(payload, {
+      onPending: () => toast('送出中…'),
+      onFail: () => {
+        toast('沒送到，再按一次');
+        paintTableChrome();
       },
-    );
+    });
     if (isHost) hostLoop?.hostAction({ type, amount, seat: mySeat });
   };
   $('#mpFold')?.addEventListener('click', () => send('FOLD'));
+  $('#mpCheck')?.addEventListener('click', () => send('CHECK'));
   $('#mpCall')?.addEventListener('click', () => send('CALL'));
-  $('#mpRaise')?.addEventListener('click', () => send('BET_RAISE', (pub.minRaiseTo || callAmt + (room.config.bb || 20))));
+  $('#mpRaise')?.addEventListener('click', () => {
+    if (!legal) return;
+    openMpRaise(minRaise, send);
+  });
 }
 
-function bindEmptySeatClicks() {
-  const table = $('.table');
-  if (!table || table.dataset.mpSitBound) return;
-  table.dataset.mpSitBound = '1';
-  // Use 6 hit zones around table — simplified: menu item alternative + numbered buttons
-  const act = $('#act');
-  if (act && !$('#mpSeatPick')) {
-    const wrap = document.createElement('div');
-    wrap.id = 'mpSeatPick';
-    wrap.className = 'mp-seat-pick';
-    wrap.innerHTML = [0, 1, 2, 3, 4, 5]
-      .map((i) => `<button type="button" data-seat="${i}" class="mp-seat-btn">座位 ${i + 1}</button>`)
-      .join('');
-    act.appendChild(wrap);
-    wrap.addEventListener('click', (e) => {
-      const t = e.target;
-      if (!(t instanceof HTMLElement)) return;
-      const seat = Number(t.getAttribute('data-seat'));
-      if (Number.isInteger(seat)) sitDown(seat);
-    });
+function openMpRaise(minRaiseTo, send) {
+  const panel = $('#raisePanel');
+  const scrim = $('#raiseScrim');
+  const range = $('#raiseRange');
+  const out = $('#raiseOut');
+  if (!panel || !range || !room) {
+    send('BET_RAISE', minRaiseTo);
+    return;
   }
+  const mySeat = room.seatUids.indexOf(getUser()?.uid);
+  const ps = room.pub?.seats?.[mySeat];
+  const maxTo = (ps?.chips || 0) + (ps?.bet || 0);
+  const minTo = Math.min(minRaiseTo, maxTo);
+  range.min = String(minTo);
+  range.max = String(Math.max(minTo, maxTo));
+  range.value = String(minTo);
+  range.step = String(room.config.bb || 20);
+  if (out) out.textContent = fmtChips(minTo);
+  const sync = () => {
+    if (out) out.textContent = fmtChips(Number(range.value));
+  };
+  range.oninput = sync;
+  panel.hidden = false;
+  if (scrim) scrim.hidden = false;
+  raiseOpen = true;
+  const close = () => {
+    panel.hidden = true;
+    if (scrim) scrim.hidden = true;
+    raiseOpen = false;
+  };
+  $('#raiseCancel').onclick = () => {
+    close();
+    paintTableChrome();
+  };
+  $('#raiseConfirm').onclick = () => {
+    const amt = Number(range.value);
+    close();
+    send('BET_RAISE', amt);
+  };
+  $('#raiseMinus').onclick = () => {
+    range.value = String(Math.max(minTo, Number(range.value) - (room.config.bb || 20)));
+    sync();
+  };
+  $('#raisePlus').onclick = () => {
+    range.value = String(Math.min(maxTo, Number(range.value) + (room.config.bb || 20)));
+    sync();
+  };
 }
 
 async function sitDown(seat) {
@@ -838,10 +1212,103 @@ function tearDownRoom() {
   hostLoop?.stop();
   hostLoop = null;
   intents = null;
+  animQ?.clear();
+  animQ = null;
   room = null;
   roomId = null;
   prevPub = null;
   myHole = null;
+  membersPanelOpen = false;
+  removeMpMenuExtras();
+}
+
+function ensureMpMenu() {
+  const pop = $('#menuPop');
+  if (!pop || pop.dataset.mpMenu === '1') return;
+  pop.dataset.mpMenu = '1';
+  // Hide solo-only items in MP
+  $('#btnTimerCfg')?.classList.add('hidden');
+  $('#btnPauseMenu')?.classList.add('hidden');
+  $('#btnEndMenu')?.classList.add('hidden');
+
+  const extras = document.createElement('div');
+  extras.id = 'mpMenuExtras';
+  extras.innerHTML = `
+    <button type="button" id="mpBtnCopyLink" role="menuitem">複製房號連結</button>
+    <button type="button" id="mpBtnExtend" role="menuitem">延長房號 24 小時</button>
+    <button type="button" id="mpBtnMembers" role="menuitem">成員</button>
+    <button type="button" id="mpBtnCloseRoom" role="menuitem">收桌</button>
+    <div id="mpMembersPanel" class="mp-members hidden" hidden></div>`;
+  pop.appendChild(extras);
+
+  $('#btnLobby')?.addEventListener(
+    'click',
+    (e) => {
+      if (!room) return;
+      e.stopImmediatePropagation();
+      closeMpMenu();
+      leaveToLobby();
+    },
+    true,
+  );
+  $('#mpBtnCopyLink')?.addEventListener('click', async () => {
+    closeMpMenu();
+    const url = shareUrl(room.code, room.id);
+    try {
+      await navigator.clipboard?.writeText(url);
+      toast('已複製');
+    } catch {
+      toast(url);
+    }
+  });
+  $('#mpBtnExtend')?.addEventListener('click', () => {
+    closeMpMenu();
+    mpExtendCode();
+  });
+  $('#mpBtnCloseRoom')?.addEventListener('click', () => {
+    closeMpMenu();
+    if (room?.hostUid !== getUser()?.uid) {
+      toast('只有房主可以收桌');
+      return;
+    }
+    mpCloseRoom();
+  });
+  $('#mpBtnMembers')?.addEventListener('click', () => {
+    membersPanelOpen = !membersPanelOpen;
+    renderMembersPanel();
+  });
+}
+
+function removeMpMenuExtras() {
+  $('#mpMenuExtras')?.remove();
+  const pop = $('#menuPop');
+  if (pop) delete pop.dataset.mpMenu;
+  $('#btnTimerCfg')?.classList.remove('hidden');
+  $('#btnEndMenu')?.classList.remove('hidden');
+}
+
+function closeMpMenu() {
+  $('#menuPop')?.classList.add('hidden');
+  $('#btnMenu')?.setAttribute('aria-expanded', 'false');
+}
+
+function renderMembersPanel() {
+  const panel = $('#mpMembersPanel');
+  if (!panel || !room) return;
+  if (!membersPanelOpen) {
+    panel.hidden = true;
+    panel.classList.add('hidden');
+    return;
+  }
+  panel.hidden = false;
+  panel.classList.remove('hidden');
+  const rows = (room.members || []).map((uid) => {
+    const seat = room.seatUids.indexOf(uid);
+    const role =
+      uid === room.hostUid ? '房主' : seat >= 0 ? `座位 ${seat + 1}` : '觀戰';
+    return `<li><b>${esc(displayNameOf(uid))}</b><span>${role}</span></li>`;
+  });
+  panel.innerHTML = `<h3>成員（${rows.length}）</h3><ul>${rows.join('')}</ul>`;
 }
 
 function toast(msg) {

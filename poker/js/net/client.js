@@ -21,11 +21,12 @@ export function createIntentSender(fb, roomId, uid) {
 
   async function write(payload) {
     seq += 1;
-    await fs.setDoc(ref, {
-      ...payload,
-      seq,
-      at: fs.serverTimestamp(),
-    });
+    // Strip undefined so fold/call never write amount:undefined (QA #2)
+    const raw = { ...payload, seq, at: fs.serverTimestamp() };
+    const data = Object.fromEntries(
+      Object.entries(raw).filter(([, v]) => v !== undefined),
+    );
+    await fs.setDoc(ref, data);
     recordWrite();
   }
 

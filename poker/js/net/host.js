@@ -71,22 +71,39 @@ export function createHostLoop(fb, opts) {
       roomName: room.name,
       timerEnabled: true,
     });
-    // Hydrate seats from room stacks / seatUids between hands
+    // Hydrate seats from room stacks / seatUids
     for (let i = 0; i < 6; i++) {
       const u = room.seatUids[i];
       if (!u) continue;
+      const pubSeat = room.pub?.seats?.[i];
       engine = applyAction(engine, {
         type: 'SEAT',
         seat: i,
         uid: u,
         id: u,
-        name: displayNameOf?.(u) || u.slice(0, 8),
+        name: displayNameOf?.(u) || pubSeat?.name || u.slice(0, 8),
         chips: room.stacks[i] || 0,
         isHost: u === room.hostUid,
       });
     }
     seatedAt = room.pub?.seatedAt ? [...room.pub.seatedAt] : seatedAt;
+    away = { ...(room.pub?.away || {}) };
+    topUpReqs = { ...(room.pub?.topUpReqs || {}) };
+    // Drop pending seats that already sat (QA #9)
+    pendingSeats = (room.pub?.pendingSeats || []).filter(
+      (x) => x?.uid && !room.seatUids.includes(x.uid),
+    );
+    actionSeq = room.pub?.actionSeq || 0;
     onLocalState?.(engine);
+
+    // Spec §6.8: deck only in host memory — mid-hand refresh/handoff voids then reshuffles
+    const phase = room.pub?.phase;
+    if (phase && phase !== PHASE.LOBBY && phase !== PHASE.HAND_OVER) {
+      setTimeout(() => {
+        if (!running || !engine) return;
+        voidHand([...room.stacks]);
+      }, 0);
+    }
     return engine;
   }
 
@@ -294,8 +311,10 @@ export function createHostLoop(fb, opts) {
     }
 
     if (!between) {
-      // Mark pending seats for mid-hand sits
-      pendingSeats = sitQueue.map((x) => ({ uid: x.uid, seat: x.seat }));
+      // Mark pending seats for mid-hand sits (exclude already seated — QA #9)
+      pendingSeats = sitQueue
+        .filter((x) => x.uid && !room.seatUids.includes(x.uid))
+        .map((x) => ({ uid: x.uid, seat: x.seat }));
       queueWrite();
       return;
     }
@@ -303,6 +322,7 @@ export function createHostLoop(fb, opts) {
     pendingSeats = [];
     while (sitQueue.length) {
       const item = sitQueue.shift();
+      if (room.seatUids.includes(item.uid)) continue;
       await seatPlayer(item.seat, item.uid);
     }
   }
