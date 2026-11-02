@@ -21,6 +21,8 @@ export function renderMpLobby(root, vm) {
     lastRoom,
     leaderPreview = [],
     offline = false,
+    rescueReason = null,
+    rescueChips = null,
     onContinue,
     onCreate,
     onJoin,
@@ -36,20 +38,29 @@ export function renderMpLobby(root, vm) {
   const inPlay = player?.inPlay ?? 0;
   const total = player?.total ?? bank + inPlay;
   const needRescue = !!(player?.tableRoomId && vm.rescueAvailable);
+  const settleAmt = rescueChips != null ? rescueChips : inPlay;
+  const rescueTitle =
+    rescueReason === 'closed' ? '房主收桌：結帳離開' : '房主失聯：結帳離開';
+  const rescueLead =
+    rescueReason === 'closed'
+      ? '牌桌已結束。先結帳回帳戶才能開新桌或加入。'
+      : '桌上還有籌碼。先結帳回帳戶才能開新桌或加入。';
 
   const showCreateHero = !lastRoom && !needRescue;
+  const seatLabel =
+    lastRoom?.seat != null && lastRoom.seat >= 0 ? lastRoom.seat + 1 : '—';
   const continueCard = lastRoom && !needRescue
     ? `<article class="mp-card mp-c3">
         <h3>繼續上次的牌桌</h3>
         <p class="mp-meta">${esc(lastRoom.name || '牌桌')} · 房號 ${esc(formatCode(lastRoom.code || ''))}</p>
-        <p class="mp-meta">座位 ${lastRoom.seat != null ? lastRoom.seat + 1 : '—'} · 籌碼 ${fmtChips(lastRoom.chips || inPlay)}</p>
+        <p class="mp-meta">座位 ${seatLabel} · 籌碼 ${fmtChips(lastRoom.chips || inPlay)}</p>
         <button type="button" class="mp-b1" data-act="continue">回到牌桌</button>
       </article>`
     : needRescue
       ? `<article class="mp-card mp-c3 mp-warn-card">
-          <h3>房主失聯：結帳離開</h3>
-          <p class="mp-meta">桌上還有籌碼。先結帳回帳戶才能開新桌或加入。</p>
-          <button type="button" class="mp-b1" data-act="rescue">結帳離開（帶回 ${fmtChips(inPlay)}）</button>
+          <h3>${esc(rescueTitle)}</h3>
+          <p class="mp-meta">${esc(rescueLead)}</p>
+          <button type="button" class="mp-b1" data-act="rescue">結帳離開（帶回 ${fmtChips(settleAmt)}）</button>
         </article>`
       : `<article class="mp-card mp-c3">
           <h3>開新牌桌</h3>
@@ -69,8 +80,8 @@ export function renderMpLobby(root, vm) {
     <div class="mp-shell mp-lobby">
       <header class="mp-top">
         <button type="button" class="mp-avatar" data-act="avatar" aria-label="${esc(name)} 的帳號">
-          ${avatarHtml(user)}
-          <span aria-hidden="true">${esc(name)}</span>
+          <span aria-hidden="true">${avatarHtml(user)}</span>
+          <span>${esc(name)}</span>
         </button>
         <div class="mp-bal">
           <span>帳戶 ${fmtChips(bank)}</span>

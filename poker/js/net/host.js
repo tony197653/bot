@@ -66,6 +66,7 @@ export function createHostLoop(fb, opts) {
   /** @type {ReturnType<typeof setTimeout>|null} */
   let nextHandTimer = null;
   let lastHandsBumpHandNo = 0;
+  let pubVoided = false;
 
   function playerName(uid, fallback) {
     const n = displayNameOf?.(uid);
@@ -101,6 +102,9 @@ export function createHostLoop(fb, opts) {
         isHost: u === room.hostUid,
       });
     }
+    // Resume hand counter from stored pub (QA round-3 D) — do not reset to 0/1
+    const storedHand = Number(room.pub?.handNo) || 0;
+    if (storedHand > 0) engine.handNumber = storedHand;
     seatedAt = room.pub?.seatedAt ? [...room.pub.seatedAt] : seatedAt;
     away = { ...(room.pub?.away || {}) };
     topUpReqs = { ...(room.pub?.topUpReqs || {}) };
@@ -142,6 +146,7 @@ export function createHostLoop(fb, opts) {
       topUpReqs: { ...topUpReqs },
       rejects: { ...rejects },
     });
+    if (pubVoided || extra.voided) pub.voided = true;
     return pub;
   }
 
@@ -266,6 +271,10 @@ export function createHostLoop(fb, opts) {
     } catch (e) {
       if (meta.uid) rejects[meta.uid] = String(e.message || e).slice(0, 40);
       return false;
+    }
+    if (action.type === 'VOID_HAND') pubVoided = true;
+    else if (action.type === 'START_HAND' || action.type === 'ACK_HAND') {
+      pubVoided = false;
     }
     actionSeq += 1;
     afterEngineChange();

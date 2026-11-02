@@ -14,12 +14,34 @@ export function createIntentSender(fb, roomId, uid) {
   const { db, fs } = fb;
   const ref = fs.doc(db, 'pokerRooms', roomId, 'intents', uid);
   let seq = 0;
+  /** @type {Promise<void>|null} */
+  let seqReady = null;
   /** @type {ReturnType<typeof setTimeout>|null} */
   let resendTimer = null;
   let pending = null;
   let resendCount = 0;
 
+  /** Load existing intent seq so refresh can still write (rules: seq must increase). */
+  function ensureSeq() {
+    if (!seqReady) {
+      seqReady = fs
+        .getDoc(ref)
+        .then((snap) => {
+          if (!snap.exists()) return;
+          const prev = snap.data()?.seq;
+          if (Number.isInteger(prev) && prev > seq) seq = prev;
+        })
+        .catch(() => {
+          /* offline — first write may still fail; resend path bumps seq */
+        });
+    }
+    return seqReady;
+  }
+  // Kick off read immediately on create
+  void ensureSeq();
+
   async function write(payload) {
+    await ensureSeq();
     seq += 1;
     // Strip undefined so fold/call never write amount:undefined (QA #2)
     const raw = { ...payload, seq, at: fs.serverTimestamp() };

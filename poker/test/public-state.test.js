@@ -112,10 +112,14 @@ describe('publicState hole secrecy', () => {
     assert.equal(s.seats[1].hasHole, true);
     assert.equal(s.seats[2].hasHole, false); // away skipped
     const stacks = [1500, 2500, 2000, 0, 0, 0];
+    const handBefore = s.handNumber;
     s = applyAction(s, { type: 'VOID_HAND', stacks });
     assert.equal(s.phase, 'hand_over');
     assert.equal(s.seats[0].chips, 1500);
     assert.equal(s.seats[1].chips, 2500);
     assert.equal(s.board.length, 0);
+    // Resume counter: VOID keeps handNumber; log 「本手作廢」
+    assert.equal(s.handNumber, handBefore);
+    assert.ok(s.streetLog.some((x) => /本手作廢/.test(x.text)));
   });
 });

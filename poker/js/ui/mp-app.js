@@ -118,6 +118,10 @@ const nameCache = Object.create(null);
 /** @type {ReturnType<typeof createAnimQueue>|null} */
 let animQ = null;
 let rescueOk = false;
+/** @type {'closed'|'gone'|null} */
+let rescueReason = null;
+/** Settled stack to show on rescue card (not buy-in). */
+let rescueChips = null;
 let membersPanelOpen = false;
 let raiseOpen = false;
 let autoResumeTried = false;
@@ -347,6 +351,8 @@ function paint() {
       leaderPreview,
       offline: authState.status === 'offline',
       rescueAvailable: rescueOk,
+      rescueReason,
+      rescueChips,
       onContinue: () => last && enterRoom(last.roomId),
       onCreate: () => {
         if (playerDoc?.tableRoomId && !rescueOk) {
@@ -481,6 +487,8 @@ async function maybeRefreshRescue() {
   if (!fb || !uid || !tid) {
     const prev = rescueOk;
     rescueOk = false;
+    rescueReason = null;
+    rescueChips = null;
     return prev !== rescueOk;
   }
   try {
@@ -488,13 +496,31 @@ async function maybeRefreshRescue() {
     if (!snap.exists()) {
       const prev = rescueOk;
       rescueOk = true;
+      rescueReason = 'gone';
+      rescueChips = playerDoc?.inPlay ?? 0;
       return prev !== rescueOk;
     }
     const d = snap.data();
     const updatedMs = d.updatedAt?.toMillis?.() || 0;
-    const gone = d.status === 'closed' || Date.now() - updatedMs >= 10 * 60_000;
+    const seat = Array.isArray(d.seatUids) ? d.seatUids.indexOf(uid) : -1;
+    const stackAmt =
+      seat >= 0 && Array.isArray(d.stacks) ? Number(d.stacks[seat]) || 0 : null;
+    const settled =
+      stackAmt != null ? stackAmt : Number(playerDoc?.inPlay) || 0;
     const prev = rescueOk;
-    rescueOk = gone;
+    if (d.status === 'closed') {
+      rescueOk = true;
+      rescueReason = 'closed';
+      rescueChips = settled;
+    } else if (Date.now() - updatedMs >= 10 * 60_000) {
+      rescueOk = true;
+      rescueReason = 'gone';
+      rescueChips = settled;
+    } else {
+      rescueOk = false;
+      rescueReason = null;
+      rescueChips = null;
+    }
     return prev !== rescueOk;
   } catch {
     return false;
@@ -655,11 +681,17 @@ async function enterRoom(id, { asHostSit = false } = {}) {
           if (s?.id && s.name && !looksLikeUidStub(s.name, s.id)) nameCache[s.id] = s.name;
         }
         if (user.displayName) nameCache[user.uid] = user.displayName;
-        rememberLastRoom(id, r.code, {
-          name: r.name,
-          seat: r.seatUids.indexOf(user.uid),
-          chips: playerDoc?.inPlay,
-        });
+        {
+          const seatIdx = r.seatUids.indexOf(user.uid);
+          rememberLastRoom(id, r.code, {
+            name: r.name,
+            seat: seatIdx >= 0 ? seatIdx : null,
+            chips:
+              seatIdx >= 0
+                ? r.stacks?.[seatIdx] ?? playerDoc?.inPlay
+                : playerDoc?.inPlay,
+          });
+        }
 
         if (r.hostUid === user.uid) {
           hostLoop = createHostLoop(fb, {
@@ -727,6 +759,17 @@ async function enterRoom(id, { asHostSit = false } = {}) {
         for (const u of r.seatUids) if (u) cachePlayerName(u);
         for (const s of r.pub?.seats || []) {
           if (s?.id && s.name) nameCache[s.id] = s.name;
+        }
+        // Keep lastRoom.seat current once seated (QA round-3 E)
+        {
+          const seatIdx = r.seatUids.indexOf(user.uid);
+          if (seatIdx >= 0) {
+            rememberLastRoom(id, r.code, {
+              name: r.name,
+              seat: seatIdx,
+              chips: r.stacks?.[seatIdx] ?? playerDoc?.inPlay,
+            });
+          }
         }
         // anim diff → queue (QA #13)
         const late =
@@ -1374,6 +1417,9 @@ function openSolo() {
   const root = $('#mpRoot');
   if (root) root.hidden = true;
   clearSoloInert();
+  // MP paint() hides #app; solo table lives inside #app — must show it again
+  const app = $('#app');
+  if (app) app.classList.remove('hidden');
   const lobby = $('#lobbyScreen');
   if (lobby) {
     lobby.classList.remove('hidden');

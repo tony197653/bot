@@ -1036,7 +1036,9 @@ function doVoidHand(s, action) {
   s.deadline = null;
   s.actedBit = 0;
   s.streetAggressor = null;
-  s.handNumber += 1;
+  // Keep handNumber so host refresh resumes the counter; START_HAND advances it.
+  // Log the void so clients see 「本手作廢」 in 這一手 / banner.
+  pushLog(s, 'street', '本手作廢');
   s.phase = PHASE.HAND_OVER;
   return s;
 }

@@ -243,25 +243,169 @@ async function runShowdown(browser, base, viewport, label) {
   return { ok: hasShowOrNext || sawShow, hasShowOrNext, sawShow, roomId };
 }
 
-async function runSoloInert(browser, base) {
-  const host = await makePlayer(browser, base, '宜靜', 'solotest', {
-    width: 390,
-    height: 844,
+/** Lobby →「同一支手機輪流玩」→ full solo hand (not ?solo=1). */
+async function runSoloFromLobby(browser, base, viewport, label) {
+  const p = await makePlayer(browser, base, '宜靜', `solo${label}`, viewport);
+  await p.page.click('[data-act="solo"]');
+  await p.page.waitForSelector('#lobbyScreen.is-on', { timeout: 10000 });
+  const appHidden = await p.page.evaluate(() =>
+    document.getElementById('app')?.classList.contains('hidden'),
+  );
+  if (appHidden) {
+    await p.ctx.close();
+    return { ok: false, reason: '#app still hidden after openSolo' };
+  }
+  await p.page.click('#btnStart');
+  await p.page.waitForSelector('#passScreen.is-on', { timeout: 20000 });
+  // Play one full hand via pass / check-call / next
+  let steps = 0;
+  while (steps++ < 100) {
+    if (await p.page.locator('#passScreen.is-on').count()) {
+      await p.page.click('#btnPassOk');
+      await p.page.waitForTimeout(300);
+      continue;
+    }
+    if (await p.page.locator('#btnHandOff').count()) {
+      await p.page.click('#btnHandOff');
+      await p.page.waitForTimeout(300);
+      continue;
+    }
+    if (await p.page.locator('#btnNext').count()) {
+      await p.page.screenshot({
+        path: join(ART, `mp-solo-lobby-${label}-handover.png`),
+        fullPage: true,
+      });
+      break;
+    }
+    const show = p.page.locator('#btnShowBoth');
+    const muck = p.page.locator('#btnMuck');
+    const check = p.page.locator('#btnCheck');
+    const call = p.page.locator('#btnCall');
+    const fold = p.page.locator('#btnFold');
+    if (await show.count()) await show.click();
+    else if (await muck.count()) await muck.click();
+    else if (await check.count()) await check.click();
+    else if (await call.count()) await call.click();
+    else if (await fold.count()) await fold.click();
+    await p.page.waitForTimeout(450);
+  }
+  const body = await p.page.innerText('body');
+  const sawTable = await p.page.evaluate(() => {
+    const app = document.getElementById('app');
+    return !!app && !app.classList.contains('hidden');
   });
-  await host.page.click('[data-act="solo"]');
-  await host.page.waitForTimeout(1000);
-  const lobby = host.page.locator('#lobbyScreen');
-  const state = await lobby.evaluate((el) => ({
-    inert: el.inert,
-    ariaHidden: el.getAttribute('aria-hidden'),
-    hasHidden: el.classList.contains('hidden'),
-    pointerEvents: getComputedStyle(el).pointerEvents,
-  }));
-  // After openSolo, lobby must be interactive
-  const ok = state.inert !== true && state.ariaHidden !== 'true' && !state.hasHidden;
-  await host.page.screenshot({ path: join(ART, 'mp-solo-inert.png'), fullPage: true });
+  const okHand = /下一手|手結束|亮牌|不亮|過牌|跟注|蓋牌|贏得/.test(body);
+  await p.page.screenshot({
+    path: join(ART, `mp-solo-lobby-${label}.png`),
+    fullPage: true,
+  });
+  const errs = p.errors.filter(
+    (e) => !/favicon|Fonts|net::ERR_FAILED|AbortError|Failed to load/i.test(e),
+  );
+  await p.ctx.close();
+  return { ok: !appHidden && sawTable && okHand && errs.length === 0, sawTable, okHand, errs };
+}
+
+/** Non-host refresh mid-hand then call; host refresh must not spam PERMISSION_DENIED. */
+async function runIntentRefresh(browser, base, viewport, label) {
+  const host = await makePlayer(browser, base, '阿明', `hostir${label}`, viewport);
+  const { roomId, code } = await createAndShare(host);
+  const guest = await joinViaLink(
+    browser,
+    base,
+    '大雄',
+    `guestir${label}`,
+    viewport,
+    roomId,
+    code,
+  );
+  await sitIfNeeded(guest.page);
+  await startHand(host);
+  // Let guest act once if possible so an intent doc exists
+  for (let i = 0; i < 6; i++) {
+    const gCall = guest.page.locator('#mpCall:not([disabled]), #mpCheck:not([disabled])');
+    const hCall = host.page.locator('#mpCall:not([disabled]), #mpCheck:not([disabled]), #mpFold:not([disabled])');
+    if (await gCall.count()) {
+      await gCall.first().click();
+      await guest.page.waitForTimeout(800);
+      break;
+    }
+    if (await hCall.count()) {
+      await hCall.first().click();
+      await host.page.waitForTimeout(800);
+    } else break;
+  }
+  // Guest refresh mid-hand
+  await guest.page.reload({ waitUntil: 'domcontentloaded' });
+  await guest.page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
+    timeout: 20000,
+  });
+  await guest.page.evaluate(
+    ([u, n]) => window.__qaSignIn(u, n),
+    [`guestir${label}`, '大雄'],
+  );
+  await guest.page.waitForTimeout(3500);
+  guest.errors.length = 0;
+  // Try call/check/fold after refresh
+  let acted = false;
+  for (let i = 0; i < 12; i++) {
+    const btn = guest.page.locator(
+      '#mpCall:not([disabled]), #mpCheck:not([disabled]), #mpFold:not([disabled])',
+    );
+    if (await btn.count()) {
+      await btn.first().click();
+      acted = true;
+      await guest.page.waitForTimeout(1200);
+      break;
+    }
+    // Host may need to act first
+    const hBtn = host.page.locator(
+      '#mpCall:not([disabled]), #mpCheck:not([disabled]), #mpFold:not([disabled])',
+    );
+    if (await hBtn.count()) {
+      await hBtn.first().click();
+      await host.page.waitForTimeout(800);
+    } else {
+      await guest.page.waitForTimeout(500);
+    }
+  }
+  const guestDenied = guest.errors.some((e) => /PERMISSION_DENIED|permission-denied/i.test(e));
+  // Host refresh — should not flood PERMISSION_DENIED on own intents
+  host.errors.length = 0;
+  await host.page.reload({ waitUntil: 'domcontentloaded' });
+  await host.page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
+    timeout: 20000,
+  });
+  await host.page.evaluate(
+    ([u, n]) => window.__qaSignIn(u, n),
+    [`hostir${label}`, '阿明'],
+  );
+  await host.page.waitForTimeout(4000);
+  // Host may void + reshuffle; wait and optionally act
+  for (let i = 0; i < 8; i++) {
+    const hBtn = host.page.locator(
+      '#mpCall:not([disabled]), #mpCheck:not([disabled]), #mpFold:not([disabled]), #mpStart',
+    );
+    if (await hBtn.count()) {
+      await hBtn.first().click();
+      await host.page.waitForTimeout(900);
+    } else break;
+  }
+  const hostDenied = host.errors.filter((e) =>
+    /PERMISSION_DENIED|permission-denied/i.test(e),
+  );
+  await host.page.screenshot({
+    path: join(ART, `mp-${label}-intent-refresh.png`),
+    fullPage: true,
+  });
   await host.ctx.close();
-  return { ok, ...state };
+  await guest.ctx.close();
+  return {
+    ok: acted && !guestDenied && hostDenied.length === 0,
+    acted,
+    guestDenied,
+    hostDeniedCount: hostDenied.length,
+  };
 }
 
 async function main() {
@@ -286,8 +430,15 @@ async function main() {
         name: `showdown-${vp.label}`,
         ...(await runShowdown(browser, base, vp, vp.label)),
       });
+      results.push({
+        name: `solo-lobby-${vp.label}`,
+        ...(await runSoloFromLobby(browser, base, vp, vp.label)),
+      });
+      results.push({
+        name: `intent-refresh-${vp.label}`,
+        ...(await runIntentRefresh(browser, base, vp, vp.label)),
+      });
     }
-    results.push({ name: 'solo-inert', ...(await runSoloInert(browser, base)) });
   } finally {
     await browser.close();
     server.close();
