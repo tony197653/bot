@@ -37,7 +37,8 @@ p{margin:0}
 .prog i{display:block;height:100%;background:var(--accent);transform-origin:left;transform:scaleX(var(--p,0));transition:transform .6s var(--ease-out)}
 body[data-view=result] .count,body[data-view=result] .prog{visibility:hidden}
 /* B 泡泡列 */
-.wrap{max-width:808px;margin:0 auto;padding:12px max(16px,env(safe-area-inset-right)) calc(112px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+/* 底墊 ≥ 步驟列高度（10+44+10）＋餘裕，最後一項可捲到 bar 上方 */
+.wrap{max-width:808px;margin:0 auto;padding:12px max(16px,env(safe-area-inset-right)) calc(120px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 /* 泡泡：視覺 28px、點擊 44×44；單列橫向捲＋邊緣淡出＋scroll-snap */
 .strip,.bub-strip{
   display:flex;flex-wrap:nowrap;gap:4px;margin:0 -6px 12px;padding:0 16px;
@@ -91,10 +92,14 @@ body[data-view=result] .count,body[data-view=result] .prog{visibility:hidden}
 .a1 .acc-i{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .a1 .acc-b:focus-visible{box-shadow:var(--halo)}
 .report{margin-top:6px;font-size:14px}
-/* G 操作列 */
-.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--bar-bg);padding:10px max(16px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));transition:transform .3s var(--ease-out),opacity .3s var(--ease-out)}
+/* G 操作列：實心底（頁面底色），不透出下方文案；含 safe-area */
+.bar{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;overflow:visible;
+  background:var(--bg);background-color:var(--bg);
+  padding:10px max(16px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+  transition:transform .3s var(--ease-out),opacity .3s var(--ease-out)
+}
 /* P3/P4 步驟鈕（15a1503 + BD 窄寬）：≥400 固定 112×44／縫 10；≤399 三欄等分／縫 8／左右 16 */
-.bar{overflow:visible}
 .bar-in{
   max-width:776px;margin:0 auto;display:flex;justify-content:center;align-items:center;gap:10px;
   overflow:visible;-webkit-user-select:none;user-select:none
@@ -119,12 +124,15 @@ body[data-view=result] .count,body[data-view=result] .prog{visibility:hidden}
 .bar .btn:disabled{opacity:.55;cursor:not-allowed}
 .bar .next.b1:disabled{background:var(--sage-deep);color:#fff;border-color:var(--sage-deep);opacity:.55}
 .bar .prev.b2:disabled,.bar .skip.b2:disabled{background:#fff;color:var(--ink);border-color:#A9ADA3;opacity:.55}
-/* 焦點環：只留 outline，關掉 .btn 的 halo，避免 overflow 裁成半弧 */
+/* 焦點環：僅 :focus-visible（鍵盤）；點擊／程式 focus 不畫環 */
+.bar .btn:focus,.bar .b1:focus,.bar .b2:focus,
+.bar .next.b1:focus,.bar .prev.b2:focus,.bar .skip.b2:focus,.bar .submit.b2:focus{
+  outline:none;box-shadow:none
+}
 .bar .btn:focus-visible,.bar .b1:focus-visible,.bar .b2:focus-visible,
 .bar .next.b1:focus-visible,.bar .prev.b2:focus-visible,.bar .skip.b2:focus-visible,.bar .submit.b2:focus-visible{
   outline:2px solid var(--sage);outline-offset:3px;box-shadow:none
 }
-.bar .btn:focus:not(:focus-visible){outline:none;box-shadow:none}
 .bar .submit{display:none}
 .bar .next .nx-t{display:block;width:100%;text-align:center;white-space:nowrap;overflow:visible;text-overflow:clip}
 @media (max-width:399px){
@@ -228,9 +236,10 @@ body[data-view=result] .bar{transform:translateY(110%);opacity:0;pointer-events:
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));z-index:50;transform:translate(-50%,8px);opacity:0;pointer-events:none;padding:10px 16px;border-radius:999px;background:var(--toast-bg);color:var(--toast-fg);font-size:14px;box-shadow:var(--pop-shadow);transition:opacity .2s var(--ease-in),transform .2s var(--ease-in);max-width:calc(100vw - 32px);text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0);transition:opacity .3s var(--ease-out),transform .4s var(--spring)}
 /* 鍵盤：提示（只在有滑鼠的裝置出現） */
-.kb-hint{display:none;margin:10px 2px 0;font-size:12.5px;line-height:1.5;color:var(--mute);letter-spacing:.04em}
+/* 鍵盤提示：只在精確指標＋hover 裝置顯示（手機／觸控隱藏） */
+.kb-hint{display:none!important;margin:10px 2px 0;font-size:12.5px;line-height:1.5;color:var(--mute);letter-spacing:.04em}
 .kb-hint kbd{font:inherit;font-size:11.5px;padding:0 5px;margin:0 1px;border-radius:4px;box-shadow:inset 0 0 0 1px var(--line-strong)}
-@media (hover:hover) and (pointer:fine){.kb-hint{display:block}}
+@media (hover:hover) and (pointer:fine){.kb-hint{display:block!important}}
 .opt:focus-visible{outline:none}
 /* 換題：立刻出現，不做進／出場過渡 */
 @media (prefers-reduced-motion:reduce){

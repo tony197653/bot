@@ -321,7 +321,9 @@ function createSession(opts) {
     if (focus) o[k].focus({ preventScroll: !!noScroll });
   }
 
-  function focusNextBtn() {
+  /** 僅鍵盤作答後把焦點移到下一題（點擊後程式 focus 會在部分環境誤觸 :focus-visible 雙環） */
+  function focusNextBtn(fromKeyboard) {
+    if (!fromKeyboard) return;
     root.querySelector('[data-act="next"]')?.focus({ preventScroll: true });
   }
 
@@ -364,7 +366,7 @@ function createSession(opts) {
     else setHi(hiIdx(), true, true);
   }
 
-  function pick(k) {
+  function pick(k, fromKeyboard = false) {
     const q = qs[i];
     if (busy) return;
     if (mode === 'instant' && answers[i] >= 0) return;
@@ -372,7 +374,7 @@ function createSession(opts) {
     confirming = false;
     if (mode === 'exam') {
       paint();
-      focusNextBtn();
+      focusNextBtn(fromKeyboard);
       return;
     }
     const card = stageEl.querySelector('[data-el="card"]');
@@ -402,7 +404,7 @@ function createSession(opts) {
     }
     strip();
     bar();
-    focusNextBtn();
+    focusNextBtn(fromKeyboard);
     setTimeout(() => card?.classList.remove('fresh'), 1200);
     saveProgress();
   }
@@ -601,7 +603,7 @@ function createSession(opts) {
     ) {
       e.preventDefault();
       setHi(m);
-      pick(m);
+      pick(m, true);
       return;
     }
     if (k === 'ArrowDown' || k === 'ArrowUp') {
@@ -615,7 +617,7 @@ function createSession(opts) {
       if (opt) {
         e.preventDefault();
         if (done) next();
-        else pick(+opt.dataset.k);
+        else pick(+opt.dataset.k, true);
         return;
       }
       /* 其他按鈕（下一題、上一題…）交給瀏覽器原生行為 */

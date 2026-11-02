@@ -756,6 +756,115 @@ try {
     await page.close();
   }
 
+  // --- 底列實心不透字 @360；點選後下一題無焦點環；觸控 390 hint 隱藏（再驗）---
+  {
+    const page = await browser.newPage({
+      viewport: { width: 360, height: 780 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    const hintBefore = await page.locator('[data-el="kbh"]').evaluate((el) => getComputedStyle(el).display);
+    if (hintBefore !== 'none') {
+      throw new Error(`kb-hint visible on touch 360 before answer: ${hintBefore}`);
+    }
+    await page.locator(`.opt[data-k="${batch.questions[0].answer}"]`).click();
+    await page.waitForSelector('.qcard.revealed');
+    const afterTap = await page.evaluate(() => {
+      const bar = document.querySelector('.bar');
+      const next = document.querySelector('[data-act="next"]');
+      const report = document.querySelector('.report');
+      const bcs = getComputedStyle(bar);
+      const ncs = getComputedStyle(next);
+      const br = bar.getBoundingClientRect();
+      // 取 bar 內縫隙與按鈕間的點：應命中 .bar（或其子節點），不可是「回報題目有誤」
+      const samples = [];
+      const ys = [br.top + 4, (br.top + br.bottom) / 2, br.bottom - 4];
+      const xs = [8, br.width / 2, br.width - 8];
+      for (const y of ys) {
+        for (const x of xs) {
+          const el = document.elementFromPoint(x, y);
+          samples.push({
+            x,
+            y,
+            tag: el?.tagName,
+            cls: el?.className?.toString?.() || '',
+            text: (el?.textContent || '').trim().slice(0, 24),
+            inBar: !!(el && bar.contains(el)),
+          });
+        }
+      }
+      const bg = bcs.backgroundColor;
+      const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+      const alpha = m ? (m[4] == null ? 1 : parseFloat(m[4])) : -1;
+      const wrapPad = getComputedStyle(document.querySelector('.wrap')).paddingBottom;
+      const reportBottom = report ? report.getBoundingClientRect().bottom : null;
+      return {
+        bg,
+        alpha,
+        padBottom: bcs.paddingBottom,
+        wrapPad,
+        reportBottom,
+        barTop: br.top,
+        activeIsNext: document.activeElement === next,
+        nextOutline: ncs.outlineStyle,
+        nextOutlineW: ncs.outlineWidth,
+        nextShadow: ncs.boxShadow,
+        samples,
+        hintDisplay: getComputedStyle(document.querySelector('[data-el="kbh"]')).display,
+      };
+    });
+    if (afterTap.alpha < 0.999) {
+      throw new Error(`bar bg not opaque @360: ${afterTap.bg} alpha=${afterTap.alpha}`);
+    }
+    if (!/^rgb\(245,\s*244,\s*241\)$/.test(afterTap.bg) && !/^rgba\(245,\s*244,\s*241,\s*1\)$/.test(afterTap.bg)) {
+      throw new Error(`bar bg not page --bg #F5F4F1 @360: ${afterTap.bg}`);
+    }
+    const under = afterTap.samples.filter((s) => !s.inBar);
+    if (under.length) {
+      throw new Error(`content under bar @360: ${JSON.stringify(under)}`);
+    }
+    const leak = afterTap.samples.some((s) => /回報|空白鍵/.test(s.text) && !s.inBar);
+    if (leak) throw new Error(`page text visible through bar samples: ${JSON.stringify(afterTap.samples)}`);
+    // 點選後不應把焦點（含可見環）放到下一題
+    if (afterTap.activeIsNext) {
+      throw new Error('next focused after tap pick (would show ring)');
+    }
+    if (afterTap.nextOutline !== 'none' && parseFloat(afterTap.nextOutlineW) > 0) {
+      throw new Error(`next shows outline after tap: ${JSON.stringify(afterTap)}`);
+    }
+    if (afterTap.hintDisplay !== 'none') {
+      throw new Error(`kb-hint still visible after answer on touch: ${afterTap.hintDisplay}`);
+    }
+    // wrap 底墊須 ≥ bar 高度；捲到文件底時回報鈕須完全在 bar 上方
+    const padOk = await page.evaluate(() => {
+      const wrap = document.querySelector('.wrap');
+      const bar = document.querySelector('.bar');
+      const report = document.querySelector('.report');
+      if (!wrap || !bar || !report) return { ok: false, reason: 'missing' };
+      const need = bar.getBoundingClientRect().height + 8;
+      const pad = parseFloat(getComputedStyle(wrap).paddingBottom) || 0;
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      const rr = report.getBoundingClientRect();
+      const br = bar.getBoundingClientRect();
+      return {
+        ok: pad >= need - 1 && rr.bottom <= br.top + 1,
+        pad,
+        need,
+        reportBottom: rr.bottom,
+        barTop: br.top,
+        scrollY: window.scrollY,
+        scrollH: document.documentElement.scrollHeight,
+      };
+    });
+    if (!padOk.ok) throw new Error(`wrap pad / report not above bar: ${JSON.stringify(padOk)}`);
+    pass('bar opaque @360 + no content under + no tap focus ring');
+    await page.close();
+  }
+
   // exam：空白鍵選完後空白鍵下一題，底列寬度不變
   {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
