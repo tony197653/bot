@@ -30,8 +30,11 @@ import {
 import { bindLightboxOnce } from './lightbox.js';
 import { formatRoundSummary, taipeiStamp } from './summary.js';
 import { askConfirm } from './dialog.js';
+import { ERR, zhFromError, errCode } from './errors.js';
 
 const PRODUCT = '考題網';
+/** 作答／匯入中登入過期：不踢出畫面 */
+let sessionExpired = false;
 
 /** @type {null|(()=>void)} */
 let resultDestroy = null;
@@ -98,16 +101,18 @@ function renderLogin(ev) {
   if (!main) return;
   const iab = detectInAppBrowser();
   const errMsg = ev?.error?.message ? escHtml(ev.error.message) : '';
-  const errEmail = ev?.error?.email ? escHtml(ev.error.email) : '';
+  const denied = ev?.status === 'denied';
   main.innerHTML = `<div class="page login">
     <h1>${PRODUCT}</h1>
     <p class="lead">參考書題目練習與錯題整理</p>
-    ${ev?.error ? `<p class="err" role="alert">${errMsg}${errEmail ? `（${errEmail}）` : ''}</p>` : ''}
+    ${ev?.error ? `<p class="err" role="alert">${errMsg}</p>` : ''}
     ${
       ev?.status === 'in-app-browser'
         ? `<p class="warn on iab-warn" role="status">請用 Safari／Chrome 開啟此網站。</p>
            <button type="button" class="btn b2" id="copy-url">複製網址</button>`
-        : `<button type="button" class="btn b1" id="btn-login"${ev?.status === 'loading' ? ' disabled' : ''}>用 Google 登入</button>`
+        : `<button type="button" class="btn b1" id="btn-login"${ev?.status === 'loading' ? ' disabled' : ''}>${
+            denied ? '換一個帳號登入' : '用 Google 登入'
+          }</button>`
     }
   </div>`;
   main.querySelector('#btn-login')?.addEventListener('click', () => signIn());
@@ -116,9 +121,34 @@ function renderLogin(ev) {
       await navigator.clipboard.writeText(location.href);
       toast('已複製，請貼到 Safari／Chrome');
     } catch {
-      toast('無法自動複製，請手動複製網址');
+      const ta = document.createElement('textarea');
+      ta.value = location.href;
+      document.body.appendChild(ta);
+      ta.select();
+      toast(ERR.clipboard);
+      ta.remove();
     }
   });
+}
+
+function showSessionExpiredBanner() {
+  sessionExpired = true;
+  let bar = document.getElementById('session-expired-banner');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'session-expired-banner';
+    bar.className = 'session-expired-banner';
+    bar.setAttribute('role', 'alert');
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = `<p>${escHtml(ERR.sessionExpiredResult)}</p>
+    <button type="button" class="btn b1" id="btn-relogin">重新登入</button>`;
+  bar.querySelector('#btn-relogin')?.addEventListener('click', () => signIn());
+}
+
+function clearSessionExpiredBanner() {
+  sessionExpired = false;
+  document.getElementById('session-expired-banner')?.remove();
 }
 
 async function fetchQuestionsByQids(qids) {
@@ -266,7 +296,7 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
     },
     onRetryCloud: async () => {
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        toast('目前離線，連上線後會自動上傳');
+        toast(ERR.network);
         return;
       }
       const r = await flushPending(user.uid);
@@ -274,15 +304,23 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
         applyCloudOk(user.uid, r.wrongBookDelta || 0);
         toast('已存到雲端');
       } else if (r.failed > 0) {
-        toast('仍無法寫入，請稍後再試');
+        const last = r.errors?.[0];
+        const code = errCode(last);
+        if (code === 'permission-denied' || /permission-denied/i.test(String(last?.message || ''))) {
+          showSessionExpiredBanner();
+          toast(ERR.sessionExpiredResult);
+        } else {
+          toast(zhFromError(last, 'network'));
+        }
       } else if (!listPending(user.uid).length) {
         // 佇列已空：背景上傳可能已完成（與重試共用 inflight）
         applyCloudOk(user.uid, loadLastResult(user.uid)?.wrongBookDelta ?? 0);
         toast('已存到雲端');
       } else {
-        toast('仍無法寫入，請稍後再試');
+        toast(ERR.network);
       }
     },
+    onRelogin: () => signIn(),
   });
   resultDestroy = () => view.destroy();
 }
@@ -535,7 +573,10 @@ async function renderRoute(route) {
     } else if (!quizStarted) {
       const raw = localStorage.getItem(progressKey(user.uid));
       if (raw) await resumeProgress();
-      else navigate('#/');
+      else {
+        main.innerHTML = `<div class="page"><p class="e1">${ERR.quizNone}</p>
+          <div class="empty-next"><a class="btn b1" href="#/">回首頁</a></div></div>`;
+      }
     }
   } else if (route === '/result') {
     if (resultDestroy) return;
@@ -560,10 +601,13 @@ async function renderRoute(route) {
       return;
     }
     document.body.dataset.view = '';
-    main.innerHTML = `<p class="e1">請從首頁開始練習。</p><button type="button" class="btn b1" data-home>回首頁</button>`;
-    main.querySelector('[data-home]')?.addEventListener('click', () => navigate('#/'));
+    main.innerHTML = `<div class="page"><p class="e1">${ERR.resultGone}</p>
+      <div class="empty-next">
+        <a class="btn b1" href="#/">回首頁</a>
+        <a class="btn b2" href="#/wrong">看錯題本</a>
+      </div></div>`;
   } else {
-    main.innerHTML = `<div class="page"><p class="e2">找不到這個頁面。</p>
+    main.innerHTML = `<div class="page"><p class="e1">${ERR.notFoundPage}</p>
       <div class="empty-next"><a class="btn b1" href="#/">回首頁</a></div></div>`;
   }
 }
@@ -703,6 +747,7 @@ async function boot() {
     document.body.classList.toggle('signed-in', !!signedIn);
 
     if (signedIn) {
+      clearSessionExpiredBanner();
       await flushPending(ev.user.uid);
       const avatar = document.getElementById('nav-avatar');
       if (avatar) {
@@ -710,6 +755,9 @@ async function boot() {
         avatar.title = ev.user.displayName || ev.user.email;
       }
       await renderRoute(parseRoute());
+    } else if (ev.status === 'signed-out' && (quizStarted || parseRoute() === '/import' || parseRoute() === '/quiz' || parseRoute() === '/result')) {
+      // 紅線 4／11：作答或校對中登入過期不踢人、不清畫面
+      showSessionExpiredBanner();
     } else if (ev.status === 'in-app-browser' || ev.status === 'denied' || ev.status === 'signed-out') {
       renderLogin(ev);
     } else if (ev.status === 'loading') {

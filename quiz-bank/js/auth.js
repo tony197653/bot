@@ -23,10 +23,10 @@ const STORAGE_KEY = 'quizbank:v1:auth';
 const ZH = {
   'auth/popup-blocked': '登入視窗被擋住了，改用重新導向登入…',
   'auth/popup-closed-by-user': '',
-  'auth/network-request-failed': '網路不穩，請稍後再試',
+  'auth/network-request-failed': '連不上網路，資料沒載入（或沒存進去）。請檢查網路後按重試。',
   'auth/cancelled-popup-request': '登入已取消',
-  denied: '這個帳號不在允許名單裡',
-  default: '登入沒有完成，請再試一次',
+  denied: '這個帳號還沒加入名單',
+  default: '登入視窗被擋住了，請再按一次登入。',
 };
 
 function emit(partial) {
@@ -128,13 +128,14 @@ async function afterSignedIn(fbUser) {
     if (!allowed) {
       clearCache();
       await fb.authApi.signOut(fb.auth);
+      const email = String(fbUser.email || '').toLowerCase();
       emit({
         status: 'denied',
         user: null,
         error: {
           code: 'denied',
-          message: `${ZH.denied}。請改用允許名單內的 Google 帳號，或請管理者加入。`,
-          email: String(fbUser.email || '').toLowerCase(),
+          message: `這個帳號（${email || '未知'}）還沒加入名單，請宗良把它加進去，或換一個帳號登入`,
+          email,
         },
       });
       return;
@@ -213,7 +214,10 @@ export async function initAuth() {
     emit({
       status: 'offline',
       user: currentUser,
-      error: { code: 'offline', message: '連不上 Firebase，請檢查網路後重試' },
+      error: {
+        code: 'offline',
+        message: '連不上網路，資料沒載入（或沒存進去）。請檢查網路後按重試。',
+      },
       fromCache: !!currentUser,
     });
   }
@@ -249,7 +253,10 @@ export async function signIn() {
       emit({
         status: 'offline',
         user: currentUser,
-        error: { code: 'offline', message: '連不上網路，無法登入' },
+        error: {
+          code: 'offline',
+          message: '連不上網路，資料沒載入（或沒存進去）。請檢查網路後按重試。',
+        },
       });
       return;
     }

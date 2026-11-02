@@ -200,8 +200,13 @@ function fail(n, e) {
 }
 
 {
-  if (flagLabel('LOW_CONFIDENCE') !== '擷取信心偏低，請人工確認') fail('flagLabel');
-  else if (reportReasonLabel('answer') !== '答案錯') fail('reportReasonLabel');
+  if (flagLabel('LOW_CONFIDENCE') !== 'TU 不太確定，請對照照片') fail('flagLabel');
+  else if (
+    flagLabel('COUNT_MISMATCH', { expected: 5, actual: 4 }) !==
+    '題數對不上：這批應該有 5 題，實際 4 題，請 TU 檢查有沒有漏題'
+  ) {
+    fail('flagLabel COUNT_MISMATCH');
+  } else if (reportReasonLabel('answer') !== '答案錯') fail('reportReasonLabel');
   else pass('UX#13 flag/reason plain labels');
 }
 

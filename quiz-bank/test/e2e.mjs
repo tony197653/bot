@@ -228,7 +228,7 @@ try {
     await page.waitForTimeout(300);
     const toast = await page.locator('.toast.on, #app-toast.on').textContent().catch(() => '');
     const toast2 = await page.locator('[data-el="toast"]').textContent();
-    if (!(toast + toast2).includes('回報失敗')) throw new Error(`no error toast: ${toast}|${toast2}`);
+    if (!(toast + toast2).includes('沒送出去')) throw new Error(`no error toast: ${toast}|${toast2}`);
     await page.evaluate(() => {
       window.__harness.reportFail = false;
     });

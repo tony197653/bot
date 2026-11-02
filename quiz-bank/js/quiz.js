@@ -171,8 +171,9 @@ function createSession(opts) {
         <label>補充說明（選填）
           <input name="note" maxlength="200" placeholder="一句話說明…">
         </label>
+        <p class="char-count" data-el="noteCount" aria-live="polite">0/200</p>
         <div class="report-actions">
-          <button type="submit" class="btn b1" value="ok">送出</button>
+          <button type="submit" class="btn b1" value="ok" data-el="reportOk">送出</button>
           <button type="submit" class="btn b2" value="cancel">取消</button>
         </div>
       </form>
@@ -197,6 +198,12 @@ function createSession(opts) {
   /** @type {((left:boolean)=>void)|null} */
   let leaveCb = null;
 
+  const noteInput = reportDlg?.querySelector('input[name="note"]');
+  const noteCount = reportDlg?.querySelector('[data-el="noteCount"]');
+  noteInput?.addEventListener('input', () => {
+    if (noteCount) noteCount.textContent = `${noteInput.value.length}/200`;
+  });
+
   function saveProgress() {
     if (!opts.progressKey) return;
     const payload = {
@@ -210,7 +217,7 @@ function createSession(opts) {
     try {
       localStorage.setItem(opts.progressKey, JSON.stringify(payload));
     } catch {
-      /* memory only */
+      toast('這台裝置不能暫存進度，重新整理後進度會不見，請一次做完再離開。');
     }
   }
 
@@ -437,7 +444,14 @@ function createSession(opts) {
     };
   }
 
+  let finishing = false;
   function finish() {
+    if (finishing) return;
+    finishing = true;
+    const nextBtn = root.querySelector('[data-act="next"]');
+    const subBtn = root.querySelector('[data-act="submit"]');
+    if (nextBtn) nextBtn.disabled = true;
+    if (subBtn) subBtn.disabled = true;
     if (clearOnFinish) clearProgress();
     const result = buildResult();
     destroy(true);
@@ -511,7 +525,8 @@ function createSession(opts) {
         btn.textContent = '已回報';
       }
     } catch (err) {
-      toast(err?.message || '回報失敗，請稍後再試');
+      console.error(err);
+      toast('沒送出去，可能是網路斷了。請再按一次送出');
       if (btn) {
         btn.dataset.busy = '';
         btn.style.width = '';

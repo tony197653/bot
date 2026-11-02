@@ -18,19 +18,19 @@ const FLAGS = new Set([
   'IMAGE_TOO_BIG',
 ]);
 
-/** 紅標代碼 → 白話（介面顯示用；內部仍用代碼） */
+/** 紅標代碼 → 白話（§5.5；代碼小字附後給 TU） */
 const FLAG_LABELS = {
-  COUNT_MISMATCH: '題數與預期不符',
+  COUNT_MISMATCH: '題數對不上，請 TU 檢查有沒有漏題',
   EXPLAIN_MISSING: '缺少詳解',
-  EXPLAIN_MISMATCH: '詳解與正解對不上',
-  ANSWER_MISSING: '缺少正解',
-  OPTION_COUNT: '選項數量不對',
-  FORMULA_CHECK: '公式需人工核對',
-  FIGURE_MISSING: '提到圖表但缺圖',
-  LOW_CONFIDENCE: '擷取信心偏低，請人工確認',
-  DUPLICATE_ID: '題目編號重複',
-  GROUP_BROKEN: '題組不完整',
-  IMAGE_TOO_BIG: '圖片太大',
+  EXPLAIN_MISMATCH: '詳解可能對錯題，請對照詳解頁',
+  ANSWER_MISSING: '缺少答案，請在下面選正確答案',
+  OPTION_COUNT: '選項不是 4 個，v1 不收這種題，請刪題',
+  FORMULA_CHECK: '公式顯示不出來，請檢查括號',
+  FIGURE_MISSING: '題目說『如圖』但沒有圖，請換圖',
+  LOW_CONFIDENCE: 'TU 不太確定，請對照照片',
+  DUPLICATE_ID: '題號重複',
+  GROUP_BROKEN: '題組對不上',
+  IMAGE_TOO_BIG: '圖太大，請重新上傳',
 };
 
 const REPORT_REASON_LABELS = {
@@ -40,8 +40,21 @@ const REPORT_REASON_LABELS = {
   other: '其他',
 };
 
-export function flagLabel(code) {
+/**
+ * @param {string} code
+ * @param {{expected?:number, actual?:number}|null} [ctx] COUNT_MISMATCH 用
+ */
+export function flagLabel(code, ctx = null) {
+  if (code === 'COUNT_MISMATCH' && ctx && ctx.expected != null && ctx.actual != null) {
+    return `題數對不上：這批應該有 ${ctx.expected} 題，實際 ${ctx.actual} 題，請 TU 檢查有沒有漏題`;
+  }
   return FLAG_LABELS[code] || String(code || '');
+}
+
+/** 畫面顯示：中文名稱＋代碼小字 */
+export function flagLabelWithCode(code, ctx = null) {
+  const label = flagLabel(code, ctx);
+  return { label, code: String(code || '') };
 }
 
 export function reportReasonLabel(code) {

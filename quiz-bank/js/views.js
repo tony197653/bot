@@ -251,11 +251,16 @@ export async function renderHome(mount, ctx) {
     const bookCards =
       filtered.length === 0
         ? `<div class="empty-next">
-            <p class="e1">題目準備中${ctx.isAdmin ? '。管理者可至匯入頁存入題目。' : '，請稍後再來。'}</p>
+            <p class="e1">${
+              ctx.isAdmin
+                ? '題目準備中。管理者可至匯入頁存入題目。'
+                : '題目還在準備中，可以先去錯題本複習'
+            }</p>
             ${
               ctx.isAdmin
-                ? '<a class="btn b1" href="#/import">去匯入題目</a>'
-                : '<button type="button" class="btn b2" data-retry>重新整理</button>'
+                ? '<a class="btn b1" href="#/import">去匯入</a>'
+                : `<a class="btn b2" href="#/wrong">錯題本</a>
+                   <button type="button" class="btn b2" data-retry>重新整理</button>`
             }
           </div>`
         : filtered
@@ -392,7 +397,7 @@ export async function renderHome(mount, ctx) {
           pendingScope.round,
         );
         if (!questions.length) {
-          ctx.toast?.('這個範圍沒有題目');
+          ctx.toast?.('這個範圍還沒有題目');
           return;
         }
         closeStart();
@@ -413,7 +418,9 @@ export async function renderHome(mount, ctx) {
       }
     });
   } catch {
-    mount.innerHTML = `<div class="page home"><p class="e2">載入失敗。<button type="button" class="btn b2" data-retry>重試</button></p></div>`;
+    mount.innerHTML = `<div class="page home"><p class="e2">題目沒載入成功，可能是網路斷了。請檢查網路後按重試</p>
+      <div class="empty-next"><button type="button" class="btn b1" data-retry>重試</button>
+      <a class="btn b2" href="#/">回首頁</a></div></div>`;
     mount.querySelector('[data-retry]')?.addEventListener('click', () => renderHome(mount, ctx));
   }
 }
@@ -460,8 +467,14 @@ export async function renderWrongBook(mount, ctx) {
               )
               .join('')
           : `<div class="empty-next">
-            <p class="e1">目前沒有錯題，去做新的一回吧。</p>
-            <a class="btn b1" href="#/">去首頁選一回</a>
+            <p class="e1">${
+              subject || unitFilter ? '這個科目沒有錯題' : '目前沒有錯題，去做新的一回'
+            }</p>
+            ${
+              subject || unitFilter
+                ? '<button type="button" class="btn b2" data-clear-filter>看全部科目</button>'
+                : '<a class="btn b1" href="#/">回首頁選一回</a>'
+            }
           </div>`
       }
       </div>
@@ -477,6 +490,11 @@ export async function renderWrongBook(mount, ctx) {
         writeFilters({ wrongSubject: tab.dataset.sub, wrongUnit: '' });
         renderWrongBook(mount, ctx);
       });
+    });
+
+    mount.querySelector('[data-clear-filter]')?.addEventListener('click', () => {
+      writeFilters({ wrongSubject: '', wrongUnit: '' });
+      renderWrongBook(mount, ctx);
     });
 
     mount.querySelector('#wrong-unit')?.addEventListener('change', (e) => {
@@ -525,7 +543,7 @@ export async function renderWrongBook(mount, ctx) {
       card.addEventListener('click', () => ctx.openWrongDetail?.(card.dataset.qid));
     });
   } catch {
-    mount.innerHTML = `<div class="page wrong"><p class="e2">載入失敗，請檢查網路後再試。</p>
+    mount.innerHTML = `<div class="page wrong"><p class="e2">連不上網路，資料沒載入（或沒存進去）。請檢查網路後按重試。</p>
       <div class="empty-next"><button type="button" class="btn b2" data-retry>重試</button>
       <a class="btn b2" href="#/">回首頁</a></div></div>`;
     mount.querySelector('[data-retry]')?.addEventListener('click', () => renderWrongBook(mount, ctx));
@@ -612,7 +630,12 @@ export async function renderUnits(mount, ctx) {
           )
           .join('')}</tbody>
       </table>
-      ${strength.length === 0 ? '<p class="e1">題庫還沒有單元，或最近 30 天尚無作答。</p>' : ''}
+      ${
+        strength.length === 0
+          ? `<div class="empty-next"><p class="e1">最近 30 天做完一回就會出現</p>
+             <a class="btn b1" href="#/">回首頁選一回</a></div>`
+          : ''
+      }
       <label class="export-box">複製給家教 TU
         <textarea class="i1" readonly rows="8">${escHtml(exportText)}</textarea>
       </label>
@@ -652,7 +675,7 @@ export async function renderUnits(mount, ctx) {
         ctx.toast?.('已複製');
       } catch {
         ta.select();
-        ctx.toast?.('請長按選取後複製');
+        ctx.toast?.('這個瀏覽器不能自動複製，文字已經全選，請長按複製。');
       }
     });
 
@@ -737,7 +760,7 @@ export async function renderUnits(mount, ctx) {
       }
     });
   } catch {
-    mount.innerHTML = `<div class="page units-page"><p class="e2">載入失敗，請檢查網路後再試。</p>
+    mount.innerHTML = `<div class="page units-page"><p class="e2">連不上網路，資料沒載入（或沒存進去）。請檢查網路後按重試。</p>
       <div class="empty-next"><button type="button" class="btn b2" data-retry>重試</button>
       <a class="btn b2" href="#/">回首頁</a></div></div>`;
     mount.querySelector('[data-retry]')?.addEventListener('click', () => renderUnits(mount, ctx));

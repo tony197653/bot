@@ -164,6 +164,17 @@ body.signed-in:not([data-view=quiz]):not([data-view=result]) .app-subnav{display
 }
 .home-quick a:active{transform:none}
 .home-quick a[data-admin-only]{grid-column:1/-1}
+.flag-code{font-size:11px;color:var(--mute);margin-left:4px;font-weight:500}
+.opt-tag{display:inline-block;margin-left:8px;font-size:13px;font-weight:600}
+.opt-tag.ok-t{color:var(--ok-ink)}.opt-tag.bad-t{color:var(--bad-ink)}
+.char-count{font-size:13px;color:var(--mute);margin:0 0 8px}
+.session-expired-banner{
+  position:fixed;left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:60;
+  background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r);padding:12px 14px;
+  box-shadow:var(--pop-shadow);display:grid;gap:10px
+}
+.session-expired-banner p{margin:0;font-size:15px;line-height:1.5}
+.import-done{margin:16px 0;padding:12px;border-top:1px solid var(--line)}
 .empty-next{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
 body.signed-out .drawer-backdrop,body.signed-out .app-drawer{display:none!important}
 body[data-view=result] .app-main{max-width:808px;margin-left:auto;margin-right:auto}

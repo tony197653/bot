@@ -588,6 +588,8 @@ export async function flushPending(uid) {
   let flushed = 0;
   let failed = 0;
   let wrongBookDelta = 0;
+  /** @type {any[]} */
+  const errors = [];
   for (const item of list) {
     const payload = {
       ...item,
@@ -597,10 +599,13 @@ export async function flushPending(uid) {
     if (r.ok) {
       flushed++;
       wrongBookDelta += r.wrongBookDelta || 0;
-    } else failed++;
+    } else {
+      failed++;
+      if (r.error) errors.push(r.error);
+    }
   }
   if (flushed) cachedAttempts30d = null;
-  return { flushed, failed, wrongBookDelta };
+  return { flushed, failed, wrongBookDelta, errors };
 }
 
 /**

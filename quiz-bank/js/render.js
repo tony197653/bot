@@ -181,12 +181,20 @@ export function optionsHtml(q, answer, opts = {}) {
               ? ICON.bad
               : ''
           : '';
+      const tag =
+        revealed && mode === 'instant'
+          ? k === q.answer
+            ? '<span class="opt-tag ok-t">正確答案</span>'
+            : k === a && a !== q.answer
+              ? '<span class="opt-tag bad-t">你的答案</span>'
+              : ''
+          : '';
       const disabled = revealed && mode === 'instant';
       const ariaLab = `選項 ${L[k]}，${optionLabelText(o)}`;
       return `<button type="button" class="${cls}" role="radio" aria-checked="${answered && k === a}" tabindex="${k === hi ? 0 : -1}" data-k="${k}" style="--i:${k}"
         ${disabled ? 'aria-disabled="true"' : ''} aria-label="${escHtml(ariaLab)}">
         <span class="key">${L[k]}</span>
-        <span class="txt"><span class="tx">${escHtml(o)}</span></span>
+        <span class="txt"><span class="tx">${escHtml(o)}</span>${tag}</span>
         <span class="mk" aria-hidden="true">${mk}</span>
       </button>`;
     })

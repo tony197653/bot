@@ -76,9 +76,13 @@ export function showResult(opts) {
           : '沒有變化';
 
   const cloudBanner =
-    opts.cloudStatus === 'pending' || opts.cloudStatus === 'error'
-      ? `<p class="cloud-warn" role="status">還沒存到雲端，<button type="button" class="btn b2" data-act="retry-cloud">重試</button></p>`
-      : '';
+    opts.cloudStatus === 'auth'
+      ? `<p class="cloud-warn" role="status">登入已經過期，結果先留在這台裝置。請按『重新登入』，登入後會自動補存
+          <button type="button" class="btn b1" data-act="relogin">重新登入</button></p>`
+      : opts.cloudStatus === 'pending' || opts.cloudStatus === 'error'
+        ? `<p class="cloud-warn" role="status">還沒存到雲端，結果先留在這台裝置。請按重試，或下次打開時會自動補存
+          <button type="button" class="btn b2" data-act="retry-cloud">重試</button></p>`
+        : '';
 
   const showWrongOnly = wrongN > 0;
   const showExamReport = r.mode === 'exam' && typeof opts.onReport === 'function';
@@ -181,8 +185,9 @@ export function showResult(opts) {
           </select>
         </label>
         <label>補充說明（選填）
-          <input name="note" maxlength="200" placeholder="一句話說明…">
+          <input name="note" maxlength="200" placeholder="一句話說明…" data-el="resultNote">
         </label>
+        <p class="char-count" data-el="resultNoteCount" aria-live="polite">0/200</p>
         <div class="report-actions">
           <button type="submit" class="btn b1" value="ok">送出</button>
           <button type="submit" class="btn b2" value="cancel">取消</button>
@@ -205,6 +210,11 @@ export function showResult(opts) {
   if (segs && qs.length > 12) segs.classList.add('strip-scroll');
 
   const reportDlg = opts.mount.querySelector('[data-el="resultReportDlg"]');
+  const resultNote = reportDlg?.querySelector('[data-el="resultNote"]');
+  const resultNoteCount = reportDlg?.querySelector('[data-el="resultNoteCount"]');
+  resultNote?.addEventListener('input', () => {
+    if (resultNoteCount) resultNoteCount.textContent = `${resultNote.value.length}/200`;
+  });
 
   function defaultSummaryText() {
     const d = new Date(r.endedAt || Date.now());
@@ -249,7 +259,7 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
     } catch (err) {
       const toast = document.getElementById('app-toast');
       if (toast) {
-        toast.textContent = err?.message || '回報失敗，請稍後再試';
+        toast.textContent = '沒送出去，可能是網路斷了。請再按一次送出';
         toast.classList.add('on');
         setTimeout(() => toast.classList.remove('on'), 2200);
       }
@@ -289,6 +299,7 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
     else if (act === 'restart') opts.onRestart();
     else if (act === 'home') opts.onHome();
     else if (act === 'retry-cloud') opts.onRetryCloud?.();
+    else if (act === 'relogin') opts.onRelogin?.();
     else if (act === 'copy') {
       const text = summaryText();
       try {
@@ -301,6 +312,19 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
           setTimeout(() => toast.classList.remove('on'), 2000);
         }
       } catch {
+        const ta = opts.mount.querySelector('textarea.summary-fallback');
+        if (ta) {
+          ta.hidden = false;
+          ta.value = text;
+          ta.focus();
+          ta.select();
+        }
+        const toast = document.getElementById('app-toast');
+        if (toast) {
+          toast.textContent = '這個瀏覽器不能自動複製，文字已經全選，請長按複製。';
+          toast.classList.add('on');
+          setTimeout(() => toast.classList.remove('on'), 2800);
+        }
         opts.onCopySummary?.(text);
       }
     }

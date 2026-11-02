@@ -4,57 +4,18 @@
 import { validateBatch, figureByteSize, flagLabel, reportReasonLabel } from './schema.js';
 import { escHtml, renderMath, stemHtml, optionsHtml, groupPassageHtml } from './render.js';
 import { askConfirm } from './dialog.js';
+import { readImportDraft, createDraftAutosave, clearImportDraft } from './import-draft.js';
+import { ERR, zhFromError } from './errors.js';
 
-const DRAFT_KEY = 'quizbank:v1:importDraft';
-const DRAFT_WARN_BYTES = 4 * 1024 * 1024;
-
-function readDraft() {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * 草稿不含圖（避免 localStorage 爆掉）；失敗時回傳 false。
- * @param {object} d
- * @param {(msg:string)=>void} [toast]
- */
-function writeDraft(d, toast) {
-  try {
-    const slim = JSON.parse(JSON.stringify(d));
-    if (slim.batch?.questions) {
-      for (const q of slim.batch.questions) {
-        if (Array.isArray(q.figures)) {
-          q.figures = q.figures.map((f) => ({
-            ...f,
-            src: f.src?.startsWith('data:') ? 'data:image/webp;base64,' : f.src,
-          }));
-        }
-      }
-    }
-    if (slim.batch?.groups) {
-      for (const g of slim.batch.groups) {
-        if (Array.isArray(g.figures)) {
-          g.figures = g.figures.map((f) => ({
-            ...f,
-            src: f.src?.startsWith('data:') ? 'data:image/webp;base64,' : f.src,
-          }));
-        }
-      }
-    }
-    const text = JSON.stringify(slim);
-    if (text.length > DRAFT_WARN_BYTES) {
-      toast?.('草稿太大，已略過圖片欄位仍寫不進本機；請盡快存入雲端');
-    }
-    localStorage.setItem(DRAFT_KEY, text);
-    return true;
-  } catch {
-    toast?.('本機草稿存不下（容量不足），編輯內容可能在重新整理後遺失');
-    return false;
-  }
+/** 紅標畫面：中文＋代碼小字（batchFlags 字串取：前代碼） */
+function flagHtml(flagOrCode, batch) {
+  const raw = String(flagOrCode || '');
+  const code = raw.includes('：') ? raw.split('：')[0] : raw;
+  const ctx =
+    code === 'COUNT_MISMATCH' && batch
+      ? { expected: batch.batch?.expectedCount ?? batch.expectedCount, actual: batch.questions?.length }
+      : null;
+  return `${escHtml(flagLabel(code, ctx))} <small class="flag-code">${escHtml(code)}</small>`;
 }
 
 async function ensureFb(ctx) {
@@ -160,25 +121,42 @@ export function mergeBankUnits(existing, batch) {
  */
 export async function renderImport(mount, ctx) {
   if (!ctx.isAdmin) {
-    mount.innerHTML = `<p class="e2">只有管理者可以匯入題目。</p>`;
+    mount.innerHTML = `<div class="page import"><p class="e1">${ERR.importStudentOnly}</p>
+      <div class="empty-next"><a class="btn b1" href="#/">回首頁</a></div></div>`;
     return;
   }
 
   let existingIds = await loadExistingIds(ctx);
+  const draft = await readImportDraft();
   /** @type {any} */
-  let state =
-    readDraft() || {
-      step: 1,
-      batch: null,
-      validation: null,
-      selectedId: null,
-      tab: 'all',
-      dismissed: {},
-      batchAck: false,
-      reportFocus: null,
-    };
+  let state = {
+    step: 1,
+    batch: null,
+    validation: null,
+    selectedId: null,
+    tab: 'all',
+    dismissed: {},
+    batchAck: false,
+    reportFocus: null,
+    pasteText: '',
+  };
 
-  const saveState = () => writeDraft(state, ctx.toast);
+  if (draft?.batch?.questions?.length) {
+    const n = draft.batch.questions.length;
+    const keep = await askConfirm({
+      title: '繼續上次草稿？',
+      message: `上次還有 ${n} 題沒存入。要繼續校對，還是丟掉草稿重新開始？`,
+      okLabel: '繼續',
+      cancelLabel: '丟掉草稿',
+    });
+    if (keep) state = { ...state, ...draft };
+    else await clearImportDraft(ctx.toast);
+  }
+
+  const autosave = createDraftAutosave(() => (state.batch ? state : null), ctx.toast, 1000);
+  const saveState = () => {
+    autosave.schedule();
+  };
 
   function revalidate() {
     state.validation = validateBatch(state.batch, { existingIds });
@@ -316,23 +294,54 @@ export async function renderImport(mount, ctx) {
     }
 
     const left = state.batch.questions.filter((q) => q.review?.status !== 'checked');
-    ctx.toast?.(`已存入 ${saved} 題${left.length ? `，${left.length} 題留在草稿` : ''}`);
     if (left.length) {
       state.batch.questions = left;
       state.batch.batch.expectedCount = left.length;
       revalidate();
       state.step = 2;
       state.selectedId = left[0]?.id || null;
+      await autosave.flush();
+      paint();
+      mount.insertAdjacentHTML(
+        'beforeend',
+        `<div class="import-done empty-next" role="status">
+          <p class="e1">已存入 ${saved} 題，${left.length} 題留在草稿</p>
+          <button type="button" class="btn b1" data-act="continue-left">繼續校對剩下 ${left.length} 題</button>
+          <button type="button" class="btn b2" data-act="import-next">匯入下一批</button>
+          <a class="btn b2" href="#/">去首頁試做</a>
+        </div>`,
+      );
+      mount.querySelector('[data-act=continue-left]')?.addEventListener('click', () => {
+        mount.querySelector('.import-done')?.remove();
+      });
+      mount.querySelector('[data-act=import-next]')?.addEventListener('click', async () => {
+        state.step = 1;
+        state.batch = null;
+        state.validation = null;
+        state.pasteText = '';
+        await autosave.clear();
+        paint();
+      });
     } else {
+      await autosave.clear();
       state.step = 1;
       state.batch = null;
       state.validation = null;
+      paint();
+      mount.insertAdjacentHTML(
+        'beforeend',
+        `<div class="import-done empty-next" role="status">
+          <p class="e1">已存入 ${saved} 題</p>
+          <button type="button" class="btn b1" data-act="import-next">匯入下一批</button>
+          <a class="btn b2" href="#/">去首頁試做</a>
+        </div>`,
+      );
+      mount.querySelector('[data-act=import-next]')?.addEventListener('click', () => paint());
     }
     existingIds = await loadExistingIds(ctx);
-    saveState();
-    paint();
     } catch (err) {
-      ctx.toast?.(err?.message || '存入失敗，請稍後再試');
+      console.error(err);
+      ctx.toast?.(zhFromError(err, 'admin-import'));
       if (saveBtn) {
         saveBtn.dataset.busy = '';
         saveBtn.style.width = '';
@@ -359,7 +368,7 @@ export async function renderImport(mount, ctx) {
       ${flags
         .map(
           (f) =>
-            `<span class="l2 bad flag" data-flag="${escHtml(f)}">${escHtml(flagLabel(f))} <button type="button" class="btn b2 dismiss-flag">我看過了</button></span>`,
+            `<span class="l2 bad flag" data-flag="${escHtml(f)}">${flagHtml(f, state.batch)} <button type="button" class="btn b2 dismiss-flag">我看過了</button></span>`,
         )
         .join('')}
       ${(q.extract?.uncertain || [])
@@ -428,7 +437,7 @@ export async function renderImport(mount, ctx) {
           const span = document.createElement('span');
           span.className = 'l2 bad flag';
           span.dataset.flag = f;
-          span.innerHTML = `${escHtml(flagLabel(f))} <button type="button" class="btn b2 dismiss-flag">我看過了</button>`;
+          span.innerHTML = `${flagHtml(f, state.batch)} <button type="button" class="btn b2 dismiss-flag">我看過了</button>`;
           flagHost.insertBefore(span, flagHost.firstChild?.nextSibling || flagHost.firstChild);
           span.querySelector('.dismiss-flag')?.addEventListener('click', (ev) => {
             ev.stopPropagation();
@@ -542,7 +551,7 @@ export async function renderImport(mount, ctx) {
                 return `<button type="button" class="import-row${state.selectedId === row.id ? ' sel' : ''}" data-qid="${escHtml(row.id)}">
                 <span>${escHtml(row.id)}</span>${cover}${
                   flags.length
-                    ? `<span class="l3">${flags.map((f) => flagLabel(f)).join('、')}</span>`
+                    ? `<span class="l3">${flags.map((f) => flagHtml(f, state.batch)).join('、')}</span>`
                     : ''
                 }
               </button>`;
@@ -593,7 +602,7 @@ export async function renderImport(mount, ctx) {
           ? `<div class="import-work">
         ${
           state.validation?.batchFlags?.length && state.tab !== 'reports'
-            ? `<p class="banner">${state.validation.batchFlags.map((f) => escHtml(flagLabel(f))).join('；')}
+            ? `<p class="banner">${state.validation.batchFlags.map((f) => flagHtml(f, state.batch)).join('；')}
                 ${
                   state.batchAck
                     ? '（已確認）'
@@ -628,6 +637,36 @@ export async function renderImport(mount, ctx) {
       if (!file) return;
       await parseInput(await file.text());
     });
+    {
+      const ta = mount.querySelector('#import-paste');
+      let pasteT = 0;
+      ta?.addEventListener('input', () => {
+        state.pasteText = ta.value;
+        clearTimeout(pasteT);
+        pasteT = setTimeout(() => {
+          try {
+            const data = JSON.parse(ta.value);
+            state.validation = validateBatch(data, { existingIds });
+            const errUl = mount.querySelector('.import-step .err');
+            if (state.validation.schemaErrors?.length) {
+              if (errUl) {
+                errUl.innerHTML = state.validation.schemaErrors.map((e) => `<li>${escHtml(e)}</li>`).join('');
+              } else {
+                mount.querySelector('.import-step')?.insertAdjacentHTML(
+                  'beforeend',
+                  `<ul class="err">${state.validation.schemaErrors.map((e) => `<li>${escHtml(e)}</li>`).join('')}</ul>`,
+                );
+              }
+            } else {
+              errUl?.remove();
+            }
+            saveState();
+          } catch {
+            /* 輸入中：不強制清文字 */
+          }
+        }, 500);
+      });
+    }
     mount.querySelector('#import-parse')?.addEventListener('click', async () => {
       const btn = mount.querySelector('#import-parse');
       if (btn?.dataset.busy === '1') return;
@@ -641,7 +680,7 @@ export async function renderImport(mount, ctx) {
       try {
         await parseInput(text);
       } catch {
-        ctx.toast?.('JSON 格式不正確，請檢查後再貼一次');
+        ctx.toast?.(ERR.jsonBad);
         if (btn) {
           btn.dataset.busy = '';
           btn.disabled = false;
