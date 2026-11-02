@@ -296,11 +296,6 @@ function createSession(opts) {
     }
   }
 
-  function hint(answered) {
-    if (!answered) return '<kbd>↑↓</kbd> 選擇 · <kbd>空白鍵</kbd> 確定';
-    return `<kbd>空白鍵</kbd> ${i === qs.length - 1 ? '看結果' : '下一題'}`;
-  }
-
   function optEls() {
     return [...stageEl.querySelectorAll('.opt')];
   }
@@ -340,7 +335,6 @@ function createSession(opts) {
       ${groupPassageHtml(group, { collapsed: true })}
       ${stemHtml(q)}
       ${optionsHtml(q, a >= 0 ? a : null, { revealed, mode })}
-      <p class="kb-hint" data-el="kbh" aria-hidden="true">${hint(a >= 0)}</p>
       <div class="fb-slot" data-el="fb" aria-live="polite">${
         revealed ? feedbackHtml(q, a, { onReport: !!opts.onReport, reported: reported.has(q.id) }) : ''
       }</div>
@@ -392,8 +386,6 @@ function createSession(opts) {
       b.tabIndex = j === k ? 0 : -1;
       b.querySelector('.mk').innerHTML = j === q.answer ? ICON.ok : j === k ? ICON.bad : '';
     });
-    const kbh = stageEl.querySelector('[data-el="kbh"]');
-    if (kbh) kbh.innerHTML = hint(true);
     const fb = stageEl.querySelector('[data-el="fb"]');
     if (fb) {
       fb.innerHTML = feedbackHtml(q, k, {

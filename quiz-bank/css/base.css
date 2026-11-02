@@ -236,10 +236,6 @@ body[data-view=result] .bar{transform:translateY(110%);opacity:0;pointer-events:
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));z-index:50;transform:translate(-50%,8px);opacity:0;pointer-events:none;padding:10px 16px;border-radius:999px;background:var(--toast-bg);color:var(--toast-fg);font-size:14px;box-shadow:var(--pop-shadow);transition:opacity .2s var(--ease-in),transform .2s var(--ease-in);max-width:calc(100vw - 32px);text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0);transition:opacity .3s var(--ease-out),transform .4s var(--spring)}
 /* 鍵盤：提示（只在有滑鼠的裝置出現） */
-/* 鍵盤提示：只在精確指標＋hover 裝置顯示（手機／觸控隱藏） */
-.kb-hint{display:none!important;margin:10px 2px 0;font-size:12.5px;line-height:1.5;color:var(--mute);letter-spacing:.04em}
-.kb-hint kbd{font:inherit;font-size:11.5px;padding:0 5px;margin:0 1px;border-radius:4px;box-shadow:inset 0 0 0 1px var(--line-strong)}
-@media (hover:hover) and (pointer:fine){.kb-hint{display:block!important}}
 .opt:focus-visible{outline:none}
 /* 換題：立刻出現，不做進／出場過渡 */
 @media (prefers-reduced-motion:reduce){

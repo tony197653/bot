@@ -743,16 +743,19 @@ try {
     await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
       waitUntil: 'networkidle',
     });
-    await page.waitForSelector('[data-el="kbh"]', { state: 'attached' });
-    const hintCss = await page.locator('[data-el="kbh"]').evaluate((el) => {
-      const cs = getComputedStyle(el);
-      return { display: cs.display, aria: el.getAttribute('aria-hidden') };
+    await page.waitForSelector('.opt');
+    const hintGone = await page.evaluate(() => {
+      const el = document.querySelector('.kb-hint, [data-el=kbh]');
+      const nodes = [...document.querySelectorAll('p,span,div,small')].filter((n) => {
+        if (n.closest('.bar, [aria-hidden=true], script, style')) return false;
+        const t = (n.textContent || '').trim();
+        return /^空白鍵/.test(t) || /空白鍵\s*(下一題|確定|看結果)/.test(t);
+      });
+      return { el: !!el, nodes: nodes.map((n) => (n.textContent || '').trim().slice(0, 40)) };
     });
-    if (hintCss.display !== 'none') {
-      throw new Error(`kb-hint should be hidden on touch 390, got ${hintCss.display}`);
-    }
-    if (hintCss.aria !== 'true') throw new Error('kb-hint must be aria-hidden');
-    pass('keyboard hint hidden at 390 touch');
+    if (hintGone.el) throw new Error('kb-hint element still in DOM');
+    if (hintGone.nodes.length) throw new Error(`空白鍵 hint text still visible: ${JSON.stringify(hintGone.nodes)}`);
+    pass('keyboard hint removed (shortcuts still tested elsewhere)');
     await page.close();
   }
 
@@ -767,9 +770,8 @@ try {
       waitUntil: 'networkidle',
     });
     await page.waitForSelector('.opt');
-    const hintBefore = await page.locator('[data-el="kbh"]').evaluate((el) => getComputedStyle(el).display);
-    if (hintBefore !== 'none') {
-      throw new Error(`kb-hint visible on touch 360 before answer: ${hintBefore}`);
+    if (await page.locator('.kb-hint, [data-el=kbh]').count()) {
+      throw new Error('kb-hint still in DOM @360');
     }
     await page.locator(`.opt[data-k="${batch.questions[0].answer}"]`).click();
     await page.waitForSelector('.qcard.revealed');
@@ -814,7 +816,7 @@ try {
         nextOutlineW: ncs.outlineWidth,
         nextShadow: ncs.boxShadow,
         samples,
-        hintDisplay: getComputedStyle(document.querySelector('[data-el="kbh"]')).display,
+        hasHint: !!document.querySelector('.kb-hint, [data-el=kbh]'),
       };
     });
     if (afterTap.alpha < 0.999) {
@@ -836,8 +838,8 @@ try {
     if (afterTap.nextOutline !== 'none' && parseFloat(afterTap.nextOutlineW) > 0) {
       throw new Error(`next shows outline after tap: ${JSON.stringify(afterTap)}`);
     }
-    if (afterTap.hintDisplay !== 'none') {
-      throw new Error(`kb-hint still visible after answer on touch: ${afterTap.hintDisplay}`);
+    if (afterTap.hasHint) {
+      throw new Error(`kb hint still present after answer: ${JSON.stringify(afterTap)}`);
     }
     // wrap 底墊須 ≥ bar 高度；捲到文件底時回報鈕須完全在 bar 上方
     const padOk = await page.evaluate(() => {
