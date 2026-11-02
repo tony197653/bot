@@ -88,15 +88,16 @@ body{
 .b4:focus-visible{outline:2px solid var(--slate);outline-offset:3px}
 .b4:disabled{background:#ECEEF0;color:#A7AEB6}
 
-/* B1 圓形送出／停止 */
+/* B1 圓形送出／停止（色票對齊元件庫 P3／P4 下一步） */
 .b1-icon{
   width:44px;height:44px;min-height:44px;padding:0;border-radius:999px;
-  background:var(--black);color:#fff;flex:none;
+  background:var(--sage-deep);color:#fff;flex:none;opacity:1;
+  transition:background-color .22s var(--ease),opacity .22s var(--ease),transform .12s var(--ease);
 }
-@media (hover:hover){.b1-icon:hover{background:#3A3C37}}
-.b1-icon:active{transform:scale(.97)}
-.b1-icon:focus-visible{outline:2px solid var(--black);outline-offset:3px}
-.b1-icon:disabled{background:#C9CBC4;color:#F3F3EF}
+@media (hover:hover){.b1-icon:not(:disabled):hover{background:#454F40}}
+.b1-icon:not(:disabled):active{background:#3B4436;transform:scale(.97)}
+.b1-icon:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.b1-icon:disabled{background:var(--sage-deep);color:#fff;opacity:.55}
 .b1-icon .ico{width:18px;height:18px;display:block}
 .b1-icon[data-mode="stop"] .ico-send{display:none}
 .b1-icon[data-mode="send"] .ico-stop{display:none}
@@ -232,5 +233,5 @@ body{
   .sk::after{animation:none}
   .cursor{animation:none;opacity:1}
   .toast{transition:none}
-  .b1-icon:active,.b2:active,.b4:active{transform:none}
+  .b1-icon:not(:disabled):active,.b2:active,.b4:active{transform:none}
 }
