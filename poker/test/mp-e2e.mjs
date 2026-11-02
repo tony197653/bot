@@ -1012,6 +1012,10 @@ async function runMineCardStates(browser, base, viewport, label) {
     };
   });
   await host.page.evaluate(() => document.getElementById('mpMenuBtn')?.click());
+  await host.page.screenshot({
+    path: join(ART, `mp-${label}-lobby-empty-r5.png`),
+    fullPage: true,
+  });
   const { roomId, code } = await createAndShare(host);
   await host.page.evaluate(() => window.__qaLeaveToLobby());
   await host.page.waitForSelector('.mp-mine.is-host, .mp-mine', { timeout: 15000 });
