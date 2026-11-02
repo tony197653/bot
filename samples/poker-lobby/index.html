@@ -188,11 +188,11 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 .ntc .nt{font-size:14.5px;font-weight:700;line-height:1.45}
 .ntc .nd{font-size:13px;color:var(--mute);line-height:1.5;margin-top:2px}
 .ntc .nd:empty{display:none}
-.ntc .na{display:inline-flex;align-items:center;min-height:36px;margin-top:6px;padding:0 12px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;color:var(--accent);border:1px solid rgba(230,191,90,.45);background:rgba(230,191,90,.1);transition:background-color var(--t) var(--ease),border-color var(--t) var(--ease)}
+.ntc .na{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:88px;margin-top:8px;padding:0 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:700;color:var(--accent);border:1px solid rgba(230,191,90,.45);background:transparent;transition:background-color var(--t) var(--ease),border-color var(--t) var(--ease)}
 .ntc .na[hidden]{display:none}
 .ntc .nx{width:44px;height:44px;margin:-10px 0 -10px;display:grid;place-items:center;border-radius:var(--radius-sm);color:var(--mute);transition:color var(--t) var(--ease),background-color var(--t) var(--ease)}
 .ntc .nx svg{width:16px;height:16px}
-@media (hover:hover) and (pointer:fine){.ntc .nx:hover{color:var(--ink);background:rgba(214,180,90,.08)}.ntc .na:hover{background:rgba(230,191,90,.18)}}
+@media (hover:hover) and (pointer:fine){.ntc .nx:hover{color:var(--ink);background:rgba(214,180,90,.08)}.ntc .na:hover{background:rgba(230,191,90,.1);border-color:rgba(230,191,90,.65)}}
 .ntc .nx:active,.ntc .na:active{background:rgba(16,27,20,.9);transition-duration:.06s}
 .ntc .bar{position:absolute;left:14px;right:14px;bottom:0;height:2px;border-radius:2px;background:rgba(214,180,90,.5);opacity:0}
 
@@ -200,7 +200,8 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 .empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:18px 16px 22px}
 .empty svg{width:132px;height:88px;margin-bottom:6px}
 .empty h3{font-size:15px;font-weight:700}
-.empty p{font-size:13px;color:var(--mute)}
+.empty p{font-size:13px;line-height:1.5;color:var(--mute)}
+.empty .btn-primary{width:auto;min-width:200px;margin-top:10px}
 
 /* ── 主按鈕：開新牌桌 ── */
 .btn-primary{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;padding:0 20px;border-radius:var(--radius-md);
@@ -261,6 +262,24 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 .ranks li{display:flex;justify-content:space-between;gap:12px;font-size:14px}
 
 [hidden]{display:none!important}
+
+/* r5 手機字級（紅線 7）：正文 ≥16、次要 ≥14、標籤 ≥13；頂部列不動 */
+@media (max-width:600px){
+  .panel-h h2,.sec-h h2,.row b,.my b,.empty h3{font-size:16px}
+  .ntc .nt,.ntc .nd,.ntc .na,.empty p,.join label.lbl,.join .sub,.hint,.ranks li,.my .act,.toast{font-size:16px}
+  .ntc .nt,.ntc .nd,.empty p,.hint{line-height:1.5}
+  .row em,.my em,.seats{font-size:14px}
+  .panel-h span,.sec-h span,.tag,.my .lbl3,.row .blinds small,.my .chips-n small{font-size:13px}
+  .tag,.my .lbl3{line-height:20px}
+  .row{gap:10px;padding:10px 8px}
+  .row .l1{gap:5px}
+  .tag{padding:0 5px}
+  .status{font-size:16px;height:24px;line-height:24px}
+  .status .ico{width:16px;height:16px}
+  .hint{margin-top:-4px}
+}
+/* 空狀態時，單欄版的主按鈕就在空狀態按鈕正下方，收起避免兩顆一樣的；雙欄保留 */
+@media (max-width:1023px){.is-empty #btnCreate{display:none}}
 
 @media (min-width:1024px){
   .shell{max-width:1080px;padding:28px 32px}
@@ -327,8 +346,11 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
             <rect x="68" y="37" width="12" height="16" rx="2" stroke="rgba(243,234,210,.6)" stroke-width="1.4"/>
             <path d="M108 16v6M105 19h6" stroke="rgba(230,191,90,.7)" stroke-width="1.4"/><circle cx="22" cy="20" r="2.5" stroke="rgba(201,191,159,.6)" stroke-width="1.3"/>
           </svg>
-          <h3>現在沒有牌桌，開一桌吧</h3>
-          <p>開好之後，家人登入就會在這裡看到。</p>
+          <h3 id="emH">現在沒有牌桌，開一桌吧</h3>
+          <p id="emP">開好之後，家人登入就會在這裡看到。</p>
+          <button type="button" class="btn-primary" id="btnCreateE">
+            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 3.5v11M3.5 9h11"/></svg>開新牌桌
+          </button>
         </div>
       </section>
 
@@ -507,6 +529,15 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
     list.hidden = on;
     document.getElementById('openEmpty').hidden = !on;
     document.getElementById('openN').textContent = on ? 0 : tables.length;
+    document.body.classList.toggle('is-empty', on);
+    syncEmpty();
+  }
+  /* 空狀態的下一步：能開桌就給「開新牌桌」；房主（已有自己的桌）改說明，下一步是上面的我的牌桌卡 */
+  function syncEmpty() {
+    const can = !document.getElementById('btnCreate').hidden;
+    document.getElementById('btnCreateE').hidden = !can;
+    document.getElementById('emH').textContent = can ? '現在沒有牌桌，開一桌吧' : '現在沒有其他牌桌';
+    document.getElementById('emP').textContent = can ? '開好之後，家人登入就會在這裡看到。' : '家人開桌後會出現在這裡；回你的牌桌請點上面的卡片。';
   }
 
   /* ── 點列：回座／進桌觀戰 ── */
@@ -518,19 +549,20 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
     flash(null, t.seated >= 6 ? `（樣張）進入「${t.name}」觀戰` : `（樣張）進入「${t.name}」，點空位入座`);
   });
 
-  /* ── 通知 toast：5 秒自動消失，滑過或聚焦時暫停 ── */
+  /* ── 通知 toast：一般 5 秒自動消失（滑過或聚焦時暫停）；sticky（已自動離座）不自動關，要按「知道了」或 ✕ ── */
   const ntc = document.getElementById('ntc'), nT = document.getElementById('ntcT'), nD = document.getElementById('ntcD'), nA = document.getElementById('ntcA');
-  let nTimer = 0, nAct = null;
+  let nTimer = 0, nAct = null, nSticky = false;
   const NTC_MS = 5000;
   const hideNtc = () => { clearTimeout(nTimer); ntc.classList.remove('on'); };
-  const armNtc = () => { clearTimeout(nTimer); nTimer = setTimeout(hideNtc, NTC_MS); };
-  function notify(title, desc = '', action = null) {
+  const armNtc = () => { clearTimeout(nTimer); if (!nSticky) nTimer = setTimeout(hideNtc, NTC_MS); };
+  function notify(title, desc = '', action = null, opt = {}) {
     nT.textContent = title; nD.textContent = desc;
     nAct = action; nA.hidden = !action; if (action) nA.textContent = action.label;
+    nSticky = !!opt.sticky || !!action; ntc.dataset.sticky = nSticky ? '1' : '';
     ntc.classList.add('on'); armNtc();
   }
   document.getElementById('ntcX').addEventListener('click', hideNtc);
-  nA.addEventListener('click', () => { hideNtc(); nAct && nAct.run(); });
+  nA.addEventListener('click', () => { hideNtc(); nAct && nAct.run && nAct.run(); });
   ntc.addEventListener('pointerenter', () => clearTimeout(nTimer));
   ntc.addEventListener('pointerleave', () => { if (ntc.classList.contains('on')) armNtc(); });
   ntc.addEventListener('focusin', () => clearTimeout(nTimer));
@@ -564,7 +596,7 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
     clearTimeout(busyT); stl.removeAttribute('aria-busy');
     my.removeAttribute('aria-busy'); mine.classList.remove('attn'); mine.hidden = d.k === 'none';
     toast.classList.remove('on'); closeMenu(false);
-    btn.hidden = !d.btn;
+    btn.hidden = !d.btn; syncEmpty();
     const tab = d.k === 'none' ? 0 : d.chips;
     setAmt(bAcc, TOTAL - tab, animate); setAmt(bTab, tab, animate);
     document.getElementById('amtAcc').setAttribute('aria-label', `帳戶 ${fmt(TOTAL - tab)}`);
@@ -639,6 +671,7 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
     else flash(null, `（樣張）${el.textContent.trim()}`);
   }));
 
+  document.getElementById('btnCreateE').addEventListener('click', () => btn.click());
   btn.addEventListener('click', () => {
     if (cur === 'guest') {
       const d = MY.guest;
@@ -653,7 +686,7 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
   const qs = new URLSearchParams(location.search);
   const k0 = MY[qs.get('state')] ? qs.get('state') : 'guest';
   render(k0);
-  if (k0 === 'away') notify('你暫離超過 30 分鐘，已自動離座，籌碼已回帳戶');
+  if (k0 === 'away') notify('你暫離超過 30 分鐘，已自動離座，籌碼已回帳戶', '', { label: '知道了' }, { sticky: true });
   if (qs.get('empty') === '1') setEmpty(true);
 
   window.__demo = { setEmpty, B, tables, setSeated, render, notify, hideNtc, NTC_MS, openMenu, closeMenu, stop: () => clearInterval(tick) };
