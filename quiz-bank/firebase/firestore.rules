@@ -14,35 +14,6 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/allow/$(request.auth.token.email)).data.role == "admin";
     }
 
-    function validStat(d) {
-      return d.keys().hasOnly([
-          'unitCode', 'subject', 'tries', 'correct', 'wrong',
-          'streak', 'inWrongBook', 'manualOut', 'lastAnswer', 'lastAt'
-        ])
-        && d.keys().hasAll([
-          'unitCode', 'subject', 'tries', 'correct', 'wrong',
-          'streak', 'inWrongBook', 'manualOut', 'lastAnswer', 'lastAt'
-        ])
-        && d.unitCode is string && d.unitCode.size() > 0 && d.unitCode.size() <= 32
-        && d.subject is string && d.subject in ['math', 'sci', 'chi', 'eng', 'soc']
-        && d.tries is int && d.tries >= 1 && d.tries <= 100000
-        && d.correct is int && d.correct >= 0
-        && d.wrong is int && d.wrong >= 0
-        && d.correct + d.wrong == d.tries
-        && d.streak is int && d.streak >= 0 && d.streak <= d.tries
-        && d.inWrongBook is bool
-        && d.manualOut is bool
-        && d.lastAnswer is int && d.lastAnswer >= -1 && d.lastAnswer <= 3
-        && d.lastAt == request.time;
-    }
-
-    function manualOutOnly() {
-      return request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['inWrongBook', 'manualOut', 'lastAt'])
-        && request.resource.data.inWrongBook == false
-        && request.resource.data.manualOut == true;
-    }
-
     function validAttempt(d) {
       return d.keys().hasOnly([
           'scope', 'mode', 'qids', 'answers', 'correct', 'total',
@@ -54,7 +25,7 @@ service cloud.firestore {
         ])
         && d.scope is map
         && d.scope.keys().hasAll(['type'])
-        && d.scope.type in ['round', 'unit', 'wrong', 'retry', 'fav']
+        && d.scope.type in ['round', 'unit', 'retry']
         && d.mode in ['instant', 'exam']
         && d.qids is list && d.answers is list
         && d.qids.size() == d.total
@@ -78,15 +49,6 @@ service cloud.firestore {
         && d.note is string && d.note.size() <= 200
         && d.status == 'open'
         && d.at == request.time;
-    }
-
-    function validFav(d) {
-      return d.keys().hasOnly(['bookId', 'subject', 'unitCode', 'addedAt'])
-        && d.keys().hasAll(['bookId', 'subject', 'unitCode', 'addedAt'])
-        && d.bookId is string && d.bookId.size() >= 1 && d.bookId.size() <= 40
-        && d.subject is string && d.subject.size() >= 1 && d.subject.size() <= 40
-        && d.unitCode is string && d.unitCode.size() >= 1 && d.unitCode.size() <= 40
-        && d.addedAt == request.time;
     }
 
     match /allow/{email} {
@@ -116,34 +78,6 @@ service cloud.firestore {
         && request.auth.uid == uid
         && validAttempt(request.resource.data);
       allow update, delete: if false;
-    }
-
-    match /users/{uid}/qstats/{q} {
-      allow read: if allowed() && request.auth.uid == uid;
-      allow create: if allowed()
-        && request.auth.uid == uid
-        && validStat(request.resource.data)
-        && request.resource.data.tries == 1;
-      allow update: if allowed()
-        && request.auth.uid == uid
-        && validStat(request.resource.data)
-        && (
-          (
-            request.resource.data.tries == resource.data.tries + 1
-            && request.resource.data.correct - resource.data.correct in [0, 1]
-          )
-          || manualOutOnly()
-        );
-      allow delete: if false;
-    }
-
-    match /users/{uid}/favorites/{q} {
-      allow read: if allowed() && request.auth.uid == uid;
-      allow create: if allowed()
-        && request.auth.uid == uid
-        && validFav(request.resource.data);
-      allow delete: if allowed() && request.auth.uid == uid;
-      allow update: if false;
     }
 
     match /reports/{r} {

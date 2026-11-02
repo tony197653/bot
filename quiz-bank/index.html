@@ -26,11 +26,9 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><line class="l1" x1="5" y1="7" x2="19" y2="7"/><line class="l2" x1="5" y1="12" x2="19" y2="12"/><line class="l3" x1="5" y1="17" x2="19" y2="17"/></svg>
           </button>
           <a class="blink" href="#/" data-route="home" aria-label="考題網 首頁"><span class="bmark" aria-hidden="true">考</span><span class="bname" aria-hidden="true">考題網</span></a>
-          <nav class="app-nav" aria-label="主要">
+          <nav class="app-nav" aria-label="主要" data-desk-nav>
             <a href="#/" data-route="home">首頁</a>
-            <a href="#/wrong" data-route="wrong">錯題本</a>
-            <a href="#/fav" data-route="fav">收藏夾</a>
-            <a href="#/import" data-route="import" data-admin-only hidden>匯入</a>
+            <a href="#/import" data-route="import" data-admin-only hidden>匯入校對</a>
           </nav>
         </div>
         <div class="nav-user m1">
@@ -49,8 +47,6 @@
   <div class="drawer-backdrop" aria-hidden="true"></div>
   <aside class="app-drawer" id="app-drawer" aria-hidden="true" aria-label="導覽">
     <a href="#/" data-route="home">首頁</a>
-    <a href="#/wrong" data-route="wrong">錯題本</a>
-    <a href="#/fav" data-route="fav">收藏夾</a>
     <a href="#/import" data-route="import" data-admin-only hidden>匯入校對</a>
     <button type="button" class="btn b2" id="btn-signout">登出</button>
   </aside>

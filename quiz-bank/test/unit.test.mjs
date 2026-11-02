@@ -1,19 +1,17 @@
 /**
- * 單元測試：§5.6 摘要、強弱門檻、錯題本文案、合併尚未練習。
+ * 單元測試：§5.6 摘要、attemptId／待傳佇列、科目標籤（v1.4.1）。
  */
 import { formatRoundSummary, taipeiStamp, shortenWrongIds } from '../js/summary.js';
 import {
-  computeStrength,
-  mergeKnownUnits,
-  sortStrengthRows,
-  attemptIdFor,
+  newAttemptId,
   enqueueAttempt,
   listPending,
   hasPending,
   flushPending,
   pendingKey,
+  computeByUnit,
 } from '../js/stats.js';
-import { wrongPracticeLabel, formatUnitsExportText, SUBJECT_LABELS } from '../js/views.js';
+import { SUBJECT_LABELS } from '../js/views.js';
 import { flagLabel, reportReasonLabel } from '../js/schema.js';
 
 let failed = 0;
@@ -25,7 +23,7 @@ function fail(n, e) {
   console.error('FAIL', n, e);
 }
 
-// §5.6 copy
+// §5.6 copy helpers（結算頁不再顯示複製鈕，摘要函式仍供待傳／除錯）
 {
   if (
     shortenWrongIds(['hl-m9a-m9-2-r3-q04', 'hl-m9a-m9-2-r3-q09', 'hl-m9a-m9-2-r3-q15']) !==
@@ -72,93 +70,29 @@ function fail(n, e) {
     fail('summary line', lines[1]);
   } else pass('§5.6 書｜單元｜模式｜分數｜用時');
 
-  // answers wrong on idx 1,2,3 → 第 2、3、4 題（…q02、q04、q09）
   if (!lines[3].includes('（hl-m9a-m9-2-r3-q02、q04、q09）')) fail('summary wrong short ids', lines[3]);
   else pass('§5.6 錯題 short ids');
 }
 
-// strength thresholds §9.11
-{
-  const attempts = [
-    {
-      total: 10,
-      correct: 5,
-      byUnit: {
-        A: { unit: 'A', subject: 'math', correct: 5, total: 10 }, // 50% weak
-        B: { unit: 'B', subject: 'math', correct: 6, total: 10 }, // 60% mid
-        C: { unit: 'C', subject: 'math', correct: 9, total: 10 }, // 90% good
-        D: { unit: 'D', subject: 'math', correct: 2, total: 3 }, // low sample
-      },
-    },
-  ];
-  const rows = computeStrength(attempts);
-  const by = Object.fromEntries(rows.map((r) => [r.unitCode, r]));
-  if (by.A.label !== '需加強' || by.B.label !== '部分掌握' || by.C.label !== '掌握') {
-    fail('strength labels', rows);
-  } else pass('§9.11 strength thresholds');
-  if (!by.D.lowSample) fail('lowSample', by.D);
-  else pass('§9.11 題數少 <5');
-
-  const merged = mergeKnownUnits(rows, [
-    { unitCode: 'E', name: '未練單元', subject: 'math', bookId: 'b1' },
-  ]);
-  const e = merged.find((r) => r.unitCode === 'E');
-  if (!e || e.label !== '尚未練習') fail('尚未練習', e);
-  else pass('尚未練習 from known units');
-
-  const sorted = sortStrengthRows(merged, 'rate', 'asc');
-  const last = sorted[sorted.length - 1];
-  if (last.unitCode !== 'E') fail('unpracticed last', sorted.map((s) => s.unitCode));
-  else pass('sort unpracticed last');
-}
-
-// wrong book label §9.19
-{
-  if (wrongPracticeLabel(0) !== '目前沒有錯題') fail('label0');
-  else if (wrongPracticeLabel(7) !== '練這 7 題') fail('label7');
-  else if (wrongPracticeLabel(12) !== '練 10 題（共 12 題）') fail('label12');
-  else pass('§9.19 wrong practice label');
-}
-
-// §9.12 複製給家教：理化＋最常錯的 5 題
 {
   if (SUBJECT_LABELS.sci !== '理化') fail('sci label', SUBJECT_LABELS.sci);
-  else pass('§9.12 subject 理化');
-  const text = formatUnitsExportText({
-    strengthRows: [
-      {
-        subject: 'sci',
-        unitCode: 'P9-3',
-        unit: '功與能',
-        total: 10,
-        correct: 4,
-        rate: 0.4,
-        status: 'weak',
-        lowSample: false,
-        label: '需加強',
-      },
-    ],
-    wrongBySubject: { sci: 2 },
-    recentAttempts: [],
-    topWrong: [
-      { qid: 'hl-p9a-p9-3-r2-q05', wrong: 3 },
-      { qid: 'hl-p9a-p9-3-r2-q06', wrong: 2 },
-    ],
-  });
-  if (!text.includes('理化')) fail('export missing 理化', text);
-  else if (!text.includes('最常錯的 5 題：hl-p9a-p9-3-r2-q05（錯 3 次）')) fail('export top wrong', text);
-  else pass('§9.12 export 最常錯的 5 題');
+  else pass('subject 理化');
 }
 
-// I-3b：固定 attemptId＋入隊去重；空 flush 不算成功
 {
-  const uid = 'unit-test-uid';
-  try {
-    localStorage?.clear?.();
-  } catch {
-    /* node：用假 storage */
-  }
-  // Node 無 localStorage：shim
+  const qs = [
+    { unitCode: 'M9-2', unit: '一元二次', subject: 'math', answer: 0 },
+    { unitCode: 'M9-2', unit: '一元二次', subject: 'math', answer: 1 },
+    { unitCode: 'P9-1', unit: '功', subject: 'sci', answer: 2 },
+  ];
+  const by = computeByUnit(qs, [0, 0, 2]);
+  if (by['M9-2']?.correct !== 1 || by['M9-2']?.total !== 2) fail('byUnit M9-2', by);
+  else if (by['P9-1']?.correct !== 1 || by['P9-1']?.total !== 1) fail('byUnit P9-1', by);
+  else pass('computeByUnit');
+}
+
+// v1.4：UUID attemptId＋指紋去重；空 flush 不算成功
+{
   if (typeof globalThis.localStorage === 'undefined') {
     const mem = new Map();
     globalThis.localStorage = {
@@ -169,6 +103,12 @@ function fail(n, e) {
     };
   }
   localStorage.clear();
+  const idA = newAttemptId();
+  const idB = newAttemptId();
+  if (!idA || idA === idB) fail('newAttemptId unique', { idA, idB });
+  else pass('newAttemptId unique');
+
+  const uid = 'unit-test-uid';
   const result = {
     startedAt: 1000,
     endedAt: 2000,
@@ -179,24 +119,18 @@ function fail(n, e) {
     answers: [0, 1],
     mode: 'instant',
   };
-  const id1 = attemptIdFor(result);
-  const id2 = attemptIdFor({ ...result });
-  if (id1 !== id2 || !id1.startsWith('att_')) fail('attemptIdFor stable', id1);
-  else pass('I-3b attemptIdFor stable');
-
   const meta = { scope: { type: 'round' }, mode: 'instant', questions: [] };
   const p1 = enqueueAttempt(uid, result, meta);
   const p2 = enqueueAttempt(uid, result, meta);
   const list = listPending(uid);
   if (list.length !== 1 || p1.attemptId !== p2.attemptId) fail('enqueue dedupe', list);
   else if (!hasPending(uid, p1.attemptId)) fail('hasPending');
-  else pass('I-3b enqueueAttempt dedupe by attemptId');
+  else pass('enqueueAttempt fingerprint dedupe');
 
-  // 空佇列 flush（清掉後）
   localStorage.setItem(pendingKey(uid), '[]');
   const empty = await flushPending(uid);
   if (empty.flushed !== 0 || empty.failed !== 0) fail('empty flush', empty);
-  else pass('I-3 empty flush is not success (flushed=0)');
+  else pass('empty flush is not success (flushed=0)');
 }
 
 {

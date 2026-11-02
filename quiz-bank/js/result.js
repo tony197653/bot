@@ -37,13 +37,10 @@ function unitStatus(correct, total) {
  *  summaryPrefix?: string,
  *  getSummaryText?: () => string,
  *  summaryTextFn?: () => string,
- *  wrongBookDelta?: number,
  *  cloudStatus?: 'ok'|'pending'|'error',
  *  onRetryWrong: () => void,
  *  onRestart: () => void,
  *  onHome: () => void,
- *  onBackFav?: () => void,
- *  onCopySummary?: (text: string) => void,
  *  onRetryCloud?: () => void,
  *  onReport?: (payload: {qid:string, reason:string, note:string}) => Promise<void>|void,
  *  reportedIds?: Set<string>|string[],
@@ -64,17 +61,6 @@ export function showResult(opts) {
         : r.score >= 60
           ? '及格了，把錯題再練一次會更穩。'
           : '先看下面的詳解，再練一次錯題。';
-
-  const delta =
-    opts.wrongBookDelta == null
-      ? wrongN
-        ? `${wrongN} 題加入`
-        : '沒有變化'
-      : opts.wrongBookDelta > 0
-        ? `${opts.wrongBookDelta} 題加入`
-        : opts.wrongBookDelta < 0
-          ? `${Math.abs(opts.wrongBookDelta)} 題移出`
-          : '沒有變化';
 
   const cloudBanner =
     opts.cloudStatus === 'auth'
@@ -106,7 +92,6 @@ export function showResult(opts) {
     <div class="stats">
       <div class="stat"><span>答對</span><b>${r.correct} / ${r.total}</b></div>
       <div class="stat"><span>用時</span><b>${fmtT(ms)}</b></div>
-      <div class="stat"><span>錯題本</span><b>${delta}</b></div>
     </div>
     <div class="r-grid">
       <section class="panel units">
@@ -170,13 +155,7 @@ export function showResult(opts) {
         wrongN ? `再練錯的 ${wrongN} 題` : '再做一回'
       }</button>
       <button type="button" class="btn b2" data-act="restart">從頭再做</button>
-      <button type="button" class="btn b2" data-act="copy">複製摘要</button>
       <button type="button" class="btn b2" data-act="home">回首頁</button>
-      ${
-        typeof opts.onBackFav === 'function'
-          ? '<button type="button" class="btn b2" data-act="back-fav">回收藏夾</button>'
-          : ''
-      }
     </div>
     <dialog class="report-dlg" data-el="resultReportDlg">
       <form method="dialog" class="report-form">
@@ -241,31 +220,6 @@ export function showResult(opts) {
     if (resultNoteCount) resultNoteCount.textContent = `${resultNote.value.length}/200`;
   });
 
-  function defaultSummaryText() {
-    const d = new Date(r.endedAt || Date.now());
-    const p = (x) => String(x).padStart(2, '0');
-    const prefix = opts.summaryPrefix || r.title || '測驗';
-    const weak = (r.byUnit || []).filter((u) => u.correct / u.total < 0.85);
-    const wrongIds = qs
-      .map((q, n) => (r.answers[n] !== q.answer ? n : -1))
-      .filter((n) => n >= 0);
-    const modeLabel = r.mode === 'exam' ? '交卷才對' : '當場對';
-    return `${prefix}（${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}）
-${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
-弱點單元：${weak.length ? weak.map((u) => `${u.unitCode} ${u.unit} ${u.correct}/${u.total}`).join('、') : '無'}
-錯題：${
-      wrongIds.length
-        ? wrongIds.map((n) => `第 ${n + 1} 題（${qs[n].id}）`).join('、')
-        : '無'
-    }`;
-  }
-
-  function summaryText() {
-    if (typeof opts.getSummaryText === 'function') return opts.getSummaryText();
-    if (typeof opts.summaryTextFn === 'function') return opts.summaryTextFn();
-    return defaultSummaryText();
-  }
-
   async function submitResultReport(qid, reason, note) {
     if (!opts.onReport || reported.has(qid)) return;
     try {
@@ -328,37 +282,8 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
     if (act === 'retry') opts.onRetryWrong();
     else if (act === 'restart') opts.onRestart();
     else if (act === 'home') opts.onHome();
-    else if (act === 'back-fav') opts.onBackFav?.();
     else if (act === 'retry-cloud') opts.onRetryCloud?.();
     else if (act === 'relogin') opts.onRelogin?.();
-    else if (act === 'copy') {
-      const text = summaryText();
-      try {
-        await navigator.clipboard.writeText(text);
-        opts.onCopySummary?.(text);
-        const toast = document.getElementById('app-toast');
-        if (toast) {
-          toast.textContent = '已複製';
-          toast.classList.add('on');
-          setTimeout(() => toast.classList.remove('on'), 2000);
-        }
-      } catch {
-        const ta = opts.mount.querySelector('textarea.summary-fallback');
-        if (ta) {
-          ta.hidden = false;
-          ta.value = text;
-          ta.focus();
-          ta.select();
-        }
-        const toast = document.getElementById('app-toast');
-        if (toast) {
-          toast.textContent = '這個瀏覽器不能自動複製，文字已經全選，請長按複製。';
-          toast.classList.add('on');
-          setTimeout(() => toast.classList.remove('on'), 2800);
-        }
-        opts.onCopySummary?.(text);
-      }
-    }
   };
 
   async function onReportSubmit(e) {
@@ -399,7 +324,6 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
   reportDlg?.addEventListener('submit', onReportSubmit);
 
   return {
-    summaryText,
     destroy() {
       releaseQuiet();
       document.removeEventListener('click', quietGuard, true);

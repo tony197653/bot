@@ -1,5 +1,5 @@
 /**
- * 作答紀錄、錯題本 qstats、強弱表（30 天 attempts.byUnit）、待傳佇列。
+ * 作答紀錄 attempts、待傳佇列（v1.4：只寫 attempt，不寫 qstats）。
  */
 import { getFirebase } from './auth.js';
 import { initFirebase } from './fb.js';
@@ -87,16 +87,21 @@ export function hasPending(uid, attemptId) {
   return list.some((x) => x.attemptId === attemptId);
 }
 
-/**
- * 同一回合固定 client id（idempotent set）。
- * @param {{startedAt:number, endedAt:number, score:number, total:number, qids?:string[]}} result
- */
+/** 前端產生固定 attemptId（idempotent set；重送不會變兩筆） */
+export function newAttemptId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `att_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** @deprecated 舊佇列可能仍帶合成 id；新寫入一律用 newAttemptId() */
 export function attemptIdFor(result) {
   const q0 = (result.qids && result.qids[0]) || 'x';
   return `att_${result.startedAt}_${result.endedAt}_${result.score}_${result.total}_${q0}`;
 }
 
-/** @type {Map<string, Promise<{ok:boolean, wrongBookDelta:number, error?:unknown}>>} */
+/** @type {Map<string, Promise<{ok:boolean, error?:unknown}>>} */
 const inflightSaves = new Map();
 
 function inflightKey(uid, attemptId) {
@@ -136,108 +141,6 @@ export function computeByUnit(questions, answers) {
   return map;
 }
 
-/**
- * @param {Array<{byUnit?:Record<string,{correct:number,total:number,unit?:string,subject?:string}>}>} attempts
- */
-export function computeStrength(attempts) {
-  /** @type {Record<string,{unitCode:string,unit:string,subject:string,correct:number,total:number}>} */
-  const agg = {};
-  for (const att of attempts || []) {
-    const bu = att.byUnit || {};
-    for (const [code, u] of Object.entries(bu)) {
-      if (!agg[code]) {
-        agg[code] = {
-          unitCode: code,
-          unit: u.unit || code,
-          subject: u.subject || 'math',
-          correct: 0,
-          total: 0,
-        };
-      }
-      agg[code].correct += u.correct || 0;
-      agg[code].total += u.total || 0;
-    }
-  }
-  return Object.values(agg)
-    .map((row) => {
-      const rate = row.total ? row.correct / row.total : 0;
-      let status = 'none';
-      let label = '尚未練習';
-      if (row.total > 0) {
-        if (rate >= 0.85) {
-          status = 'good';
-          label = '掌握';
-        } else if (rate >= 0.6) {
-          status = 'mid';
-          label = '部分掌握';
-        } else {
-          status = 'weak';
-          label = '需加強';
-        }
-      }
-      return { ...row, rate, status, label, lowSample: row.total > 0 && row.total < 5 };
-    })
-    .sort((a, b) => {
-      if (!a.total && !b.total) return a.unitCode.localeCompare(b.unitCode);
-      if (!a.total) return 1;
-      if (!b.total) return -1;
-      return a.rate - b.rate;
-    });
-}
-
-/**
- * 把題庫 units 併入強弱列：30 天內沒作答的單元顯示「尚未練習」。
- * @param {object[]} strengthRows
- * @param {{unitCode:string,name?:string,subject?:string,bookId?:string}[]} knownUnits
- */
-export function mergeKnownUnits(strengthRows, knownUnits) {
-  const byCode = Object.fromEntries(strengthRows.map((r) => [r.unitCode, { ...r }]));
-  for (const u of knownUnits || []) {
-    if (!u?.unitCode) continue;
-    if (!byCode[u.unitCode]) {
-      byCode[u.unitCode] = {
-        unitCode: u.unitCode,
-        unit: u.name || u.unitCode,
-        subject: u.subject || 'math',
-        bookId: u.bookId || '',
-        correct: 0,
-        total: 0,
-        rate: 0,
-        status: 'none',
-        label: '尚未練習',
-        lowSample: false,
-      };
-    } else if (u.bookId && !byCode[u.unitCode].bookId) {
-      byCode[u.unitCode].bookId = u.bookId;
-    }
-  }
-  return Object.values(byCode).sort((a, b) => {
-    if (!a.total && !b.total) return a.unitCode.localeCompare(b.unitCode);
-    if (!a.total) return 1;
-    if (!b.total) return -1;
-    return a.rate - b.rate;
-  });
-}
-
-/** 欄頭排序：rate | unit | status；未練排最後 */
-export function sortStrengthRows(rows, key = 'rate', dir = 'asc') {
-  const mul = dir === 'desc' ? -1 : 1;
-  const list = rows.slice();
-  list.sort((a, b) => {
-    const aUn = !a.total;
-    const bUn = !b.total;
-    if (aUn !== bUn) return aUn ? 1 : -1;
-    if (key === 'unit') return mul * a.unitCode.localeCompare(b.unitCode);
-    if (key === 'status') {
-      const order = { weak: 0, mid: 1, good: 2, none: 3 };
-      return mul * ((order[a.status] ?? 9) - (order[b.status] ?? 9));
-    }
-    // rate 預設由低到高
-    return mul * (a.rate - b.rate);
-  });
-  return list;
-}
-
 function cutoff30d() {
   return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 }
@@ -264,25 +167,6 @@ export async function loadAttempts30d(uid, force = false) {
 export function appendAttemptCache(att) {
   if (!cachedAttempts30d) cachedAttempts30d = [];
   cachedAttempts30d.push(att);
-}
-
-/**
- * @param {string} uid
- */
-export async function loadQstatsWrong(uid) {
-  const { db, fs } = await ensureFb();
-  const q = fs.query(
-    fs.collection(db, 'users', uid, 'qstats'),
-    fs.where('inWrongBook', '==', true),
-  );
-  const snap = await fs.getDocs(q);
-  const rows = snap.docs.map((d) => ({ qid: d.id, ...d.data() }));
-  rows.sort((a, b) => {
-    const ta = a.lastAt?.toMillis?.() ?? 0;
-    const tb = b.lastAt?.toMillis?.() ?? 0;
-    return ta - tb;
-  });
-  return rows;
 }
 
 /**
@@ -318,61 +202,12 @@ export async function loadAttemptSummary(uid) {
 }
 
 /**
- * @param {object|null} prev
- * @param {object} q
- * @param {number} answer -1..3
- */
-export function nextQstat(prev, q, answer) {
-  const ok = answer === q.answer;
-  const base = prev || {
-    unitCode: q.unitCode,
-    subject: q.subject,
-    tries: 0,
-    correct: 0,
-    wrong: 0,
-    streak: 0,
-    inWrongBook: false,
-    manualOut: false,
-    lastAnswer: -1,
-  };
-  const tries = base.tries + 1;
-  let correct = base.correct;
-  let wrong = base.wrong;
-  let streak = base.streak;
-  let inWrongBook = base.inWrongBook;
-  let manualOut = base.manualOut;
-
-  if (ok) {
-    correct++;
-    streak++;
-    if (inWrongBook && streak >= 2) inWrongBook = false;
-  } else {
-    wrong++;
-    streak = 0;
-    inWrongBook = true;
-    manualOut = false;
-  }
-
-  return {
-    unitCode: q.unitCode,
-    subject: q.subject,
-    tries,
-    correct,
-    wrong,
-    streak,
-    inWrongBook,
-    manualOut,
-    lastAnswer: answer < 0 ? -1 : answer,
-  };
-}
-
-/**
  * @param {object} result
  * @param {object} meta
  */
-export function buildPendingPayload(result, meta) {
+export function buildPendingPayload(result, meta, existingAttemptId) {
   return {
-    attemptId: attemptIdFor(result),
+    attemptId: existingAttemptId || newAttemptId(),
     result,
     meta,
     savedAt: Date.now(),
@@ -393,8 +228,22 @@ export function enqueuePending(uid, entry) {
   writePending(uid, list);
 }
 
-/** 先入隊（換頁前呼叫），回傳 payload */
+function sameResultFingerprint(a, b) {
+  if (!a || !b) return false;
+  return (
+    a.startedAt === b.startedAt &&
+    a.endedAt === b.endedAt &&
+    a.score === b.score &&
+    a.total === b.total &&
+    JSON.stringify(a.qids || []) === JSON.stringify(b.qids || [])
+  );
+}
+
+/** 先入隊（換頁前呼叫）；同回合指紋重用同一 attemptId，回傳 payload */
 export function enqueueAttempt(uid, result, meta) {
+  const list = readPending(uid);
+  const existing = list.find((x) => sameResultFingerprint(x.result, result));
+  if (existing) return existing;
   const payload = buildPendingPayload(result, meta);
   enqueuePending(uid, payload);
   return payload;
@@ -410,28 +259,28 @@ function removePendingEntry(uid, entry) {
 }
 
 /**
- * 背景上傳與重試共用：同 attemptId 只跑一趟；attempt 用固定 id set（已存在則略過 qstats）。
+ * 背景上傳與重試共用：同 attemptId 只跑一趟；attempt 用固定 id set（已存在＝成功）。
  * @param {string} uid
  * @param {{attemptId:string, result:object, meta:object, savedAt:number}} payload
  */
 export function settleOnce(uid, payload) {
-  const attemptId = payload.attemptId || attemptIdFor(payload.result);
+  const attemptId = payload.attemptId || newAttemptId();
   const key = inflightKey(uid, attemptId);
   const existing = inflightSaves.get(key);
   if (existing) return existing;
 
   const work = (async () => {
     try {
-      const delta = await writeSettlement(uid, payload.result, payload.meta, attemptId);
+      await writeSettlement(uid, payload.result, payload.meta, attemptId);
       clearProgress(uid);
       removePendingEntry(uid, { ...payload, attemptId });
       const att = await buildAttemptDoc(payload.result, payload.meta);
       att.id = attemptId;
       att.at = { toMillis: () => Date.now() };
       appendAttemptCache(att);
-      return { ok: true, wrongBookDelta: delta };
+      return { ok: true };
     } catch (e) {
-      return { ok: false, error: e, wrongBookDelta: 0 };
+      return { ok: false, error: e };
     }
   })().finally(() => {
     inflightSaves.delete(key);
@@ -457,7 +306,7 @@ export async function saveAttempt(uid, result, meta) {
  * @param {object} result
  * @param {object} meta
  * @param {number} [ms]
- * @param {{onSuccess?:(delta:number)=>void}} [hooks]
+ * @param {{onSuccess?:()=>void}} [hooks]
  * @param {{attemptId:string, result:object, meta:object, savedAt:number}} [existingPayload]
  */
 export async function saveAttemptWithTimeout(
@@ -472,7 +321,7 @@ export async function saveAttemptWithTimeout(
   const work = settleOnce(uid, payload);
 
   const timed = await new Promise((resolve) => {
-    const t = setTimeout(() => resolve({ ok: false, timedOut: true, wrongBookDelta: 0 }), ms);
+    const t = setTimeout(() => resolve({ ok: false, timedOut: true }), ms);
     work.then(
       (v) => {
         clearTimeout(t);
@@ -480,16 +329,16 @@ export async function saveAttemptWithTimeout(
       },
       () => {
         clearTimeout(t);
-        resolve({ ok: false, timedOut: false, wrongBookDelta: 0 });
+        resolve({ ok: false, timedOut: false });
       },
     );
   });
 
   if (timed.ok) {
-    hooks.onSuccess?.(timed.wrongBookDelta || 0);
+    hooks.onSuccess?.();
   } else {
     work.then((r) => {
-      if (r?.ok) hooks.onSuccess?.(r.wrongBookDelta || 0);
+      if (r?.ok) hooks.onSuccess?.();
     });
   }
 
@@ -513,69 +362,50 @@ async function buildAttemptDoc(result, meta) {
 }
 
 /**
+ * 只寫一筆 attempt；文件已存在視為成功（idempotent）。
  * @param {string} uid
  * @param {object} result
  * @param {object} meta
- * @param {string} attemptId 固定 client id；已存在則不重算 qstats
+ * @param {string} attemptId
  * @param {number} [retries]
  */
 async function writeSettlement(uid, result, meta, attemptId, retries = 3) {
   const { db, fs } = await ensureFb();
   const questions = meta.questions || [];
-  const qById = Object.fromEntries(questions.map((q) => [q.id, q]));
-  let wrongBookDelta = 0;
-  const id = attemptId || attemptIdFor(result);
+  const id = attemptId || newAttemptId();
+  const attRef = fs.doc(db, 'users', uid, 'attempts', id);
 
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      wrongBookDelta = await fs.runTransaction(db, async (tx) => {
-        const attRef = fs.doc(db, 'users', uid, 'attempts', id);
-        const existing = await tx.get(attRef);
-        // idempotent：同一 attempt 已寫入則略過（錯題本差量不重複）
-        if (existing.exists()) return 0;
+      const existing = await fs.getDoc(attRef);
+      if (existing.exists()) return;
 
-        let delta = 0;
-        /** @type {Record<string,object>} */
-        const nextStats = {};
-        for (let i = 0; i < result.qids.length; i++) {
-          const qid = result.qids[i];
-          const q = qById[qid];
-          if (!q) continue;
-          const ref = fs.doc(db, 'users', uid, 'qstats', qid);
-          const snap = await tx.get(ref);
-          const prev = snap.exists() ? snap.data() : null;
-          const wasIn = !!prev?.inWrongBook;
-          const next = nextQstat(prev, q, result.answers[i]);
-          if (!wasIn && next.inWrongBook) delta++;
-          if (wasIn && !next.inWrongBook) delta--;
-          nextStats[qid] = next;
-        }
-        for (const [qid, data] of Object.entries(nextStats)) {
-          const ref = fs.doc(db, 'users', uid, 'qstats', qid);
-          tx.set(ref, { ...data, lastAt: fs.serverTimestamp() }, { merge: false });
-        }
-        const byUnit = computeByUnit(questions, result.answers);
-        tx.set(attRef, {
-          scope: meta.scope,
-          mode: meta.mode,
-          qids: result.qids,
-          answers: result.answers,
-          correct: result.correct,
-          total: result.total,
-          score: result.score,
-          byUnit,
-          startedAt: fs.Timestamp.fromMillis(result.startedAt),
-          endedAt: fs.Timestamp.fromMillis(result.endedAt),
-          at: fs.serverTimestamp(),
-        });
-        return delta;
+      const byUnit = computeByUnit(questions, result.answers);
+      await fs.setDoc(attRef, {
+        scope: meta.scope,
+        mode: meta.mode,
+        qids: result.qids,
+        answers: result.answers,
+        correct: result.correct,
+        total: result.total,
+        score: result.score,
+        byUnit,
+        startedAt: fs.Timestamp.fromMillis(result.startedAt),
+        endedAt: fs.Timestamp.fromMillis(result.endedAt),
+        at: fs.serverTimestamp(),
       });
-      return wrongBookDelta;
+      return;
     } catch (e) {
+      // 競態：另一路已寫入 → 規則拒 update；視為成功
+      try {
+        const again = await fs.getDoc(attRef);
+        if (again.exists()) return;
+      } catch {
+        /* ignore */
+      }
       if (attempt === retries - 1) throw e;
     }
   }
-  return wrongBookDelta;
 }
 
 /**
@@ -583,54 +413,26 @@ async function writeSettlement(uid, result, meta, attemptId, retries = 3) {
  */
 export async function flushPending(uid) {
   const list = readPending(uid);
-  // 空佇列：不算成功（呼叫端勿把 failed===0 當已存檔）
-  if (!list.length) return { flushed: 0, failed: 0, wrongBookDelta: 0 };
+  if (!list.length) return { flushed: 0, failed: 0 };
   let flushed = 0;
   let failed = 0;
-  let wrongBookDelta = 0;
   /** @type {any[]} */
   const errors = [];
   for (const item of list) {
     const payload = {
       ...item,
-      attemptId: item.attemptId || attemptIdFor(item.result),
+      attemptId: item.attemptId || newAttemptId(),
     };
     const r = await settleOnce(uid, payload);
     if (r.ok) {
       flushed++;
-      wrongBookDelta += r.wrongBookDelta || 0;
     } else {
       failed++;
       if (r.error) errors.push(r.error);
     }
   }
   if (flushed) cachedAttempts30d = null;
-  return { flushed, failed, wrongBookDelta, errors };
-}
-
-/**
- * @param {string} uid
- * @param {string} qid
- */
-export async function updateQstatManualOut(uid, qid) {
-  const { db, fs } = await ensureFb();
-  const ref = fs.doc(db, 'users', uid, 'qstats', qid);
-  const snap = await fs.getDoc(ref);
-  if (!snap.exists()) return false;
-  const prev = snap.data();
-  await fs.updateDoc(ref, {
-    unitCode: prev.unitCode,
-    subject: prev.subject,
-    tries: prev.tries,
-    correct: prev.correct,
-    wrong: prev.wrong,
-    streak: prev.streak,
-    inWrongBook: false,
-    manualOut: true,
-    lastAnswer: prev.lastAnswer,
-    lastAt: fs.serverTimestamp(),
-  });
-  return true;
+  return { flushed, failed, errors };
 }
 
 export function invalidateAttemptsCache() {

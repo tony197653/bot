@@ -1,15 +1,6 @@
 /**
  * Firestore 規則測試（只連本機 emulator，專案 demo-quiz-bank）。
- * 覆蓋規格 §12 項目 1：
- * - 學生讀 draft 被拒
- * - 刪 qstats 被拒
- * - tries 跳號被拒
- * - 手動移出可以
- * - admin 寫自己的 attempts 可以
- * - 學生讀 reports 被拒
- * - attempt 沒有 byUnit 被拒
- *
- * 注意：直接呼叫操作；permission-denied → deny（不要包 assertFails，會跟 harness 打架）。
+ * v1.4.1：attempts create-only；qstats／favorites 由 catch-all 拒絕。
  */
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
@@ -113,18 +104,6 @@ async function seedBase() {
       review: { status: 'checked', flags: [] },
       stem: '已校對題',
     });
-    await setDoc(doc(db, 'users', 'student1', 'qstats', 'demo-m8-1-r1-q02'), {
-      unitCode: 'M8-1',
-      subject: 'math',
-      tries: 2,
-      correct: 1,
-      wrong: 1,
-      streak: 1,
-      inWrongBook: true,
-      manualOut: false,
-      lastAnswer: 0,
-      lastAt: new Date(),
-    });
     await setDoc(doc(db, 'reports', 'demo-m8-1-r1-q02__other'), {
       qid: 'demo-m8-1-r1-q02',
       uid: 'other',
@@ -163,8 +142,17 @@ function goodAttempt(extra = {}) {
   };
 }
 
-function goodStat(extra = {}) {
-  return {
+await t('學生讀 draft 題目被拒', 'deny', seedBase, () =>
+  getDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'questions', 'demo-m8-1-r1-q01')),
+);
+
+await t('學生讀 checked 題目可以', 'ok', seedBase, () =>
+  getDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'questions', 'demo-m8-1-r1-q02')),
+);
+
+await t('寫 qstats 被拒', 'deny', seedBase, async () => {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  await setDoc(doc(d, 'users', 'student1', 'qstats', 'q1'), {
     unitCode: 'M8-1',
     subject: 'math',
     tries: 1,
@@ -175,17 +163,8 @@ function goodStat(extra = {}) {
     manualOut: false,
     lastAnswer: 2,
     lastAt: serverTimestamp(),
-    ...extra,
-  };
-}
-
-await t('學生讀 draft 題目被拒', 'deny', seedBase, () =>
-  getDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'questions', 'demo-m8-1-r1-q01')),
-);
-
-await t('學生讀 checked 題目可以', 'ok', seedBase, () =>
-  getDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'questions', 'demo-m8-1-r1-q02')),
-);
+  });
+});
 
 await t('刪 qstats 被拒', 'deny', seedBase, () =>
   deleteDoc(
@@ -199,37 +178,27 @@ await t('刪 qstats 被拒', 'deny', seedBase, () =>
   ),
 );
 
-await t('tries 跳號被拒', 'deny', seedBase, async () => {
+await t('寫 favorites 被拒', 'deny', seedBase, async () => {
   const d = authCtx('student1', 'student@test.local').firestore();
-  await updateDoc(doc(d, 'users', 'student1', 'qstats', 'demo-m8-1-r1-q02'), {
-    unitCode: 'M8-1',
+  await setDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q1'), {
+    bookId: 'demo',
     subject: 'math',
-    tries: 5,
-    correct: 2,
-    wrong: 3,
-    streak: 0,
-    inWrongBook: true,
-    manualOut: false,
-    lastAnswer: 1,
-    lastAt: serverTimestamp(),
+    unitCode: 'M9-2',
+    addedAt: serverTimestamp(),
   });
 });
 
-await t('手動移出可以', 'ok', seedBase, async () => {
-  const d = authCtx('student1', 'student@test.local').firestore();
-  await updateDoc(doc(d, 'users', 'student1', 'qstats', 'demo-m8-1-r1-q02'), {
-    unitCode: 'M8-1',
-    subject: 'math',
-    tries: 2,
-    correct: 1,
-    wrong: 1,
-    streak: 1,
-    inWrongBook: false,
-    manualOut: true,
-    lastAnswer: 0,
-    lastAt: serverTimestamp(),
-  });
-});
+await t('讀 favorites 被拒', 'deny', seedBase, () =>
+  getDoc(
+    doc(
+      authCtx('student1', 'student@test.local').firestore(),
+      'users',
+      'student1',
+      'favorites',
+      'fav-q1',
+    ),
+  ),
+);
 
 await t('admin 寫自己的 attempts 可以', 'ok', seedBase, async () => {
   const d = authCtx('admin1', 'admin@test.local').firestore();
@@ -246,6 +215,30 @@ await t('attempts 同 id 覆寫被拒（仍僅 create）', 'deny', seedBase, asy
   const ref = doc(d, 'users', 'student1', 'attempts', 'att_fixed_2');
   await setDoc(ref, goodAttempt());
   await setDoc(ref, goodAttempt({ score: 50, correct: 0 }));
+});
+
+await t('attempt scope.type=wrong 被拒', 'deny', seedBase, async () => {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  await addDoc(
+    collection(d, 'users', 'student1', 'attempts'),
+    goodAttempt({ scope: { type: 'wrong' } }),
+  );
+});
+
+await t('attempt scope.type=fav 被拒', 'deny', seedBase, async () => {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  await addDoc(
+    collection(d, 'users', 'student1', 'attempts'),
+    goodAttempt({ scope: { type: 'fav' } }),
+  );
+});
+
+await t('attempt scope.type=retry 可以', 'ok', seedBase, async () => {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  await addDoc(
+    collection(d, 'users', 'student1', 'attempts'),
+    goodAttempt({ scope: { type: 'retry' } }),
+  );
 });
 
 await t('學生讀別人的 reports 被拒', 'deny', seedBase, () =>
@@ -295,11 +288,6 @@ await t('attempt 沒有 byUnit 被拒', 'deny', seedBase, async () => {
   await addDoc(collection(d, 'users', 'student1', 'attempts'), bad);
 });
 
-await t('學生可建立 qstats tries=1', 'ok', seedBase, async () => {
-  const d = authCtx('student1', 'student@test.local').firestore();
-  await setDoc(doc(d, 'users', 'student1', 'qstats', 'new-q'), goodStat());
-});
-
 await t('未驗證 email 被拒讀 banks', 'deny', seedBase, () =>
   getDoc(
     doc(
@@ -314,81 +302,6 @@ await t('未驗證 email 被拒讀 banks', 'deny', seedBase, () =>
     ),
   ),
 );
-
-function goodFav() {
-  return {
-    bookId: 'demo',
-    subject: 'math',
-    unitCode: 'M9-2',
-    addedAt: serverTimestamp(),
-  };
-}
-
-await t('本人可新增 favorites', 'ok', seedBase, async () => {
-  const d = authCtx('student1', 'student@test.local').firestore();
-  await setDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q1'), goodFav());
-});
-
-await t('本人可刪除 favorites', 'ok', async () => {
-  await seedBase();
-  await env.withSecurityRulesDisabled(async (c) => {
-    await setDoc(doc(c.firestore(), 'users', 'student1', 'favorites', 'fav-q1'), {
-      bookId: 'demo',
-      subject: 'math',
-      unitCode: 'M9-2',
-      addedAt: serverTimestamp(),
-    });
-  });
-}, async () => {
-  const d = authCtx('student1', 'student@test.local').firestore();
-  await deleteDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q1'));
-});
-
-await t('別人讀 favorites 被拒', 'deny', async () => {
-  await seedBase();
-  await env.withSecurityRulesDisabled(async (c) => {
-    await setDoc(doc(c.firestore(), 'users', 'student1', 'favorites', 'fav-q1'), {
-      bookId: 'demo',
-      subject: 'math',
-      unitCode: 'M9-2',
-      addedAt: serverTimestamp(),
-    });
-  });
-}, () =>
-  getDoc(
-    doc(authCtx('admin1', 'admin@test.local').firestore(), 'users', 'student1', 'favorites', 'fav-q1'),
-  ),
-);
-
-await t('別人寫 favorites 被拒', 'deny', seedBase, async () => {
-  const d = authCtx('admin1', 'admin@test.local').firestore();
-  await setDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q2'), goodFav());
-});
-
-await t('favorites 多欄位被拒', 'deny', seedBase, async () => {
-  const d = authCtx('student1', 'student@test.local').firestore();
-  await setDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q3'), {
-    ...goodFav(),
-    note: 'nope',
-  });
-});
-
-await t('favorites 改（update）被拒', 'deny', async () => {
-  await seedBase();
-  await env.withSecurityRulesDisabled(async (c) => {
-    await setDoc(doc(c.firestore(), 'users', 'student1', 'favorites', 'fav-q4'), {
-      bookId: 'demo',
-      subject: 'math',
-      unitCode: 'M9-2',
-      addedAt: serverTimestamp(),
-    });
-  });
-}, async () => {
-  const d = authCtx('student1', 'student@test.local').firestore();
-  await updateDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q4'), {
-    unitCode: 'M9-3',
-  });
-});
 
 await env.cleanup();
 

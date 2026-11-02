@@ -108,9 +108,9 @@ try {
     await page.close();
   }
 
-  // --- hash 路由頁：錯題本／單元表／匯入（未登入也不可炸模組）---
+  // --- hash 路由：舊網址／匯入（未登入也不可炸模組）---
   {
-    for (const hash of ['#/wrong', '#/fav', '#/import']) {
+    for (const hash of ['#/wrong', '#/fav', '#/mine', '#/units', '#/import']) {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
       const err = attachErrorCollectors(page);
       await page.goto(`http://127.0.0.1:${port}/index.html${hash}`, { waitUntil: 'networkidle' });
@@ -118,7 +118,6 @@ try {
       err.assertClean(`route ${hash}`);
       const hasShell = await page.evaluate(() => !!document.getElementById('app-main'));
       if (!hasShell) throw new Error(`no app-main on ${hash}`);
-      // 未登入應落在登入或空主區，但不可空白整頁無腳本
       const alive = await page.evaluate(() => {
         const main = document.getElementById('app-main');
         return !!(main && (main.childElementCount > 0 || document.getElementById('btn-login')));

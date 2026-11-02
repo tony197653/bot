@@ -1,15 +1,14 @@
-/* 考題網 shell：登入、首頁、錯題本、強弱表、匯入、抽屜 */
+/* 考題網 shell：登入、首頁、匯入、抽屜（v1.4.1） */
 .app-shell{min-height:100dvh;display:flex;flex-direction:column}
 .app-top{position:sticky;top:0;z-index:40;background:var(--top-bg);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line)}
 .app-top-in{max-width:1120px;margin:0 auto;height:56px;display:flex;align-items:center;gap:8px;padding:0 max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left))}
 /* QA#27：文字鈕／導覽／選單連結不加底線（內文連結、I2、I6、G2 除外） */
-.app-top a,.app-nav a,.app-drawer a,.home-quick a,
+.app-top a,.app-nav a,.app-drawer a,
 .r-actions a,.r-actions .btn,.btn.b1,.btn.b2,.btn.leave{
   text-decoration:none!important
 }
 .app-top a:hover,.app-top a:focus,.app-top a:focus-visible,
 .app-nav a:hover,.app-nav a:focus,.app-nav a:focus-visible,
-.home-quick a:hover,.home-quick a:focus,.home-quick a:focus-visible,
 .app-drawer a:hover,.app-drawer a:focus,.app-drawer a:focus-visible,
 .r-actions a:hover,.r-actions a:focus,.r-actions .btn:hover,.r-actions .btn:focus,
 .btn.b2:hover,.btn.b2:focus{
@@ -66,11 +65,8 @@
  .page.login .btn.b1{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));max-width:400px;margin:0 auto;width:auto}
 }
 .card{background:var(--surface);box-shadow:var(--shadow);border-radius:var(--r);padding:16px}
-.suggest{width:100%;text-align:left;margin-bottom:16px;border:0;cursor:pointer}
-.suggest-t{font-size:17px;font-weight:500;margin-top:4px}
-.filters{margin-bottom:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
 .field{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--mute)}
-.ctrl-select,.filters select,.i1 select,.start-panel select{
+.ctrl-select,.i1 select{
  min-height:44px;min-width:8rem;border-radius:var(--r-sm);border:1px solid var(--line);padding:0 36px 0 12px;
  background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2367655F' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center;
  color:var(--ink);font:inherit;appearance:none;-webkit-appearance:none}
@@ -88,6 +84,7 @@
 @media (min-width:900px){
  .book-grid{grid-template-columns:repeat(3,1fr)}
  .app-nav{display:flex}
+ .app-nav[hidden]{display:none!important}
  [data-drawer-toggle]{display:none!important}
 }
 .book header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:12px}
@@ -95,14 +92,9 @@
 .unit-block{margin-top:10px}
 .unit-name{font-size:13px;color:var(--mute);margin:0 0 6px}
 .round{display:flex;justify-content:space-between;width:100%;text-align:left;padding:10px 12px;border:0;background:var(--surface-2);border-radius:var(--r-sm);margin-bottom:6px;cursor:pointer;min-height:44px}
+.round.on{box-shadow:inset 0 0 0 2px var(--accent);background:var(--sel)}
+.round-pick{color:var(--accent);font-weight:600;margin-left:4px}
 @media (hover:hover) and (pointer:fine){.round:hover{background:var(--surface)}}
-.start-scrim{position:fixed;inset:0;z-index:55;background:rgba(31,31,29,.45)}
-.start-panel{position:fixed;left:0;right:0;bottom:0;z-index:56;background:var(--surface);border-top:1px solid var(--line);padding:16px;box-shadow:var(--sheet-shadow);max-width:480px;margin:0 auto;border-radius:var(--r-lg) var(--r-lg) 0 0}
-.start-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.start-panel-head h2{margin:0;font-size:17px}
-.start-panel label{display:block;margin:10px 0;font-size:14px}
-.start-panel label.ctrl-check,.start-panel .ctrl-check{display:inline-flex;align-items:center;gap:10px}
-.start-panel .btn.b1{width:100%;margin-top:12px}
 .dock{position:sticky;bottom:0;z-index:20;padding:12px;margin:0 -4px;background:var(--surface);box-shadow:0 -1px 0 var(--line);display:grid;gap:8px;border-radius:var(--r) var(--r) 0 0}
 .import-work{padding-bottom:140px}
 .import-preview .preview{padding-bottom:16px}
@@ -114,40 +106,6 @@
 .tab{border:0;background:var(--surface-2);padding:8px 12px;border-radius:999px;cursor:pointer;min-height:44px}
 .tab.on{background:var(--ink);color:var(--b1-fg)}
 .tab .l5{margin-left:6px;font-variant-numeric:tabular-nums;opacity:.85}
-/* R5-6：錯題本分頁單列橫滑，390 不折行 */
-.page.wrong .tabs.g2{
-  flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;gap:8px
-}
-.page.wrong .tabs.g2::-webkit-scrollbar{display:none}
-.page.wrong .tabs.g2 .tab{flex:none;white-space:nowrap}
-.wrong-list{display:grid;gap:10px;padding-bottom:80px}
-.wrong-card{cursor:pointer;min-height:56px}
-.wrong-card .stem-snip{margin:6px 0 0;font-size:15px;line-height:1.5;color:var(--ink)}
-/* 收藏夾（v1.2 §3 畫面 6） */
-.page.fav .tabs.g2{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:8px}
-.page.fav .tabs.g2::-webkit-scrollbar{display:none}
-.page.fav .tabs.g2 .tab{flex:none;white-space:nowrap}
-.fav-practice-row{margin:0 0 16px;display:grid;gap:8px}
-.fav-practice-row .btn.b1{width:100%;min-height:52px;height:52px}
-@media (min-width:900px){
-  .fav-practice-row{display:flex;align-items:center;justify-content:flex-end}
-  .fav-practice-row .btn.b1{width:auto;min-width:200px}
-}
-.fav-group{margin:0 0 20px}
-.fav-group-h{font-size:15px;font-weight:600;margin:0 0 10px;color:var(--mute)}
-.fav-list{display:grid;gap:10px}
-.fav-card{position:relative;cursor:pointer;padding-right:56px;min-height:72px}
-.fav-card .fav-btn{position:absolute;right:8px;top:8px}
-.fav-card .stem-snip{margin:0;font-size:16px;line-height:1.5;color:var(--ink)}
-.fav-card .meta{margin:6px 0 0;font-size:13px;color:var(--mute)}
-.fav-detail-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.fav-detail-head h2{margin:0}
-.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 0 20px}
-@media (min-width:768px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
-.stat-box{background:var(--surface);padding:14px;border-radius:var(--r);box-shadow:var(--shadow)}
-.stat-box span{display:block;font-size:13px;color:var(--mute)}
-.export-box{display:block;margin:16px 0}
-.export-box textarea{width:100%;margin-top:8px}
 .e1,.e2,.e3,.mute{color:var(--mute)}
 .e2{color:var(--bad-ink)}
 .skel{animation:pulse 1.2s var(--ease-in) infinite}
@@ -211,24 +169,47 @@
 .i1 textarea,.i1 input[type=text]{width:100%;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;font:inherit;min-height:44px}
 .th-sort{border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:4px 8px;min-height:44px;min-width:44px}
 .home-unit-entry{margin:0 0 12px}
-/* §3 2 首頁：B 今日建議 → F 快速入口（僅手機）→ C 篩選 → D 書卡；無頁面「首頁」標題、無匯入校對／去匯入 */
+/* §3 2 首頁 v1.4：sticky 主操作列 → 這次要練 → 書卡 */
 .page.home{margin:0;padding:0}
-.page.home .home-filters{margin:0 0 16px}
 .page.home .home-empty{margin:0;font-size:16px;line-height:1.6}
-.home-quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
-.home-quick a{
-  width:100%;min-height:44px;height:44px;border-radius:var(--r-sm);
-  transform:none;transition:background-color .22s var(--ease),opacity .22s var(--ease),border-color .22s var(--ease)
+.home-ops{
+  position:sticky;top:56px;z-index:30;display:grid;gap:8px;align-items:end;
+  margin:0 -16px 16px;padding:10px 16px;background:var(--bg);
+  border-bottom:1px solid var(--line)
 }
-.home-quick a:active{transform:none}
-.home-quick .l5{font-size:13px;color:var(--mute);font-weight:500;margin-left:2px}
-/* 桌機：頂部橫向導覽已有，F 不顯示；書 M1 顯示 */
+.home-ops--admin{grid-template-columns:1fr 1.2fr 1.2fr}
+.home-ops--student{grid-template-columns:1fr 2.4fr}
+.home-ops .home-ops-subject{margin:0;min-width:0}
+.home-ops-sub-label{display:none}
+.home-ops .ctrl-select{width:100%;min-width:0;height:48px;min-height:48px;font-size:16px}
+.home-ops .btn{width:100%;height:48px;min-height:48px;font-size:16px;padding:0 8px}
+.home-ops-import{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.practice-card{margin:0 0 16px;display:grid;gap:12px}
+.practice-range{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:space-between}
+.practice-range-t{margin:0;font-size:16px;line-height:1.5;font-weight:500;flex:1 1 auto;min-width:0}
+.practice-settings{display:grid;gap:8px}
+.practice-empty-reason{margin:0}
+.book-toolbar{margin:0 0 12px}
+.book-toolbar .home-book-filter{display:none}
+.home-empty-wrap{margin:8px 0}
 @media (min-width:900px){
- .home-quick{display:none!important}
- .page.home .home-book-filter{display:flex}
+  .app-top-in{height:64px}
+  .home-ops{
+    top:64px;max-width:960px;margin:0 auto 20px;padding:12px 0;gap:16px;border-bottom:0
+  }
+  .home-ops--admin{grid-template-columns:1fr 1.5fr 1.5fr}
+  .home-ops--student{grid-template-columns:1fr 3fr}
+  .home-ops-sub-label{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
+  .home-ops .ctrl-select,.home-ops .btn{height:52px;min-height:52px}
+  .practice-card{
+    max-width:960px;margin:0 auto 20px;
+    grid-template-columns:1fr auto;align-items:center
+  }
+  .practice-settings{display:flex;align-items:flex-end;gap:16px}
+  .book-toolbar{max-width:960px;margin:0 auto 12px;display:flex;justify-content:flex-end}
+  .book-toolbar .home-book-filter{display:flex;flex-direction:column}
+  .book-grid{max-width:960px;margin:0 auto}
 }
-.page.home .home-book-filter{display:none}
-@media (min-width:900px){.page.home .home-book-filter{display:flex;flex-direction:column}}
 .flag-code{font-size:11px;color:var(--mute);margin-left:4px;font-weight:500}
 .opt-tag{display:inline-block;margin-left:8px;font-size:13px;font-weight:600}
 .opt-tag.ok-t{color:var(--ok-ink)}.opt-tag.bad-t{color:var(--bad-ink)}

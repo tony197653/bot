@@ -53,17 +53,12 @@ body[data-view=result] .count,body[data-view=result] .prog{visibility:hidden}
 .bub-m{position:absolute;right:-5px;top:-5px;width:16px;height:16px;border-radius:50%;display:grid;place-items:center}
 .bub-m svg{width:11px;height:11px}
 /* D 題目卡 */
-.qmeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;position:relative;padding-right:48px}
-/* §8 收藏星號：D3/D5/N1 內建 .xbtn 放大 44×44、圖示 24px */
+.qmeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;position:relative}
 .xbtn{position:relative;width:36px;height:36px;flex:none;display:grid;place-items:center;border:0;border-radius:999px;background:transparent;color:var(--mute);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s var(--ease),color .15s var(--ease),transform .12s var(--ease);padding:0}
 .xbtn::before{content:"";position:absolute;inset:-4px}
 @media (hover:hover) and (pointer:fine){.xbtn:hover{background:var(--surface-2);color:var(--ink)}}
 .xbtn:active{transform:scale(.96)}
 .xbtn:focus-visible{outline:none;box-shadow:var(--halo)}
-.xbtn.fav-btn{width:44px;height:44px;min-width:44px;min-height:44px}
-.xbtn.fav-btn.on{color:var(--accent)}
-.qmeta .fav-btn{position:absolute;right:0;top:50%;transform:translateY(-50%)}
-.qmeta .fav-btn:active{transform:translateY(-50%) scale(.96)}
 .qno{font-size:14px;color:var(--mute)} .qno b{font-variant-numeric:tabular-nums;color:var(--ink)}
 .tag{font-size:12px;font-weight:600;padding:3px 8px;border-radius:var(--r-xs);letter-spacing:.03em}
 .stem{font-size:18px;line-height:1.85;font-family:var(--font-stem);outline:none;text-wrap:pretty}
@@ -188,7 +183,7 @@ body[data-view=result] .bar{transform:translateY(110%);opacity:0;pointer-events:
 .t1 td.num,.t1 td.r{white-space:nowrap;width:1%}
 .t1 td:last-child{width:1%;white-space:nowrap}
 .t1 .l3{display:block;width:max-content;margin-top:4px}
-.t1 .uname{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;text-overflow:ellipsis;white-space:normal;line-height:1.45;max-width:100%}
+.t1 .uname{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;text-overflow:ellipsis;white-space:normal;line-height:1.5;max-width:100%}
 .strength{table-layout:fixed;width:100%}
 .strength td:first-child{width:34%;min-width:0}
 .strength td:first-child .ucode{margin-right:0;margin-bottom:2px}
@@ -206,7 +201,7 @@ body[data-view=result] .bar{transform:translateY(110%);opacity:0;pointer-events:
 .t1 tr:last-child td{border-bottom:0}
 .t1 .r{text-align:right}.t1 .num{font-variant-numeric:tabular-nums}
 .ucode{display:block;font-family:var(--font-num);font-size:12px;line-height:1.4;color:var(--mute);letter-spacing:.04em}
-.uname{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;line-height:1.45}
+.uname{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;line-height:1.5}
 .l2{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
 .l2 i{width:7px;height:7px;border-radius:50%}
 .l2.good i{background:var(--ok)}.l2.mid i{background:var(--warn)}.l2.weak i{background:var(--bad)}
@@ -229,19 +224,16 @@ body[data-view=result] .bar{transform:translateY(110%);opacity:0;pointer-events:
 .rv-a{font-size:14px;color:var(--mute);margin-top:4px}
 .rv-ex{font-size:16px;margin-top:6px;padding:8px 12px;border-radius:var(--r-sm);background:var(--surface-2);line-height:1.8}
 .rv-ex .katex-display{margin:.3em 0}
-.r-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;align-items:center;justify-content:center;width:100%;max-width:100%;box-sizing:border-box}
+/* v1.4.1：再練錯的 → 從頭再做 → 回首頁 */
+.r-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;align-items:center;justify-content:flex-start;width:100%;max-width:100%;box-sizing:border-box}
 .r-actions .btn{white-space:nowrap;min-height:44px;text-decoration:none}
-.r-actions [data-act=home]{min-height:44px;text-decoration:none}
 .r-actions [data-act=home]::after,.r-actions [data-act=home]::before{content:none!important;display:none!important}
 @media (max-width:767px){
- /* 不透明底：WebKit 無 backdrop-filter 時也不透出回顧文字 */
- .r-actions{position:sticky;bottom:0;z-index:40;margin:20px 0 0;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:var(--surface);box-shadow:0 -1px 0 var(--line);display:grid;grid-template-columns:1fr 1fr;gap:8px}
- .r-actions [data-act=retry],.r-actions #retry{grid-column:1/-1}
- .r-actions .b2{min-height:44px;width:100%}
- .r-actions [data-act=home]{grid-column:1/-1}
+ .r-actions{position:sticky;bottom:0;z-index:40;margin:20px 0 0;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:var(--surface);box-shadow:0 -1px 0 var(--line);display:grid;grid-template-columns:1fr;gap:8px}
+ .r-actions .btn{min-height:52px;height:52px;width:100%}
  body[data-view=result] .app-main{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
  body[data-view=result] .result{padding-bottom:8px}}
-@media (min-width:768px){.r-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);align-items:start}.stats{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:768px){.r-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);align-items:start}.stats{grid-template-columns:repeat(2,1fr)}}
 /* N1 提示 */
 .toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));z-index:50;transform:translate(-50%,8px);opacity:0;pointer-events:none;padding:10px 16px;border-radius:999px;background:var(--toast-bg);color:var(--toast-fg);font-size:14px;box-shadow:var(--pop-shadow);transition:opacity .2s var(--ease-in),transform .2s var(--ease-in);max-width:calc(100vw - 32px);text-align:center}
 .toast.on{opacity:1;transform:translate(-50%,0);transition:opacity .3s var(--ease-out),transform .4s var(--spring)}

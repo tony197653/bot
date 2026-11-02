@@ -1,5 +1,5 @@
 /**
- * 考題網 SPA：hash 路由、登入、導覽、作答與結算。
+ * 考題網 SPA：hash 路由、登入、導覽、作答與結算（v1.4.1）。
  */
 import {
   initAuth,
@@ -10,7 +10,7 @@ import {
   isAdmin,
   getUser,
 } from './auth.js';
-import { renderHome, renderWrongBook, renderFavorites } from './views.js';
+import { renderHome } from './views.js';
 import { renderImport } from './import.js';
 import { startQuiz, getActiveQuiz, isQuizActive, requestLeave } from './quiz.js';
 import { showResult } from './result.js';
@@ -22,15 +22,12 @@ import {
   listPending,
   progressKey,
   clearProgress,
-  updateQstatManualOut,
   saveLastResult,
   loadLastResult,
   clearLastResult,
 } from './stats.js';
-import { loadFavorites, makeFavoriteApi, clearFavoritesCache } from './fav.js';
 import { bindLightboxOnce } from './lightbox.js';
 import { formatRoundSummary, taipeiStamp } from './summary.js';
-import { askConfirm } from './dialog.js';
 import { ERR, zhFromError, errCode } from './errors.js';
 
 const PRODUCT = '考題網';
@@ -100,6 +97,18 @@ function parseRoute() {
   return path.split('?')[0];
 }
 
+/** v1.4：舊網址一律 replace 回首頁 */
+function isLegacyRoute(route) {
+  return (
+    route === '/mine' ||
+    route === '/wrong' ||
+    route === '/fav' ||
+    route === '/favorites' ||
+    route === '/units' ||
+    route === '/units/'
+  );
+}
+
 function scopeKey(scope) {
   if (!scope?.questions?.length) return '';
   return scope.questions.map((q) => q.id).join('|');
@@ -119,6 +128,14 @@ function setNav(route, admin) {
   document.querySelectorAll('[data-admin-only]').forEach((el) => {
     el.hidden = !admin;
   });
+  // 學生桌機導覽只剩「首頁」時整排不顯示（§3 A）
+  const deskNav = document.querySelector('[data-desk-nav]');
+  if (deskNav) {
+    deskNav.hidden = !admin;
+    deskNav.setAttribute('aria-hidden', admin ? 'false' : 'true');
+  }
+  document.body.classList.toggle('is-admin', !!admin);
+  document.body.classList.toggle('is-student', !admin);
 }
 
 function renderLogin(ev) {
@@ -225,7 +242,6 @@ async function submitReport(payload) {
       at: fs.serverTimestamp(),
     });
   } catch {
-    // 絕不把 Firebase 英文原文（offline／evaluation error…）拋到 toast
     throw new Error('回報失敗，請稍後再試');
   }
 }
@@ -258,20 +274,6 @@ function beginQuiz(scope) {
   quizStarted = true;
   document.body.dataset.view = 'quiz';
 
-  const favorite = makeFavoriteApi(user.uid, {
-    toast,
-    navigate,
-    requestLeave: () =>
-      new Promise((resolve) => {
-        const q = getActiveQuiz();
-        if (!q?.askLeave) {
-          resolve(true);
-          return;
-        }
-        q.askLeave((ok) => resolve(!!ok));
-      }),
-  });
-
   startQuiz({
     title: scope.title || PRODUCT,
     questions: scope.questions,
@@ -288,7 +290,6 @@ function beginQuiz(scope) {
     reportedIds: scope.reportedIds,
     getReportedIds: getReportedIdsForUser,
     onReport: submitReport,
-    favorite,
     onLeave: () => {
       quizStarted = false;
       activeQuizScope = null;
@@ -298,7 +299,7 @@ function beginQuiz(scope) {
   });
 }
 
-function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStatus }) {
+function paintResultView({ result, scope, summaryText, cloudStatus }) {
   const user = getUser();
   const main = mount();
   if (!main || !user) return;
@@ -308,7 +309,6 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
     mount: main,
     result: { ...result, title: scope?.title || result.title },
     getSummaryText: () => summaryText,
-    wrongBookDelta,
     cloudStatus,
     onReport: submitReport,
     onRetryWrong: () => {
@@ -336,12 +336,6 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
       clearLastResult(user.uid);
       navigate('#/');
     },
-    onBackFav: scope?.type === 'fav'
-      ? () => {
-          clearLastResult(user.uid);
-          navigate('#/fav');
-        }
-      : undefined,
     onRetryCloud: async () => {
       const retryAgain = () => {
         const btn = main?.querySelector('[data-act="retry-cloud"]');
@@ -353,7 +347,7 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
       }
       const r = await flushPending(user.uid);
       if (r.flushed > 0 && r.failed === 0) {
-        applyCloudOk(user.uid, r.wrongBookDelta || 0);
+        applyCloudOk(user.uid);
         toast('已存到雲端');
       } else if (r.failed > 0) {
         const last = r.errors?.[0];
@@ -365,8 +359,7 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
           toast(zhFromError(last, 'network'), { onRetry: retryAgain });
         }
       } else if (!listPending(user.uid).length) {
-        // 佇列已空：背景上傳可能已完成（與重試共用 inflight）
-        applyCloudOk(user.uid, loadLastResult(user.uid)?.wrongBookDelta ?? 0);
+        applyCloudOk(user.uid);
         toast('已存到雲端');
       } else {
         toast(ERR.network, { onRetry: retryAgain });
@@ -377,24 +370,14 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
   resultDestroy = () => view.destroy();
 }
 
-function applyCloudOk(uid, wrongBookDelta) {
+function applyCloudOk(uid) {
   const snap = loadLastResult(uid);
   if (snap) {
     snap.cloudStatus = 'ok';
-    snap.wrongBookDelta = wrongBookDelta;
     saveLastResult(uid, snap);
   }
   const main = mount();
   main?.querySelector('.cloud-warn')?.remove();
-  const deltaEl = main?.querySelector('.stats .stat:last-child b');
-  if (deltaEl && typeof wrongBookDelta === 'number') {
-    deltaEl.textContent =
-      wrongBookDelta > 0
-        ? `${wrongBookDelta} 題加入`
-        : wrongBookDelta < 0
-          ? `${Math.abs(wrongBookDelta)} 題移出`
-          : '沒有變化';
-  }
   clearProgress(uid);
 }
 
@@ -425,13 +408,11 @@ async function finishQuiz(result, scope) {
     questions: result.questions,
   };
 
-  // 換頁前先入隊，避免 /result 路由 flush 空佇列誤判成功
   const payload = enqueueAttempt(user.uid, result, meta);
   saveLastResult(user.uid, {
     result: { ...result, title: scope.title || result.title },
     scope,
     summaryText,
-    wrongBookDelta: 0,
     cloudStatus: 'pending',
     attemptId: payload.attemptId,
     savedAt: payload.savedAt,
@@ -445,19 +426,17 @@ async function finishQuiz(result, scope) {
     result,
     scope,
     summaryText,
-    wrongBookDelta: 0,
     cloudStatus: 'pending',
   });
   quizNavigating = false;
 
   try {
-    // 背景上傳：逾時仍維持 pending；成功時 onSuccess 更新 UI（與重試共用 inflight）
     await saveAttemptWithTimeout(
       user.uid,
       result,
       meta,
       8000,
-      { onSuccess: (delta) => applyCloudOk(user.uid, delta) },
+      { onSuccess: () => applyCloudOk(user.uid) },
       payload,
     );
   } finally {
@@ -513,77 +492,17 @@ export async function resumeProgress() {
   }
 }
 
-/** @type {HTMLDialogElement|null} */
-let wrongDetailDlg = null;
-
-async function openWrongDetail(qid) {
-  const user = getUser();
-  if (!user || !qid) return;
-  try {
-    const { initFirebase } = await import('./fb.js');
-    const { db, fs } = await initFirebase();
-    const qSnap = await fs.getDoc(fs.doc(db, 'questions', qid));
-    if (!qSnap.exists()) {
-      toast('找不到這題');
-      return;
-    }
-    const q = qSnap.data();
-    const statSnap = await fs.getDoc(fs.doc(db, 'users', user.uid, 'qstats', qid));
-    const stat = statSnap.exists() ? statSnap.data() : null;
-    const L = 'ABCD';
-    const lastA = stat?.lastAnswer;
-    const lastLabel =
-      typeof lastA === 'number' && lastA >= 0
-        ? `(${L[lastA]}) ${escHtml(q.options[lastA])}`
-        : '（未記錄）';
-
-    if (!wrongDetailDlg) {
-      wrongDetailDlg = document.createElement('dialog');
-      wrongDetailDlg.className = 'wrong-detail-dlg';
-      document.body.appendChild(wrongDetailDlg);
-    }
-    wrongDetailDlg.innerHTML = `
-      <form method="dialog">
-        <h2>錯題詳情</h2>
-        <p class="meta">${escHtml(q.unitCode || '')} ${escHtml(q.unit || '')}</p>
-        <div class="wd-stem">${escHtml(q.stem).replace(/\n/g, '<br>')}</div>
-        <p><strong>上次作答：</strong>${lastLabel}</p>
-        <p><strong>正確答案：</strong>(${L[q.answer]}) ${escHtml(q.options[q.answer])}</p>
-        <div class="wd-ex">${escHtml(q.explain || '').replace(/\n/g, '<br>')}</div>
-        <div class="leave-actions">
-          <button type="button" class="btn b2" data-wd-remove>移出錯題本</button>
-          <button type="submit" class="btn b2" value="close">關閉</button>
-        </div>
-      </form>`;
-    wrongDetailDlg.querySelector('[data-wd-remove]')?.addEventListener('click', async () => {
-      const ok = await askConfirm({
-        title: '移出錯題本',
-        message: '移出後不會再出現，除非又答錯。確定移出？',
-        okLabel: '移出',
-      });
-      if (!ok) return;
-      try {
-        await updateQstatManualOut(user.uid, qid);
-        toast('已移出錯題本');
-        wrongDetailDlg?.close();
-        const route = parseRoute();
-        if (route === '/wrong') await renderRoute(route);
-      } catch {
-        toast('無法移出，請稍後再試');
-      }
-    });
-    if (typeof wrongDetailDlg.showModal === 'function') wrongDetailDlg.showModal();
-  } catch {
-    toast('載入失敗');
-  }
-}
-
 async function renderRoute(route) {
   const user = getUser();
   const main = mount();
   if (!main) return;
   if (!user) {
     renderLogin({ status: 'signed-out' });
+    return;
+  }
+
+  if (isLegacyRoute(route)) {
+    location.replace('#/');
     return;
   }
 
@@ -609,19 +528,12 @@ async function renderRoute(route) {
     isAdmin: isAdmin(),
     startScope,
     resumeProgress,
-    openWrongDetail,
   };
 
   setNav(route === '/' ? 'home' : route.replace(/^\//, ''), isAdmin());
 
   if (route === '/' || route === '/home') await renderHome(main, ctx);
-  else if (route === '/wrong') await renderWrongBook(main, ctx);
-  else if (route === '/fav' || route === '/favorites') await renderFavorites(main, ctx);
-  else if (route === '/units' || route === '/units/') {
-    // v1.2：單元強弱表已刪 → 轉收藏夾
-    navigate('#/fav');
-    return;
-  } else if (route === '/import') await renderImport(main, ctx);
+  else if (route === '/import') await renderImport(main, ctx);
   else if (route === '/quiz') {
     if (pendingQuiz) {
       beginQuiz(pendingQuiz);
@@ -643,14 +555,12 @@ async function renderRoute(route) {
         result: snap.result,
         scope: snap.scope || lastSession || {},
         summaryText: snap.summaryText || '',
-        wrongBookDelta: snap.wrongBookDelta ?? 0,
         cloudStatus: status,
       });
-      // 交卷進行中不 flush；空佇列 flush 不可當成功
       if (status === 'pending' && !finishInFlight) {
         flushPending(user.uid).then((r) => {
           if (r.flushed > 0 && r.failed === 0) {
-            applyCloudOk(user.uid, snap.wrongBookDelta ?? 0);
+            applyCloudOk(user.uid);
           }
         });
       }
@@ -660,7 +570,6 @@ async function renderRoute(route) {
     main.innerHTML = `<div class="page"><p class="e1">${ERR.resultGone}</p>
       <div class="empty-next">
         <a class="btn b1" href="#/">回首頁</a>
-        <a class="btn b2" href="#/wrong">看錯題本</a>
       </div></div>`;
   } else {
     main.innerHTML = `<div class="page"><p class="e1">${ERR.notFoundPage}</p>
@@ -857,15 +766,12 @@ async function boot() {
       clearSessionExpiredBanner();
       await flushPending(ev.user.uid);
       paintNavUser(ev.user);
-      try {
-        await loadFavorites(ev.user.uid, true);
-      } catch {
-        /* 收藏清單失敗不擋進站 */
-      }
+      setNav(parseRoute() === '/' ? 'home' : parseRoute().replace(/^\//, ''), isAdmin());
       await renderRoute(parseRoute());
-    } else if (ev.status === 'signed-out' && (quizStarted || parseRoute() === '/import' || parseRoute() === '/quiz' || parseRoute() === '/result')) {
-      clearFavoritesCache();
-      // 紅線 4／11：作答或校對中登入過期不踢人、不清畫面
+    } else if (
+      ev.status === 'signed-out' &&
+      (quizStarted || parseRoute() === '/import' || parseRoute() === '/quiz' || parseRoute() === '/result')
+    ) {
       showSessionExpiredBanner();
     } else if (ev.status === 'in-app-browser' || ev.status === 'denied' || ev.status === 'signed-out') {
       renderLogin(ev);
@@ -882,4 +788,4 @@ async function boot() {
 
 boot();
 
-export { navigate, toast, PRODUCT, startScope, openWrongDetail, formatRoundSummary, taipeiStamp };
+export { navigate, toast, PRODUCT, startScope, formatRoundSummary, taipeiStamp };

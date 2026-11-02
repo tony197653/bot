@@ -1,5 +1,5 @@
 /**
- * Emulator 驗收：§9.10／11／13／18／19／20（規則＋qstats 演算法）。
+ * Emulator 驗收（v1.4.1）：attempts、reports、qstats／favorites 拒絕。
  */
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
@@ -15,8 +15,7 @@ import {
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { nextQstat, computeStrength, mergeKnownUnits } from '../js/stats.js';
-import { wrongPracticeLabel } from '../js/views.js';
+import { computeByUnit } from '../js/stats.js';
 
 setLogLevel('silent');
 
@@ -47,48 +46,14 @@ function authCtx(uid, email) {
   return env.authenticatedContext(uid, { email, email_verified: true });
 }
 
-const q = { unitCode: 'M9-1', subject: 'math', answer: 1 };
-
 {
-  let st = nextQstat(null, q, 0);
-  st = nextQstat(st, q, 1);
-  st = nextQstat(st, q, 1);
-  if (st.inWrongBook !== false || st.streak !== 2) fail('§9.10 auto-out', st);
-  else pass('§9.10 連對 2 次自動移出');
-}
-
-{
-  let st = nextQstat(null, q, 0);
-  st = { ...st, inWrongBook: false, manualOut: true };
-  st = nextQstat(st, q, 0);
-  if (!st.inWrongBook || st.manualOut !== false) fail('§9.10 reenter', st);
-  else pass('§9.10 手動移出後再錯回來');
-}
-
-{
-  const known = mergeKnownUnits(computeStrength([]), [
-    { unitCode: 'X', name: 'X', subject: 'math' },
-  ]);
-  if (known.find((r) => r.unitCode === 'X')?.label !== '尚未練習') fail('§9.11 unpracticed', known);
-  else pass('§9.11 31 天前 attempt 不進強弱（未練）');
-
-  const mid = computeStrength([
-    {
-      byUnit: {
-        W: { unit: 'W', subject: 'math', correct: 5, total: 10 },
-        M: { unit: 'M', subject: 'math', correct: 6, total: 10 },
-        G: { unit: 'G', subject: 'math', correct: 9, total: 10 },
-      },
-    },
-  ]);
-  const map = Object.fromEntries(mid.map((r) => [r.unitCode, r.label]));
-  if (map.W !== '需加強' || map.M !== '部分掌握' || map.G !== '掌握') fail('§9.11 colors', map);
-  else pass('§9.11 三色門檻');
-}
-
-{
-  if (wrongPracticeLabel(12) !== '練 10 題（共 12 題）') fail('§9.19', wrongPracticeLabel(12));
-  else pass('§9.19 錯題本 12→練 10 題文案');
+  const qs = [
+    { unitCode: 'M9-1', unit: '單元', subject: 'math', answer: 1 },
+    { unitCode: 'M9-1', unit: '單元', subject: 'math', answer: 0 },
+  ];
+  const by = computeByUnit(qs, [1, 1]);
+  if (by['M9-1']?.correct !== 1 || by['M9-1']?.total !== 2) fail('byUnit', by);
+  else pass('computeByUnit for attempts.byUnit');
 }
 
 {
@@ -96,11 +61,11 @@ const q = { unitCode: 'M9-1', subject: 'math', answer: 1 };
   fs.mkdirSync(path.dirname(memKey), { recursive: true });
   fs.writeFileSync(
     memKey,
-    JSON.stringify([{ result: { score: 50 }, meta: { scope: { type: 'round' } }, savedAt: Date.now() }]),
+    JSON.stringify([{ attemptId: 'uuid-1', result: { score: 50 }, meta: { scope: { type: 'round' } }, savedAt: Date.now() }]),
   );
   const read = JSON.parse(fs.readFileSync(memKey, 'utf8'));
-  if (!read[0]?.result || !read[0]?.meta) fail('§9.13');
-  else pass('§9.13 pending queue payload shape');
+  if (!read[0]?.attemptId || !read[0]?.result || !read[0]?.meta) fail('§9.13');
+  else pass('pending queue payload shape (attemptId)');
 }
 
 async function seed() {
@@ -124,18 +89,6 @@ async function seed() {
       status: 'open',
       at: new Date(),
     });
-    await setDoc(doc(db, 'users', 'student1', 'qstats', 'q1'), {
-      unitCode: 'M9-1',
-      subject: 'math',
-      tries: 2,
-      correct: 0,
-      wrong: 2,
-      streak: 0,
-      inWrongBook: true,
-      manualOut: false,
-      lastAnswer: 0,
-      lastAt: new Date(),
-    });
   });
 }
 
@@ -154,9 +107,41 @@ try {
     endedAt: new Date(),
     at: serverTimestamp(),
   });
-  pass('§9.18 admin 可寫自己 attempts');
+  pass('admin 可寫自己 attempts');
 } catch (e) {
-  fail('§9.18 admin attempts', e.message);
+  fail('admin attempts', e.message);
+}
+
+await seed();
+try {
+  await setDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'users', 'student1', 'qstats', 'q1'), {
+    unitCode: 'M9-1',
+    subject: 'math',
+    tries: 1,
+    correct: 0,
+    wrong: 1,
+    streak: 0,
+    inWrongBook: true,
+    manualOut: false,
+    lastAnswer: 0,
+    lastAt: serverTimestamp(),
+  });
+  fail('qstats write should deny', 'ok');
+} catch {
+  pass('寫 qstats 被拒');
+}
+
+await seed();
+try {
+  await setDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'users', 'student1', 'favorites', 'q1'), {
+    bookId: 'b1',
+    subject: 'math',
+    unitCode: 'M9-1',
+    addedAt: serverTimestamp(),
+  });
+  fail('favorites write should deny', 'ok');
+} catch {
+  pass('寫 favorites 被拒');
 }
 
 await seed();
@@ -165,9 +150,9 @@ try {
     doc(authCtx('student1', 'student@test.local').firestore(), 'reports', 'q1__student1'),
   );
   if (!snap.exists()) throw new Error('missing own report');
-  pass('§9.20 學生可讀自己的回報');
+  pass('學生可讀自己的回報');
 } catch (e) {
-  fail('§9.20 student read report', e.message);
+  fail('student read report', e.message);
 }
 
 await seed();
@@ -176,9 +161,9 @@ try {
     doc(authCtx('student1', 'student@test.local').firestore(), 'reports', 'q1__student1'),
     { status: 'done' },
   );
-  fail('§9.20 student update should deny', 'ok');
+  fail('student update should deny', 'ok');
 } catch {
-  pass('§9.20 學生不可改 status');
+  pass('學生不可改 status');
 }
 
 await seed();
@@ -187,9 +172,9 @@ try {
     doc(authCtx('admin1', 'admin@test.local').firestore(), 'reports', 'q1__student1'),
     { status: 'done' },
   );
-  pass('§9.20 admin 可標 done');
+  pass('admin 可標 done');
 } catch (e) {
-  fail('§9.20 admin done', e.message);
+  fail('admin done', e.message);
 }
 
 await seed();
@@ -202,12 +187,11 @@ try {
     status: 'open',
     at: serverTimestamp(),
   });
-  pass('§9.20 學生可建立回報');
+  pass('學生可建立回報');
 } catch (e) {
-  fail('§9.20 student create report', e.message);
+  fail('student create report', e.message);
 }
 
-// 真實流程：首次 getDoc（不存在）→ create；再 getDoc → 已存在不重複 create
 await seed();
 try {
   const d = authCtx('student1', 'student@test.local').firestore();
@@ -225,36 +209,15 @@ try {
   const second = await getDoc(ref);
   if (!second.exists()) throw new Error('expected created');
   if (second.data()?.status !== 'open') throw new Error('bad status');
-  // 重複回報：讀到 open 就停止（app 層不 setDoc 第二次）
-  pass('§9.20 首次 getDoc→create 與重複讀取');
+  pass('首次 getDoc→create 與重複讀取');
 } catch (e) {
-  fail('§9.20 first-time report flow', e.message);
+  fail('first-time report flow', e.message);
 }
 
-await seed();
-try {
-  await updateDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'users', 'student1', 'qstats', 'q1'), {
-    unitCode: 'M9-1',
-    subject: 'math',
-    tries: 2,
-    correct: 0,
-    wrong: 2,
-    streak: 0,
-    inWrongBook: false,
-    manualOut: true,
-    lastAnswer: 0,
-    lastAt: serverTimestamp(),
-  });
-  pass('§9.10 rules 手動移出可以');
-} catch (e) {
-  fail('§9.10 manualOut rules', e.message);
-}
-
-// I-3b：固定 attempt id create 可；同 id 再 set＝update 被拒（client 應先 get 略過）
 await seed();
 try {
   const d = authCtx('student1', 'student@test.local').firestore();
-  const id = 'att_1000_2000_80_1_q1';
+  const id = 'att_uuid_like_1';
   const payload = {
     scope: { type: 'round', bookId: 'b1', unitCode: 'M9-1', round: 1 },
     mode: 'instant',
@@ -278,9 +241,9 @@ try {
     denied = true;
   }
   if (!denied) throw new Error('overwrite should deny');
-  pass('I-3b attempt fixed-id create ok, overwrite deny');
+  pass('attempt fixed-id create ok, overwrite deny');
 } catch (e) {
-  fail('I-3b attempt fixed-id', e.message);
+  fail('attempt fixed-id', e.message);
 }
 
 await env.cleanup();
