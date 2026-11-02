@@ -1,27 +1,35 @@
-# 週五牌局 · 德州撲克（里程碑 1）
+# 週五牌局 · 德州撲克（里程碑 2）
 
-單機熱座（傳裝置）無限注德州撲克。純 ES Module 規則引擎 + 經典綠色牌桌 UI，可直接由 GitHub Pages 提供：
+Google 登入 + Firestore 多人房間（專案 `tony-poker`）。單機熱座入口保留在大廳「同一支手機輪流玩」。
 
-https://tony197653.github.io/bot/poker/
+正式站：https://tony-poker.web.app/（Firebase Hosting；程式在本 repo 的 `poker/` + `lib/`）
 
 ## 本機
 
 ```bash
-# 靜態伺服（需在含 bot 路徑的結構下，或直接開 poker/）
-npx --yes serve -p 4173 .
+# 靜態伺服（需能解析 ../lib）
+npx --yes serve -p 4173 ../   # 然後開 /poker/
 
-# 測試
+# 單元測試
 npm test
+
+# Firestore 規則（模擬器 only，demo-poker；不寫正式庫）
+npm run test:rules
+
+# 部署前 stage
+npm run stage
 ```
 
-## 架構（為後續 Firebase 同步預留）
+動畫調參：`/poker/playground.html`  
+登入模組示範：`/lib/auth/demo.html`（見 `lib/auth/README.md`）
 
-- `js/engine/`：純函式狀態機，`applyAction(state, action) → state`
-- 狀態皆可 `JSON.stringify`；`viewForSeat(state, seat)` 產生該座位可見資訊
-- 之後可由 HOST 瀏覽器跑引擎，把序列化狀態寫入 Firestore（Spark 方案、無 Cloud Functions）
+## 架構
 
-## 熱座操作
+- `lib/auth/`、`lib/firebase/`：可重用登入（§8）
+- `poker/js/net/`：房間、房主循環、意圖、心跳、帳本、用量
+- `poker/js/engine/`：純函式狀態機（新增 `SET_AWAY` / `VOID_HAND` / `TOP_UP`、`publicState`）
+- `poker/firebase/`：規則（已部署）、索引、Hosting `stage.sh` + Action
 
-1. 大廳設定盲注／籌碼／2–6 位玩家（預設含「宗良」）
-2. 輪到誰就按「換人」把裝置交給對方（手牌僅自己可見）
-3. 可關閉 30 秒計時方便測試
+## 熱座（里程碑 1）
+
+大廳底部「同一支手機輪流玩」→ 原單機流程不變。

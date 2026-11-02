@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>動畫時間軸 Playground · §11</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#13231a;--ink:#f3ead2;--mute:#c9bf9f;--accent:#e6bf5a;--panel:#101b14}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans TC",sans-serif;background:radial-gradient(ellipse at 50% 30%,#21392c,#13231a 70%);color:var(--ink);min-height:100vh;padding:20px}
+h1{font-size:22px;margin:0 0 8px}
+p{color:var(--mute);font-size:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1100px;margin:20px auto}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid rgba(214,180,90,.25);border-radius:14px;padding:16px}
+.row{display:grid;grid-template-columns:1fr 72px;gap:8px;align-items:center;margin:10px 0}
+label{font-size:13px}
+input[type=range]{width:100%}
+.val{font-variant-numeric:tabular-nums;text-align:right;color:var(--accent);font-size:13px}
+.stage{height:220px;border-radius:12px;background:#1a2a20;position:relative;overflow:hidden;margin-top:12px}
+.chip{position:absolute;left:50%;top:40px;width:36px;height:36px;margin-left:-18px;border-radius:50%;background:linear-gradient(#c8343a,#8a1c20);border:2px solid #f4efe6}
+.seat{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);padding:8px 14px;border-radius:999px;background:#0c1610;border:1px solid rgba(214,180,90,.4)}
+.banner{position:absolute;left:0;right:0;top:0;padding:10px;text-align:center;background:#3a1d12;transform:translateY(-100%)}
+button{margin-top:12px;min-height:40px;padding:0 16px;border-radius:10px;border:0;background:#111;color:#fff;font-weight:700;cursor:pointer}
+select{width:100%;min-height:36px;background:#0c1610;color:var(--ink);border:1px solid rgba(214,180,90,.3);border-radius:8px}
+</style>
+</head>
+<body>
+<h1>§11 多人動畫 Playground</h1>
+<p>調整 MP_FX 各項 duration／easing，右側即時預覽。第一階段 DEAL_FX／SHOWDOWN_FX 數字不改。</p>
+<div class="grid">
+  <div class="panel" id="controls"></div>
+  <div class="panel">
+    <label>預覽事件
+      <select id="ev">
+        <option value="seatIn">入座</option>
+        <option value="seatOut">離座</option>
+        <option value="banner">換房主橫幅</option>
+        <option value="topUp">補籌碼落下</option>
+        <option value="away">暫離</option>
+        <option value="reconnect">重連淡入</option>
+      </select>
+    </label>
+    <div class="stage" id="stage">
+      <div class="banner" id="banner">房主斷線，由 阿哲 接手；這一手作廢</div>
+      <div class="chip" id="chip" hidden></div>
+      <div class="seat" id="seat">空位</div>
+    </div>
+    <button type="button" id="play">播放</button>
+    <pre id="live" style="font-size:12px;color:var(--mute);white-space:pre-wrap;margin-top:12px"></pre>
+  </div>
+</div>
+<script type="module">
+import { MP_FX, setMpFx, MP_FX_LIVE } from './js/ui/fx-mp.js';
+
+const KEYS = [
+  ['seatInMs', 50, 800],
+  ['seatOutMs', 50, 800],
+  ['toastMs', 500, 6000],
+  ['bannerInMs', 50, 800],
+  ['bannerHoldMs', 500, 8000],
+  ['bannerOutMs', 50, 800],
+  ['hostTagOutMs', 40, 400],
+  ['hostTagInMs', 40, 500],
+  ['voidChipMs', 100, 1200],
+  ['voidBoardFadeMs', 50, 600],
+  ['topUpDropMs', 100, 1200],
+  ['topUpCountMs', 100, 1200],
+  ['awayInMs', 50, 800],
+  ['awayOutMs', 50, 800],
+  ['reconnectFadeMs', 40, 500],
+  ['pendingDimMs', 40, 400],
+  ['pendingLabelAfterMs', 500, 8000],
+  ['pendingResendAfterMs', 2000, 15000],
+  ['timerMs', 5000, 60000],
+  ['timerWarnLastMs', 1000, 10000],
+];
+
+const controls = document.getElementById('controls');
+const live = document.getElementById('live');
+
+function refreshLive() {
+  live.textContent = JSON.stringify(MP_FX_LIVE, null, 2);
+}
+
+for (const [key, min, max] of KEYS) {
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `<label>${key}<input type="range" min="${min}" max="${max}" value="${MP_FX[key]}" data-k="${key}"></label><span class="val" data-v="${key}">${MP_FX[key]}</span>`;
+  controls.appendChild(row);
+}
+controls.insertAdjacentHTML('beforeend', `
+  <div class="row" style="grid-template-columns:1fr"><label>easeIn
+    <input data-ease="easeIn" value="${MP_FX.easeIn}">
+  </label></div>
+  <div class="row" style="grid-template-columns:1fr"><label>easeOut
+    <input data-ease="easeOut" value="${MP_FX.easeOut}">
+  </label></div>
+  <div class="row" style="grid-template-columns:1fr"><label>easeChip
+    <input data-ease="easeChip" value="${MP_FX.easeChip}">
+  </label></div>
+`);
+
+controls.addEventListener('input', (e) => {
+  const t = e.target;
+  if (t.dataset.k) {
+    const v = Number(t.value);
+    setMpFx({ [t.dataset.k]: v });
+    controls.querySelector(`[data-v="${t.dataset.k}"]`).textContent = String(v);
+    refreshLive();
+  }
+  if (t.dataset.ease) {
+    setMpFx({ [t.dataset.ease]: t.value });
+    refreshLive();
+  }
+});
+refreshLive();
+
+const seat = document.getElementById('seat');
+const banner = document.getElementById('banner');
+const chip = document.getElementById('chip');
+
+document.getElementById('play').onclick = async () => {
+  const ev = document.getElementById('ev').value;
+  seat.getAnimations().forEach((a) => a.cancel());
+  banner.getAnimations().forEach((a) => a.cancel());
+  chip.getAnimations().forEach((a) => a.cancel());
+  seat.style.opacity = '1';
+  seat.style.transform = 'translateX(-50%) scale(1)';
+  banner.style.transform = 'translateY(-100%)';
+  chip.hidden = true;
+
+  if (ev === 'seatIn') {
+    seat.textContent = '宗良 · 2,000';
+    seat.style.opacity = '0';
+    seat.style.transform = 'translateX(-50%) scale(.8)';
+    await seat.animate(
+      [{ opacity: 0, transform: 'translateX(-50%) scale(.8)' }, { opacity: 1, transform: 'translateX(-50%) scale(1)' }],
+      { duration: MP_FX_LIVE.seatInMs, easing: MP_FX_LIVE.easeIn, fill: 'forwards' },
+    ).finished;
+  } else if (ev === 'seatOut') {
+    seat.textContent = '宗良';
+    await seat.animate(
+      [{ opacity: 1 }, { opacity: 0 }],
+      { duration: MP_FX_LIVE.seatOutMs, easing: MP_FX_LIVE.easeOut, fill: 'forwards' },
+    ).finished;
+    seat.textContent = '空位';
+    seat.style.opacity = '1';
+  } else if (ev === 'banner') {
+    await banner.animate(
+      [{ transform: 'translateY(-100%)' }, { transform: 'translateY(0)' }],
+      { duration: MP_FX_LIVE.bannerInMs, easing: MP_FX_LIVE.easeIn, fill: 'forwards' },
+    ).finished;
+    await new Promise((r) => setTimeout(r, MP_FX_LIVE.bannerHoldMs));
+    await banner.animate(
+      [{ transform: 'translateY(0)' }, { transform: 'translateY(-100%)' }],
+      { duration: MP_FX_LIVE.bannerOutMs, easing: MP_FX_LIVE.easeOut, fill: 'forwards' },
+    ).finished;
+  } else if (ev === 'topUp') {
+    chip.hidden = false;
+    chip.style.top = '40px';
+    await chip.animate(
+      [{ top: '40px' }, { top: '150px' }],
+      { duration: MP_FX_LIVE.topUpDropMs, easing: MP_FX_LIVE.easeChip, fill: 'forwards' },
+    ).finished;
+    seat.textContent = '補碼 ×1 · 2,000';
+  } else if (ev === 'away') {
+    await seat.animate(
+      [{ opacity: 1 }, { opacity: 0.55 }],
+      { duration: MP_FX_LIVE.awayInMs, fill: 'forwards' },
+    ).finished;
+    seat.textContent = '暫離';
+  } else if (ev === 'reconnect') {
+    seat.style.opacity = '0';
+    await seat.animate(
+      [{ opacity: 0 }, { opacity: 1 }],
+      { duration: MP_FX_LIVE.reconnectFadeMs, fill: 'forwards' },
+    ).finished;
+  }
+};
+</script>
+</body>
+</html>

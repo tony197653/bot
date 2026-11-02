@@ -46,4 +46,10 @@ export {
 
 export { computePots, splitPot, orderFromButton } from './pots.js';
 
-export { viewForSeat, serializeState, deserializeState } from './view.js';
+export {
+  viewForSeat,
+  serializeState,
+  deserializeState,
+  publicState,
+  rotateSeatsForViewer,
+} from './view.js';

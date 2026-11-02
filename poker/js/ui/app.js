@@ -36,6 +36,7 @@ import {
   DEAL_FX,
   SHOWDOWN_FX,
 } from './fx.js';
+import { startMpApp, setSoloOpener } from './mp-app.js';
 
 /**
  * Single-device: other seats who don't tap → MUCK (not coin-flip).
@@ -414,7 +415,14 @@ async function boot() {
   await new Promise((r) => setTimeout(r, 220));
   $('#boot').classList.add('is-done');
   setTimeout(() => $('#boot').classList.add('hidden'), 480);
-  openLobby();
+  // Milestone 2: Google login + multiplayer lobby. Solo hot-seat via「同一支手機輪流玩」.
+  setSoloOpener(() => openLobby());
+  try {
+    await startMpApp();
+  } catch (e) {
+    console.warn('mp boot failed, falling back to solo lobby', e);
+    openLobby();
+  }
 }
 
 function setupFullscreenButton() {

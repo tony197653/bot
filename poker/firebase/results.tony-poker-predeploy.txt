@@ -1,0 +1,90 @@
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-poker", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator was started in standard edition.
+✔  firestore: Firestore Emulator UI websocket is running on 9151.
+i  Running script: node rules.test.mjs
+PASS #3 B 讀 A 的 hole/A | 預期 deny 實際 deny 
+PASS #3 觀眾 C（成員未入座）讀 hole/A | 預期 deny 實際 deny 
+PASS #3 非成員 X 讀 hole/A | 預期 deny 實際 deny 
+PASS #3 房主 H 讀 hole/A | 預期 deny 實際 deny 
+PASS #3 A 讀自己的 hole/A | 預期 ok 實際 ok 
+PASS #3 非房主 B 寫 hole/A | 預期 deny 實際 deny 
+PASS #3 房主寫 hole/A | 預期 ok 實際 ok 
+PASS #4 正常：第一次來 D 建帳戶＋grant | 預期 ok 實際 ok 
+PASS #4 第一次來 bank 灌成 99999 | 預期 deny 實際 deny 
+PASS #4 本人直接改自己的 bank | 預期 deny 實際 deny 
+PASS #4 本人直接改自己的 inPlay | 預期 deny 實際 deny 
+PASS #4 正常：B 帶入（帳戶＋帳本 buyin） | 預期 ok 實際 ok 
+PASS #4 帶入時 bank 沒歸 0 | 預期 deny 實際 deny 
+PASS #4 帶入時 inPlay ≠ 原 bank | 預期 deny 實際 deny 
+PASS #4 帶入沒附帳本 | 預期 deny 實際 deny 
+PASS #4 A 已坐 R1，再帶入 R2 | 預期 deny 實際 deny 
+PASS #4 正常：房主讓 B 坐下（金額＝帳本 buyin） | 預期 ok 實際 ok 
+PASS #4 房主讓 B 坐下金額 ≠ 帳本 buyin | 預期 deny 實際 deny 
+PASS #4 房主寫 Σstacks ≠ chipTotal | 預期 deny 實際 deny 
+PASS #4 房主沒帳務事件改 chipTotal（stacks 也跟著改） | 預期 deny 實際 deny 
+PASS #4 房主沒帳務事件改座位 | 預期 deny 實際 deny 
+PASS #4 正常：每手結束（stacks 重分配、hands+1、空位 sess 維持 null） | 預期 ok 實際 ok 
+PASS #4 房主改別人 sess 的 buyIn | 預期 deny 實際 deny 
+PASS #4 房主改別人 sess 的 topUps | 預期 deny 實際 deny 
+PASS #4 房主把空位 sess 從 null 改成資料（無帳務事件） | 預期 deny 實際 deny 
+PASS #4 正常：房主替 A 結帳（房間＋帳本＋帳戶＋戰績） | 預期 ok 實際 ok 
+PASS #4 正常：房主替自己結帳（房主自己的座位） | 預期 ok 實際 ok 
+PASS #4 同一個 sessionNo 結帳兩次 | 預期 deny 實際 deny 
+PASS #4 帳本 update | 預期 deny 實際 deny 
+PASS #4 帳本 delete | 預期 deny 實際 deny 
+PASS #4 牌局中（phase=flop）結帳 | 預期 deny 實際 deny 
+PASS #9 房主失聯 60 秒，A 接手 | 預期 ok 實際 ok 
+PASS #9 房主失聯 20 秒（未滿 30 秒），A 接手 | 預期 deny 實際 deny 
+PASS #9 房間 60 秒沒更新但房主心跳 5 秒前，A 接手 | 預期 deny 實際 deny 
+PASS #9 觀眾 C（未入座）接手 | 預期 deny 實際 deny 
+PASS #9 A、B 用同一份舊資料先後接手：B 被拒 | 預期 deny 實際 deny 
+PASS #9 A 單獨用交易接手（對照組） | 預期 ok 實際 ok 
+PASS #9 A、B 同時用交易接手：只有一人成功、rev 只加 1 | 預期 ok 實際 ok 
+PASS #10 正常：A 輸光，房主核准補碼 | 預期 ok 實際 ok 
+PASS #10 正常：房主自己輸光，自己核准 | 預期 ok 實際 ok 
+PASS #10 正常：第二次補碼（topup2） | 預期 ok 實際 ok 
+PASS #10 籌碼不是 0 時補 | 預期 deny 實際 deny 
+PASS #10 金額不是 2000（3000） | 預期 deny 實際 deny 
+PASS #10 牌局中補（phase=turn） | 預期 deny 實際 deny 
+PASS #10 帳本編號 n 跳號（topup2 但 topUps 原本 0） | 預期 deny 實際 deny 
+PASS #10 非房主 B 核准補碼 | 預期 deny 實際 deny 
+PASS #10 補碼只寫房間、沒寫帳本 | 預期 deny 實際 deny 
+PASS #25 帶入 batch 送兩次：第二次被拒 | 預期 deny 實際 deny 
+PASS #25 帶入被拒後讀帳本（客戶端當成功） | 預期 ok 實際 ok 
+PASS #25 房主結帳 batch 成功後重送同一份：被拒、籌碼不變 | 預期 deny 實際 deny 
+PASS #25 意圖同一個 turn 送兩次（第二次新 seq）：規則允許，去重靠房主看 turn | 預期 ok 實際 ok 
+PASS #25 意圖 seq 沒變大 | 預期 deny 實際 deny 
+PASS #26 房主失聯 11 分鐘：A 自救結帳（金額＝stacks[1]） | 預期 ok 實際 ok 
+PASS #26 房主失聯 11 分鐘且沒有心跳文件：A 自救 | 預期 ok 實際 ok 
+PASS #26 房主失聯 9 分鐘：A 自救被拒 | 預期 deny 實際 deny 
+PASS #26 房間 11 分鐘沒更新但房主心跳 1 分鐘前：被拒 | 預期 deny 實際 deny 
+PASS #26 房間已收桌（closed）：A 立即自救 | 預期 ok 實際 ok 
+PASS #26 自救金額不等於 stacks[1]（灌成 9999） | 預期 deny 實際 deny 
+PASS #26 自救後房主回來：只空出座位（只寫房間） | 預期 ok 實際 ok 
+PASS #26 自救後房主回來又想替 A 入帳一次 | 預期 deny 實際 deny 
+PASS #26 自救後房主只改 A 帳戶 bank（不新增帳本） | 預期 deny 實際 deny 
+PASS #27 B 帶入未入座、房主失聯 11 分鐘：取消帶入退回原數 | 預期 ok 實際 ok 
+PASS #27 同上，房主只失聯 3 分鐘：被拒 | 預期 deny 實際 deny 
+PASS sessSame 空位 null→null、其他不變的一般寫入（只改 pub） | 預期 ok 實際 ok 
+PASS sessSame 有人的座位 sess 改成 null（無帳務事件） | 預期 deny 實際 deny 
+PASS moneyOk lastMoneyEvent 指向不存在的帳本（getAfter 回 null） | 預期 deny 實際 deny 
+PASS moneyOk lastMoneyEvent 改回 null | 預期 deny 實際 deny 
+PASS worst 6 人滿桌：每手結束（6 格 stacks 和 hands 都變） | 預期 ok 實際 ok 
+PASS worst 6 人滿桌：房主替 F（5 號位）結帳 | 預期 ok 實際 ok 
+PASS worst 6 人滿桌：房主替自己結帳＋交棒給 A | 預期 ok 實際 ok 
+PASS worst 6 人滿桌：A 接手（房主失聯 60 秒） | 預期 ok 實際 ok 
+PASS worst 5 人在座：第 6 人 G 坐下（5 號位） | 預期 ok 實際 ok 
+PASS worst 6 人滿桌：補碼（5 號位 F 輸光） | 預期 ok 實際 ok 
+PASS worst 帳務事件同一筆順便改別格（結帳 F＋C 的 hands+1） | 預期 deny 實際 deny 
+PASS worst 帳務事件同一筆順便清掉別人座位（結帳 F＋清 E） | 預期 deny 實際 deny 
+race: 成功 1 人（deny:permission-denied/B），rev 6，hostUid B 
+cancelBack: bank 5000 inPlay 0 total 5000 tableRoomId null 
+retry before/after A bank: 3000 3000
+TOTAL 75/75
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
