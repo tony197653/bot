@@ -1,0 +1,45 @@
+name = "ask-api"
+main = "src/index.ts"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Workers AI binding（免金鑰；與 free_image.py 共用每日 neurons）
+[ai]
+binding = "AI"
+
+# 額度旗標（某家 AI 今天已爆）
+[[kv_namespaces]]
+binding = "FLAGS"
+id = "00000000000000000000000000000000"
+preview_id = "00000000000000000000000000000000"
+
+# 每人每天計數（SQLite Durable Object）
+[[durable_objects.bindings]]
+name = "COUNTER"
+class_name = "QuotaCounter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["QuotaCounter"]
+
+[vars]
+# 正式 CORS 只允許 GitHub Pages 來源；預覽可再加 EXTRA_ALLOWED_ORIGIN
+ALLOWED_ORIGIN = "https://tony197653.github.io"
+# 預覽用額外來源（空字串＝不開放）。例如 http://127.0.0.1:4173
+EXTRA_ALLOWED_ORIGIN = ""
+# 模型（可於部署時覆寫）
+WORKERS_AI_MODEL = "@cf/openai/gpt-oss-20b"
+WORKERS_AI_FALLBACK_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8-fast"
+GROQ_MODEL = "openai/gpt-oss-120b"
+GEMINI_MODEL = "gemini-2.0-flash"
+OPENROUTER_MODEL = "google/gemma-2-9b-it:free"
+# 測試用：設為 "1" 時走 mock 供應商（見 src/providers.ts）
+MOCK_AI = ""
+
+# 必填 secrets（勿寫進本檔，用 wrangler secret put）：
+#   TURNSTILE_SECRET
+#   IP_SALT
+# 選填（沒設就跳過該供應商）：
+#   GROQ_API_KEY
+#   GEMINI_API_KEY
+#   OPENROUTER_API_KEY
