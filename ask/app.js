@@ -17,7 +17,7 @@ const CONFIG = {
   const SUGGESTIONS = ["怎麼跟同事委婉說不？", "德撲新手最常犯的錯？"];
 
   const ERR_MSG = {
-    daily_limit: "今天的 20 題用完了，明天早上 8 點後再來。",
+    daily_limit: "今天的 40 題用完了，明天早上 8 點後再來。",
     all_quota: "今天大家把免費額度用完了，明天早上 8 點後再試。",
     busy: "現在太多人在用，請 30 秒後再試。",
     retry: "出了點問題，請再試一次。",
@@ -89,8 +89,8 @@ const CONFIG = {
 
   function setQuotaFallback() {
     el.quotaWrap.classList.remove("is-loading");
-    el.quotaWrap.querySelector(".quota-full").textContent = "今天最多問 20 題";
-    el.quotaWrap.querySelector(".quota-short").textContent = "最多 20 題";
+    el.quotaWrap.querySelector(".quota-full").textContent = "今天最多問 40 題";
+    el.quotaWrap.querySelector(".quota-short").textContent = "最多 40 題";
     remaining = null;
     applyDisabledState();
   }
@@ -104,7 +104,7 @@ const CONFIG = {
     el.q.disabled = out || streaming;
     el.inputWrap.classList.toggle("is-disabled", out);
     if (out) {
-      el.q.placeholder = "今天的 20 題用完了，明天早上 8 點後再來";
+      el.q.placeholder = "今天的 40 題用完了，明天早上 8 點後再來";
     } else if (!streaming) {
       el.q.placeholder = "輸入你的問題…";
     }
@@ -708,9 +708,9 @@ const CONFIG = {
   function initTurnstile() {
     const start = () => {
       if (!window.turnstile) return;
+      // Invisible 模式在 Cloudflare 後台 widget 設定；不要傳 size（會觸發 Invalid value）
       turnstileWidgetId = window.turnstile.render(el.turnstileHost, {
         sitekey: CONFIG.turnstileSiteKey,
-        size: "invisible",
         callback: () => {},
       });
       turnstileReady = true;

@@ -42,4 +42,4 @@ Turnstile：Cloudflare 後台新增 **Invisible** widget，hostname `tony197653.
 npm test
 ```
 
-使用 `@cloudflare/vitest-pool-workers`，涵蓋 CORS、字數、Turnstile、第 21 題、連按、UTC 換日（＝台灣 08:00）、SSE、mock 供應商備援。
+使用 `@cloudflare/vitest-pool-workers`，涵蓋 CORS、字數、Turnstile、每網路每天 40 題（IPv4 全址／IPv6 /64）、連按、UTC 換日（＝台灣 08:00）、SSE、mock 供應商備援。

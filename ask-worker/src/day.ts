@@ -11,7 +11,8 @@ export function nextResetAt(now = new Date()): string {
   return next.toISOString();
 }
 
-export const DAILY_LIMIT = 20;
+/** 每網路（IPv4 完整／IPv6 /64）每天題數上限 */
+export const DAILY_LIMIT = 40;
 export const BURST_WINDOW_MS = 10_000;
 export const BURST_MAX = 3;
 export const MAX_Q_LEN = 500;

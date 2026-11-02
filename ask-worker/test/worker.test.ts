@@ -5,6 +5,7 @@
 import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { hashIp } from "../src/hash";
+import { expandIpv6, networkKey } from "../src/network";
 import { runMockFallbackChain, runWithFallback } from "../src/providers";
 import type { Env } from "../src/types";
 import {
@@ -18,6 +19,74 @@ import {
   quota,
   readSse,
 } from "./helpers";
+
+describe("networkKey (IPv4 full / IPv6 /64)", () => {
+  it("keeps IPv4 unchanged", () => {
+    expect(networkKey("203.0.113.10")).toBe("203.0.113.10");
+    expect(networkKey(" 198.51.100.1 ")).toBe("198.51.100.1");
+  });
+
+  it("maps IPv4-mapped IPv6 to IPv4", () => {
+    expect(networkKey("::ffff:192.0.2.10")).toBe("192.0.2.10");
+  });
+
+  it("expands compressed IPv6 (::1) and takes /64", () => {
+    expect(expandIpv6("::1")).toEqual([
+      "0000",
+      "0000",
+      "0000",
+      "0000",
+      "0000",
+      "0000",
+      "0000",
+      "0001",
+    ]);
+    expect(networkKey("::1")).toBe("0000:0000:0000:0000");
+  });
+
+  it("same /64 share a key; different /64 do not", () => {
+    const a = networkKey("2001:db8:abcd:12:1111::1");
+    const b = networkKey("2001:db8:abcd:0012:2222:3333:4444:5555");
+    const c = networkKey("2001:db8:abcd:13::9");
+    expect(a).toBe("2001:0db8:abcd:0012");
+    expect(b).toBe("2001:0db8:abcd:0012");
+    expect(a).toBe(b);
+    expect(c).toBe("2001:0db8:abcd:0013");
+    expect(c).not.toBe(a);
+  });
+
+  it("hashIp uses network key so same /64 collide", async () => {
+    const salt = "test-salt";
+    const h1 = await hashIp("2001:db8:1:2:aaaa::1", salt);
+    const h2 = await hashIp("2001:db8:1:2:bbbb::2", salt);
+    const h3 = await hashIp("2001:db8:1:3::1", salt);
+    expect(h1).toBe(h2);
+    expect(h3).not.toBe(h1);
+  });
+
+  it("IPv4 hashes stay distinct per address", async () => {
+    const salt = "test-salt";
+    const a = await hashIp("203.0.113.1", salt);
+    const b = await hashIp("203.0.113.2", salt);
+    expect(a).not.toBe(b);
+  });
+
+  it("DO quota is shared across same IPv6 /64", async () => {
+    const now = "2026-11-02T06:00:00.000Z";
+    const ipA = "2001:db8:cafe:0001:1111::10";
+    const ipB = "2001:db8:cafe:1:9999::20";
+    const ipOther = "2001:db8:cafe:0002::1";
+    await burnViaDo(5, now, ipA);
+    const qB = await SELF.fetch("https://example.com/quota", {
+      headers: { Origin: ORIGIN, "CF-Connecting-IP": ipB },
+    });
+    expect(((await qB.json()) as { remaining: number }).remaining).toBe(35);
+    const qO = await SELF.fetch("https://example.com/quota", {
+      headers: { Origin: ORIGIN, "CF-Connecting-IP": ipOther },
+    });
+    expect(((await qO.json()) as { remaining: number }).remaining).toBe(40);
+  });
+});
 
 describe("CORS", () => {
   it("allows production origin on OPTIONS", async () => {
@@ -41,9 +110,11 @@ describe("CORS", () => {
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe(PREVIEW_ORIGIN);
   });
 
-  it("rejects foreign Origin with 403", async () => {
+  it("rejects foreign Origin with 403 and no remaining leak", async () => {
     const res = await ask({ q: "你好", turnstileToken: TS_OK }, BAD_ORIGIN);
     expect(res.status).toBe(403);
+    const body = (await res.json()) as { code?: string; remaining?: number };
+    expect(body.remaining).toBeUndefined();
   });
 
   it("rejects OPTIONS from foreign Origin", async () => {
@@ -56,16 +127,32 @@ describe("CORS", () => {
 });
 
 describe("input limits + Turnstile", () => {
-  it("rejects empty q", async () => {
-    const res = await ask({ q: "   ", turnstileToken: TS_OK });
+  it("rejects empty q with actual remaining (not forced 0)", async () => {
+    const ip = "198.51.100.40";
+    const now = "2026-11-02T04:00:00.000Z";
+    await burnViaDo(3, now, ip);
+    const res = await SELF.fetch("https://example.com/ask", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: ORIGIN,
+        "CF-Connecting-IP": ip,
+      },
+      body: JSON.stringify({ q: "   ", turnstileToken: TS_OK, now }),
+    });
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { code: string }).code).toBe("bad_input");
+    const body = (await res.json()) as { code: string; remaining?: number };
+    expect(body.code).toBe("bad_input");
+    expect(body.remaining).toBe(37);
   });
 
-  it("rejects q over 500 chars", async () => {
+  it("rejects q over 500 chars with remaining", async () => {
     const res = await ask({ q: "啊".repeat(501), turnstileToken: TS_OK });
     expect(res.status).toBe(400);
-    expect(((await res.json()) as { code: string }).code).toBe("bad_input");
+    const body = (await res.json()) as { code: string; remaining?: number };
+    expect(body.code).toBe("bad_input");
+    expect(typeof body.remaining).toBe("number");
+    expect(body.remaining).toBeGreaterThan(0);
   });
 
   it("accepts q of exactly 500 chars", async () => {
@@ -79,16 +166,39 @@ describe("input limits + Turnstile", () => {
     await drain(res);
   });
 
-  it("rejects missing token", async () => {
-    const res = await ask({ q: "你好" });
+  it("rejects missing token with actual remaining", async () => {
+    const ip = "198.51.100.41";
+    const now = "2026-11-02T04:30:00.000Z";
+    await burnViaDo(1, now, ip);
+    const res = await SELF.fetch("https://example.com/ask", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: ORIGIN,
+        "CF-Connecting-IP": ip,
+      },
+      body: JSON.stringify({ q: "你好", now }),
+    });
     expect(res.status).toBe(403);
-    expect(((await res.json()) as { code: string }).code).toBe("turnstile");
+    const body = (await res.json()) as { code: string; remaining?: number };
+    expect(body.code).toBe("turnstile");
+    expect(body.remaining).toBe(39);
   });
 
-  it("rejects empty token", async () => {
+  it("rejects empty token with remaining", async () => {
     const res = await ask({ q: "你好", turnstileToken: "" });
     expect(res.status).toBe(403);
-    expect(((await res.json()) as { code: string }).code).toBe("turnstile");
+    const body = (await res.json()) as { code: string; remaining?: number };
+    expect(body.code).toBe("turnstile");
+    expect(typeof body.remaining).toBe("number");
+  });
+
+  it("omits remaining on foreign Origin 403", async () => {
+    const res = await ask({ q: "你好", turnstileToken: TS_OK }, BAD_ORIGIN);
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { code: string; remaining?: number };
+    expect(body.code).toBe("forbidden");
+    expect(body.remaining).toBeUndefined();
   });
 });
 
@@ -119,15 +229,15 @@ describe("daily quota + 08:00 Asia/Taipei reset (UTC day)", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { remaining: number; resetAt: string };
     expect(body.remaining).toBeGreaterThanOrEqual(0);
-    expect(body.remaining).toBeLessThanOrEqual(20);
+    expect(body.remaining).toBeLessThanOrEqual(40);
     expect(body.resetAt).toMatch(/T00:00:00/);
   });
 
-  it("blocks the 21st question with daily_limit", async () => {
+  it("blocks the 41st question with daily_limit", async () => {
     const dayStart = "2026-11-02T00:00:01.000Z";
     const ip = "198.51.100.21";
-    await burnViaDo(20, dayStart, ip);
-    const res = await fetchAsk(ip, "第 21 題", dayStart);
+    await burnViaDo(40, dayStart, ip);
+    const res = await fetchAsk(ip, "第 41 題", dayStart);
     expect(res.status).toBe(429);
     const body = (await res.json()) as { code: string; remaining: number };
     expect(body.code).toBe("daily_limit");
@@ -138,15 +248,15 @@ describe("daily quota + 08:00 Asia/Taipei reset (UTC day)", () => {
     const day1 = "2026-11-02T12:00:00.000Z";
     const day2 = "2026-11-03T00:00:01.000Z";
     const ip = "198.51.100.22";
-    await burnViaDo(20, day1, ip);
-    const blocked = await fetchAsk(ip, "還是第 21", day1);
+    await burnViaDo(40, day1, ip);
+    const blocked = await fetchAsk(ip, "還是第 41", day1);
     expect(blocked.status).toBe(429);
     const ok = await fetchAsk(ip, "新的一天", day2);
     expect(ok.status).toBe(200);
     const events = await readSse(ok);
     const meta = events.find((e) => e.event === "meta");
     expect(meta).toBeTruthy();
-    expect(JSON.parse(meta!.data).remaining).toBe(19);
+    expect(JSON.parse(meta!.data).remaining).toBe(39);
   });
 
   it("blocks burst: >3 asks within 10 seconds", async () => {

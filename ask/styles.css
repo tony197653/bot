@@ -33,7 +33,7 @@ body{
 .top h1{margin:0;font-size:18px;font-weight:700;letter-spacing:.01em;flex:1;min-width:0}
 .quota{flex:none}
 .l5inline{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--mute);white-space:nowrap}
-.l5inline b{min-width:22px;height:22px;padding:0 7px;border-radius:7px;background:var(--sage-soft);color:#45523F;font-size:12px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.l5inline b{min-width:22px;height:22px;padding:0 7px;border-radius:7px;background:var(--sage-soft);color:#45523F;font-size:12px;display:inline-grid;place-items:center;font-variant-numeric:tabular-nums;vertical-align:middle}
 .l5inline.is-loading b{background:#E8E9E3;color:#A9ACA3}
 .quota-full{display:none}
 .quota-short{display:inline}

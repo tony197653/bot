@@ -35,6 +35,29 @@ async function callCounter(
   return res.json();
 }
 
+/** 查此人剩餘題數；失敗時回 null（呼叫端應省略 remaining 欄位）。 */
+async function lookupRemaining(
+  request: Request,
+  env: Env,
+  nowIso?: string,
+): Promise<number | null> {
+  try {
+    const ip = clientIp(request);
+    const ipHash = await hashIp(ip, env.IP_SALT || "missing-salt");
+    const stub = await counterStub(env, ipHash);
+    const state = (await callCounter(stub, "/quota", "GET", nowIso)) as QuotaState;
+    return typeof state.remaining === "number" ? state.remaining : null;
+  } catch {
+    return null;
+  }
+}
+
+function errorBody(code: string, remaining: number | null): Record<string, unknown> {
+  const body: Record<string, unknown> = { code };
+  if (remaining !== null) body.remaining = remaining;
+  return body;
+}
+
 function logSafe(
   kind: string,
   extra: { provider?: string; status?: number; hash8?: string },
@@ -60,8 +83,9 @@ export default {
     }
 
     // 同源／無 Origin 的工具呼叫（curl／測試）允許；有 Origin 卻不在白名單 → 403
+    // 不回 remaining，避免對外洩漏額度資訊
     if (request.headers.has("Origin") && !origin) {
-      return jsonResponse({ code: "forbidden", remaining: 0 }, 403, null);
+      return jsonResponse({ code: "forbidden" }, 403, null);
     }
 
     try {
@@ -75,7 +99,7 @@ export default {
     } catch (e) {
       logSafe("unhandled", { hash8: "--------", status: 500 });
       console.error(String(e));
-      return jsonResponse({ code: "retry", remaining: 0 }, 500, origin);
+      return jsonResponse({ code: "retry" }, 500, origin);
     }
   },
 };
@@ -105,19 +129,23 @@ async function handleAsk(
 ): Promise<Response> {
   const ct = request.headers.get("Content-Type") || "";
   if (!ct.includes("application/json")) {
-    return jsonResponse({ code: "bad_input", remaining: 0 }, 400, origin);
+    const remaining = await lookupRemaining(request, env);
+    return jsonResponse(errorBody("bad_input", remaining), 400, origin);
   }
 
   let body: { q?: unknown; turnstileToken?: unknown; now?: unknown };
   try {
     body = (await request.json()) as typeof body;
   } catch {
-    return jsonResponse({ code: "bad_input", remaining: 0 }, 400, origin);
+    const remaining = await lookupRemaining(request, env);
+    return jsonResponse(errorBody("bad_input", remaining), 400, origin);
   }
 
+  const nowIso = typeof body.now === "string" ? body.now : undefined;
   const q = typeof body.q === "string" ? body.q.trim() : "";
   if (!q || q.length > MAX_Q_LEN) {
-    return jsonResponse({ code: "bad_input", remaining: 0 }, 400, origin);
+    const remaining = await lookupRemaining(request, env, nowIso);
+    return jsonResponse(errorBody("bad_input", remaining), 400, origin);
   }
 
   const token = typeof body.turnstileToken === "string" ? body.turnstileToken : "";
@@ -125,13 +153,13 @@ async function handleAsk(
   const okTs = await verifyTurnstile(token, ip, env);
   if (!okTs) {
     logSafe("turnstile", { status: 403, hash8: "--------" });
-    return jsonResponse({ code: "turnstile", remaining: 0 }, 403, origin);
+    const remaining = await lookupRemaining(request, env, nowIso);
+    return jsonResponse(errorBody("turnstile", remaining), 403, origin);
   }
 
   const ipHash = await hashIp(ip, env.IP_SALT || "missing-salt");
   const hash8 = shortHash(ipHash);
   const stub = await counterStub(env, ipHash);
-  const nowIso = typeof body.now === "string" ? body.now : undefined;
 
   const consumed = (await callCounter(stub, "/consume", "POST", nowIso)) as {
     ok: boolean;

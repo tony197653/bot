@@ -13,7 +13,7 @@ binding = "FLAGS"
 id = "00000000000000000000000000000000"
 preview_id = "00000000000000000000000000000000"
 
-# 每人每天計數（SQLite Durable Object）
+# 每網路每天計數（IPv4 全址／IPv6 /64；SQLite Durable Object）
 [[durable_objects.bindings]]
 name = "COUNTER"
 class_name = "QuotaCounter"

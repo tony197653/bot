@@ -91,7 +91,6 @@ async function openAsk(page, width, height) {
     if (window.turnstile) {
       window.turnstile.render(document.getElementById("turnstile-host"), {
         sitekey: "1x00000000000000000000AA",
-        size: "invisible",
       });
     }
   });
@@ -181,6 +180,22 @@ async function main() {
     // —— 390 空狀態 ——
     await withPage(390, 844, async (page) => {
       await page.waitForSelector("#q");
+      await page.evaluate(() => window.__ASK__.setQuotaDisplay(19));
+      const quota390 = await page.evaluate(() => {
+        const el = document.querySelector(".quota-short");
+        const b = el?.querySelector("b");
+        const r = el.getBoundingClientRect();
+        const br = b.getBoundingClientRect();
+        return {
+          text: el.innerText.replace(/\s+/g, " ").trim(),
+          h: r.height,
+          sameLine: Math.abs(r.top - br.top) < 4 && Math.abs(r.bottom - br.bottom) < 8,
+        };
+      });
+      if (quota390.text !== "剩 19 題") throw new Error("quota text 390: " + quota390.text);
+      if (!quota390.sameLine || quota390.h > 32) {
+        throw new Error("quota badge wraps at 390: " + JSON.stringify(quota390));
+      }
       await shot(page, "ask-empty-390.png");
       const chips = await page.locator("#chips button").count();
       if (chips !== 2) throw new Error("expected 2 chips, got " + chips);
@@ -247,6 +262,24 @@ async function main() {
 
     // —— 1280 空狀態 + 串流完成 ——
     await withPage(1280, 800, async (page) => {
+      await page.evaluate(() => window.__ASK__.setQuotaDisplay(19));
+      const quota1280 = await page.evaluate(() => {
+        const el = document.querySelector(".quota-full");
+        const b = el?.querySelector("b");
+        const r = el.getBoundingClientRect();
+        const br = b.getBoundingClientRect();
+        return {
+          text: el.innerText.replace(/\s+/g, " ").trim(),
+          h: r.height,
+          sameLine: Math.abs(r.top - br.top) < 4 && Math.abs(r.bottom - br.bottom) < 8,
+        };
+      });
+      if (quota1280.text !== "今天還能問 19 題") {
+        throw new Error("quota text 1280: " + quota1280.text);
+      }
+      if (!quota1280.sameLine || quota1280.h > 32) {
+        throw new Error("quota badge wraps at 1280: " + JSON.stringify(quota1280));
+      }
       await shot(page, "ask-empty-1280.png");
       await page.fill("#q", "用條列說明");
       await page.click("#send");

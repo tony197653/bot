@@ -73,7 +73,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(
       JSON.stringify({
-        remaining: Math.max(0, 20 - st.count),
+        remaining: Math.max(0, 40 - st.count),
         resetAt: new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + 1)).toISOString(),
       }),
     );
@@ -82,26 +82,6 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === "/ask" && req.method === "POST") {
     const raw = await readBody(req);
-    let body;
-    try {
-      body = JSON.parse(raw);
-    } catch {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ code: "bad_input", remaining: 0 }));
-      return;
-    }
-    const q = typeof body.q === "string" ? body.q.trim() : "";
-    if (!q || q.length > 500) {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ code: "bad_input", remaining: 0 }));
-      return;
-    }
-    if (!body.turnstileToken) {
-      res.writeHead(403, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ code: "turnstile", remaining: 0 }));
-      return;
-    }
-
     const day = dayKey();
     const st = counts.get(ip) || { day, count: 0, recent: [] };
     if (st.day !== day) {
@@ -109,7 +89,29 @@ const server = http.createServer(async (req, res) => {
       st.count = 0;
       st.recent = [];
     }
-    if (st.count >= 20) {
+    const remainingNow = () => Math.max(0, 40 - st.count);
+
+    let body;
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ code: "bad_input", remaining: remainingNow() }));
+      return;
+    }
+    const q = typeof body.q === "string" ? body.q.trim() : "";
+    if (!q || q.length > 500) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ code: "bad_input", remaining: remainingNow() }));
+      return;
+    }
+    if (!body.turnstileToken) {
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ code: "turnstile", remaining: remainingNow() }));
+      return;
+    }
+
+    if (st.count >= 40) {
       res.writeHead(429, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ code: "daily_limit", remaining: 0 }));
       return;
@@ -124,7 +126,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (q === "__BUSY__") {
       res.writeHead(429, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ code: "too_fast", remaining: 20 - st.count }));
+      res.end(JSON.stringify({ code: "too_fast", remaining: 40 - st.count }));
       return;
     }
 
@@ -132,7 +134,7 @@ const server = http.createServer(async (req, res) => {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-cache",
     });
-    sse(res, "meta", { remaining: 20 - st.count });
+    sse(res, "meta", { remaining: 40 - st.count });
 
     if (q === "__ERR_RETRY__") {
       sse(res, "error", { code: "retry" });
