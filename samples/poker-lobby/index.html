@@ -52,12 +52,12 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 
 /* ── 頂部 ── */
 /* 頂部：頭像｜名字／狀態｜帳戶／牌桌金額框｜功能清單鈕（兩列格線，高度固定） */
-.top{position:relative;z-index:25;display:grid;grid-template-columns:40px fit-content(10em) auto minmax(0,1fr) 44px;grid-template-rows:30px 30px;column-gap:10px;row-gap:6px;align-items:center;height:66px}
-.av{grid-row:1/3;grid-column:1;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-family:var(--tf);font-size:17px;color:var(--ink);background:rgba(16,27,20,.9);border:2px solid var(--gold)}
-.nm{grid-row:1;grid-column:2;min-width:0;font-size:16px;font-weight:700;line-height:30px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top{position:relative;z-index:25;display:grid;grid-template-columns:50px fit-content(10em) auto minmax(0,1fr) 44px;grid-template-rows:24px 24px;column-gap:4px;row-gap:2px;align-items:center;height:50px}
+.av{grid-row:1/3;grid-column:1;justify-self:start;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-family:var(--tf);font-size:17px;color:var(--ink);background:rgba(16,27,20,.9);border:2px solid var(--gold)}
+.nm{grid-row:1;grid-column:2;min-width:0;font-size:16px;font-weight:700;line-height:24px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* 狀態：純文字，不可點、沒有點、沒有箭頭、沒有框；和名字同一條中心線 */
-.stl{grid-row:2;grid-column:2;min-width:5em;height:30px;line-height:30px;font-size:13px;font-weight:500;color:var(--mute);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.amt{grid-column:3;width:112px;height:30px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px;border-radius:var(--radius-sm);
+.stl{grid-row:2;grid-column:2;min-width:4em;height:24px;line-height:24px;font-size:13px;font-weight:500;color:var(--mute);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.amt{grid-column:3;width:112px;height:24px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px;border-radius:var(--radius-sm);
   border:1px solid rgba(214,180,90,.38);background:rgba(16,27,20,.55);white-space:nowrap}
 #amtAcc{grid-row:1}#amtTab{grid-row:2}
 .amt small{font-size:11.5px;color:var(--mute)}
