@@ -1084,6 +1084,153 @@ try {
     await page.close();
   }
 
+  // --- Header：M6＋M8 blink（360／390／1280）---
+  {
+    for (const w of [360, 390, 1280]) {
+      const page = await browser.newPage({
+        viewport: { width: w, height: w === 1280 ? 800 : 844 },
+      });
+      await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.app-top .blink', { state: 'attached' });
+      await page.evaluate(() => {
+        document.body.classList.remove('signed-out');
+        document.body.classList.add('signed-in');
+        const obs = new MutationObserver(() => {
+          document.body.classList.remove('signed-out');
+          document.body.classList.add('signed-in');
+        });
+        obs.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        window.__hdrObs = obs;
+      });
+      await page.waitForTimeout(80);
+      const h = await page.evaluate(() => {
+        const m6 = document.querySelector('.mbtn.m6[data-drawer-toggle]');
+        const brand = document.querySelector('a.blink');
+        const title = document.querySelector('.hdr-title.m8bar');
+        const avatar = document.querySelector('.nav-avatar');
+        const name = brand?.querySelector('.bname');
+        const mark = brand?.querySelector('.bmark');
+        const b5Menus = [...document.querySelectorAll('.app-top .btn.b5')].filter((b) =>
+          (b.textContent || '').includes('選單'),
+        );
+        const mr = m6?.getBoundingClientRect();
+        const br = brand?.getBoundingClientRect();
+        const tr = title?.getBoundingClientRect();
+        const ar = avatar?.getBoundingClientRect();
+        const nameCs = name ? getComputedStyle(name) : null;
+        const clipped =
+          !!name &&
+          !!nameCs &&
+          (name.getClientRects().length === 0 ||
+            (parseFloat(nameCs.width) <= 1 && parseFloat(nameCs.height) <= 1) ||
+            (nameCs.clipPath && nameCs.clipPath.includes('inset')));
+        const underlay = brand ? getComputedStyle(brand, '::before') : null;
+        return {
+          hasM6: !!m6,
+          hasB5Menu: b5Menus.length > 0,
+          m6Size: m6 ? { w: Math.round(mr.width), h: Math.round(mr.height) } : null,
+          brandHref: brand?.getAttribute('href'),
+          brandAria: brand?.getAttribute('aria-label'),
+          brandH: brand ? Math.round(br.height) : 0,
+          markSize: mark
+            ? {
+                w: Math.round(mark.getBoundingClientRect().width),
+                h: Math.round(mark.getBoundingClientRect().height),
+              }
+            : null,
+          gap: mr && br ? Math.round(br.left - mr.right) : null,
+          avatarVisible: !!avatar && getComputedStyle(avatar).display !== 'none' && ar.width > 0,
+          avatarAfterBrand: !!ar && !!br && ar.left > br.right - 1,
+          avatarRightPad: (() => {
+            if (!ar) return null;
+            const shell = document.querySelector('.app-top-in');
+            const sr = shell?.getBoundingClientRect();
+            return sr ? Math.round(sr.right - ar.right) : Math.round(window.innerWidth - ar.right);
+          })(),
+          titleW: tr ? Math.round(tr.width) : 0,
+          nameHidden: clipped,
+          m6Visible: m6 ? getComputedStyle(m6).display !== 'none' : false,
+          hasUnderlay: !!underlay && underlay.content !== 'none',
+          cq: !!title && getComputedStyle(title).containerType.includes('inline-size'),
+        };
+      });
+      if (!h.hasM6) throw new Error(`M6 missing @${w}`);
+      if (h.hasB5Menu) throw new Error(`old 選單 b5 still present @${w}`);
+      if (!h.cq) throw new Error(`hdr-title missing container-type @${w}`);
+      if (!h.hasUnderlay) throw new Error(`M8 blink missing ::before underlay @${w}`);
+      if (w < 900) {
+        if (!h.m6Visible) throw new Error(`M6 hidden @${w}`);
+        if (h.m6Size.w !== 44 || h.m6Size.h !== 44) {
+          throw new Error(`M6 not 44×44 @${w}: ${JSON.stringify(h.m6Size)}`);
+        }
+        if (h.gap == null || h.gap < 3 || h.gap > 6) {
+          throw new Error(`M6–M8 gap not ~4px @${w}: ${h.gap}`);
+        }
+      }
+      if (h.brandHref !== '#/' || h.brandAria !== '考題網 首頁') {
+        throw new Error(`M8 blink bad @${w}: ${JSON.stringify(h)}`);
+      }
+      if (h.brandH !== 44) throw new Error(`blink height not 44 @${w}: ${h.brandH}`);
+      if (!h.markSize || h.markSize.w !== 24 || h.markSize.h !== 24) {
+        throw new Error(`bmark not 24 @${w}: ${JSON.stringify(h.markSize)}`);
+      }
+      // container <200 → 只留字母；一般 360／390 標題區 >200，站名應可見
+      if (h.titleW >= 200 && h.nameHidden) {
+        throw new Error(`bname hidden while titleW=${h.titleW} @${w}`);
+      }
+      if (h.titleW < 200 && !h.nameHidden) {
+        throw new Error(`bname should hide when titleW=${h.titleW} @${w}`);
+      }
+      // avatar 在標頭最右（margin-left:auto）；登出態可能隱藏，僅在可見時檢查位置
+      if (h.avatarVisible && !h.avatarAfterBrand) {
+        throw new Error(`avatar not after brand @${w}: ${JSON.stringify(h)}`);
+      }
+      if (h.avatarVisible && h.avatarRightPad != null && h.avatarRightPad > 28) {
+        throw new Error(`avatar not far right @${w}: pad=${h.avatarRightPad}`);
+      }
+      await page.screenshot({
+        path: path.join(outDir, `header-${w}.png`),
+        clip: { x: 0, y: 0, width: w, height: 64 },
+      });
+      // 強制擠壓標題區驗證 container query
+      if (w === 360) {
+        await page.evaluate(() => {
+          const t = document.querySelector('.hdr-title');
+          if (t) {
+            t.style.flex = '0 0 160px';
+            t.style.width = '160px';
+            t.style.maxWidth = '160px';
+          }
+        });
+        await page.waitForTimeout(80);
+        const squeezed = await page.evaluate(() => {
+          const title = document.querySelector('.hdr-title');
+          const name = document.querySelector('.blink .bname');
+          if (!name) return { ok: true };
+          const cs = getComputedStyle(name);
+          const clipped =
+            name.getClientRects().length === 0 ||
+            (parseFloat(cs.width) <= 1 && parseFloat(cs.height) <= 1) ||
+            (cs.clipPath && cs.clipPath.includes('inset')) ||
+            cs.position === 'absolute';
+          return {
+            ok: clipped,
+            titleW: title ? Math.round(title.getBoundingClientRect().width) : 0,
+            cq: title ? getComputedStyle(title).containerType : '',
+            name: { w: cs.width, h: cs.height, pos: cs.position, clip: cs.clipPath },
+          };
+        });
+        if (!squeezed.ok) throw new Error(`bname should hide when title area <200: ${JSON.stringify(squeezed)}`);
+        await page.screenshot({
+          path: path.join(outDir, 'header-360-cq.png'),
+          clip: { x: 0, y: 0, width: 360, height: 64 },
+        });
+      }
+      await page.close();
+    }
+    pass('header M6 + M8 blink 360/390/1280');
+  }
+
   await browser.close();
 } catch (e) {
   fail('e2e suite', e.stack || e.message || e);

@@ -567,10 +567,19 @@ async function renderRoute(route) {
   }
 }
 
+function drawerItems() {
+  const drawer = document.getElementById('app-drawer');
+  if (!drawer) return [];
+  return [...drawer.querySelectorAll('a[href],button:not([disabled])')].filter(
+    (el) => getComputedStyle(el).display !== 'none',
+  );
+}
+
 function toggleDrawer(open) {
   document.body.classList.toggle('drawer-open', open);
   const drawer = document.getElementById('app-drawer');
   const backdrop = document.querySelector('.drawer-backdrop');
+  const btn = document.querySelector('[data-drawer-toggle]');
   drawer?.setAttribute('aria-hidden', open ? 'false' : 'true');
   if (drawer) {
     if (open) drawer.removeAttribute('inert');
@@ -581,7 +590,71 @@ function toggleDrawer(open) {
     if (open) backdrop.removeAttribute('inert');
     else backdrop.setAttribute('inert', '');
   }
-  document.querySelector('[data-drawer-toggle]')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (btn) {
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? '關閉選單' : '開啟選單');
+  }
+}
+
+/** M6：方向鍵／Home／End／Esc 操作抽屜（對齊 components M6） */
+function bindM6Drawer() {
+  const btn = document.querySelector('[data-drawer-toggle]');
+  const drawer = document.getElementById('app-drawer');
+  if (!btn || !drawer) return;
+
+  const isOpen = () => document.body.classList.contains('drawer-open');
+  const show = (focusIdx) => {
+    toggleDrawer(true);
+    const items = drawerItems();
+    if (!items.length) return;
+    const i = focusIdx == null ? -1 : focusIdx < 0 ? items.length - 1 : focusIdx;
+    if (i >= 0) items[i].focus({ preventScroll: true });
+  };
+  const hide = (restore) => {
+    if (!isOpen()) return;
+    toggleDrawer(false);
+    if (restore) btn.focus({ preventScroll: true });
+  };
+
+  btn.addEventListener('click', (e) => {
+    if (isOpen()) hide(true);
+    else show(e.detail === 0 ? 0 : null);
+  });
+  btn.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      show(0);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      show(-1);
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (!isOpen()) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      hide(true);
+      return;
+    }
+    const items = drawerItems();
+    if (!items.length) return;
+    const i = items.indexOf(document.activeElement);
+    let j = null;
+    if (e.key === 'ArrowDown') j = i < 0 ? 0 : (i + 1) % items.length;
+    else if (e.key === 'ArrowUp') j = i < 0 ? items.length - 1 : (i - 1 + items.length) % items.length;
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = items.length - 1;
+    else if (e.key === 'Tab') {
+      e.preventDefault();
+      hide(true);
+      return;
+    }
+    if (j !== null) {
+      e.preventDefault();
+      items[j].focus({ preventScroll: true });
+    }
+  });
 }
 
 function onHashChange() {
@@ -609,10 +682,8 @@ function onHashChange() {
 async function boot() {
   bindLightboxOnce(document);
   toggleDrawer(false);
+  bindM6Drawer();
   document.getElementById('btn-signout')?.addEventListener('click', () => signOut());
-  document.querySelector('[data-drawer-toggle]')?.addEventListener('click', () => {
-    toggleDrawer(!document.body.classList.contains('drawer-open'));
-  });
   document.querySelector('.drawer-backdrop')?.addEventListener('click', () => toggleDrawer(false));
   document.getElementById('app-drawer')?.addEventListener('click', (e) => {
     if (e.target.matches('a,[data-route]')) toggleDrawer(false);
