@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>P5 直式進度軸：目前步驟的點，兩種動法試用</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 色票、圓角、緩動照元件庫 components/index.html :root；A、B 用同一組顏色，只比「目前這一步」的點怎麼動 */
+:root{
+  --bg:#EDEEE9;--surface:#FBFBF8;--ink:#2F312D;--mute:#696C64;--line:#D6D9D0;--line-soft:#E4E6DF;
+  --sage:#66745F;--sage-deep:#505C4A;--sage-soft:#DFE4DA;--rose:#9C7C74;
+  --r:12px;--r-sm:8px;--r-xs:6px;--r-lg:20px;
+  --shadow:0 1px 2px rgba(40,42,36,.05),0 4px 16px rgba(40,42,36,.05);
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --ease-sine:cubic-bezier(.37,0,.63,1); /* 呼吸、擺盪：兩端自然慢下來 */
+  --font:"Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{scrollbar-gutter:stable}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:clip}
+h1,h2,h3{line-height:1.3;text-wrap:balance;margin:0;font-weight:600}
+p{margin:0}
+.wrap{max-width:960px;margin:0 auto;padding:40px 20px 64px}
+.top h1{font-size:22px}
+.top p{color:var(--mute);font-size:14px;margin-top:6px;text-wrap:pretty}
+.opts{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-top:16px;font-size:14px}
+.opts label{display:inline-flex;align-items:center;gap:8px;min-height:44px;cursor:pointer}
+.opts input{width:18px;height:18px;accent-color:var(--sage);margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-top:20px}
+.spec{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0}
+.spec-head{padding:18px 20px 0;display:flex;gap:12px;align-items:flex-start}
+.code{flex:none;display:inline-grid;place-items:center;min-width:40px;height:26px;padding:0 8px;border-radius:var(--r-xs);background:var(--ink);color:#fff;font-size:13px;font-weight:600}
+.spec-head h2{font-size:16px}
+.spec-head p{color:var(--mute);font-size:13.5px;margin-top:2px}
+.stage{flex:1;margin:16px;padding:28px 20px;border-radius:var(--r-sm);background:var(--bg)}
+.zoom{display:flex;justify-content:center;gap:28px;margin:0 16px 16px;padding:18px 12px;border-radius:var(--r-sm);background:#fff;border:1px solid var(--line-soft)}
+.zoom figure{margin:0;text-align:center;font-size:12px;color:var(--mute)}
+.zoom .pt{transform:scale(2.4);margin:22px auto 30px}
+
+/* 按鈕：B2、B5（照元件庫） */
+.btn{font:inherit;font-size:14.5px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;cursor:pointer;border:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;white-space:nowrap;transition:background-color .18s var(--ease),color .18s var(--ease),transform .12s var(--ease),border-color .18s var(--ease)}
+.btn:disabled{cursor:not-allowed}
+.b2{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:var(--r-sm)}
+@media (hover:hover) and (pointer:fine){.b2:hover{background:#fff;border-color:#BFC3B8}}
+.b2:active{background:var(--sage-soft);transform:scale(.97)}
+.b2:focus-visible,.b5:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.b2:disabled{color:#A9ACA3;border-color:var(--line-soft);background:transparent}
+.b5{background:none;color:var(--ink);padding:0 4px;border-radius:var(--r-sm);transition:color .18s var(--ease),opacity .18s var(--ease),transform .12s var(--ease)}
+.b5::after{content:"";position:absolute;left:4px;right:4px;bottom:9px;height:1px;background:currentColor;transform:scaleX(.35);transform-origin:left;transition:transform .22s var(--ease)}
+@media (hover:hover) and (pointer:fine){.b5:hover{color:var(--rose)}.b5:hover::after{transform:scaleX(1)}}
+.b5:active{opacity:.7;transform:scale(.97)}
+
+/* P5 直式進度軸（照元件庫） */
+.stp ol{list-style:none;margin:0;padding:0}
+.stp-ctl{display:flex;justify-content:center;gap:10px;margin-top:22px}
+.p5 li{display:grid;grid-template-columns:22px 1fr auto;column-gap:14px;position:relative;padding-bottom:20px}
+.p5 li:last-child{padding-bottom:0}
+.p5 li:not(:last-child)::before,.p5 li:not(:last-child)::after{content:"";position:absolute;left:10px;top:26px;bottom:4px;width:2px;border-radius:999px;background:#D6D9D0}
+.p5 li:not(:last-child)::after{background:var(--sage);transform:scaleY(0);transform-origin:top;transition:transform .4s var(--ease)}
+.p5 li[data-state=done]::after{transform:scaleY(1)}
+.pt{position:relative;width:22px;height:22px;border-radius:50%;border:1.5px solid #C9CCC3;background:#fff;display:grid;place-items:center;margin-top:1px;transition:background .3s var(--ease),border-color .3s var(--ease)}
+.pt>*{grid-area:1/1} /* 勾和點疊在同一格，點才會正中 */
+.pt .ico{width:12px;height:12px;fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .2s var(--ease)}
+.pt .arm{display:none}
+[data-state=done] .pt{background:var(--sage);border-color:var(--sage)}
+[data-state=done] .pt .ico{opacity:1}
+[data-state=current] .pt{border-color:var(--sage)}
+.p5 .tt{font-size:14.5px;font-weight:500;color:var(--mute);transition:color .3s var(--ease)}
+.p5 [data-state=done] .tt,.p5 [data-state=current] .tt{color:var(--ink)}
+.p5 .ds{grid-column:2;font-size:13px;color:var(--mute);margin-top:2px}
+.p5 time{font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;padding-top:2px}
+.p5 [data-state=todo] time{visibility:hidden}
+
+/* ── A 呼吸：點在正中，放大＋變亮、縮小＋變淡，每次吸滿時放出一圈淡光（只動 transform、opacity） ── */
+.va .pt .arm{position:relative;display:none;width:8px;height:8px}
+.va [data-state=current] .pt .arm{display:block}
+.va .pt i{position:absolute;inset:0;border-radius:50%;background:var(--sage)}
+.va .pt i::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--sage);opacity:0}
+.va [data-state=current] .pt i{animation:p5-breathe 2.4s var(--ease-sine) infinite}
+.va [data-state=current] .pt i::after{animation:p5-halo 2.4s var(--ease-sine) infinite}
+@keyframes p5-breathe{0%,100%{transform:scale(.78);opacity:.72}50%{transform:scale(1.08);opacity:1}}
+@keyframes p5-halo{0%,45%{transform:scale(1);opacity:0}50%{transform:scale(1);opacity:.28}100%{transform:scale(2.1);opacity:0}}
+
+/* ── B 底弧滾動：轉臂以圓圈中心為軸，小點在內圈底部左右各擺 50°，像鐘擺；兩端用正弦曲線自然減速 ── */
+.vb [data-state=current] .pt .arm{display:block;position:absolute;inset:0;border-radius:50%;transform-origin:50% 50%;animation:p5-swing 1s var(--ease-sine) infinite alternate}
+.vb .pt i{position:absolute;left:50%;bottom:2px;width:6px;height:6px;margin-left:-3px;border-radius:50%;background:var(--sage)}
+@keyframes p5-swing{from{transform:rotate(-50deg)}to{transform:rotate(50deg)}}
+
+/* ── 減少動態：A 不縮放、不放光，只剩慢慢的明暗；B 停在正中的靜止點。兩種都還看得出「這一步正在進行」 ── */
+@keyframes p5-breathe-rm{0%,100%{opacity:.55}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .btn,.p5 li::after,.pt,.p5 .tt{transition-duration:.01ms}
+  .va [data-state=current] .pt i{animation:p5-breathe-rm 3.6s ease-in-out infinite}
+  .va [data-state=current] .pt i::after{animation:none}
+  .vb [data-state=current] .pt .arm{animation:none}
+  .vb .pt i{bottom:50%;margin-bottom:-3px}
+}
+.rm .va [data-state=current] .pt i{animation:p5-breathe-rm 3.6s ease-in-out infinite}
+.rm .va [data-state=current] .pt i::after{animation:none}
+.rm .vb [data-state=current] .pt .arm{animation:none}
+.rm .vb .pt i{bottom:50%;margin-bottom:-3px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol></svg>
+<main class="wrap">
+  <header class="top">
+    <h1>P5 目前步驟的點：兩種動法</h1>
+    <p>顏色、版面都和元件庫的 P5 一樣，只比「目前這一步」的點怎麼動。按「模擬下一步」看它換到下一步。勾選下方選項，可以看「減少動態」開啟時的樣子。</p>
+    <div class="opts"><label><input type="checkbox" id="rm">模擬「減少動態」</label></div>
+  </header>
+  <div class="grid">
+    <article class="spec"><div class="spec-head"><span class="code">A</span><div><h2>呼吸</h2><p>點在圓圈正中，約 2.4 秒一次輕輕放大變亮，吸滿時放出一圈淡光。減少動態時只剩明暗變化。</p></div></div>
+      <div class="zoom" aria-hidden="true"><figure><div class="va"><div data-state="current"><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span></div></div>放大看</figure></div>
+      <div class="stage"><div class="stp p5 va js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達"></div></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">B</span><div><h2>底弧滾動</h2><p>小點沿圓圈內側底部左右來回擺動，各 50°，約 2 秒一來回，兩端自然減速。減少動態時停在正中。</p></div></div>
+      <div class="zoom" aria-hidden="true"><figure><div class="vb"><div data-state="current"><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span></div></div>放大看</figure></div>
+      <div class="stage"><div class="stp p5 vb js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達"></div></div></article>
+  </div>
+</main>
+<template id="tpl">
+  <ol aria-label="訂單 #1046 進度">
+    <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">已下單</span><time>11/02 14:20</time><span class="ds">已收到付款。</span></li>
+    <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">製作中</span><time>11/04 10:05</time><span class="ds">森田葵正在拉坯、修坯。</span></li>
+    <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">窯燒中</span><time>11/18 09:30</time><span class="ds">第 12 窯，約需 36 小時。</span></li>
+    <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">已出貨</span><time>11/22 16:40</time><span class="ds">黑貓宅急便，單號會簡訊通知。</span></li>
+    <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">已送達</span><time>11/24 11:15</time><span class="ds">簽收後 7 天內可退換。</span></li>
+  </ol>
+  <div class="stp-ctl"><button class="btn b5" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
+</template>
+<script>
+document.getElementById('rm').addEventListener('change',e=>document.body.classList.toggle('rm',e.target.checked));
+document.querySelectorAll('.js-steps').forEach(root=>{
+  root.appendChild(document.getElementById('tpl').content.cloneNode(true));
+  const lis=[...root.querySelectorAll('ol > li')], N=lis.length, nx=root.querySelector('[data-step=next]');
+  let cur=2, finished=false;
+  function render(){
+    lis.forEach((li,i)=>{
+      const st=i<cur||(finished&&i===N-1)?'done':i===cur?'current':'todo';
+      li.dataset.state=st; st==='current'?li.setAttribute('aria-current','step'):li.removeAttribute('aria-current');
+    });
+    nx.disabled=finished;
+  }
+  root.addEventListener('click',e=>{
+    const b=e.target.closest('[data-step]'); if(!b)return;
+    if(b.dataset.step==='next'){if(cur<N-1)cur++; if(cur===N-1)finished=true}
+    else {cur=0;finished=false}
+    render(); if(b.disabled)root.querySelector('[data-step=reset]').focus();
+  });
+  render();
+});
+</script>
+</body>
+</html>

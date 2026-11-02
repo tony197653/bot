@@ -568,13 +568,19 @@ dialog.dlg:not([open]){display:none}
 .p5 li:not(:last-child)::before,.p5 li:not(:last-child)::after{content:"";position:absolute;left:10px;top:26px;bottom:4px;width:2px;border-radius:999px;background:#D6D9D0}
 .p5 li:not(:last-child)::after{background:var(--sage);transform:scaleY(0);transform-origin:top;transition:transform .4s var(--ease)}
 .p5 li[data-state=done]::after{transform:scaleY(1)}
-.pt{width:22px;height:22px;border-radius:50%;border:1.5px solid #C9CCC3;background:#fff;display:grid;place-items:center;margin-top:1px;transition:background .3s var(--ease),border-color .3s var(--ease)}
+.pt{position:relative;width:22px;height:22px;border-radius:50%;border:1.5px solid #C9CCC3;background:#fff;display:grid;place-items:center;margin-top:1px;transition:background .3s var(--ease),border-color .3s var(--ease)}
 .pt .ico{width:12px;height:12px;stroke:#fff;stroke-width:2.6;opacity:0;transition:opacity .2s var(--ease)}
-.pt i{width:8px;height:8px;border-radius:50%;background:var(--sage);display:none}
+.pt>*{grid-area:1/1}
+.pt i{position:relative;width:8px;height:8px;border-radius:50%;background:var(--sage);display:none}
+.pt i::after{content:"";position:absolute;inset:0;border-radius:50%;background:var(--sage);opacity:0}
 .p5 [data-state=done] .pt{background:var(--sage);border-color:var(--sage)}
 .p5 [data-state=done] .pt .ico{opacity:1}
 .p5 [data-state=current] .pt{border-color:var(--sage)}
-.p5 [data-state=current] .pt i{display:block;animation:pulse 2s infinite}
+.p5 [data-state=current] .pt i{display:block;animation:p5-breathe 2.4s cubic-bezier(.37,0,.63,1) infinite}
+.p5 [data-state=current] .pt i::after{animation:p5-halo 2.4s cubic-bezier(.37,0,.63,1) infinite}
+@keyframes p5-breathe{0%,100%{transform:scale(.78);opacity:.72}50%{transform:scale(1.08);opacity:1}}
+@keyframes p5-halo{0%,45%{transform:scale(1);opacity:0}50%{transform:scale(1);opacity:.28}100%{transform:scale(2.1);opacity:0}}
+@keyframes p5-breathe-rm{0%,100%{opacity:.55}50%{opacity:1}}
 .p5 .tt{font-size:14.5px;font-weight:500;color:var(--mute);transition:color .3s var(--ease)}
 .p5 [data-state=done] .tt,.p5 [data-state=current] .tt{color:var(--ink)}
 .p5 .ds{grid-column:2;font-size:13px;color:var(--mute);margin-top:2px}
@@ -668,6 +674,8 @@ dialog.dlg:not([open]){display:none}
 @media (prefers-reduced-motion:reduce){
   .tst-ic .ld{animation:spin 1.6s linear infinite!important}
   .sk::after{display:none}
+  .p5 [data-state=current] .pt i{animation:p5-breathe-rm 3.6s ease-in-out infinite!important}
+  .p5 [data-state=current] .pt i::after{animation:none!important}
 }
 [hidden]{display:none!important}
 </style>
