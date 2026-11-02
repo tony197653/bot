@@ -1098,10 +1098,19 @@ body:has(#pauseScreen.is-on) #toast{
   .mp-lobby .mp-row .mp-blinds small,
   .mp-lobby .mp-my .mp-chips-n small{font-size:13px}
   .mp-lobby .mp-tag,
-  .mp-lobby .mp-lbl3{line-height:20px}
+  .mp-lobby .mp-lbl3{line-height:20px;padding:0 5px}
   .mp-lobby .mp-row{gap:10px;padding:10px 8px}
   .mp-lobby .mp-l1{gap:5px}
   .mp-lobby .mp-join-status{font-size:16px;min-height:24px;line-height:24px}
+  .mp-lobby .mp-join-ico{width:16px;height:16px}
+  /* §2.3: short label+number combos stay one line */
+  .mp-lobby .mp-blinds,
+  .mp-lobby .mp-seats,
+  .mp-lobby .mp-chips-n,
+  .mp-lobby .mp-panel-h span,
+  .mp-lobby .mp-tag,
+  .mp-lobby .mp-lbl3,
+  .mp-lobby .mp-my .mp-act{white-space:nowrap}
 }
 @media (min-width:1024px){
   .mp-shell{max-width:1080px;padding:28px 32px}
