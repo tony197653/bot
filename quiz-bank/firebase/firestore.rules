@@ -54,7 +54,7 @@ service cloud.firestore {
         ])
         && d.scope is map
         && d.scope.keys().hasAll(['type'])
-        && d.scope.type in ['round', 'unit', 'wrong', 'retry']
+        && d.scope.type in ['round', 'unit', 'wrong', 'retry', 'fav']
         && d.mode in ['instant', 'exam']
         && d.qids is list && d.answers is list
         && d.qids.size() == d.total
@@ -78,6 +78,15 @@ service cloud.firestore {
         && d.note is string && d.note.size() <= 200
         && d.status == 'open'
         && d.at == request.time;
+    }
+
+    function validFav(d) {
+      return d.keys().hasOnly(['bookId', 'subject', 'unitCode', 'addedAt'])
+        && d.keys().hasAll(['bookId', 'subject', 'unitCode', 'addedAt'])
+        && d.bookId is string && d.bookId.size() >= 1 && d.bookId.size() <= 40
+        && d.subject is string && d.subject.size() >= 1 && d.subject.size() <= 40
+        && d.unitCode is string && d.unitCode.size() >= 1 && d.unitCode.size() <= 40
+        && d.addedAt == request.time;
     }
 
     match /allow/{email} {
@@ -126,6 +135,15 @@ service cloud.firestore {
           || manualOutOnly()
         );
       allow delete: if false;
+    }
+
+    match /users/{uid}/favorites/{q} {
+      allow read: if allowed() && request.auth.uid == uid;
+      allow create: if allowed()
+        && request.auth.uid == uid
+        && validFav(request.resource.data);
+      allow delete: if allowed() && request.auth.uid == uid;
+      allow update: if false;
     }
 
     match /reports/{r} {

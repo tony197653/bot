@@ -123,6 +123,25 @@
 .wrong-list{display:grid;gap:10px;padding-bottom:80px}
 .wrong-card{cursor:pointer;min-height:56px}
 .wrong-card .stem-snip{margin:6px 0 0;font-size:15px;line-height:1.5;color:var(--ink)}
+/* 收藏夾（v1.2 §3 畫面 6） */
+.page.fav .tabs.g2{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:8px}
+.page.fav .tabs.g2::-webkit-scrollbar{display:none}
+.page.fav .tabs.g2 .tab{flex:none;white-space:nowrap}
+.fav-practice-row{margin:0 0 16px;display:grid;gap:8px}
+.fav-practice-row .btn.b1{width:100%;min-height:52px;height:52px}
+@media (min-width:900px){
+  .fav-practice-row{display:flex;align-items:center;justify-content:flex-end}
+  .fav-practice-row .btn.b1{width:auto;min-width:200px}
+}
+.fav-group{margin:0 0 20px}
+.fav-group-h{font-size:15px;font-weight:600;margin:0 0 10px;color:var(--mute)}
+.fav-list{display:grid;gap:10px}
+.fav-card{position:relative;cursor:pointer;padding-right:56px;min-height:72px}
+.fav-card .fav-btn{position:absolute;right:8px;top:8px}
+.fav-card .stem-snip{margin:0;font-size:16px;line-height:1.5;color:var(--ink)}
+.fav-card .meta{margin:6px 0 0;font-size:13px;color:var(--mute)}
+.fav-detail-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.fav-detail-head h2{margin:0}
 .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 0 20px}
 @media (min-width:768px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
 .stat-box{background:var(--surface);padding:14px;border-radius:var(--r);box-shadow:var(--shadow)}

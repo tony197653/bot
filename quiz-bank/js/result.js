@@ -42,6 +42,7 @@ function unitStatus(correct, total) {
  *  onRetryWrong: () => void,
  *  onRestart: () => void,
  *  onHome: () => void,
+ *  onBackFav?: () => void,
  *  onCopySummary?: (text: string) => void,
  *  onRetryCloud?: () => void,
  *  onReport?: (payload: {qid:string, reason:string, note:string}) => Promise<void>|void,
@@ -171,6 +172,11 @@ export function showResult(opts) {
       <button type="button" class="btn b2" data-act="restart">從頭再做</button>
       <button type="button" class="btn b2" data-act="copy">複製摘要</button>
       <button type="button" class="btn b2" data-act="home">回首頁</button>
+      ${
+        typeof opts.onBackFav === 'function'
+          ? '<button type="button" class="btn b2" data-act="back-fav">回收藏夾</button>'
+          : ''
+      }
     </div>
     <dialog class="report-dlg" data-el="resultReportDlg">
       <form method="dialog" class="report-form">
@@ -322,6 +328,7 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
     if (act === 'retry') opts.onRetryWrong();
     else if (act === 'restart') opts.onRestart();
     else if (act === 'home') opts.onHome();
+    else if (act === 'back-fav') opts.onBackFav?.();
     else if (act === 'retry-cloud') opts.onRetryCloud?.();
     else if (act === 'relogin') opts.onRelogin?.();
     else if (act === 'copy') {

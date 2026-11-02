@@ -10,7 +10,7 @@ import {
   isAdmin,
   getUser,
 } from './auth.js';
-import { renderHome, renderWrongBook, renderUnits } from './views.js';
+import { renderHome, renderWrongBook, renderFavorites } from './views.js';
 import { renderImport } from './import.js';
 import { startQuiz, getActiveQuiz, isQuizActive, requestLeave } from './quiz.js';
 import { showResult } from './result.js';
@@ -27,6 +27,7 @@ import {
   loadLastResult,
   clearLastResult,
 } from './stats.js';
+import { loadFavorites, makeFavoriteApi, clearFavoritesCache } from './fav.js';
 import { bindLightboxOnce } from './lightbox.js';
 import { formatRoundSummary, taipeiStamp } from './summary.js';
 import { askConfirm } from './dialog.js';
@@ -257,6 +258,20 @@ function beginQuiz(scope) {
   quizStarted = true;
   document.body.dataset.view = 'quiz';
 
+  const favorite = makeFavoriteApi(user.uid, {
+    toast,
+    navigate,
+    requestLeave: () =>
+      new Promise((resolve) => {
+        const q = getActiveQuiz();
+        if (!q?.askLeave) {
+          resolve(true);
+          return;
+        }
+        q.askLeave((ok) => resolve(!!ok));
+      }),
+  });
+
   startQuiz({
     title: scope.title || PRODUCT,
     questions: scope.questions,
@@ -273,6 +288,7 @@ function beginQuiz(scope) {
     reportedIds: scope.reportedIds,
     getReportedIds: getReportedIdsForUser,
     onReport: submitReport,
+    favorite,
     onLeave: () => {
       quizStarted = false;
       activeQuizScope = null;
@@ -320,6 +336,12 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
       clearLastResult(user.uid);
       navigate('#/');
     },
+    onBackFav: scope?.type === 'fav'
+      ? () => {
+          clearLastResult(user.uid);
+          navigate('#/fav');
+        }
+      : undefined,
     onRetryCloud: async () => {
       const retryAgain = () => {
         const btn = main?.querySelector('[data-act="retry-cloud"]');
@@ -594,8 +616,12 @@ async function renderRoute(route) {
 
   if (route === '/' || route === '/home') await renderHome(main, ctx);
   else if (route === '/wrong') await renderWrongBook(main, ctx);
-  else if (route === '/units') await renderUnits(main, ctx);
-  else if (route === '/import') await renderImport(main, ctx);
+  else if (route === '/fav' || route === '/favorites') await renderFavorites(main, ctx);
+  else if (route === '/units' || route === '/units/') {
+    // v1.2：單元強弱表已刪 → 轉收藏夾
+    navigate('#/fav');
+    return;
+  } else if (route === '/import') await renderImport(main, ctx);
   else if (route === '/quiz') {
     if (pendingQuiz) {
       beginQuiz(pendingQuiz);
@@ -831,8 +857,14 @@ async function boot() {
       clearSessionExpiredBanner();
       await flushPending(ev.user.uid);
       paintNavUser(ev.user);
+      try {
+        await loadFavorites(ev.user.uid, true);
+      } catch {
+        /* 收藏清單失敗不擋進站 */
+      }
       await renderRoute(parseRoute());
     } else if (ev.status === 'signed-out' && (quizStarted || parseRoute() === '/import' || parseRoute() === '/quiz' || parseRoute() === '/result')) {
+      clearFavoritesCache();
       // 紅線 4／11：作答或校對中登入過期不踢人、不清畫面
       showSessionExpiredBanner();
     } else if (ev.status === 'in-app-browser' || ev.status === 'denied' || ev.status === 'signed-out') {

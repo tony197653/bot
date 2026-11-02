@@ -110,7 +110,7 @@ try {
 
   // --- hash 路由頁：錯題本／單元表／匯入（未登入也不可炸模組）---
   {
-    for (const hash of ['#/wrong', '#/units', '#/import']) {
+    for (const hash of ['#/wrong', '#/fav', '#/import']) {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
       const err = attachErrorCollectors(page);
       await page.goto(`http://127.0.0.1:${port}/index.html${hash}`, { waitUntil: 'networkidle' });

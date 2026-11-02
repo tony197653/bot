@@ -1579,9 +1579,9 @@ try {
     if (ux.hasSubnav) throw new Error('app-subnav must be removed (not in wireframe; F+drawer cover red-line 2)');
     for (const need of [
       { route: 'wrong', t: '錯題本' },
-      { route: 'units', t: '單元強弱表' },
+      { route: 'fav', t: '收藏夾' },
     ]) {
-      const hit = ux.drawerLinks.find((l) => l.route === need.route && l.t.includes(need.t.replace('表', '')) && l.vis);
+      const hit = ux.drawerLinks.find((l) => l.route === need.route && l.t.includes(need.t) && l.vis);
       if (!hit) throw new Error(`M6 drawer missing ${need.t}: ${JSON.stringify(ux.drawerLinks)}`);
       if (hit.h < 44) throw new Error(`drawer ${need.t} touch <44: ${hit.h}`);
     }
@@ -1878,7 +1878,7 @@ try {
             </button>
             <nav class="home-quick" aria-label="快速入口">
               <a class="btn b2" href="#/wrong">錯題本</a>
-              <a class="btn b2" href="#/units">單元強弱表</a>
+              <a class="btn b2" href="#/fav">收藏夾</a>
             </nav>
             <div class="filters s3 home-filters">
               <label class="field">科目
@@ -1992,14 +1992,14 @@ try {
         }));
         return {
           hasWrong: links.some((l) => l.route === 'wrong' && /錯題本/.test(l.text) && !l.hidden),
-          hasUnits: links.some((l) => l.route === 'units' && /單元強弱表/.test(l.text) && !l.hidden),
+          hasFav: links.some((l) => l.route === 'fav' && /收藏夾/.test(l.text) && !l.hidden),
           hasImport: links.some(
             (l) => l.route === 'import' && /匯入/.test(l.text) && !l.hidden && l.display !== 'none',
           ),
           links,
         };
       });
-      if (!drawer.hasWrong || !drawer.hasUnits || !drawer.hasImport) {
+      if (!drawer.hasWrong || !drawer.hasFav || !drawer.hasImport) {
         throw new Error(`M6 routes incomplete: ${JSON.stringify(drawer)}`);
       }
       pass('home wireframe §3-2 + empty text + M6 routes 320/360/390/1280');
@@ -2183,6 +2183,42 @@ try {
     if (tabs.rowH > 56) throw new Error(`R5-6 tabs wrapped tall ${tabs.rowH}`);
     if (tabs.badgeW > tabs.rowW * 0.5) throw new Error(`N-8 將覆蓋 too wide ${tabs.badgeW}/${tabs.rowW}`);
     pass('R5-6/N-8 wrong tabs + overwrite badge');
+    await page.close();
+  }
+
+
+  // --- v1.2：導覽收藏夾、作答星號 .xbtn 44×44 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+    const nav = await page.evaluate(() => {
+      const drawer = [...document.querySelectorAll('#app-drawer a[data-route]')].map((a) => a.dataset.route);
+      const desk = [...document.querySelectorAll('.app-nav a[data-route]')].map((a) => a.dataset.route);
+      return { drawer, desk, hasUnitsDrawer: drawer.includes('units'), hasFav: drawer.includes('fav') };
+    });
+    if (nav.hasUnitsDrawer || !nav.hasFav) throw new Error(`v1.2 nav: ${JSON.stringify(nav)}`);
+    await page.close();
+  }
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, { waitUntil: 'networkidle' });
+    // harness 不傳 favorite → 不顯示星號
+    await page.waitForSelector('.opt');
+    const noStar = await page.locator('[data-act="fav"]').count();
+    if (noStar !== 0) throw new Error('demo/harness should hide fav star without favorite param');
+    // 注入 favorite 後重渲：改用 evaluate 掛一顆量測 CSS
+    const box = await page.evaluate(() => {
+      const b = document.createElement('button');
+      b.className = 'xbtn fav-btn';
+      b.innerHTML = '<svg width="24" height="24"></svg>';
+      document.body.appendChild(b);
+      const r = b.getBoundingClientRect();
+      const cs = getComputedStyle(b);
+      b.remove();
+      return { w: Math.round(r.width), h: Math.round(r.height), radius: cs.borderRadius };
+    });
+    if (box.w !== 44 || box.h !== 44) throw new Error(`fav xbtn not 44: ${JSON.stringify(box)}`);
+    pass('v1.2 fav nav + xbtn 44×44');
     await page.close();
   }
 

@@ -53,7 +53,17 @@ body[data-view=result] .count,body[data-view=result] .prog{visibility:hidden}
 .bub-m{position:absolute;right:-5px;top:-5px;width:16px;height:16px;border-radius:50%;display:grid;place-items:center}
 .bub-m svg{width:11px;height:11px}
 /* D 題目卡 */
-.qmeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.qmeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;position:relative;padding-right:48px}
+/* §8 收藏星號：D3/D5/N1 內建 .xbtn 放大 44×44、圖示 24px */
+.xbtn{position:relative;width:36px;height:36px;flex:none;display:grid;place-items:center;border:0;border-radius:999px;background:transparent;color:var(--mute);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s var(--ease),color .15s var(--ease),transform .12s var(--ease);padding:0}
+.xbtn::before{content:"";position:absolute;inset:-4px}
+@media (hover:hover) and (pointer:fine){.xbtn:hover{background:var(--surface-2);color:var(--ink)}}
+.xbtn:active{transform:scale(.96)}
+.xbtn:focus-visible{outline:none;box-shadow:var(--halo)}
+.xbtn.fav-btn{width:44px;height:44px;min-width:44px;min-height:44px}
+.xbtn.fav-btn.on{color:var(--accent)}
+.qmeta .fav-btn{position:absolute;right:0;top:50%;transform:translateY(-50%)}
+.qmeta .fav-btn:active{transform:translateY(-50%) scale(.96)}
 .qno{font-size:14px;color:var(--mute)} .qno b{font-variant-numeric:tabular-nums;color:var(--ink)}
 .tag{font-size:12px;font-weight:600;padding:3px 8px;border-radius:var(--r-xs);letter-spacing:.03em}
 .stem{font-size:18px;line-height:1.85;font-family:var(--font-stem);outline:none;text-wrap:pretty}

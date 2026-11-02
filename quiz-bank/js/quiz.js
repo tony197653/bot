@@ -39,6 +39,7 @@ let session = null;
  *  getReportedIds?: () => Promise<string[]>,
  *  clearProgressOnFinish?: boolean,
  *  skipLightboxBind?: boolean,
+ *  favorite?: { isOn:(qid:string)=>boolean, toggle:(q:object|string)=>Promise<boolean>|boolean },
  * }} opts
  */
 export function startQuiz(opts) {
@@ -322,6 +323,52 @@ function createSession(opts) {
     root.querySelector('[data-act="next"]')?.focus({ preventScroll: true });
   }
 
+  const favApi = opts.favorite;
+  const showFav =
+    !!favApi && typeof favApi.isOn === 'function' && typeof favApi.toggle === 'function';
+
+  const STAR_OFF =
+    '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 3.6l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.2 7.2 18.5l.9-5.4L4.2 9.3l5.4-.8z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>';
+  const STAR_ON =
+    '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 3.6l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.2 7.2 18.5l.9-5.4L4.2 9.3l5.4-.8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+
+  function favButtonHtml(q) {
+    if (!showFav) return '';
+    const on = !!favApi.isOn(q.id);
+    return `<button type="button" class="xbtn fav-btn${on ? ' on' : ''}" data-act="fav" aria-pressed="${
+      on ? 'true' : 'false'
+    }" aria-label="${on ? '取消收藏這題' : '收藏這題'}">${on ? STAR_ON : STAR_OFF}</button>`;
+  }
+
+  function syncFavBtn() {
+    const btn = stageEl.querySelector('[data-act="fav"]');
+    if (!btn || !showFav) return;
+    const q = qs[i];
+    const on = !!favApi.isOn(q.id);
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.setAttribute('aria-label', on ? '取消收藏這題' : '收藏這題');
+    btn.innerHTML = on ? STAR_ON : STAR_OFF;
+  }
+
+  let favBusy = false;
+  async function toggleFav() {
+    if (!showFav || favBusy) return;
+    const q = qs[i];
+    favBusy = true;
+    try {
+      await favApi.toggle({
+        qid: q.id,
+        bookId: q.bookId || '',
+        subject: q.subject || '',
+        unitCode: q.unitCode || '',
+      });
+    } finally {
+      favBusy = false;
+      syncFavBtn();
+    }
+  }
+
   function cardHtml(n) {
     const q = qs[n];
     const a = answers[n];
@@ -331,6 +378,7 @@ function createSession(opts) {
       <div class="qmeta"><span class="qno">第 <b>${n + 1}</b> 題</span>
         ${q.unitCode ? `<span class="tag">${escHtml(q.unitCode)}${q.unit ? ' ' + escHtml(q.unit) : ''}</span>` : ''}
         ${q.level ? `<span class="tag">${escHtml(q.level)}</span>` : ''}
+        ${favButtonHtml(q)}
       </div>
       ${groupPassageHtml(group, { collapsed: true })}
       ${stemHtml(q)}
@@ -562,6 +610,7 @@ function createSession(opts) {
       if (!t.disabled) skip();
     } else if (act === 'submit') submit();
     else if (act === 'leave') showLeaveDialog();
+    else if (act === 'fav') toggleFav();
   }
 
   function onKey(e) {
@@ -621,6 +670,10 @@ function createSession(opts) {
     }
     if (k === 'ArrowRight') go(i + 1);
     else if (k === 'ArrowLeft') go(i - 1);
+    else if ((k === 'f' || k === 'F') && showFav) {
+      e.preventDefault();
+      toggleFav();
+    }
   }
 
   function onReportSubmit(e) {

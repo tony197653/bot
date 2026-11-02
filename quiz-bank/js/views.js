@@ -1,18 +1,20 @@
 /**
- * 首頁、錯題本、單元強弱表（Traditional Chinese UI）。
+ * 首頁、錯題本、收藏夾（Traditional Chinese UI；v1.2 強弱表已刪）。
  */
 import { escHtml, renderMath } from './render.js';
 import { ERR } from './errors.js';
 import {
-  loadAttempts30d,
   loadQstatsWrong,
   loadAttemptSummary,
-  computeStrength,
-  mergeKnownUnits,
-  sortStrengthRows,
   updateQstatManualOut,
   progressKey,
 } from './stats.js';
+import {
+  loadFavorites,
+  favCount,
+  scheduleFavoriteRemove,
+  pruneMissingFavorites,
+} from './fav.js';
 
 export const SUBJECT_LABELS = {
   math: '數學',
@@ -247,11 +249,11 @@ export async function renderHome(mount, ctx) {
   mount.innerHTML = `<div class="page home"><div class="e3 skel" aria-busy="true">載入中…</div></div>`;
   const uid = ctx.user.uid;
   try {
-    const [banks, summary, attempts30, wrongRows] = await Promise.all([
+    const [banks, summary, wrongRows, favRows] = await Promise.all([
       fetchBanks(ctx),
       loadAttemptSummary(uid),
-      loadAttempts30d(uid),
       loadQstatsWrong(uid),
+      loadFavorites(uid).catch(() => []),
     ]);
     const filters = readFilters();
     const subject = filters.subject || '';
@@ -260,24 +262,9 @@ export async function renderHome(mount, ctx) {
     if (bookId) filtered = filtered.filter((b) => b.bookId === bookId);
 
     const wrongN = wrongRows.length;
-    const knownUnits = [];
-    for (const book of banks) {
-      for (const u of book.units || []) {
-        knownUnits.push({
-          unitCode: u.unitCode,
-          name: u.name,
-          subject: book.subject,
-          bookId: book.bookId,
-        });
-      }
-    }
-    const strength = sortStrengthRows(mergeKnownUnits(computeStrength(attempts30), knownUnits));
-    const weakest =
-      strength.find((r) => r.status === 'weak') ||
-      strength.find((r) => r.status === 'mid') ||
-      null;
+    const favN = favRows.length || favCount();
 
-    // §3 2-B／線框：今日建議（續練／首回）＋錯題數＋最弱單元；點卡直接開始
+    // §3 2-B：今日建議（續練／首回）＋錯題數；v1.2 不再顯示最弱單元
     let suggestHtml = '';
     let suggestAct = '';
     const progRaw = localStorage.getItem(progressKey(uid));
@@ -297,7 +284,7 @@ export async function renderHome(mount, ctx) {
             : `繼續作答（${cur}/${total}）`,
         ];
         if (wrongN) bits.push(`錯題本 ${wrongN} 題`);
-        if (weakest) bits.push(`最弱：${weakest.unitCode || ''} ${weakest.unit || ''}`.trim());
+        if (favN) bits.push(`收藏夾 ${favN} 題`);
         suggestHtml = bits.join('｜');
         suggestAct = 'continue';
       } catch {
@@ -313,7 +300,7 @@ export async function renderHome(mount, ctx) {
           `從「${book.title}」${unit.name} ${round.label || `第 ${round.round} 回`} 開始`,
         ];
         if (wrongN) bits.push(`錯題本 ${wrongN} 題`);
-        if (weakest) bits.push(`最弱：${weakest.unitCode || ''} ${weakest.unit || ''}`.trim());
+        if (favN) bits.push(`收藏夾 ${favN} 題`);
         suggestHtml = bits.join('｜');
         suggestAct = 'suggest-first';
       }
@@ -350,10 +337,10 @@ export async function renderHome(mount, ctx) {
             })
             .join('');
 
-    // §3 2-F／style-spec：手機快速入口兩顆 B2（錯題本 N、單元強弱表）；桌機靠頂部導覽，不顯示；無「匯入校對」
+    // §3 2-F：手機快速入口兩顆 B2（錯題本 N、收藏夾 N）；桌機靠頂部導覽
     const quickNav = `<nav class="home-quick" aria-label="快速入口">
       <a class="btn b2" href="#/wrong">錯題本${wrongN ? ` <span class="l5">${wrongN}</span>` : ''}</a>
-      <a class="btn b2" href="#/units">單元強弱表</a>
+      <a class="btn b2" href="#/fav">收藏夾${favN ? ` <span class="l5">${favN}</span>` : ''}</a>
     </nav>`;
 
     const bookOptions = banks
@@ -576,7 +563,7 @@ export async function renderWrongBook(mount, ctx) {
             ${
               subject || unitFilter
                 ? '<button type="button" class="btn b2" data-clear-filter>看全部科目</button>'
-                : ''
+                : '<a class="btn b1" href="#/">回首頁選一回</a>'
             }
           </div>`
       }
@@ -653,221 +640,318 @@ export async function renderWrongBook(mount, ctx) {
   }
 }
 
-export async function renderUnits(mount, ctx) {
-  mount.innerHTML = `<div class="page units-page"><div class="e3 skel" aria-busy="true">載入中…</div></div>`;
+
+function favPracticeLabel(n) {
+  if (n <= 0) return '目前沒有收藏題';
+  if (n <= 10) return `練習收藏題（${n} 題）`;
+  return `練習收藏題（隨機 10 題，共 ${n} 題）`;
+}
+
+function fmtFavDate(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const p = (x) => String(x).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}/${p(d.getDate())} 收藏`;
+}
+
+function stemPreview(stem, lines = 2) {
+  const t = String(stem || '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!t) return '（無題幹）';
+  // 約兩行預覽
+  return t.length > 72 ? `${t.slice(0, 72)}…` : t;
+}
+
+/**
+ * 收藏夾頁（§3 畫面 6／§5.7）
+ */
+export async function renderFavorites(mount, ctx) {
+  mount.innerHTML = `<div class="page fav"><div class="e3 skel" aria-busy="true">載入中…</div></div>`;
   const uid = ctx.user.uid;
+  const filters = readFilters();
+  let subject = filters.favSubject || '';
   try {
-    const [attempts, banks, wrongStats, summary] = await Promise.all([
-      loadAttempts30d(uid),
-      fetchBanks(ctx),
-      loadQstatsWrong(uid),
-      loadAttemptSummary(uid),
-    ]);
-    const knownUnits = [];
-    for (const book of banks) {
-      for (const u of book.units || []) {
-        knownUnits.push({
-          unitCode: u.unitCode,
-          name: u.name,
-          subject: book.subject,
-          bookId: book.bookId,
+    const rows = await loadFavorites(uid, true);
+    const bySubject = subject ? rows.filter((r) => r.subject === subject) : rows;
+    const qids = bySubject.map((r) => r.qid);
+    const stemById = {};
+    const metaById = {};
+    const missing = [];
+    if (qids.length) {
+      const { db, fs } = await ensureFb(ctx);
+      for (let i = 0; i < qids.length; i += 30) {
+        const chunk = qids.slice(i, i + 30);
+        const q = fs.query(
+          fs.collection(db, 'questions'),
+          fs.where(fs.documentId(), 'in', chunk),
+        );
+        const snap = await fs.getDocs(q);
+        const found = new Set();
+        snap.forEach((d) => {
+          found.add(d.id);
+          const data = d.data() || {};
+          if (data.review?.status && data.review.status !== 'checked') {
+            missing.push(d.id);
+            return;
+          }
+          stemById[d.id] = data.stem || '';
+          metaById[d.id] = data;
+        });
+        chunk.forEach((id) => {
+          if (!found.has(id)) missing.push(id);
         });
       }
+      if (missing.length) pruneMissingFavorites(uid, missing).catch(() => {});
     }
-    let strength = mergeKnownUnits(computeStrength(attempts), knownUnits);
-    let sortKey = readFilters().unitsSortKey || 'rate';
-    let sortDir = readFilters().unitsSortDir || 'asc';
-    strength = sortStrengthRows(strength, sortKey, sortDir);
+    const visible = bySubject.filter((r) => stemById[r.qid] != null && !missing.includes(r.qid));
+    const count = visible.length;
+    const label = favPracticeLabel(count);
+    const allCount = rows.length;
 
-    const wrongBySubject = {};
-    wrongStats.forEach((s) => {
-      wrongBySubject[s.subject] = (wrongBySubject[s.subject] || 0) + 1;
-    });
-    const topWrong = [...wrongStats]
-      .sort((a, b) => (b.wrong || 0) - (a.wrong || 0) || String(a.qid).localeCompare(String(b.qid)))
-      .slice(0, 5)
-      .map((s) => ({ qid: s.qid, wrong: s.wrong || 0 }));
-    const exportText = formatUnitsExportText({
-      strengthRows: strength,
-      wrongBySubject,
-      recentAttempts: summary.recent,
-      topWrong,
-    });
-
-    // 線框 6-B：掌握／部分掌握／需加強／未練
-    const nGood = strength.filter((u) => u.status === 'good').length;
-    const nMid = strength.filter((u) => u.status === 'mid').length;
-    const nWeak = strength.filter((u) => u.status === 'weak').length;
-    const nNone = strength.filter((u) => u.status === 'none' || !u.total).length;
-
-    const sortMark = (k) => (sortKey === k ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
-
-    mount.innerHTML = `<div class="page units-page">
-      <div class="stat-grid">${[
-        ['掌握', `${nGood} 單元`],
-        ['部分掌握', nMid],
-        ['需加強', nWeak],
-        ['未練', nNone],
-      ]
-        .map(([k, v]) => `<div class="stat-box"><span>${k}</span><b>${v}</b></div>`)
-        .join('')}</div>
-      <table class="t1 strength">
-        <thead><tr>
-          <th scope="col"><button type="button" class="th-sort" data-sort="unit">單元${sortMark('unit')}</button></th>
-          <th scope="col" class="r"><button type="button" class="th-sort" data-sort="rate">正確率${sortMark('rate')}</button></th>
-          <th scope="col"><button type="button" class="th-sort" data-sort="status">狀態${sortMark('status')}</button></th>
-          <th scope="col"><span class="vh">操作</span></th>
-        </tr></thead>
-        <tbody>${strength
-          .map(
-            (u) => `<tr>
-              <td><span class="ucode">${escHtml(u.unitCode)}</span><span class="uname" title="${escHtml(u.unit)}">${escHtml(u.unit)}</span></td>
-              <td class="r">${
-                u.total
-                  ? `<span class="rate-pct">${Math.round(u.rate * 100)}%</span><span class="rate-n">（${u.total} 次）</span>`
-                  : '—'
-              }</td>
-              <td class="st"><span class="l2 ${u.status}"><i></i>${escHtml(u.label)}</span>${u.lowSample ? '<span class="l3">題數少</span>' : ''}</td>
-              <td><button type="button" class="btn b2 unit-practice" data-unit="${escHtml(u.unitCode)}" data-book="${escHtml(u.bookId || '')}" data-unit-name="${escHtml(u.unit)}">練這單元</button></td>
-            </tr>`,
-          )
-          .join('')}</tbody>
-      </table>
-      ${
-        strength.length === 0
-          ? `<div class="empty-next"><p class="e1">最近 30 天做完一回就會出現</p>
-             <a class="btn b1" href="#/">回首頁選一回</a></div>`
-          : ''
+    // 科目→單元分組；組內 addedAt 新到舊
+    const groups = new Map();
+    for (const r of visible) {
+      const q = metaById[r.qid] || {};
+      const unitName = q.unit || r.unitCode;
+      const key = `${r.subject}|${r.unitCode}|${unitName}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          subject: r.subject,
+          unitCode: r.unitCode,
+          unitName,
+          items: [],
+        });
       }
-      <label class="export-box">複製給家教 TU
-        <textarea class="i1" readonly rows="8">${escHtml(exportText)}</textarea>
-      </label>
-      <button type="button" class="btn b1" id="copy-units">複製給家教 TU</button>
-      <div class="start-scrim" id="unit-start-scrim" hidden></div>
-      <aside class="start-panel" id="unit-start-panel" hidden role="dialog" aria-labelledby="unit-start-h">
-        <div class="start-panel-head">
-          <h2 id="unit-start-h">開始設定</h2>
-          <button type="button" class="btn b2 start-close" id="unit-start-close" aria-label="關閉">關閉</button>
-        </div>
-        <p class="start-title" id="unit-start-title"></p>
-        <label class="field s3">對答案方式
-          <select id="unit-start-mode" class="ctrl-select"><option value="instant">當場對</option><option value="exam">交卷才對</option></select>
-        </label>
-        <label class="ctrl-check s1"><input type="checkbox" id="unit-start-shuffle" checked> 打亂順序</label>
-        <button type="button" class="btn b1" id="unit-start-go">開始作答</button>
-      </aside>
+      groups.get(key).items.push(r);
+    }
+    for (const g of groups.values()) {
+      g.items.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+    }
+    const groupList = [...groups.values()].sort(
+      (a, b) =>
+        a.subject.localeCompare(b.subject) || a.unitCode.localeCompare(b.unitCode),
+    );
+
+    const STAR_ON =
+      '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 3.6l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.2 7.2 18.5l.9-5.4L4.2 9.3l5.4-.8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+
+    const listHtml = count
+      ? groupList
+          .map((g) => {
+            const cards = g.items
+              .map((r) => {
+                const q = metaById[r.qid] || {};
+                const round = q.source?.round ?? q.round;
+                const num = q.source?.number;
+                const loc =
+                  round != null && num != null
+                    ? `第 ${round} 回第 ${num} 題`
+                    : round != null
+                      ? `第 ${round} 回`
+                      : '';
+                return `<article class="card c1 fav-card" data-qid="${escHtml(r.qid)}">
+                  <button type="button" class="xbtn fav-btn on" data-unfav="${escHtml(r.qid)}" aria-pressed="true" aria-label="取消收藏這題">${STAR_ON}</button>
+                  <p class="stem-snip">${escHtml(stemPreview(stemById[r.qid]))}</p>
+                  <p class="meta">${escHtml(loc)}${loc && r.addedAt ? ' · ' : ''}${escHtml(fmtFavDate(r.addedAt))}</p>
+                </article>`;
+              })
+              .join('');
+            return `<section class="fav-group">
+              <h2 class="fav-group-h">${escHtml(g.unitCode)} ${escHtml(g.unitName)}・${g.items.length} 題</h2>
+              <div class="fav-list">${cards}</div>
+            </section>`;
+          })
+          .join('')
+      : `<div class="empty-next">
+          <p class="e1">${subject ? ERR.favFilteredEmpty : ERR.favEmpty}</p>
+          ${
+            subject
+              ? '<button type="button" class="btn b2" data-clear-filter>看全部科目</button>'
+              : '<a class="btn b1" href="#/">去練習</a>'
+          }
+        </div>`;
+
+    mount.innerHTML = `<div class="page fav">
+      <h1 class="page-title">收藏夾${allCount ? `　${allCount} 題` : ''}</h1>
+      <div class="tabs g2">
+        <button type="button" class="tab${!subject ? ' on' : ''}" data-sub="">全部<span class="l5">${allCount || ''}</span></button>
+        ${Object.entries(SUBJECT_LABELS)
+          .map(([k, v]) => {
+            const n = rows.filter((r) => r.subject === k).length;
+            return `<button type="button" class="tab${subject === k ? ' on' : ''}" data-sub="${k}">${v}<span class="l5">${n || ''}</span></button>`;
+          })
+          .join('')}
+      </div>
+      <div class="fav-practice-row">
+        <button type="button" class="btn b1" id="fav-practice"${count ? '' : ' disabled'}>${label}</button>
+        ${count ? '' : '<p class="mute fav-practice-hint">目前沒有可練習的收藏題</p>'}
+      </div>
+      ${listHtml}
     </div>`;
 
-    /** @type {null|{bookId:string,unitCode:string,unitName:string,bookTitle:string}} */
-    let pendingUnit = null;
-
-    mount.querySelectorAll('.th-sort').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.sort;
-        let dir = 'asc';
-        if (sortKey === key) dir = sortDir === 'asc' ? 'desc' : 'asc';
-        writeFilters({ unitsSortKey: key, unitsSortDir: dir });
-        renderUnits(mount, ctx);
+    mount.querySelectorAll('.tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        writeFilters({ favSubject: tab.dataset.sub || '' });
+        renderFavorites(mount, ctx);
       });
     });
-
-    mount.querySelector('#copy-units')?.addEventListener('click', async () => {
-      const ta = mount.querySelector('textarea');
-      try {
-        await navigator.clipboard.writeText(ta.value);
-        ctx.toast?.('已複製');
-      } catch {
-        ta.select();
-        ctx.toast?.('這個瀏覽器不能自動複製，文字已經全選，請長按複製。');
-      }
+    mount.querySelector('[data-clear-filter]')?.addEventListener('click', () => {
+      writeFilters({ favSubject: '' });
+      renderFavorites(mount, ctx);
     });
 
-    mount.querySelectorAll('.unit-practice').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const unitCode = btn.dataset.unit;
-        let bookId = btn.dataset.book;
-        let book = banks.find((b) => b.bookId === bookId);
-        if (!book) {
-          book = banks.find((b) => (b.units || []).some((u) => u.unitCode === unitCode));
-          bookId = book?.bookId || '';
-        }
-        if (!book) {
-          ctx.toast?.('找不到這個單元的題庫');
-          return;
-        }
-        pendingUnit = {
-          bookId: book.bookId,
-          unitCode,
-          unitName: btn.dataset.unitName || unitCode,
-          bookTitle: book.title || '',
-        };
-        const panel = mount.querySelector('#unit-start-panel');
-        const scrim = mount.querySelector('#unit-start-scrim');
-        panel.hidden = false;
-        if (scrim) scrim.hidden = false;
-        mount.querySelector('#unit-start-title').textContent =
-          `${book.title}・${unitCode} 單元練習`;
-      });
-    });
-
-    const closeUnitStart = () => {
-      const panel = mount.querySelector('#unit-start-panel');
-      const scrim = mount.querySelector('#unit-start-scrim');
-      if (panel) panel.hidden = true;
-      if (scrim) scrim.hidden = true;
-    };
-    mount.querySelector('#unit-start-close')?.addEventListener('click', closeUnitStart);
-    mount.querySelector('#unit-start-scrim')?.addEventListener('click', closeUnitStart);
-
-    mount.querySelector('#unit-start-go')?.addEventListener('click', async () => {
-      if (!pendingUnit) return;
-      const go = mount.querySelector('#unit-start-go');
-      if (go?.dataset.busy === '1') return;
+    mount.querySelector('#fav-practice')?.addEventListener('click', async () => {
+      const go = mount.querySelector('#fav-practice');
+      if (!count || go?.dataset.busy === '1') return;
       if (go) {
         go.dataset.busy = '1';
         go.disabled = true;
         go.textContent = '開始中…';
       }
       try {
-        const mode = mount.querySelector('#unit-start-mode').value;
-        const shuffle = mount.querySelector('#unit-start-shuffle').checked;
-        const pack = await fetchQuestionsForUnit(
-          ctx,
-          pendingUnit.bookId,
-          pendingUnit.unitCode,
-          10,
-        );
-        if (!pack.questions.length) {
-          ctx.toast?.('這個單元還沒有題目');
+        const pool = [...visible];
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        const pick = pool.slice(0, 10);
+        const questions = [];
+        const groups = [];
+        const seenG = new Set();
+        for (const r of pick) {
+          const q = metaById[r.qid];
+          if (!q) continue;
+          questions.push({ ...q, id: q.id || r.qid });
+          if (q.groupId && !seenG.has(q.groupId)) {
+            seenG.add(q.groupId);
+            try {
+              const { db, fs } = await ensureFb(ctx);
+              const gSnap = await fs.getDoc(fs.doc(db, 'groups', q.groupId));
+              if (gSnap.exists()) groups.push(gSnap.data());
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+        if (!questions.length) {
+          ctx.toast?.('沒有可練的收藏題');
           return;
         }
-        closeUnitStart();
         ctx.startScope?.({
-          type: 'unit',
-          bookId: pendingUnit.bookId,
-          unitCode: pendingUnit.unitCode,
-          unitName: pendingUnit.unitName,
-          bookTitle: pendingUnit.bookTitle,
-          mode,
-          shuffle,
-          questions: pack.questions,
-          groups: pack.groups,
-          title: `${pendingUnit.bookTitle}・${pendingUnit.unitCode} 單元練習`,
+          type: 'fav',
+          mode: 'instant',
+          shuffle: true,
+          questions,
+          groups,
+          title: '收藏練習',
+          favSubject: subject || '',
         });
       } finally {
         if (go && mount.contains(go)) {
           go.dataset.busy = '';
-          go.disabled = false;
-          go.textContent = '開始作答';
+          go.disabled = !count;
+          go.textContent = label;
         }
       }
     });
+
+    /** 5 秒復原 */
+    const pendingRemoves = new Map();
+
+    mount.querySelectorAll('[data-unfav]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const qid = btn.dataset.unfav;
+        const row = visible.find((r) => r.qid === qid);
+        if (!row) return;
+        const card = mount.querySelector(`.fav-card[data-qid="${CSS.escape(qid)}"]`);
+        if (card) card.hidden = true;
+        const job = scheduleFavoriteRemove(uid, row, 5000);
+        pendingRemoves.set(qid, job);
+        ctx.toast?.('已取消收藏', {
+          retryLabel: '復原',
+          ms: 5000,
+          onRetry: () => {
+            job.undo();
+            pendingRemoves.delete(qid);
+            if (card) card.hidden = false;
+          },
+        });
+        // 逾時後若整組空了就重渲
+        setTimeout(() => {
+          if (pendingRemoves.get(qid) === job) {
+            pendingRemoves.delete(qid);
+            const still = mount.querySelectorAll('.fav-card:not([hidden])').length;
+            if (still === 0) renderFavorites(mount, ctx);
+          }
+        }, 5100);
+      });
+    });
+
+    mount.querySelectorAll('.fav-card').forEach((card) => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('[data-unfav]')) return;
+        const qid = card.dataset.qid;
+        const q = metaById[qid];
+        if (!q) return;
+        openFavDetail(ctx, uid, q, () => renderFavorites(mount, ctx));
+      });
+    });
   } catch {
-    mount.innerHTML = `<div class="page units-page"><p class="e2">連不上網路，資料沒載入（或沒存進去）。請檢查網路後按重試。</p>
-      <div class="empty-next"><button type="button" class="btn b2" data-retry>重試</button>
+    mount.innerHTML = `<div class="page fav"><p class="e2">${ERR.favLoadFail}</p>
+      <div class="empty-next"><button type="button" class="btn b1" data-retry>重試</button>
       <a class="btn b2" href="#/">回首頁</a></div></div>`;
-    mount.querySelector('[data-retry]')?.addEventListener('click', () => renderUnits(mount, ctx));
+    mount.querySelector('[data-retry]')?.addEventListener('click', () => renderFavorites(mount, ctx));
   }
+}
+
+async function openFavDetail(ctx, uid, q, onChanged) {
+  const L = 'ABCD';
+  let dlg = document.querySelector('dialog.fav-detail-dlg');
+  if (!dlg) {
+    dlg = document.createElement('dialog');
+    dlg.className = 'fav-detail-dlg wrong-detail-dlg';
+    document.body.appendChild(dlg);
+  }
+  const STAR_ON =
+    '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M12 3.6l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.2 7.2 18.5l.9-5.4L4.2 9.3l5.4-.8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+  dlg.innerHTML = `
+    <form method="dialog">
+      <div class="fav-detail-head">
+        <h2>收藏詳情</h2>
+        <button type="button" class="xbtn fav-btn on" data-unfav aria-pressed="true" aria-label="取消收藏這題">${STAR_ON}</button>
+      </div>
+      <p class="meta">${escHtml(q.unitCode || '')} ${escHtml(q.unit || '')}</p>
+      <div class="wd-stem">${escHtml(q.stem || '').replace(/\n/g, '<br>')}</div>
+      <p><strong>正確答案：</strong>(${L[q.answer]}) ${escHtml(q.options?.[q.answer] || '')}</p>
+      <div class="wd-ex">${escHtml(q.explain || '').replace(/\n/g, '<br>')}</div>
+      <div class="leave-actions">
+        <button type="submit" class="btn b2" value="close">關閉</button>
+      </div>
+    </form>`;
+  dlg.querySelector('[data-unfav]')?.addEventListener('click', () => {
+    const row = {
+      qid: q.id,
+      bookId: q.bookId || '',
+      subject: q.subject || '',
+      unitCode: q.unitCode || '',
+      addedAt: Date.now(),
+    };
+    const job = scheduleFavoriteRemove(uid, row, 5000);
+    dlg.close();
+    ctx.toast?.('已取消收藏', {
+      retryLabel: '復原',
+      ms: 5000,
+      onRetry: () => {
+        job.undo();
+        onChanged?.();
+      },
+    });
+    setTimeout(() => onChanged?.(), 5100);
+  });
+  if (typeof dlg.showModal === 'function') dlg.showModal();
 }
 
 export { updateQstatManualOut, wrongPracticeLabel };

@@ -315,6 +315,81 @@ await t('未驗證 email 被拒讀 banks', 'deny', seedBase, () =>
   ),
 );
 
+function goodFav() {
+  return {
+    bookId: 'demo',
+    subject: 'math',
+    unitCode: 'M9-2',
+    addedAt: serverTimestamp(),
+  };
+}
+
+await t('本人可新增 favorites', 'ok', seedBase, async () => {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  await setDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q1'), goodFav());
+});
+
+await t('本人可刪除 favorites', 'ok', async () => {
+  await seedBase();
+  await env.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), 'users', 'student1', 'favorites', 'fav-q1'), {
+      bookId: 'demo',
+      subject: 'math',
+      unitCode: 'M9-2',
+      addedAt: serverTimestamp(),
+    });
+  });
+}, async () => {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  await deleteDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q1'));
+});
+
+await t('別人讀 favorites 被拒', 'deny', async () => {
+  await seedBase();
+  await env.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), 'users', 'student1', 'favorites', 'fav-q1'), {
+      bookId: 'demo',
+      subject: 'math',
+      unitCode: 'M9-2',
+      addedAt: serverTimestamp(),
+    });
+  });
+}, () =>
+  getDoc(
+    doc(authCtx('admin1', 'admin@test.local').firestore(), 'users', 'student1', 'favorites', 'fav-q1'),
+  ),
+);
+
+await t('別人寫 favorites 被拒', 'deny', seedBase, async () => {
+  const d = authCtx('admin1', 'admin@test.local').firestore();
+  await setDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q2'), goodFav());
+});
+
+await t('favorites 多欄位被拒', 'deny', seedBase, async () => {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  await setDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q3'), {
+    ...goodFav(),
+    note: 'nope',
+  });
+});
+
+await t('favorites 改（update）被拒', 'deny', async () => {
+  await seedBase();
+  await env.withSecurityRulesDisabled(async (c) => {
+    await setDoc(doc(c.firestore(), 'users', 'student1', 'favorites', 'fav-q4'), {
+      bookId: 'demo',
+      subject: 'math',
+      unitCode: 'M9-2',
+      addedAt: serverTimestamp(),
+    });
+  });
+}, async () => {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  await updateDoc(doc(d, 'users', 'student1', 'favorites', 'fav-q4'), {
+    unitCode: 'M9-3',
+  });
+});
+
 await env.cleanup();
 
 const failed = results.filter((r) => !r.pass);
