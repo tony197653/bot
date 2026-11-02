@@ -52,9 +52,12 @@ header.top .lead{margin-top:14px;color:var(--mute);font-size:16px;max-width:46em
 header.top .meta{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--mute);font-size:13px}
 header.top .meta b{color:var(--ink);font-weight:600}
 nav.toc{position:sticky;top:0;z-index:20;background:rgba(237,238,233,.86);backdrop-filter:saturate(1.2) blur(10px);-webkit-backdrop-filter:saturate(1.2) blur(10px);border-bottom:1px solid var(--line)}
-nav.toc .wrap{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-top:12px;padding-bottom:12px}
+nav.toc .wrap{--toc-fade:32px;--fl:0px;--fr:0px;display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding-top:12px;padding-bottom:12px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 var(--fl),#000 calc(100% - var(--fr)),transparent);mask-image:linear-gradient(90deg,transparent,#000 var(--fl),#000 calc(100% - var(--fr)),transparent)}
+/* 分類列可橫捲：只有「還能往那邊捲」的一側才出現淡出遮罩（JS 切 .fade-l / .fade-r），目前分類會自動捲進安全區、不會被遮罩蓋到 */
+nav.toc .wrap.fade-l{--fl:var(--toc-fade)}
+nav.toc .wrap.fade-r{--fr:var(--toc-fade)}
 nav.toc .wrap::-webkit-scrollbar{display:none}
-nav.toc a{flex:none;display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;color:var(--ink);text-decoration:none;font-size:14px;border:1px solid transparent;transition:background .2s var(--ease),border-color .2s var(--ease)}
+nav.toc a{flex:none;flex-shrink:0;white-space:nowrap;display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;color:var(--ink);text-decoration:none;font-size:14px;border:1px solid transparent;transition:background .2s var(--ease),border-color .2s var(--ease)}
 nav.toc a span{font-weight:600;color:var(--sage);font-variant-numeric:tabular-nums}
 @media (hover:hover) and (pointer:fine){nav.toc a:hover{background:var(--surface);border-color:var(--line)}}
 nav.toc a.on{background:var(--surface);border-color:var(--line);box-shadow:var(--shadow)}
@@ -542,13 +545,13 @@ dialog.dlg:not([open]){display:none}
 .sd .ico{position:absolute;width:16px;height:16px;stroke-width:2.2;opacity:0;transform:scale(.6);transition:opacity .2s var(--ease),transform .3s var(--ease-out)}
 .sd .sn{transition:opacity .2s var(--ease)}
 [data-state=current] > .sd{border-color:var(--sage);color:var(--sage-deep)}
-/* 目前步驟的光：四層細光圈由內往外依序淡入、微微擴開（每層錯開 .16s，全程約 1.2s），越外層越淡，取代原本一次出現的 4px box-shadow 光圈；只動 transform、opacity */
+/* 目前步驟的光：四層細光圈由內往外依序淡入、微微擴開（每層錯開 .16s，全程約 1.2s）。每層是一圈柔邊漸層帶，峰值由內往外 38%→22%→12%→5%（貼圓那層最深），相鄰兩層交疊相加後從圓邊往外單調變淡，取代原本一次出現的 4px box-shadow 光圈；只動 transform、opacity */
 .sd .glow{position:absolute;inset:0;pointer-events:none}
 .sd .glow i{position:absolute;border-radius:50%;z-index:-1;opacity:0;transition:opacity .25s var(--ease)}
-.sd .glow i:nth-child(1){inset:-16px;background:radial-gradient(closest-side,color-mix(in srgb,var(--sage) 6%,transparent) 72%,transparent);--d:.48s}
-.sd .glow i:nth-child(2){inset:-11px;background:radial-gradient(closest-side,color-mix(in srgb,var(--sage) 10%,transparent) 78%,transparent);--d:.32s}
-.sd .glow i:nth-child(3){inset:-7px;background:radial-gradient(closest-side,color-mix(in srgb,var(--sage) 16%,transparent) 84%,transparent);--d:.16s}
-.sd .glow i:nth-child(4){inset:-4px;background:var(--sage-soft);--d:0s}
+.sd .glow i:nth-child(1){inset:-19.5px;background:radial-gradient(closest-side,transparent 27px,color-mix(in srgb,var(--sage) 5%,transparent) 31px,transparent 35px);--d:.48s}
+.sd .glow i:nth-child(2){inset:-15.5px;background:radial-gradient(closest-side,transparent 22px,color-mix(in srgb,var(--sage) 12%,transparent) 27px,transparent 31px);--d:.32s}
+.sd .glow i:nth-child(3){inset:-11.5px;background:radial-gradient(closest-side,transparent 17px,color-mix(in srgb,var(--sage) 22%,transparent) 22px,transparent 27px);--d:.16s}
+.sd .glow i:nth-child(4){inset:-6.5px;background:radial-gradient(closest-side,color-mix(in srgb,var(--sage) 38%,transparent) 17px,transparent 22px);--d:0s}
 [data-state=current] > .sd .glow i{opacity:1;animation:p3-glow .72s var(--ease-out) var(--d) both}
 @keyframes p3-glow{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
 [data-state=done] > .sd{background:var(--sage);border-color:var(--sage);color:#fff;cursor:pointer}
@@ -1207,8 +1210,31 @@ dialog.dlg:not([open]){display:none}
   });
   // 目錄高亮
   var links=[].slice.call(document.querySelectorAll('nav.toc a'));
+  var strip=document.querySelector('nav.toc .wrap'), rmq=matchMedia('(prefers-reduced-motion: reduce)'), lockUntil=0, fadeRaf=0;
+  function fadeW(){return parseFloat(getComputedStyle(strip).getPropertyValue('--toc-fade'))||0;}
+  // 只在還能捲的那一側顯示淡出遮罩
+  function updateFade(){fadeRaf=0;var max=strip.scrollWidth-strip.clientWidth,x=strip.scrollLeft;strip.classList.toggle('fade-l',x>1);strip.classList.toggle('fade-r',x<max-1);}
+  function queueFade(){if(!fadeRaf)fadeRaf=requestAnimationFrame(updateFade);}
+  // 目前分類若落在安全區外（遮罩寬 + 12px），就把它平滑捲到置中；已在安全區內就不動，避免跟著頁面捲動一直晃
+  function reveal(a,instant){
+    var max=strip.scrollWidth-strip.clientWidth;if(max<=0)return;
+    var safe=fadeW()+12,wr=strip.getBoundingClientRect(),r=a.getBoundingClientRect(),x=strip.scrollLeft;
+    var l=r.left-wr.left,rt=r.right-wr.left;
+    if(l>=safe&&rt<=strip.clientWidth-safe)return;
+    var t=Math.max(0,Math.min(max,x+l+r.width/2-strip.clientWidth/2));
+    if(Math.abs(t-x)>1)strip.scrollTo({left:t,behavior:(instant||rmq.matches)?'auto':'smooth'});
+  }
+  function setOn(id){var hit=null;links.forEach(function(l){var on=l.getAttribute('href')==='#'+id;if(on&&!l.classList.contains('on'))hit=l;l.classList.toggle('on',on);});if(hit)reveal(hit);}
+  strip.addEventListener('scroll',queueFade,{passive:true});
+  addEventListener('resize',function(){queueFade();var a=strip.querySelector('a.on');if(a)reveal(a,true);},{passive:true});
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(updateFade);
+  updateFade();
+  // 點分類：立刻亮起並捲進來；頁面平滑捲動途中先不讓 IO 改高亮，避免中途分類輪流閃
+  links.forEach(function(l){l.addEventListener('click',function(){setOn(l.getAttribute('href').slice(1));lockUntil=Date.now()+1200;});});
+  addEventListener('scrollend',function(){lockUntil=0;});
+  strip.addEventListener('focusin',function(e){if(e.target.matches&&e.target.matches('a'))reveal(e.target);});
   if('IntersectionObserver' in window){
-    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(l){l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-40% 0px -55% 0px'});
+    var io=new IntersectionObserver(function(es){if(Date.now()<lockUntil)return;es.forEach(function(e){if(e.isIntersecting)setOn(e.target.id);});},{rootMargin:'-40% 0px -55% 0px'});
     document.querySelectorAll('section.cat').forEach(function(s){io.observe(s);});
   }
 })();
@@ -1642,7 +1668,10 @@ $$('.js-cmd').forEach(root=>{
   }
   function setAct(n){act=n;$$('.cmd-it',list).forEach(el=>el.setAttribute('aria-selected',+el.dataset.n===n));
     const el=n>=0?$(`[data-n="${n}"]`,list):null;
-    if(el){inp.setAttribute('aria-activedescendant',el.id);el.scrollIntoView({block:'nearest'})}else inp.removeAttribute('aria-activedescendant')}
+    if(el){inp.setAttribute('aria-activedescendant',el.id);
+      const er=el.getBoundingClientRect(),lr=list.getBoundingClientRect();
+      if(er.top<lr.top)list.scrollTop-=lr.top-er.top;else if(er.bottom>lr.bottom)list.scrollTop+=er.bottom-lr.bottom;
+    }else inp.removeAttribute('aria-activedescendant')}
   function run(it){
     if(!it)return;
     if(dlg)closeDlg(dlg); else {const o=$('#k2-out');if(o)o.innerHTML=`已執行：<b>${esc(it.label)}</b>`}
