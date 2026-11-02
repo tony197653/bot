@@ -35,14 +35,27 @@ body{
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:5;
   min-width:0;
 }
-/* 標題可縮／省略；右側額度＋清除不可被擠壓 */
+/* 標題單行不截斷；極窄（≤359）改兩列，避免 320 寬被 ellipsis 吃掉 */
 .top h1{
   margin:0;font-size:18px;font-weight:700;letter-spacing:.01em;
-  flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:clip;white-space:nowrap;
 }
 .top-end{
   display:flex;align-items:center;gap:10px;
   flex:0 0 auto;flex-shrink:0;min-width:max-content;white-space:nowrap;
+}
+@media (max-width:359px){
+  .top{
+    height:auto;min-height:var(--header-h);flex-wrap:wrap;
+    padding:8px 12px;gap:4px 8px;align-content:center;
+  }
+  .top h1{
+    flex:1 1 100%;overflow:visible;text-overflow:clip;
+  }
+  .top-end{
+    flex:1 1 100%;justify-content:space-between;gap:8px;min-width:0;
+  }
+  .top .b2{padding:0 12px}
 }
 .quota{flex:0 0 auto;flex-shrink:0}
 .l5inline{
@@ -64,22 +77,13 @@ body{
 .quota-full{display:none}
 .quota-short{display:inline-flex}
 
-/* B5 清除畫面 */
-.btn{font:inherit;font-size:16px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;cursor:pointer;border:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;white-space:nowrap;transition:background-color .18s var(--ease),color .18s,box-shadow .2s var(--ease),transform .12s var(--ease),border-color .18s}
+/* 按鈕基底＋B2 細框透明（照元件庫；頂欄清除畫面用） */
+.btn{font:inherit;font-size:16px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 20px;cursor:pointer;border:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;white-space:nowrap;transition:background-color .18s var(--ease),color .18s var(--ease),box-shadow .2s var(--ease),transform .12s var(--ease),border-color .18s var(--ease)}
 .btn:disabled{cursor:not-allowed}
-.b5{background:none;color:var(--ink);padding:0 4px;border-radius:4px;font-weight:500;min-height:44px;flex-shrink:0;white-space:nowrap}
-.b5::after{content:"";position:absolute;left:4px;right:4px;bottom:9px;height:1px;background:currentColor;transform:scaleX(.35);transform-origin:left;transition:transform .2s var(--ease)}
-.b5:hover{color:var(--rose)}
-.b5:hover::after{transform:scaleX(1)}
-.b5:active{opacity:.7}
-.b5:disabled{color:#AEB0A9}
-.b5:disabled::after{transform:scaleX(0)}
-
-/* B2 */
-.b2{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:8px;min-height:44px;padding:0 16px}
-.b2:hover{background:#fff;border-color:#BFC3B8}
-.b2:active{background:var(--sage-soft)}
-.b2:focus-visible{outline:2px solid var(--slate);outline-offset:3px}
+.b2{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:var(--r-sm);min-height:44px;flex-shrink:0}
+@media (hover:hover) and (pointer:fine){.b2:hover{background:#fff;border-color:#BFC3B8}}
+.b2:active{background:var(--sage-soft);transform:scale(.97)}
+.b2:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
 .b2:disabled{color:#A9ACA3;border-color:var(--line-soft);background:transparent}
 
 /* B4 chips */
@@ -233,5 +237,5 @@ body{
   .sk::after{animation:none}
   .cursor{animation:none;opacity:1}
   .toast{transition:none}
-  .b1-icon:active,.b4:active{transform:none}
+  .b1-icon:active,.b2:active,.b4:active{transform:none}
 }

@@ -1,2 +1,8 @@
 node_modules/
 test-results/
+.wrangler/
+.dev.vars
+.env
+.env.*
+wrangler.toml.local
+*sitekey*
