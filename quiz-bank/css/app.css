@@ -107,7 +107,7 @@
 .tab.on{background:var(--ink);color:var(--b1-fg)}
 .wrong-list{display:grid;gap:10px;padding-bottom:80px}
 .wrong-card{cursor:pointer;min-height:56px}
-.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:12px 0 20px}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 0 20px}
 @media (min-width:768px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
 .stat-box{background:var(--surface);padding:14px;border-radius:var(--r);box-shadow:var(--shadow)}
 .stat-box span{display:block;font-size:13px;color:var(--mute)}
