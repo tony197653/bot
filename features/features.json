@@ -43,7 +43,7 @@
       "name": "雲端資料庫",
       "status": "已驗證",
       "skill": "firebase-record-sync",
-      "primary": { "name": "Cloud Firestore", "url": "https://github.com/firebase/firebase-js-sdk", "note": "每日 50K 讀／20K 寫免費" },
+      "primary": { "name": "Cloud Firestore", "url": "https://github.com/firebase/firebase-js-sdk", "note": "每日 50K 讀／20K 寫免費；手機電腦紀錄必同步（見技能 firebase-record-sync）" },
       "alternatives": [
         { "name": "Supabase", "url": "https://github.com/supabase/supabase", "note": "要 SQL 時用；閒置 1 週會暫停" }
       ]
