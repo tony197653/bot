@@ -3,7 +3,7 @@
   --sage:#66745F;--sage-deep:#505C4A;--sage-soft:#DFE4DA;--rose:#9C7C74;--rose-soft:#EFE4E0;
   --sand:#8F7B5E;--slate:#5F6B78;--slate-soft:#E1E5EA;--danger:#A4483C;
   --black:#1F201D;
-  --r:12px;--r-sm:8px;
+  --r:12px;--r-sm:8px;--r-xs:6px;
   --shadow:0 1px 2px rgba(40,42,36,.05),0 4px 16px rgba(40,42,36,.05);
   --pop-shadow:0 2px 4px rgba(40,42,36,.05),0 16px 40px -8px rgba(40,42,36,.18);
   --halo:0 0 0 1px rgba(95,107,120,.20),0 0 0 2px rgba(95,107,120,.08),0 0 12px 2px rgba(95,107,120,.20);
@@ -63,7 +63,7 @@ body{
 }
 .l5inline b{
   flex:none;flex-shrink:0;
-  min-width:22px;height:22px;padding:0 7px;border-radius:7px;background:var(--sage-soft);color:#45523F;
+  min-width:22px;height:22px;padding:0 7px;border-radius:var(--r-xs);background:var(--sage-soft);color:#45523F;
   font-size:16px;display:inline-grid;place-items:center;font-variant-numeric:tabular-nums;line-height:1;
   white-space:nowrap;
 }
@@ -83,7 +83,7 @@ body{
 
 /* B4 chips */
 .b4{background:var(--slate-soft);color:#3E4955;border-radius:12px;font-weight:600;width:100%;min-height:48px;padding:0 16px;text-align:center;white-space:normal}
-.b4:hover{background:#D3D9E0}
+@media (hover:hover){.b4:hover{background:#D3D9E0}}
 .b4:active{background:#C6CED7;transform:scale(.98)}
 .b4:focus-visible{outline:2px solid var(--slate);outline-offset:3px}
 .b4:disabled{background:#ECEEF0;color:#A7AEB6}
@@ -93,7 +93,7 @@ body{
   width:44px;height:44px;min-height:44px;padding:0;border-radius:999px;
   background:var(--black);color:#fff;flex:none;
 }
-.b1-icon:hover{background:#3A3C37}
+@media (hover:hover){.b1-icon:hover{background:#3A3C37}}
 .b1-icon:active{transform:scale(.97)}
 .b1-icon:focus-visible{outline:2px solid var(--black);outline-offset:3px}
 .b1-icon:disabled{background:#C9CBC4;color:#F3F3EF}
@@ -172,7 +172,7 @@ body{
   border:1px solid var(--line);border-radius:16px;background:#fff;padding:10px 10px 10px 14px;
   transition:border-color .2s,box-shadow .2s;
 }
-.input-wrap:hover{border-color:#BFC3B8}
+@media (hover:hover){.input-wrap:hover{border-color:#BFC3B8}}
 .input-wrap:focus-within{border-color:var(--slate);box-shadow:var(--halo)}
 .input-wrap.is-error{border-color:var(--danger);box-shadow:var(--halo-err)}
 .input-wrap.is-error:focus-within{border-color:var(--danger);box-shadow:var(--halo-err)}
