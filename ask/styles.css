@@ -95,7 +95,7 @@ body{
   transition:background-color .22s var(--ease),opacity .22s var(--ease),transform .12s var(--ease);
 }
 @media (hover:hover){.b1-icon:not(:disabled):hover{background:#454F40}}
-.b1-icon:not(:disabled):active{background:#3B4436;transform:none}
+.b1-icon:not(:disabled):active{background:#3B4436;transform:scale(.97)}
 .b1-icon:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
 .b1-icon:disabled{background:var(--sage-deep);color:#fff;opacity:.55}
 .b1-icon .ico{width:18px;height:18px;display:block}
