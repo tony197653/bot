@@ -30,31 +30,26 @@ body{
 
 /* ===== A 頂部列 ===== */
 .top{
-  flex:none;height:var(--header-h);display:flex;align-items:center;gap:10px;
-  padding:0 16px;border-bottom:1px solid var(--line);background:rgba(237,238,233,.92);
+  flex:none;height:auto;min-height:var(--header-h);display:flex;flex-wrap:wrap;
+  align-items:center;align-content:center;gap:8px 10px;
+  padding:8px 16px;border-bottom:1px solid var(--line);background:rgba(237,238,233,.92);
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:5;
   min-width:0;
 }
-/* 標題單行不截斷；極窄（≤359）改兩列，避免 320 寬被 ellipsis 吃掉 */
+/* 標題一律完整顯示（不 ellipsis／不切半）；不夠寬時頂欄自動換列 */
 .top h1{
   margin:0;font-size:18px;font-weight:700;letter-spacing:.01em;
-  flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:clip;white-space:nowrap;
+  flex:1 1 auto;min-width:max-content;overflow:visible;white-space:nowrap;
 }
 .top-end{
   display:flex;align-items:center;gap:10px;
-  flex:0 0 auto;flex-shrink:0;min-width:max-content;white-space:nowrap;
+  flex:0 1 auto;flex-shrink:0;min-width:max-content;white-space:nowrap;
 }
-@media (max-width:359px){
-  .top{
-    height:auto;min-height:var(--header-h);flex-wrap:wrap;
-    padding:8px 12px;gap:4px 8px;align-content:center;
-  }
-  .top h1{
-    flex:1 1 100%;overflow:visible;text-overflow:clip;
-  }
-  .top-end{
-    flex:1 1 100%;justify-content:space-between;gap:8px;min-width:0;
-  }
+/* ≤389：標題獨列，額度＋清除次列（涵蓋 360–368 低額度「8 點重置」） */
+@media (max-width:389px){
+  .top{padding:8px 12px;gap:4px 8px}
+  .top h1{flex:1 1 100%}
+  .top-end{flex:1 1 100%;justify-content:space-between;gap:8px;min-width:0}
   .top .b2{padding:0 12px}
 }
 .quota{flex:0 0 auto;flex-shrink:0}
