@@ -59,6 +59,9 @@ export function createInitialState(opts = {}) {
       actionTimeoutMs: opts.actionTimeoutMs ?? DEFAULT_ACTION_MS,
       maxSeats: 6,
       timerEnabled: opts.timerEnabled !== false,
+      /** Multiplayer: no pass overlay / PLAYER_READY / REQUEST_PAUSE; SEAT chips may be 0. */
+      multiplayer: !!opts.multiplayer,
+      topUpAmount: opts.topUpAmount ?? 2000,
     },
     room: {
       name: opts.roomName ?? '週五牌局',
@@ -174,6 +177,12 @@ export function applyAction(state, action, env = {}) {
       return doPlayerReady(s, action);
     case 'CANCEL_PAUSE_REQUEST':
       return doCancelPauseRequest(s, action);
+    case 'SET_AWAY':
+      return doSetAway(s, action);
+    case 'VOID_HAND':
+      return doVoidHand(s, action);
+    case 'TOP_UP':
+      return doTopUp(s, action);
     default:
       throw err('未知動作: ' + type);
   }
@@ -219,12 +228,18 @@ function doSeat(s, action) {
   if (!Number.isInteger(seat) || seat < 0 || seat >= s.config.maxSeats) throw err('座位無效');
   if (s.seats[seat]) throw err('座位已被佔用');
   const name = String(action.name || '').trim() || `玩家${seat + 1}`;
-  const buyIn = action.buyIn != null ? assertPosInt(action.buyIn, '買入') : s.config.startingStack;
-  const min = 100 * s.config.bigBlind;
-  if (buyIn < min) throw err(`買入必須 ≥ 100 倍大盲（${min}）`);
+  // Multiplayer: chips = ledger buyin amount (may be 0); solo keeps startingStack / buyIn rules.
+  let buyIn;
+  if (s.config.multiplayer && action.chips != null) {
+    buyIn = assertNonNegInt(action.chips, '帶入籌碼');
+  } else {
+    buyIn = action.buyIn != null ? assertPosInt(action.buyIn, '買入') : s.config.startingStack;
+    const min = 100 * s.config.bigBlind;
+    if (buyIn < min) throw err(`買入必須 ≥ 100 倍大盲（${min}）`);
+  }
   s.seats[seat] = {
     seat,
-    id: action.id || `p${seat}-${Date.now()}`,
+    id: action.id || action.uid || `p${seat}-${Date.now()}`,
     name: name.slice(0, 12),
     chips: buyIn,
     buyInTotal: buyIn,
@@ -254,12 +269,14 @@ function startHand(s, env) {
   if (s.phase !== PHASE.LOBBY && s.phase !== PHASE.HAND_OVER) {
     throw err('現在無法開新的一手');
   }
-  const active = seatedPlayers(s).filter((p) => p.chips > 0);
+  // Skip broke + away (sittingOut). Away is set via SET_AWAY; do not clear it here.
+  for (const p of seatedPlayers(s)) {
+    if (p.chips <= 0) p.sittingOut = true;
+  }
+  const active = seatedPlayers(s).filter((p) => p.chips > 0 && !p.sittingOut);
   if (active.length < 2) throw err('至少需要兩位有籌碼的玩家');
 
-  // Mark broke players sitting out
   for (const p of seatedPlayers(s)) {
-    p.sittingOut = p.chips <= 0;
     p.hole = null;
     p.bet = 0;
     p.contributed = 0;
@@ -282,18 +299,20 @@ function startHand(s, env) {
   s.actedBit = 0;
   s.streetAggressor = null;
 
-  // Advance button among players with chips
+  const isLive = (p) => p.chips > 0 && !p.sittingOut;
+
+  // Advance button among live players
   if (s.handNumber === 1) {
     s.button = active[0].seat;
   } else {
-    s.button = nextOccupiedSeat(s, s.button, (p) => p.chips > 0);
+    s.button = nextOccupiedSeat(s, s.button, isLive);
   }
 
   const deck = shuffle(makeDeck(), env.randUnit);
   s.deck = deck;
 
   // Deal hole cards: 2 each, starting left of button
-  let dealFrom = nextOccupiedSeat(s, s.button, (p) => p.chips > 0);
+  let dealFrom = nextOccupiedSeat(s, s.button, isLive);
   for (let round = 0; round < 2; round++) {
     let seat = dealFrom;
     for (let i = 0; i < active.length; i++) {
@@ -301,7 +320,7 @@ function startHand(s, env) {
       if (!p.hole) p.hole = [];
       p.hole.push(s.deck.pop());
       p.hasHole = true;
-      seat = nextOccupiedSeat(s, seat, (x) => x.chips > 0);
+      seat = nextOccupiedSeat(s, seat, isLive);
     }
   }
 
@@ -311,10 +330,10 @@ function startHand(s, env) {
   let bbSeat;
   if (isHeadsUp) {
     sbSeat = s.button;
-    bbSeat = nextOccupiedSeat(s, s.button, (p) => p.chips > 0);
+    bbSeat = nextOccupiedSeat(s, s.button, isLive);
   } else {
-    sbSeat = nextOccupiedSeat(s, s.button, (p) => p.chips > 0);
-    bbSeat = nextOccupiedSeat(s, sbSeat, (p) => p.chips > 0);
+    sbSeat = nextOccupiedSeat(s, s.button, isLive);
+    bbSeat = nextOccupiedSeat(s, sbSeat, isLive);
   }
 
   postBlind(s, sbSeat, s.config.smallBlind, '小盲');
@@ -917,6 +936,7 @@ function doNextHand(s, env) {
 
 /** Host-only: request pause (takes effect between hands). */
 function doRequestPause(s, action) {
+  if (s.config.multiplayer) throw err('多人模式不支援暫停');
   const seat = action.seat;
   if (seat !== s.room.hostSeat) throw err('只有房主可以暫停');
   if (s.phase === PHASE.SESSION_OVER || s.phase === PHASE.LOBBY) {
@@ -940,6 +960,7 @@ function doCancelPauseRequest(s, action) {
 }
 
 function doPlayerReady(s, action) {
+  if (s.config.multiplayer) throw err('多人模式不支援換人確認');
   if (!s.pause?.active) throw err('目前沒有暫停');
   const seat = action.seat;
   if (!s.seats[seat] || s.seats[seat].sittingOut) throw err('座位無效');
@@ -950,6 +971,80 @@ function doPlayerReady(s, action) {
   if (allPauseReady(s)) {
     s.pause = null;
   }
+  return s;
+}
+
+/** Mark / clear away (sitting out next hand). §6.8 */
+function doSetAway(s, action) {
+  const seat = action.seat;
+  if (!Number.isInteger(seat) || seat < 0 || seat >= s.config.maxSeats) throw err('座位無效');
+  const p = s.seats[seat];
+  if (!p) throw err('座位是空的');
+  p.sittingOut = !!action.away;
+  return s;
+}
+
+/**
+ * Void current hand: restore per-seat chips from stacks snapshot, clear pot/board,
+ * phase → HAND_OVER, button does NOT advance; handNumber still +1 for reshuffle. §6.8
+ * @param {object} action { stacks: number[6] }
+ */
+function doVoidHand(s, action) {
+  const stacks = action.stacks;
+  if (!Array.isArray(stacks) || stacks.length !== 6) throw err('stacks 無效');
+  for (let i = 0; i < 6; i++) {
+    const n = stacks[i];
+    if (!Number.isInteger(n) || n < 0) throw err('stacks 無效');
+    const p = s.seats[i];
+    if (p) {
+      p.chips = n;
+      p.bet = 0;
+      p.contributed = 0;
+      p.folded = false;
+      p.allIn = false;
+      p.hole = null;
+      p.hasHole = false;
+      p.lastAction = null;
+      p.showChoice = null;
+    }
+  }
+  s.board = [];
+  s.pots = [];
+  s.deck = [];
+  s.winners = null;
+  s.winnerPayouts = null;
+  s.showdown = null;
+  s.lastHandSummary = null;
+  s.log = [];
+  s.streetLog = [];
+  s.currentBet = 0;
+  s.actor = null;
+  s.deadline = null;
+  s.actedBit = 0;
+  s.streetAggressor = null;
+  s.handNumber += 1;
+  s.phase = PHASE.HAND_OVER;
+  return s;
+}
+
+/**
+ * Top-up add-on: only HAND_OVER/LOBBY, seat chips === 0, amount === config.topUpAmount.
+ */
+function doTopUp(s, action) {
+  if (s.phase !== PHASE.LOBBY && s.phase !== PHASE.HAND_OVER) {
+    throw err('牌局進行中無法補碼');
+  }
+  const seat = action.seat;
+  const amount = action.amount;
+  if (!Number.isInteger(seat) || seat < 0 || seat >= s.config.maxSeats) throw err('座位無效');
+  const p = s.seats[seat];
+  if (!p) throw err('座位是空的');
+  if (p.chips !== 0) throw err('籌碼不是 0，不能補碼');
+  const need = s.config.topUpAmount ?? 2000;
+  if (amount !== need) throw err(`補碼必須是 ${need}`);
+  p.chips = amount;
+  p.buyInTotal += amount;
+  p.sittingOut = false;
   return s;
 }
 
@@ -1205,6 +1300,11 @@ function assertLobbyOrOver(s) {
 
 function assertPosInt(n, label) {
   if (!Number.isInteger(n) || n <= 0) throw err(`${label}必須為正整數`);
+  return n;
+}
+
+function assertNonNegInt(n, label) {
+  if (!Number.isInteger(n) || n < 0) throw err(`${label}必須為非負整數`);
   return n;
 }
 

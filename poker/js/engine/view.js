@@ -112,3 +112,89 @@ export function serializeState(state) {
 export function deserializeState(json) {
   return JSON.parse(json);
 }
+
+/**
+ * Public multiplayer snapshot: no deck, no unrevealed hole cards (§6.3).
+ * Safe for Firestore `pokerRooms/{id}.pub` — unit-tested that JSON has no secret cards.
+ *
+ * @param {object} state full authoritative host state
+ * @param {object} [extra] overlay fields (away, seatedAt, hostClockAt, pendingSeats, …)
+ */
+export function publicState(state, extra = {}) {
+  const revealed = state.showdown?.revealed || {};
+  const seats = state.seats.map((p, i) => {
+    if (!p) return null;
+    const rev = revealed[i];
+    let hole = null;
+    if (rev?.cards) {
+      hole = rev.cards.map((c) => ({ r: c.r, s: c.s }));
+    }
+    return {
+      seat: p.seat,
+      id: p.id,
+      name: p.name,
+      chips: p.chips,
+      bet: p.bet,
+      contributed: p.contributed,
+      folded: p.folded,
+      allIn: p.allIn,
+      lastAction: p.lastAction,
+      sittingOut: !!p.sittingOut,
+      hasHole: !!p.hasHole,
+      hole,
+      showChoice: p.showChoice,
+    };
+  });
+
+  return {
+    version: state.version,
+    handNo: state.handNumber,
+    actionSeq: extra.actionSeq ?? 0,
+    lastAction: extra.lastAction ?? null,
+    button: state.button,
+    phase: state.phase,
+    board: (state.board || []).map((c) => ({ r: c.r, s: c.s })),
+    currentBet: state.currentBet,
+    minRaiseTo: state.minRaiseTo,
+    actor: state.actor,
+    pots: state.pots,
+    potTotal: totalPot(state),
+    streetBets: streetBetsTotal(state),
+    log: state.streetLog || [],
+    winners: state.winners,
+    winnerPayouts: state.winnerPayouts,
+    showdown: state.showdown
+      ? {
+          pending: state.showdown.pending,
+          revealed: state.showdown.revealed,
+        }
+      : null,
+    seats,
+    config: {
+      smallBlind: state.config.smallBlind,
+      bigBlind: state.config.bigBlind,
+      actionTimeoutMs: state.config.actionTimeoutMs,
+      topUpAmount: state.config.topUpAmount ?? 2000,
+    },
+    room: { name: state.room?.name, hostSeat: state.room?.hostSeat },
+    away: extra.away ?? {},
+    seatedAt: extra.seatedAt ?? [0, 0, 0, 0, 0, 0],
+    hostClockAt: extra.hostClockAt ?? null,
+    pendingSeats: extra.pendingSeats ?? [],
+    topUpReqs: extra.topUpReqs ?? {},
+    rejects: extra.rejects ?? {},
+  };
+}
+
+/**
+ * Rotate seat indices so `mySeat` appears at visual bottom (index mapping).
+ * Returns array of physical seat indices in visual order (bottom, then clockwise).
+ * @param {number} mySeat
+ * @param {number} [maxSeats=6]
+ */
+export function rotateSeatsForViewer(mySeat, maxSeats = 6) {
+  if (!Number.isInteger(mySeat) || mySeat < 0) {
+    return Array.from({ length: maxSeats }, (_, i) => i);
+  }
+  return Array.from({ length: maxSeats }, (_, i) => (mySeat + i) % maxSeats);
+}

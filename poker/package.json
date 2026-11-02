@@ -1,13 +1,18 @@
 {
-  "name": "poker-milestone-1",
+  "name": "poker-milestone-2",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test test/*.test.js",
     "e2e": "node test/e2e.mjs",
-    "test:layout": "node test/layout-overlap.mjs"
+    "test:layout": "node test/layout-overlap.mjs",
+    "test:rules": "node firebase/run-rules-tests.mjs",
+    "stage": "bash firebase/stage.sh"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "^10.14.1",
+    "firebase-tools": "^13.20.2",
     "playwright": "1.49.0"
   }
 }

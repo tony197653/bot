@@ -1,0 +1,508 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===== [AUTH MODULE] 可重用登入模組：users/{uid} ===============================
+    // 這一段可以原樣貼進任何專案的 firestore.rules（放在 match /databases/{database}/documents 裡）。
+    // 依賴：無。集合名稱若改了（initAuth 的 usersCollection），把 /users/ 一起改掉。
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function strOk(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+    function urlOk(v) { return v == null || (v is string && v.size() <= 500 && v.matches('https://.+')); }
+
+    match /users/{uid} {
+      allow get: if isSelf(uid);
+      allow list: if false;
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['displayName', 'photoURL', 'createdAt', 'lastSeen'])
+        && strOk(request.resource.data.displayName, 60)
+        && urlOk(request.resource.data.get('photoURL', null))
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastSeen == request.time;
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastSeen'])
+        && strOk(request.resource.data.displayName, 60)
+        && urlOk(request.resource.data.get('photoURL', null))
+        && request.resource.data.lastSeen == request.time;
+      allow delete: if false;
+    }
+    // ===== [/AUTH MODULE] =====================================================
+
+    // ===== [POKER] 德州撲克第二階段 ============================================
+    // 依賴 AUTH MODULE 的 signedIn()／isSelf()／strOk()／urlOk()。
+    // 籌碼模型（業界做法，見規格 §6.10）：帳戶 bank ─帶入→ 桌上 stacks ─結帳→ 帳戶 bank。
+    //   打牌中只改房間的 stacks（加總必須 = chipTotal，0 次 get）；帳戶只在帶入、結帳時改；
+    //   每筆帶入／補碼／帶走都在帳本 ledger 新增一筆（固定編號＝冪等鍵，只能新增）。
+    function roomPath(roomId) { return /databases/$(database)/documents/pokerRooms/$(roomId); }
+    function roomOf(roomId) { return get(roomPath(roomId)).data; }
+    function playerPath(uid) { return /databases/$(database)/documents/pokerPlayers/$(uid); }
+    function ledgerPath(uid, id) { return /databases/$(database)/documents/pokerPlayers/$(uid)/ledger/$(id); }
+    function presencePath(roomId, uid) { return /databases/$(database)/documents/pokerRooms/$(roomId)/presence/$(uid); }
+
+    function validConfig(c) {
+      return c is map
+        && c.keys().hasOnly(['sb', 'bb', 'newPlayerChips', 'actionMs', 'topUpAmount'])
+        && c.sb in [5, 10, 25, 50]
+        && c.bb == c.sb * 2
+        && c.newPlayerChips is int && c.newPlayerChips >= 1000 && c.newPlayerChips <= 100000
+        && c.newPlayerChips % 500 == 0
+        && c.actionMs == 30000
+        && c.topUpAmount == 2000;
+    }
+    function hostKeys() {
+      return ['pub', 'seatUids', 'status', 'rev', 'updatedAt', 'deadlineAt', 'hostUid', 'hostSince',
+              'stacks', 'chipTotal', 'sess', 'lastMoneyEvent'];
+    }
+    // 席次 6 格，每格都是字串（空位 ''，有人＝uid）
+    function seatUidsOk(s) {
+      return s is list && s.size() == 6
+        && s[0] is string && s[0].size() <= 128 && s[1] is string && s[1].size() <= 128
+        && s[2] is string && s[2].size() <= 128 && s[3] is string && s[3].size() <= 128
+        && s[4] is string && s[4].size() <= 128 && s[5] is string && s[5].size() <= 128;
+    }
+    // 桌上籌碼 6 格（每手開始前的存檔點），整數、不為負
+    function stackOk(v) { return v is int && v >= 0 && v <= 100000000; }
+    function stacksOk(s) {
+      return s is list && s.size() == 6
+        && stackOk(s[0]) && stackOk(s[1]) && stackOk(s[2]) && stackOk(s[3]) && stackOk(s[4]) && stackOk(s[5]);
+    }
+    function sumOf(s) { return s[0] + s[1] + s[2] + s[3] + s[4] + s[5]; }
+    // 帶入、補碼、結帳只能在兩手之間（pub.phase 是 lobby 或 hand_over）
+    function betweenHands(p) { return p is map && p.get('phase', '') in ['lobby', 'hand_over']; }
+
+    // 座位 k 沒變，或這次的帳務事件就是座位 k（一次寫入最多一筆帳務事件）
+    function seatSame(d, k, ms) {
+      return ms == k || d.seatUids[k] == resource.data.seatUids[k];
+    }
+    // 座位帳（sess）在沒有帳務事件時只能讓 hands 變多，其他欄位不能動（房主不能改別人的帶入、補碼紀錄）
+    function sessKeep(a, b) {
+      // [FIX-2] 先比整格相等（1 個運算式）；不相等時只允許 hands 變多（用 diff 取代逐欄比較，省運算式）
+      return a == b
+        || (a != null && b != null
+            && b.diff(a).affectedKeys().hasOnly(['hands'])
+            && b.hands is int && b.hands >= a.hands);
+    }
+    // 兩個 6 格陣列除了第 k 格以外都相同
+    function othersSame(a, b, k) {
+      return a is list && a.size() == 6 && k is int && k >= 0 && k <= 5
+        && (k == 0 || a[0:k] == b[0:k])
+        && (k == 5 || a[k + 1:6] == b[k + 1:6]);
+    }
+    function sessSame(d, k, ms) {
+      return ms == k || sessKeep(resource.data.sess[k], d.sess[k]);
+    }
+    // 帶入後坐下：玩家自己先寫了帳戶（tableRoomId、inPlay）和帳本 buyin，房主照那個數字讓他坐下
+    function buyinSeatOk(roomId, d, m, e, p) {
+      let r = resource.data;
+      let s = d.sess[m.seat];  // [FIX-4] 同一格只取一次，省運算式
+      return m.uid in r.members
+        && r.seatUids[m.seat] == '' && !(m.uid in r.seatUids) && d.seatUids[m.seat] == m.uid
+        && d.stacks[m.seat] == m.amount && d.chipTotal == r.chipTotal + m.amount
+        && p.tableRoomId == roomId && p.sessionNo == e.sessionNo && p.inPlay == m.amount
+        // [FIX-6] 整格一次比對（取代 keys().hasOnly＋逐欄比較，省運算式）
+        && s == {'uid': m.uid, 'sessionNo': e.sessionNo, 'buyIn': m.amount, 'topUps': 0, 'topUpChips': 0,
+                 'hands': 0, 'nightKey': s.nightKey, 'startAt': s.startAt}
+        && s.nightKey is string && s.nightKey.matches('[0-9]{8}')
+        // [FIX-1] serverTimestamp() 不能放在陣列裡，客戶端無法讓 sess[i].startAt == request.time；改成 ±10 分鐘內的時間
+        && s.startAt is timestamp
+        && s.startAt > request.time - duration.value(10, 'm')
+        && s.startAt < request.time + duration.value(10, 'm');
+    }
+    // 補碼（加買）：只能在桌上籌碼 0 時、剛好 config.topUpAmount；房主自己也走這條
+    function topupSeatOk(d, m, e) {
+      let r = resource.data;
+      let s0 = r.sess[m.seat];
+      let s1 = d.sess[m.seat];
+      return r.seatUids[m.seat] == m.uid && d.seatUids[m.seat] == m.uid
+        && r.stacks[m.seat] == 0 && d.stacks[m.seat] == m.amount
+        && m.amount == r.config.topUpAmount && d.chipTotal == r.chipTotal + m.amount
+        && e.sessionNo == s0.sessionNo
+        && s1.uid == s0.uid && s1.sessionNo == s0.sessionNo && s1.buyIn == s0.buyIn
+        && s1.nightKey == s0.nightKey && s1.startAt == s0.startAt && s1.hands == s0.hands
+        && s1.topUps == s0.topUps + 1 && s1.topUpChips == s0.topUpChips + m.amount;
+    }
+    // 結帳（帶走）：帶走金額＝這一格的桌上籌碼；座位空出、stacks 歸 0、chipTotal 減掉
+    function cashoutSeatOk(d, m, e) {
+      let r = resource.data;
+      return r.seatUids[m.seat] == m.uid && d.seatUids[m.seat] == ''
+        && m.amount == r.stacks[m.seat] && d.stacks[m.seat] == 0
+        && d.chipTotal == r.chipTotal - m.amount
+        && e.sessionNo == r.sess[m.seat].sessionNo
+        && d.sess[m.seat] == null;
+    }
+    // [FIX-5] let 綁定在每次引用時都會重算（含 getAfter 的路徑組字串），改成用函式參數傳入，只算一次
+    function moneyOk(roomId, d) {
+      return moneyOk2(roomId, d, d.lastMoneyEvent, resource.data);
+    }
+    function moneyOk2(roomId, d, m, r) {
+      return m is map && m.keys().hasOnly(['uid', 'id', 'seat', 'type', 'amount'])
+        && m.seat is int && m.seat >= 0 && m.seat <= 5
+        && betweenHands(r.pub) && betweenHands(d.pub)
+        && moneyOk3(roomId, d, m, getAfter(ledgerPath(m.uid, m.id)).data);
+    }
+    function moneyOk3(roomId, d, m, e) {
+      return e.roomId == roomId && e.type == m.type && e.amount == m.amount
+        && (m.type == 'buyin' || e.seat == m.seat)
+        && ((m.type == 'buyin' && buyinSeatOk(roomId, d, m, e, getAfter(playerPath(m.uid)).data))
+            || (m.type == 'topup' && topupSeatOk(d, m, e))
+            || (m.type == 'cashout' && cashoutSeatOk(d, m, e)));
+    }
+    // 房主寫入（含交棒、接手）都要符合：rev 加 1、伺服器時間、關了不能再開、
+    // 桌上籌碼加總 = chipTotal（同一份文件，0 次 get）；座位和 chipTotal 只能隨一筆帳務事件改變
+    function roomWriteOk(roomId) {
+      let d = request.resource.data;
+      let money = d.lastMoneyEvent != resource.data.lastMoneyEvent;
+      return d.rev == resource.data.rev + 1
+        && d.updatedAt == request.time
+        && d.status in ['open', 'closed']
+        && (resource.data.status == 'open' || d.status == 'closed')
+        // [FIX-3] 省運算式（上限 1000）：沒變的欄位先用整份相等短路
+        && (d.seatUids == resource.data.seatUids || seatUidsOk(d.seatUids))
+        && d.pub is map
+        && (d.deadlineAt == null || d.deadlineAt is int)
+        && d.diff(resource.data).affectedKeys().hasOnly(hostKeys())
+        && stacksOk(d.stacks) && d.chipTotal is int && sumOf(d.stacks) == d.chipTotal
+        && d.sess is list && d.sess.size() == 6
+        // [FIX-4] 有帳務事件時：除了事件那一格，其他格的 seatUids、sess 都要一模一樣（用切片一次比完）；
+        //         沒有帳務事件時：seatUids 整份不變，sess 只能讓 hands 變多
+        && (money
+            ? othersSame(d.seatUids, resource.data.seatUids, d.lastMoneyEvent.seat)
+              && othersSame(d.sess, resource.data.sess, d.lastMoneyEvent.seat)
+            : d.seatUids == resource.data.seatUids
+              && (d.sess == resource.data.sess
+                  || (sessSame(d, 0, -1) && sessSame(d, 1, -1) && sessSame(d, 2, -1)
+                      && sessSame(d, 3, -1) && sessSame(d, 4, -1) && sessSame(d, 5, -1))))
+        && (money || d.chipTotal == resource.data.chipTotal)
+        && (!money || moneyOk(roomId, d));
+    }
+
+    match /pokerRooms/{roomId} {
+      // 加入：只能把「自己」加進成員，其他欄位都不能動
+      function isJoin() {
+        let d = request.resource.data;
+        return resource.data.status == 'open'
+          && !(request.auth.uid in resource.data.members)
+          && d.diff(resource.data).affectedKeys().hasOnly(['members'])
+          && d.members.hasAll(resource.data.members)
+          && d.members.size() == resource.data.members.size() + 1
+          && request.auth.uid in d.members
+          && d.members.size() <= 30;
+      }
+      // 房主寫入；交棒只能交給在座的人。
+      // 房主離座：在 HAND_OVER 用同一筆寫入「交棒＋結帳空出自己的座位」（帳務事件＝自己的 cashout）；
+      // 新房主寫入前後都必須在座（d.seatUids 裡也要有），不能交給空位或觀眾。
+      function isHostWrite() {
+        let d = request.resource.data;
+        return request.auth.uid == resource.data.hostUid
+          && roomWriteOk(roomId)
+          && (d.hostUid == resource.data.hostUid
+              || (d.hostUid != '' && d.hostUid in resource.data.seatUids && d.hostUid in d.seatUids
+                  && d.hostSince == request.time));
+      }
+      // 房主失聯 > 30 秒：在座的人可以接手（客戶端依 pub.seatedAt 先後錯開，交易保證只有一人成功）
+      // 客戶端只看「房間文件 X 秒沒更新」來決定要不要試；嚴格的時間判斷只在這裡用 request.time。
+      // 接手同時作廢這一手：pub 回到 stacks（每手存檔點），不碰任何玩家帳戶。
+      function isTakeover() {
+        let p = presencePath(roomId, resource.data.hostUid);
+        let d = request.resource.data;
+        return request.auth.uid in resource.data.seatUids
+          && request.auth.uid != resource.data.hostUid
+          && resource.data.status == 'open'
+          && request.time > resource.data.updatedAt + duration.value(30, 's')
+          && (!exists(p) || request.time > get(p).data.beat + duration.value(30, 's'))
+          && d.hostUid == request.auth.uid
+          && d.hostSince == request.time
+          && request.auth.uid in d.seatUids
+          && d.lastMoneyEvent == resource.data.lastMoneyEvent
+          && roomWriteOk(roomId);
+      }
+
+      allow get: if signedIn() && request.auth.uid in resource.data.members;
+      allow list: if false;
+      // 欄位要剛好這幾個（hasAll＋hasOnly）；deadlineAt 一開始是 null，席次一開始 6 格空字串，
+      // 桌上籌碼全 0、chipTotal 0、sess 6 格 null、lastMoneyEvent null。
+      allow create: if signedIn()
+        && request.resource.data.keys().hasAll(['name', 'code', 'hostUid', 'hostSince', 'members', 'seatUids',
+             'status', 'config', 'rev', 'createdAt', 'updatedAt', 'pub', 'deadlineAt',
+             'stacks', 'chipTotal', 'sess', 'lastMoneyEvent'])
+        && request.resource.data.keys().hasOnly(['name', 'code', 'hostUid', 'hostSince', 'members', 'seatUids',
+             'status', 'config', 'rev', 'createdAt', 'updatedAt', 'pub', 'deadlineAt',
+             'stacks', 'chipTotal', 'sess', 'lastMoneyEvent'])
+        && request.resource.data.deadlineAt == null
+        && request.resource.data.seatUids == ['', '', '', '', '', '']
+        && request.resource.data.stacks == [0, 0, 0, 0, 0, 0]
+        && request.resource.data.chipTotal == 0
+        && request.resource.data.sess == [null, null, null, null, null, null]
+        && request.resource.data.lastMoneyEvent == null
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.members == [request.auth.uid]
+        && request.resource.data.status == 'open'
+        && request.resource.data.rev == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.hostSince == request.time
+        && strOk(request.resource.data.name, 20)
+        && request.resource.data.code is string && request.resource.data.code.matches('[0-9]{6}')
+        && validConfig(request.resource.data.config)
+        && betweenHands(request.resource.data.pub)
+        // 房號文件必須在同一個 batch 指向這個房間
+        && getAfter(/databases/$(database)/documents/pokerCodes/$(request.resource.data.code)).data.roomId == roomId;
+      allow update: if signedIn() && (isJoin() || isHostWrite() || isTakeover());
+      allow delete: if false;
+
+      // 動作意圖：每人一份，覆寫，seq 只能變大；turn＝送出時看到的 pub.actionSeq（房主用來去重）
+      match /intents/{uid} {
+        function intentOk() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['type', 'seq', 'amount', 'seat', 'handNo', 'turn', 'at'])
+            && d.type in ['SIT', 'LEAVE', 'FOLD', 'CHECK', 'CALL', 'BET_RAISE', 'ALL_IN',
+                          'SHOW', 'MUCK', 'TOPUP_REQ', 'TOPUP_CANCEL']
+            && d.seq is int
+            && (d.get('amount', null) == null || (d.amount is int && d.amount >= 0 && d.amount <= 100000000))
+            && (d.get('seat', null) == null || (d.seat is int && d.seat >= 0 && d.seat <= 5))
+            && d.handNo is int
+            && (d.get('turn', null) == null || d.turn is int)
+            && d.at == request.time
+            && request.auth.uid in roomOf(roomId).members;
+        }
+        allow get: if isSelf(uid);
+        allow list: if signedIn() && roomOf(roomId).hostUid == request.auth.uid;
+        allow create: if isSelf(uid) && intentOk() && request.resource.data.seq >= 1;
+        allow update: if isSelf(uid) && intentOk() && request.resource.data.seq > resource.data.seq;
+        allow delete: if false;
+      }
+
+      // 手牌：只有本人看得到；只有現任房主能寫（牌堆只放在房主記憶體，不存雲端）
+      match /hole/{uid} {
+        allow get: if isSelf(uid);
+        allow list: if false;
+        allow create, update: if signedIn()
+          && roomOf(roomId).hostUid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['cards', 'handNo', 'updatedAt'])
+          && request.resource.data.cards is list && request.resource.data.cards.size() <= 2
+          && request.resource.data.handNo is int
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if false;
+      }
+
+      // 心跳：本人寫（不查房間，省讀取）；成員讀
+      match /presence/{uid} {
+        allow get, list: if signedIn() && request.auth.uid in roomOf(roomId).members;
+        allow create, update: if isSelf(uid)
+          && request.resource.data.keys().hasOnly(['beat', 'vis'])
+          && request.resource.data.beat == request.time
+          && request.resource.data.vis is bool;
+        allow delete: if false;
+      }
+    }
+
+    // 房號：只能用號碼讀單筆，不能列出；過期可重用；房主收桌時立即失效；
+    // 房間還開著時，房主可以把期限延到「現在＋24 小時」（只能改 expiresAt）
+    match /pokerCodes/{code} {
+      function codeOk() {
+        let d = request.resource.data;
+        return code.matches('[0-9]{6}')
+          && d.keys().hasOnly(['roomId', 'hostUid', 'createdAt', 'expiresAt'])
+          && d.roomId is string && d.roomId.size() <= 40
+          && d.hostUid == request.auth.uid
+          && d.createdAt == request.time
+          && d.expiresAt == request.time + duration.value(24, 'h')
+          && getAfter(roomPath(d.roomId)).data.hostUid == request.auth.uid;
+      }
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && codeOk();
+      allow update: if signedIn() && (
+          (resource.data.expiresAt < request.time && codeOk())
+          || (roomOf(resource.data.roomId).hostUid == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['expiresAt'])
+              && (request.resource.data.expiresAt == request.time
+                  || (roomOf(resource.data.roomId).status == 'open'
+                      && request.resource.data.expiresAt == request.time + duration.value(24, 'h')))));
+      allow delete: if false;
+    }
+
+    // 籌碼帳戶（永久，跨牌局）＝業界的 Cashier／club balance
+    //   bank：不在桌上的籌碼；inPlay：帶到桌上的金額（結帳後 0）；total＝bank＋inPlay（排行榜排序用）
+    //   tableRoomId：目前坐哪一桌（null＝沒坐，同時只能坐一桌）；sessionNo：第幾次入座（帳本編號用）
+    match /pokerPlayers/{uid} {
+      function playerKeys() {
+        return ['displayName', 'photoURL', 'bank', 'inPlay', 'total', 'tableRoomId', 'sessionNo',
+                'topUps', 'topUpChips', 'handsPlayed', 'lastRoomId', 'createdAt', 'updatedAt'];
+      }
+      // 第一次來：bank＝這房的新玩家起始籌碼；同一個 batch 要有帳本 grant
+      function createOk() {
+        let d = request.resource.data;
+        let r = roomOf(d.lastRoomId);
+        return d.keys().hasAll(playerKeys()) && d.keys().hasOnly(playerKeys())
+          && strOk(d.displayName, 60) && urlOk(d.get('photoURL', null))
+          && d.lastRoomId is string && request.auth.uid in r.members
+          && d.bank == r.config.newPlayerChips && d.inPlay == 0 && d.total == d.bank
+          && d.tableRoomId == null && d.sessionNo == 0
+          && d.topUps == 0 && d.topUpChips == 0 && d.handsPlayed == 0
+          && d.createdAt == request.time && d.updatedAt == request.time
+          && existsAfter(ledgerPath(uid, d.lastRoomId + '_0_grant'));
+      }
+      // 本人改名字、頭像、上次的牌桌
+      function profileOk() {
+        let d = request.resource.data;
+        return d.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastRoomId', 'updatedAt'])
+          && strOk(d.displayName, 60) && urlOk(d.get('photoURL', null))
+          && d.lastRoomId is string && d.lastRoomId.size() <= 40
+          && d.updatedAt == request.time;
+      }
+      // 本人帶入（整筆帶入）：bank 全部移到 inPlay；同一個 batch 要有帳本 buyin
+      function buyinOk() {
+        let d = request.resource.data;
+        let r = roomOf(d.tableRoomId);
+        return d.diff(resource.data).affectedKeys().hasOnly(['bank', 'inPlay', 'tableRoomId', 'sessionNo', 'lastRoomId', 'updatedAt'])
+          && resource.data.tableRoomId == null
+          && d.tableRoomId is string && d.lastRoomId == d.tableRoomId
+          && request.auth.uid in r.members && r.status == 'open'
+          && d.inPlay == resource.data.bank && d.bank == 0 && d.total == resource.data.total
+          && d.sessionNo == resource.data.sessionNo + 1
+          && d.updatedAt == request.time
+          && existsAfter(ledgerPath(uid, d.tableRoomId + '_' + string(d.sessionNo) + '_buyin'));
+      }
+      // 結帳入帳（房主或本人自救）：照同一個 batch 新增的帳本 cashout 加回 bank，並累加這次的補碼和手數
+      function cashoutApplyOk() {
+        let d = request.resource.data;
+        let e = getAfter(ledgerPath(uid, resource.data.tableRoomId + '_' + string(resource.data.sessionNo) + '_cashout')).data;
+        return resource.data.tableRoomId != null
+          && d.diff(resource.data).affectedKeys().hasOnly(['bank', 'inPlay', 'total', 'tableRoomId', 'topUps', 'topUpChips', 'handsPlayed', 'updatedAt'])
+          && e.type == 'cashout' && e.at == request.time && e.by == request.auth.uid
+          && d.bank == resource.data.bank + e.amount && d.inPlay == 0 && d.total == d.bank
+          && d.tableRoomId == null
+          && d.topUps == resource.data.topUps + e.topUps
+          && d.topUpChips == resource.data.topUpChips + e.topUpChips
+          && d.handsPlayed == resource.data.handsPlayed + e.hands
+          && d.updatedAt == request.time;
+      }
+      allow get: if signedIn();
+      allow list: if signedIn() && request.query.limit <= 50;
+      allow create: if isSelf(uid) && createOk();
+      allow update: if signedIn() && ((isSelf(uid) && (profileOk() || buyinOk())) || cashoutApplyOk());
+      allow delete: if false;
+
+      // 帳本（只新增）：編號固定＝冪等鍵
+      //   grant：{roomId}_0_grant　buyin：{roomId}_{sessionNo}_buyin
+      //   topup：{roomId}_{sessionNo}_topup{n}　cashout：{roomId}_{sessionNo}_cashout
+      match /ledger/{entryId} {
+        function entryKeysOk(d) {
+          return d.keys().hasOnly(['type', 'amount', 'roomId', 'sessionNo', 'seat', 'buyIn', 'topUps',
+                                   'topUpChips', 'hands', 'nightKey', 'bankAfter', 'by', 'at'])
+            && d.type in ['grant', 'buyin', 'topup', 'cashout']
+            && d.amount is int && d.amount >= 0 && d.amount <= 100000000
+            && d.roomId is string && d.roomId.size() <= 40
+            && d.sessionNo is int && d.sessionNo >= 0
+            && d.by == request.auth.uid && d.at == request.time;
+        }
+        // 第一次來的贈送：本人，和帳戶 create 同一個 batch
+        function grantOk(d) {
+          let p = getAfter(playerPath(uid)).data;
+          return d.type == 'grant' && isSelf(uid)
+            && entryId == d.roomId + '_0_grant' && d.sessionNo == 0
+            && p.createdAt == request.time && d.amount == p.bank && d.bankAfter == p.bank;
+        }
+        // 帶入：本人，和帳戶的 buyinOk 同一個 batch
+        function buyinEntryOk(d) {
+          let p = getAfter(playerPath(uid)).data;
+          return d.type == 'buyin' && isSelf(uid)
+            && entryId == d.roomId + '_' + string(d.sessionNo) + '_buyin'
+            && p.tableRoomId == d.roomId && p.sessionNo == d.sessionNo
+            && d.amount == p.inPlay && d.bankAfter == p.bank;
+        }
+        // 補碼：現任房主（房主自己輸光也可以核准自己），和房間寫入同一個 batch
+        function topupEntryOk(d) {
+          let r = roomOf(d.roomId);
+          return d.type == 'topup' && r.hostUid == request.auth.uid
+            && d.seat is int && d.seat >= 0 && d.seat <= 5
+            && r.seatUids[d.seat] == uid && r.stacks[d.seat] == 0 && betweenHands(r.pub)
+            && d.amount == r.config.topUpAmount
+            && d.sessionNo == r.sess[d.seat].sessionNo
+            && d.topUps == r.sess[d.seat].topUps + 1
+            && entryId == d.roomId + '_' + string(d.sessionNo) + '_topup' + string(d.topUps)
+            && getAfter(roomPath(d.roomId)).data.lastMoneyEvent.id == entryId;
+        }
+        // 房主失聯 10 分鐘以上（房間和房主心跳都沒更新），或房間已收桌
+        function hostGone(r, roomId) {
+          let hp = presencePath(roomId, r.hostUid);
+          return r.status == 'closed'
+            || (request.time > r.updatedAt + duration.value(10, 'm')
+                && (!exists(hp) || request.time > get(hp).data.beat + duration.value(10, 'm')));
+        }
+        // 結帳的這一列（Poker Now 的一列）＝房間 sess[seat] 和 stacks[seat]
+        function seatRowOk(d, r) {
+          return d.seat is int && d.seat >= 0 && d.seat <= 5
+            && r.seatUids[d.seat] == uid
+            && d.sessionNo == r.sess[d.seat].sessionNo
+            && d.amount == r.stacks[d.seat]
+            && d.buyIn == r.sess[d.seat].buyIn
+            && d.topUps == r.sess[d.seat].topUps
+            && d.topUpChips == r.sess[d.seat].topUpChips
+            && d.hands == r.sess[d.seat].hands
+            && d.nightKey == r.sess[d.seat].nightKey;
+        }
+        // 結帳：①房主（這一格在同一個 batch 空出）②本人自救（房主失聯或已收桌）
+        //       ③本人取消帶入（帶入了但沒被安排座位，且房主失聯或已收桌）：原數退回
+        function cashoutEntryOk(d) {
+          let r = roomOf(d.roomId);
+          let p = getAfter(playerPath(uid)).data;
+          return d.type == 'cashout'
+            && entryId == d.roomId + '_' + string(d.sessionNo) + '_cashout'
+            && p.tableRoomId == null && d.bankAfter == p.bank
+            && ((seatRowOk(d, r)
+                 && ((r.hostUid == request.auth.uid && getAfter(roomPath(d.roomId)).data.seatUids[d.seat] == '')
+                     || (isSelf(uid) && hostGone(r, d.roomId))))
+                || (isSelf(uid) && !(uid in r.seatUids) && hostGone(r, d.roomId)
+                    && get(playerPath(uid)).data.tableRoomId == d.roomId
+                    && get(playerPath(uid)).data.sessionNo == d.sessionNo
+                    && d.amount == get(playerPath(uid)).data.inPlay && d.buyIn == d.amount
+                    && d.topUps == 0 && d.topUpChips == 0 && d.hands == 0
+                    && d.nightKey is string && d.nightKey.matches('[0-9]{8}')));
+        }
+        allow get: if signedIn();
+        allow list: if signedIn() && request.query.limit <= 50;
+        allow create: if signedIn() && entryKeysOk(request.resource.data)
+          && (grantOk(request.resource.data) || buyinEntryOk(request.resource.data)
+              || topupEntryOk(request.resource.data) || cashoutEntryOk(request.resource.data));
+        allow update, delete: if false;
+      }
+
+      // 每晚戰績（nightKey＝這次入座的台北時間，06:00 換日的 YYYYMMDD）；只在結帳時累加
+      //   buyIn＝帶入＋補碼（Poker Now 的 Buy-In）、cashOut＝帶走、net＝cashOut − buyIn
+      match /nights/{nightKey} {
+        function nightAddOk(base) {
+          let d = request.resource.data;
+          let e = getAfter(ledgerPath(uid, d.lastEntry)).data;
+          return nightKey.matches('[0-9]{8}')
+            && d.keys().hasOnly(['nightKey', 'uid', 'name', 'buyIn', 'cashOut', 'net', 'topUps', 'hands', 'lastEntry', 'updatedAt'])
+            && d.nightKey == nightKey && d.uid == uid && strOk(d.name, 60)
+            && d.lastEntry is string && d.lastEntry != base.lastEntry
+            && e.type == 'cashout' && e.at == request.time && e.by == request.auth.uid && e.nightKey == nightKey
+            && d.buyIn == base.buyIn + e.buyIn + e.topUpChips
+            && d.cashOut == base.cashOut + e.amount
+            && d.net == d.cashOut - d.buyIn
+            && d.topUps == base.topUps + e.topUps
+            && d.hands == base.hands + e.hands
+            && d.updatedAt == request.time;
+        }
+        allow get: if signedIn();
+        allow create: if signedIn() && nightAddOk({'lastEntry': '', 'buyIn': 0, 'cashOut': 0, 'topUps': 0, 'hands': 0});
+        allow update: if signedIn() && nightAddOk(resource.data);
+        allow delete: if false;
+      }
+    }
+
+    // 戰績頁「某一晚」的集合群組查詢
+    match /{path=**}/nights/{nightKey} {
+      allow list: if signedIn() && request.query.limit <= 50;
+    }
+    // ===== [/POKER] ===========================================================
+
+    // 其他路徑一律拒絕（預設就是拒絕，這裡寫明）
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

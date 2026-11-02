@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Auth module demo · §7 #17</title>
+<style>
+:root{--auth-bg:#13231a;--auth-ink:#f3ead2;--auth-accent:#e6bf5a;--auth-btn:#111;--auth-btn-ink:#fff;--auth-mute:#c9bf9f;--auth-warn:#ff4d3a;--tf:Georgia,serif}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#13231a;font-family:system-ui,sans-serif}
+#root{width:min(420px,92vw)}
+pre{color:#c9bf9f;font-size:12px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<pre id="log"></pre>
+<script type="module">
+import { initAuth, onUser, signIn, signOut, getFirebase } from './auth.js';
+import { renderAuthUi } from './auth-ui.js';
+
+const cfg = {
+  apiKey: 'AIzaSyAt35bQoP7z5_lDPF9bMbm5t8R5aJgBJQw',
+  authDomain: 'tony-poker.web.app',
+  projectId: 'tony-poker',
+  storageBucket: 'tony-poker.firebasestorage.app',
+  messagingSenderId: '912362174174',
+  appId: '1:912362174174:web:1bcf937cbb58868e17344f',
+};
+
+const root = document.getElementById('root');
+const log = document.getElementById('log');
+
+await initAuth({ firebaseConfig: cfg, mode: 'auto', sameDomainAuth: true });
+onUser((ev) => {
+  renderAuthUi(root, ev, { brand: 'Auth Demo', onRetry: () => signIn() });
+  log.textContent = JSON.stringify({ status: ev.status, user: ev.user, fromCache: ev.fromCache, error: ev.error, hasFb: !!getFirebase() }, null, 2);
+  if (ev.status === 'signed-in') {
+    const b = document.createElement('button');
+    b.textContent = '登出';
+    b.onclick = () => signOut();
+    root.appendChild(b);
+  }
+});
+</script>
+</body>
+</html>
