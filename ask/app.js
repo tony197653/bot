@@ -82,19 +82,22 @@ const CONFIG = {
     const full = el.quotaWrap.querySelector(".quota-full");
     const short = el.quotaWrap.querySelector(".quota-short");
     const showReset = typeof n === "number" && n <= 5;
+    // 手機短標用「8 點重置」；桌面完整「早上 8 點重置」
+    const resetFull = "早上 8 點重置";
+    const resetShort = "8 點重置";
     if (n === null || n === undefined) {
       el.quotaWrap.classList.add("is-loading");
       full.innerHTML =
-        '今天還能問 <b>—</b> 題<span class="quota-reset" hidden>早上 8 點重置</span>';
+        `今天還能問 <b>—</b> 題<span class="quota-reset" hidden>${resetFull}</span>`;
       short.innerHTML =
-        '剩 <b>—</b> 題<span class="quota-reset" hidden>早上 8 點重置</span>';
+        `剩 <b>—</b> 題<span class="quota-reset" hidden>${resetShort}</span>`;
       applyDisabledState();
       return;
     }
     el.quotaWrap.classList.remove("is-loading");
     const resetAttr = showReset ? "" : " hidden";
-    full.innerHTML = `今天還能問 <b>${n}</b> 題<span class="quota-reset"${resetAttr}>早上 8 點重置</span>`;
-    short.innerHTML = `剩 <b>${n}</b> 題<span class="quota-reset"${resetAttr}>早上 8 點重置</span>`;
+    full.innerHTML = `今天還能問 <b>${n}</b> 題<span class="quota-reset"${resetAttr}>${resetFull}</span>`;
+    short.innerHTML = `剩 <b>${n}</b> 題<span class="quota-reset"${resetAttr}>${resetShort}</span>`;
     applyDisabledState();
   }
 
@@ -419,15 +422,20 @@ const CONFIG = {
 
   async function getTurnstileToken() {
     if (!window.turnstile) throw new Error("turnstile");
+    const id = turnstileWidgetId;
     return new Promise((resolve, reject) => {
       try {
-        if (turnstileWidgetId !== null && window.turnstile.reset) {
-          window.turnstile.reset(turnstileWidgetId);
-        }
-        const id = turnstileWidgetId;
         if (typeof window.turnstile.execute === "function") {
           window.turnstile.execute(id, {
-            callback: (token) => resolve(token),
+            callback: (token) => {
+              resolve(token);
+              // token 用過後再 reset，避免「already executing」
+              try {
+                if (window.turnstile.reset) window.turnstile.reset(id);
+              } catch {
+                /* ignore */
+              }
+            },
             "error-callback": () => reject(new Error("turnstile")),
           });
         } else {
@@ -733,9 +741,10 @@ const CONFIG = {
     const start = () => {
       if (turnstileStarted || !window.turnstile) return;
       turnstileStarted = true;
-      // Invisible 模式在 Cloudflare 後台 widget 設定；不要傳 size
+      // execution:"execute"：只在送出時 execute；用完再 reset
       turnstileWidgetId = window.turnstile.render(el.turnstileHost, {
         sitekey: CONFIG.turnstileSiteKey,
+        execution: "execute",
         callback: () => {},
       });
       turnstileReady = true;

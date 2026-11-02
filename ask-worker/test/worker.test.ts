@@ -49,6 +49,28 @@ describe("networkKey (IPv4 full / IPv6 /64)", () => {
     expect(() => networkKey("2001:db8:abcde::1")).toThrow(/invalid ipv6/);
   });
 
+  it("hashIp falls back to raw string on invalid IPv6 (no throw)", async () => {
+    const salt = "test-salt";
+    const h = await hashIp("2001:db8:abcde::1", salt);
+    expect(h).toMatch(/^[0-9a-f]{64}$/);
+    const again = await hashIp("2001:db8:abcde::1", salt);
+    expect(again).toBe(h);
+    // distinct from a valid neighbour
+    expect(h).not.toBe(await hashIp("2001:db8::1", salt));
+  });
+
+  it("GET /quota with invalid IPv6 does not 500", async () => {
+    const res = await SELF.fetch("https://example.com/quota", {
+      headers: {
+        Origin: ORIGIN,
+        "CF-Connecting-IP": "2001:db8:abcde::1",
+      },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { remaining: number };
+    expect(typeof body.remaining).toBe("number");
+  });
+
   it("expands compressed IPv6 (::1) and takes /64", () => {
     expect(expandIpv6("::1")).toEqual([
       "0000",

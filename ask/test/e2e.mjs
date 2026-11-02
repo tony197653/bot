@@ -4,6 +4,7 @@
  * 前置：mock-worker :8787、靜態服務 :4173（本腳本會自己拉起）。
  */
 import { chromium, webkit } from "playwright";
+import AxeBuilder from "@axe-core/playwright";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -86,9 +87,10 @@ async function assertQuotaSingleLine(page, { width, remaining = 39, rootScale = 
   const expectText = expectShort
     ? `剩 ${remaining} 題`
     : `今天還能問 ${remaining} 題`;
-  // remaining<=5 會多重置文案
+  // 手機短標「8 點重置」；桌面「早上 8 點重置」
+  const resetHint = expectShort ? "8 點重置" : "早上 8 點重置";
   const expectBase =
-    remaining <= 5 ? `${expectText} 早上 8 點重置` : expectText;
+    remaining <= 5 ? `${expectText} ${resetHint}` : expectText;
   if (info.text !== expectBase) {
     throw new Error(`quota text (${tag}): got "${info.text}" want "${expectBase}"`);
   }
@@ -237,8 +239,10 @@ async function main() {
       const browser = await launcher.launch({ headless: true });
       try {
         async function withPage(width, height, fn) {
-          const page = await browser.newPage();
-          await page.setViewportSize({ width, height });
+          const context = await browser.newContext({
+            viewport: { width, height },
+          });
+          const page = await context.newPage();
           await installTurnstileFake(page);
           await page.addInitScript(({ workerUrl }) => {
             Object.defineProperty(window, "__ASK_BOOT__", {
@@ -263,7 +267,7 @@ async function main() {
           }, WORKER);
           await page.evaluate(() => window.__ASK__.__setTurnstileReady?.(true));
           await fn(page);
-          await page.close();
+          await context.close();
         }
         await runFn({ withPage, name });
       } finally {
@@ -302,8 +306,10 @@ async function main() {
 
     const browser = await chromium.launch({ headless: true });
     async function withPage(width, height, fn) {
-      const page = await browser.newPage();
-      await page.setViewportSize({ width, height });
+      const context = await browser.newContext({
+        viewport: { width, height },
+      });
+      const page = await context.newPage();
       await installTurnstileFake(page);
       // Patch before load: make turnstile appear ready immediately and point worker
       await page.addInitScript(({ workerUrl }) => {
@@ -332,7 +338,7 @@ async function main() {
       // Enable turnstileReady via test hook
       await page.evaluate(() => window.__ASK__.__setTurnstileReady?.(true));
       await fn(page);
-      await page.close();
+      await context.close();
     }
 
     // —— 390 空狀態 ——
@@ -346,12 +352,16 @@ async function main() {
         const br = b.getBoundingClientRect();
         const mid = (r.top + r.bottom) / 2;
         const bmid = (br.top + br.bottom) / 2;
+        const main = document.querySelector("main.main");
+        const log = document.querySelector("div#log[role='log']");
         return {
           text: el.innerText.replace(/\s+/g, " ").trim(),
           h: r.height,
           offset: Math.abs(mid - bmid),
           sameLine: Math.abs(r.top - br.top) < 4 && Math.abs(r.bottom - br.bottom) < 8,
-          hasMain: !!document.querySelector("main#log"),
+          hasMain: !!main,
+          logInsideMain: !!(main && log && main.contains(log)),
+          mainHasRoleLog: main?.getAttribute("role") === "log",
           resetHidden: el.querySelector(".quota-reset")?.hidden === true,
         };
       });
@@ -362,13 +372,17 @@ async function main() {
       if (quota390.offset >= 1) {
         throw new Error("quota badge offset >=1px at 390: " + quota390.offset);
       }
-      if (!quota390.hasMain) throw new Error("missing <main id=log>");
+      if (!quota390.hasMain || !quota390.logInsideMain) {
+        throw new Error("main/log structure: " + JSON.stringify(quota390));
+      }
+      if (quota390.mainHasRoleLog) throw new Error("main must not have role=log");
       if (!quota390.resetHidden) throw new Error("reset hint should hide when remaining>5");
 
-      // remaining <=5 shows reset hint with readable contrast
+      // remaining <=5：手機短標「8 點重置」；標題不換行（360 也測）
       await page.evaluate(() => window.__ASK__.setQuotaDisplay(5));
       const reset5 = await page.evaluate(() => {
         const el = document.querySelector(".quota-short .quota-reset");
+        const h1 = document.querySelector(".top h1");
         const cs = getComputedStyle(el);
         const bg = getComputedStyle(document.body).backgroundColor;
         function lum(c) {
@@ -383,12 +397,28 @@ async function main() {
         const L1 = lum(cs.color);
         const L2 = lum(bg);
         const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
-        return { hidden: el.hidden, text: el.textContent, ratio };
+        const hr = h1.getBoundingClientRect();
+        const csH = getComputedStyle(h1);
+        const fs = parseFloat(csH.fontSize) || 18;
+        const lh = parseFloat(csH.lineHeight) || fs * 1.65;
+        return {
+          hidden: el.hidden,
+          text: el.textContent,
+          ratio,
+          titleH: hr.height,
+          titleLh: lh,
+          titleWs: csH.whiteSpace,
+          // 單行高度 ≈ line-height；超過 1.4× 才算換行（getClientRects 對中文不可靠）
+          titleWrap: csH.whiteSpace !== "nowrap" || hr.height > lh * 1.4,
+        };
       });
-      if (reset5.hidden || reset5.text !== "早上 8 點重置") {
-        throw new Error("reset hint at 5: " + JSON.stringify(reset5));
+      if (reset5.hidden || reset5.text !== "8 點重置") {
+        throw new Error("mobile reset hint at 5: " + JSON.stringify(reset5));
       }
       if (reset5.ratio < 4.5) throw new Error("reset contrast <4.5: " + reset5.ratio);
+      if (reset5.titleWrap) {
+        throw new Error("title wrapped at 390 with reset: " + JSON.stringify(reset5));
+      }
 
       await page.evaluate(() => window.__ASK__.setQuotaDisplay(19));
       await shot(page, "ask-empty-390.png");
@@ -655,6 +685,78 @@ async function main() {
       if (!zero.resetShown) throw new Error("reset hint should show at 0");
       await shot(page, "ask-zero-1280.png");
       results.push("zero quota OK");
+    });
+
+    // —— R2-2：360 + remaining<=5 標題不換行、短重置文案 ——
+    await withPage(360, 800, async (page) => {
+      await assertQuotaSingleLine(page, {
+        width: 360,
+        remaining: 5,
+        label: "chromium-360-reset5",
+      });
+      const titleOk = await page.evaluate(() => {
+        const h1 = document.querySelector(".top h1");
+        const r = h1.getBoundingClientRect();
+        const cs = getComputedStyle(h1);
+        const fs = parseFloat(cs.fontSize) || 18;
+        const lh = parseFloat(cs.lineHeight) || fs * 1.65;
+        return {
+          text: h1.textContent,
+          h: r.height,
+          lh,
+          wrap: cs.whiteSpace !== "nowrap" || r.height > lh * 1.4,
+          whiteSpace: cs.whiteSpace,
+        };
+      });
+      if (titleOk.wrap || titleOk.text !== "跟 AI 提問") {
+        throw new Error("title wrap at 360<=5: " + JSON.stringify(titleOk));
+      }
+      await shot(page, "ask-quota-360-reset5.png");
+      results.push("360 reset short + title OK");
+    });
+
+    // —— R2-3：axe landmark-one-main / region ——
+    await withPage(390, 844, async (page) => {
+      // legacyMode：避免 finishRun 另開 blank page 的 context 限制
+      const axe = await new AxeBuilder({ page })
+        .setLegacyMode(true)
+        .options({
+          runOnly: {
+            type: "rule",
+            values: [
+              "landmark-one-main",
+              "region",
+              "landmark-no-duplicate-main",
+              "landmark-unique",
+            ],
+          },
+        })
+        .analyze();
+      if (axe.violations.length) {
+        throw new Error(
+          "axe landmark issues: " +
+            JSON.stringify(
+              axe.violations.map((v) => ({
+                id: v.id,
+                help: v.help,
+                nodes: v.nodes?.map((n) => n.target),
+              })),
+            ),
+        );
+      }
+      const structure = await page.evaluate(() => ({
+        mains: document.querySelectorAll("main").length,
+        mainRole: document.querySelector("main")?.getAttribute("role"),
+        logRole: document.querySelector("#log")?.getAttribute("role"),
+        composerInMain: !!document.querySelector("main .composer"),
+      }));
+      if (structure.mains !== 1 || structure.mainRole) {
+        throw new Error("main landmark: " + JSON.stringify(structure));
+      }
+      if (structure.logRole !== "log" || !structure.composerInMain) {
+        throw new Error("log/composer structure: " + JSON.stringify(structure));
+      }
+      results.push("axe landmarks OK");
     });
 
     // —— 768 ——
