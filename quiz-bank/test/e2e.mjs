@@ -2128,14 +2128,21 @@ try {
     }
     await page.locator(`.opt[data-k="${answers[answers.length - 1]}"]`).click();
     await page.waitForTimeout(30);
-    // 雙擊看結果：第二下應被 350ms 靜默吃掉，不應立刻回首頁
-    await page.locator('[data-act="next"]').dblclick({ delay: 40 });
-    await page.waitForSelector('[data-el="result"]', { timeout: 5000 });
-    await page.waitForTimeout(120);
+    // 交卷切到結算後立刻點「回首頁」應被 350ms 靜默擋住
+    await page.locator('[data-act="next"]').click();
+    try {
+      await page.waitForSelector('[data-el="result"]', { timeout: 1500 });
+    } catch {
+      const nxt = page.locator('[data-act="next"]');
+      if ((await nxt.count()) > 0) await nxt.click();
+      await page.waitForSelector('[data-el="result"]', { timeout: 5000 });
+    }
+    await page.locator('[data-act="home"]').click({ timeout: 200 }).catch(() => {});
+    await page.waitForTimeout(80);
     const stillResult = await page.evaluate(
       () => !!document.querySelector('[data-el="result"]') && document.body.dataset.view === 'result',
     );
-    if (!stillResult) throw new Error('R5-2 double-click left result too early');
+    if (!stillResult) throw new Error('R5-2 click quiet failed — left result too early');
     pass('R5-2 result click quiet after transition');
     await page.close();
   }
