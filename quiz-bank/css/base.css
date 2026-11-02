@@ -23,6 +23,7 @@ p{margin:0}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .b1{background:var(--b1-bg);color:var(--b1-fg);border-radius:999px;font-weight:600}
 @media (hover:hover) and (pointer:fine){.b1:hover:not(:disabled){background:var(--b1-hover)}}
+.b1:not(:disabled):active{background:var(--b1-active,var(--b1-hover))}
 .b2{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:var(--r-sm)}
 @media (hover:hover) and (pointer:fine){.b2:hover:not(:disabled){background:var(--surface);border-color:var(--line-strong)}}
 /* A 頂部列 */
@@ -92,7 +93,7 @@ body[data-view=result] .count,body[data-view=result] .prog{visibility:hidden}
 .report{margin-top:6px;font-size:14px}
 /* G 操作列 */
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--bar-bg);padding:10px max(16px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));transition:transform .3s var(--ease-out),opacity .3s var(--ease-out)}
-/* P3/P4 步驟鈕（78c3815）：固定 112×44、8px 圓角；按下只變底色；disabled opacity .4 */
+/* P3/P4 步驟鈕（15a1503）：112×44、8px；下一題 sage-deep；上一題／略過白底 #A9ADA3 框；disabled .55；只過渡底色／透明度 */
 .bar-in{
   max-width:776px;margin:0 auto;display:flex;justify-content:center;align-items:center;gap:10px;
   overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
@@ -105,17 +106,19 @@ body[data-view=result] .count,body[data-view=result] .prog{visibility:hidden}
   transform:none;opacity:1;transition:background-color .22s var(--ease),opacity .22s var(--ease)
 }
 .bar .btn:active,.bar .b1:active,.bar .b2:active{transform:none}
-.bar .next.b1{background:var(--b1-bg);color:var(--b1-fg);border-color:transparent}
-.bar .prev.b2,.bar .skip.b2,.bar .submit.b2{background:transparent;color:var(--ink);border-color:var(--line)}
+.bar .next.b1{background:var(--sage-deep);color:#fff;border-color:transparent}
+.bar .prev.b2,.bar .skip.b2,.bar .submit.b2{background:#fff;color:var(--ink);border-color:#A9ADA3}
 @media (hover:hover) and (pointer:fine){
- .bar .next.b1:not(:disabled):hover{background:var(--b1-hover)}
- .bar .prev.b2:not(:disabled):hover,.bar .skip.b2:not(:disabled):hover,.bar .submit.b2:not(:disabled):hover{background:var(--surface);border-color:var(--line-strong)}
+ .bar .next.b1:not(:disabled):hover{background:#454F40}
+ .bar .prev.b2:not(:disabled):hover,.bar .skip.b2:not(:disabled):hover,.bar .submit.b2:not(:disabled):hover{background:var(--bg);border-color:#A9ADA3}
 }
-.bar .next.b1:not(:disabled):active{background:#4A4C47}
-.bar .prev.b2:not(:disabled):active,.bar .skip.b2:not(:disabled):active,.bar .submit.b2:not(:disabled):active{background:var(--surface-2)}
-.bar .btn:disabled{opacity:.4;cursor:not-allowed}
-.bar .next.b1:disabled{background:var(--b1-bg);color:var(--b1-fg);opacity:.4}
-.bar .prev.b2:disabled,.bar .skip.b2:disabled{background:transparent;color:var(--ink);border-color:var(--line);opacity:.4}
+.bar .next.b1:not(:disabled):active{background:#3B4436}
+.bar .prev.b2:not(:disabled):active,.bar .skip.b2:not(:disabled):active,.bar .submit.b2:not(:disabled):active{background:var(--sage-soft)}
+.bar .btn:disabled{opacity:.55;cursor:not-allowed}
+.bar .next.b1:disabled{background:var(--sage-deep);color:#fff;opacity:.55}
+.bar .prev.b2:disabled,.bar .skip.b2:disabled{background:#fff;color:var(--ink);border-color:#A9ADA3;opacity:.55}
+.bar .next.b1:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.bar .prev.b2:focus-visible,.bar .skip.b2:focus-visible,.bar .submit.b2:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
 .bar .submit{display:none}
 .bar .next .nx-t{display:block;width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* 360：三顆 112＋兩縫 10＝356，左右各留 2px 才能不捲；仍不縮鈕 */

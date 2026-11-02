@@ -495,8 +495,8 @@ try {
     if (!q1Unanswered.nextIsB1) throw new Error('next must use b1');
     if (q1Unanswered.skipDisabled) throw new Error('skip should be enabled when unanswered');
     if (!q1Unanswered.prevDisabled) throw new Error('prev must be disabled on q1');
-    if (Math.abs(parseFloat(q1Unanswered.prevOpacity) - 0.4) > 0.05) {
-      throw new Error(`prev disabled opacity not ~.4: ${q1Unanswered.prevOpacity}`);
+    if (Math.abs(parseFloat(q1Unanswered.prevOpacity) - 0.55) > 0.05) {
+      throw new Error(`prev disabled opacity not ~.55: ${q1Unanswered.prevOpacity}`);
     }
     if (!q1Unanswered.sameRow || q1Unanswered.barWrap) {
       throw new Error(`bar not single row @${viewport.width}: ${JSON.stringify(q1Unanswered)}`);
@@ -1004,7 +1004,7 @@ try {
     await page.close();
   }
 
-  // --- P3/P4 最終：112×44、q1=q2 座標、q1 prev disabled opacity.4、按下不縮放（360/390/1280）---
+  // --- P3/P4 最終（15a1503）：112×44、sage-deep next、q1 prev disabled opacity.55、按下不縮放 ---
   {
     const layouts = [];
     for (const w of [360, 390, 1280]) {
@@ -1061,8 +1061,18 @@ try {
         throw new Error(`step btn hidden on q1 @${w}: ${JSON.stringify(q1)}`);
       }
       if (!q1.prev.disabled) throw new Error(`q1 prev not disabled @${w}`);
-      if (Math.abs(parseFloat(q1.prev.opacity) - 0.4) > 0.05) {
-        throw new Error(`q1 prev opacity not .4 @${w}: ${q1.prev.opacity}`);
+      if (Math.abs(parseFloat(q1.prev.opacity) - 0.55) > 0.05) {
+        throw new Error(`q1 prev opacity not .55 @${w}: ${q1.prev.opacity}`);
+      }
+      if (!/^rgb\(80,\s*92,\s*74\)$/.test(
+        await page.evaluate(() => getComputedStyle(document.querySelector('[data-act=next]')).backgroundColor),
+      )) {
+        const bg = await page.evaluate(() => getComputedStyle(document.querySelector('[data-act=next]')).backgroundColor);
+        throw new Error(`next not sage-deep #505C4A @${w}: ${bg}`);
+      }
+      const prevBorder = await page.evaluate(() => getComputedStyle(document.querySelector('[data-act=prev]')).borderTopColor);
+      if (!/^rgb\(169,\s*173,\s*163\)$/.test(prevBorder)) {
+        throw new Error(`prev border not #A9ADA3 @${w}: ${prevBorder}`);
       }
       if (!(q1.skip.cls.includes('b2') && q1.prev.cls.includes('b2') && q1.next.cls.includes('b1'))) {
         throw new Error(`step btn variants @${w}: ${JSON.stringify(q1)}`);

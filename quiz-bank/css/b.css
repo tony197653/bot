@@ -1,8 +1,9 @@
 /* ===== B 安靜高級 ===== */
 :root{--bg:#F5F4F1;--surface:#FFFFFF;--surface-2:#F0EEEA;--ink:#1F1F1D;--ink-rgb:31,31,29;--mute:#67655F;--line:#E5E3DD;--line-soft:#E8E6E0;--line-strong:#CDCAC2;
- --accent:#34445A;--sel:rgba(52,68,90,.16);--sage:#66745F;
+ --accent:#34445A;--sel:rgba(52,68,90,.16);--sage:#66745F;--sage-deep:#505C4A;--sage-soft:#DFE4DA;
  --ok:#3B7150;--ok-ink:#2E5C40;--ok-soft:#E7EFE9;--bad:#A03F4A;--bad-ink:#8C3540;--bad-soft:#F6E8E9;--warn:#7A5418;--warn-soft:#F7F0E3;
- --b1-bg:#1F1F1D;--b1-fg:#FAFAF8;--b1-hover:#34332F;--top-bg:rgba(245,244,241,.86);--bar-bg:rgba(245,244,241,.9);
+ /* 主按鈕用 accent（非墨黑）；P3/P4 下一步另用 sage-deep */
+ --b1-bg:var(--accent);--b1-fg:#FAFAF8;--b1-hover:#2B384A;--b1-active:#243040;--top-bg:rgba(245,244,241,.86);--bar-bg:rgba(245,244,241,.9);
  --g1-bg:#ECEAE5;--g1-thumb:#FFFFFF;--toast-bg:#1F1F1D;--toast-fg:#FAFAF8;--press:#EEEDE9;
  --shadow:0 1px 2px rgba(31,31,29,.05),0 4px 16px rgba(31,31,29,.05);--shadow-up:0 2px 4px rgba(31,31,29,.06),0 14px 32px rgba(31,31,29,.10);
  --pop-shadow:0 2px 4px rgba(31,31,29,.05),0 16px 40px -8px rgba(31,31,29,.18);--sheet-shadow:0 1px 2px rgba(31,31,29,.06),0 24px 64px -12px rgba(31,31,29,.28);
