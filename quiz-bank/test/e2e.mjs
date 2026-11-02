@@ -886,11 +886,11 @@ try {
     await page.close();
   }
 
-  // --- QA r2 I-3：離線交卷 <2s 出現結果＋還沒存到雲端 ---
+  // --- QA r3 I-3：離線交卷 <2s 出現結果＋還沒存到雲端＋重試鍵 ---
   {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await page.goto(
-      `http://127.0.0.1:${port}/test/harness.html?mode=instant&offline=1&saveDelay=30000`,
+      `http://127.0.0.1:${port}/test/harness.html?mode=instant&offline=1&saveDelay=5000`,
       { waitUntil: 'networkidle' },
     );
     await page.waitForSelector('.opt');
@@ -915,7 +915,58 @@ try {
     if (!body.includes('還沒存到雲端')) {
       throw new Error(`missing pending banner: ${body.slice(0, 120)}`);
     }
-    pass(`I-3 offline result <2s (${ms}ms) + pending banner`);
+    const retry = page.locator('[data-act="retry-cloud"]');
+    if ((await retry.count()) < 1) throw new Error('missing 重試 button');
+    // 離線按重試 → toast
+    await retry.click();
+    await page.waitForFunction(
+      () => (document.getElementById('app-toast')?.textContent || '').includes('離線'),
+      { timeout: 2000 },
+    );
+    // 橫幅仍在
+    if ((await page.locator('.cloud-warn').count()) < 1) {
+      throw new Error('banner removed while still offline');
+    }
+    pass(`I-3 offline result <2s (${ms}ms) + banner + retry toast`);
+    await page.close();
+  }
+
+  // --- QA r3 I-3b：背景上傳進行中按重試 → 只存 1 筆、錯題本只算一次 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(
+      `http://127.0.0.1:${port}/test/harness.html?mode=instant&offline=1&saveDelay=800`,
+      { waitUntil: 'networkidle' },
+    );
+    await page.waitForSelector('.opt');
+    const answers = batch.questions.map((q) => q.answer);
+    for (let i = 0; i < answers.length - 1; i++) {
+      await page.locator(`.opt[data-k="${answers[i]}"]`).click();
+      await page.waitForTimeout(30);
+      await page.locator('[data-act="next"]').click();
+      await page.waitForTimeout(50);
+    }
+    await page.locator(`.opt[data-k="${answers[answers.length - 1]}"]`).click();
+    await page.locator('[data-act="next"]').click();
+    await page.waitForSelector('.cloud-warn [data-act="retry-cloud"]');
+    // 模擬恢復連線，背景仍在 saveDelay 內
+    await page.evaluate(() => {
+      window.__harness.offline = false;
+    });
+    await page.locator('[data-act="retry-cloud"]').click();
+    await page.waitForFunction(
+      () => window.__harness?.saveCount >= 1 && !document.querySelector('.cloud-warn'),
+      { timeout: 3000 },
+    );
+    const counts = await page.evaluate(() => ({
+      saveCount: window.__harness.saveCount,
+      wrongBookApplied: window.__harness.wrongBookApplied,
+      records: window.__harness.records?.length,
+    }));
+    if (counts.saveCount !== 1 || counts.wrongBookApplied !== 1 || counts.records !== 1) {
+      throw new Error(`expected single save, got ${JSON.stringify(counts)}`);
+    }
+    pass('I-3b retry during background upload → 1 record, wrong-book once');
     await page.close();
   }
 

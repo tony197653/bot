@@ -40,6 +40,29 @@
       } catch { /* ignore */ }
     }
 
+    /** @type {Map<string, Promise<{ok:boolean, wrongBookDelta:number}>>} */
+    const inflight = new Map();
+    const pendingKey = 'quizbank:v1:pending:harness';
+    const resultKey = 'quizbank:v1:lastResult:harness';
+
+    function attemptIdFor(result) {
+      const q0 = (result.qids && result.qids[0]) || 'x';
+      return `att_${result.startedAt}_${result.endedAt}_${result.score}_${result.total}_${q0}`;
+    }
+
+    function toast(msg) {
+      let el = document.getElementById('app-toast');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'app-toast';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+      el.classList.add('on');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.remove('on'), 2200);
+    }
+
     window.__harness = {
       progressKey,
       formatRoundSummary,
@@ -49,6 +72,10 @@
       lastSummary: null,
       reports: [],
       reportFail: false,
+      saveCount: 0,
+      wrongBookApplied: 0,
+      records: [],
+      offline: params.get('offline') === '1',
     };
 
     startQuiz({
@@ -94,10 +121,20 @@
           round: 1,
         });
         window.__harness.lastSummary = summary;
-        const offline = params.get('offline') === '1';
+        const offline = params.get('offline') === '1' || window.__harness.offline;
         const saveDelay = Number(params.get('saveDelay') || 0);
-        const resultKey = 'quizbank:v1:lastResult:harness';
-        // 本機優先：立刻顯示結果（離線／慢存時為 pending）
+        const attemptId = attemptIdFor(result);
+        const payload = { attemptId, result, meta: { mode: result.mode }, savedAt: Date.now() };
+
+        // 換頁前先入隊
+        try {
+          const list = JSON.parse(localStorage.getItem(pendingKey) || '[]');
+          if (!list.some((x) => x.attemptId === attemptId)) {
+            list.push(payload);
+            localStorage.setItem(pendingKey, JSON.stringify(list));
+          }
+        } catch { /* ignore */ }
+
         const cloudStatus = offline || saveDelay > 0 ? 'pending' : 'ok';
         try {
           localStorage.setItem(
@@ -107,10 +144,45 @@
               summaryText: summary,
               wrongBookDelta: 0,
               cloudStatus,
-              savedAt: Date.now(),
+              attemptId,
+              savedAt: payload.savedAt,
             }),
           );
         } catch { /* ignore */ }
+
+        const settleOnce = () => {
+          if (inflight.has(attemptId)) return inflight.get(attemptId);
+          const work = (async () => {
+            // 模擬慢上傳：延遲期間可重試並共用同一 Promise
+            if (saveDelay > 0) await new Promise((r) => setTimeout(r, saveDelay));
+            if (window.__harness.offline) throw new Error('offline');
+            // idempotent：同 id 只記一筆
+            if (!window.__harness.records.includes(attemptId)) {
+              window.__harness.records.push(attemptId);
+              window.__harness.saveCount += 1;
+              window.__harness.wrongBookApplied += 1;
+            }
+            try {
+              const list = JSON.parse(localStorage.getItem(pendingKey) || '[]').filter(
+                (x) => x.attemptId !== attemptId,
+              );
+              localStorage.setItem(pendingKey, JSON.stringify(list));
+            } catch { /* ignore */ }
+            return { ok: true, wrongBookDelta: 1 };
+          })().finally(() => inflight.delete(attemptId));
+          inflight.set(attemptId, work);
+          return work;
+        };
+
+        const markOk = () => {
+          document.querySelector('.cloud-warn')?.remove();
+          try {
+            const snap = JSON.parse(localStorage.getItem(resultKey) || '{}');
+            snap.cloudStatus = 'ok';
+            localStorage.setItem(resultKey, JSON.stringify(snap));
+          } catch { /* ignore */ }
+        };
+
         showResult({
           mount: document.getElementById('root'),
           result: { ...result, title },
@@ -124,19 +196,26 @@
           onRetryWrong: () => location.reload(),
           onRestart: () => location.reload(),
           onHome: () => { location.href = '../'; },
-          onRetryCloud: () => {
-            document.querySelector('.cloud-warn')?.remove();
+          onRetryCloud: async () => {
+            if (window.__harness.offline) {
+              toast('目前離線，連上線後會自動上傳');
+              return;
+            }
+            try {
+              await settleOnce();
+              markOk();
+              toast('已存到雲端');
+            } catch {
+              toast('仍無法寫入，請稍後再試');
+            }
           },
         });
-        if (offline) {
-          // 模擬雲端掛起：不清除 pending 標示
-          return;
+
+        // 背景上傳（與重試共用 inflight）；離線時等延遲後失敗，連線後重試可成功
+        settleOnce().then(markOk).catch(() => {});
+        if (!offline && saveDelay === 0) {
+          try { localStorage.removeItem(progressKey); } catch { /* ignore */ }
         }
-        if (saveDelay > 0) {
-          await new Promise((r) => setTimeout(r, saveDelay));
-          document.querySelector('.cloud-warn')?.remove();
-        }
-        try { localStorage.removeItem(progressKey); } catch { /* ignore */ }
       },
     });
   </script>

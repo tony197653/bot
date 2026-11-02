@@ -250,6 +250,39 @@ try {
   fail('§9.10 manualOut rules', e.message);
 }
 
+// I-3b：固定 attempt id create 可；同 id 再 set＝update 被拒（client 應先 get 略過）
+await seed();
+try {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  const id = 'att_1000_2000_80_1_q1';
+  const payload = {
+    scope: { type: 'round', bookId: 'b1', unitCode: 'M9-1', round: 1 },
+    mode: 'instant',
+    qids: ['q1'],
+    answers: [0],
+    correct: 0,
+    total: 1,
+    score: 0,
+    byUnit: { 'M9-1': { unit: '單元', subject: 'math', correct: 0, total: 1 } },
+    startedAt: new Date(1000),
+    endedAt: new Date(2000),
+    at: serverTimestamp(),
+  };
+  await setDoc(doc(d, 'users', 'student1', 'attempts', id), payload);
+  const snap = await getDoc(doc(d, 'users', 'student1', 'attempts', id));
+  if (!snap.exists()) throw new Error('missing attempt');
+  let denied = false;
+  try {
+    await setDoc(doc(d, 'users', 'student1', 'attempts', id), { ...payload, score: 50 });
+  } catch {
+    denied = true;
+  }
+  if (!denied) throw new Error('overwrite should deny');
+  pass('I-3b attempt fixed-id create ok, overwrite deny');
+} catch (e) {
+  fail('I-3b attempt fixed-id', e.message);
+}
+
 await env.cleanup();
 
 const failed = results.filter((r) => !r.ok);

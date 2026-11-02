@@ -236,6 +236,18 @@ await t('admin 寫自己的 attempts 可以', 'ok', seedBase, async () => {
   await addDoc(collection(d, 'users', 'admin1', 'attempts'), goodAttempt());
 });
 
+await t('attempts 固定 id set 建立可以', 'ok', seedBase, async () => {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  await setDoc(doc(d, 'users', 'student1', 'attempts', 'att_fixed_1'), goodAttempt());
+});
+
+await t('attempts 同 id 覆寫被拒（仍僅 create）', 'deny', seedBase, async () => {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  const ref = doc(d, 'users', 'student1', 'attempts', 'att_fixed_2');
+  await setDoc(ref, goodAttempt());
+  await setDoc(ref, goodAttempt({ score: 50, correct: 0 }));
+});
+
 await t('學生讀別人的 reports 被拒', 'deny', seedBase, () =>
   getDoc(
     doc(

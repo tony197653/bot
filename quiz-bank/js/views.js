@@ -542,13 +542,13 @@ export async function renderUnits(mount, ctx) {
         <tbody>${strength
           .map(
             (u) => `<tr>
-              <td><span class="ucode">${escHtml(u.unitCode)}</span><span class="uname">${escHtml(u.unit)}</span></td>
+              <td><span class="ucode">${escHtml(u.unitCode)}</span><span class="uname" title="${escHtml(u.unit)}">${escHtml(u.unit)}</span></td>
               <td class="r">${
                 u.total
                   ? `<span class="rate-pct">${Math.round(u.rate * 100)}%</span><span class="rate-n">（${u.total} 次）</span>`
                   : '—'
               }</td>
-              <td><span class="l2 ${u.status}"><i></i>${escHtml(u.label)}</span>${u.lowSample ? '<span class="l3">題數少</span>' : ''}</td>
+              <td class="st"><span class="l2 ${u.status}"><i></i>${escHtml(u.label)}</span>${u.lowSample ? '<span class="l3">題數少</span>' : ''}</td>
               <td><button type="button" class="btn b5 unit-practice" data-unit="${escHtml(u.unitCode)}" data-book="${escHtml(u.bookId || '')}" data-unit-name="${escHtml(u.unit)}">練這單元</button></td>
             </tr>`,
           )

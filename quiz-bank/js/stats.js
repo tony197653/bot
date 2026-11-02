@@ -76,6 +76,33 @@ function writePending(uid, items) {
   }
 }
 
+/** 公開讀取待傳佇列（路由／重試判斷用） */
+export function listPending(uid) {
+  return readPending(uid);
+}
+
+export function hasPending(uid, attemptId) {
+  const list = readPending(uid);
+  if (!attemptId) return list.length > 0;
+  return list.some((x) => x.attemptId === attemptId);
+}
+
+/**
+ * 同一回合固定 client id（idempotent set）。
+ * @param {{startedAt:number, endedAt:number, score:number, total:number, qids?:string[]}} result
+ */
+export function attemptIdFor(result) {
+  const q0 = (result.qids && result.qids[0]) || 'x';
+  return `att_${result.startedAt}_${result.endedAt}_${result.score}_${result.total}_${q0}`;
+}
+
+/** @type {Map<string, Promise<{ok:boolean, wrongBookDelta:number, error?:unknown}>>} */
+const inflightSaves = new Map();
+
+function inflightKey(uid, attemptId) {
+  return `${uid}::${attemptId}`;
+}
+
 export function clearProgress(uid) {
   try {
     localStorage.removeItem(progressKey(uid));
@@ -340,54 +367,109 @@ export function nextQstat(prev, q, answer) {
 }
 
 /**
+ * @param {object} result
+ * @param {object} meta
+ */
+export function buildPendingPayload(result, meta) {
+  return {
+    attemptId: attemptIdFor(result),
+    result,
+    meta,
+    savedAt: Date.now(),
+  };
+}
+
+export function enqueuePending(uid, entry) {
+  const list = readPending(uid);
+  if (
+    list.some(
+      (x) =>
+        (entry.attemptId && x.attemptId === entry.attemptId) || x.savedAt === entry.savedAt,
+    )
+  ) {
+    return;
+  }
+  list.push(entry);
+  writePending(uid, list);
+}
+
+/** 先入隊（換頁前呼叫），回傳 payload */
+export function enqueueAttempt(uid, result, meta) {
+  const payload = buildPendingPayload(result, meta);
+  enqueuePending(uid, payload);
+  return payload;
+}
+
+function removePendingEntry(uid, entry) {
+  const list = readPending(uid).filter((x) => {
+    if (entry.attemptId && x.attemptId === entry.attemptId) return false;
+    if (entry.savedAt != null && x.savedAt === entry.savedAt) return false;
+    return true;
+  });
+  writePending(uid, list);
+}
+
+/**
+ * 背景上傳與重試共用：同 attemptId 只跑一趟；attempt 用固定 id set（已存在則略過 qstats）。
+ * @param {string} uid
+ * @param {{attemptId:string, result:object, meta:object, savedAt:number}} payload
+ */
+export function settleOnce(uid, payload) {
+  const attemptId = payload.attemptId || attemptIdFor(payload.result);
+  const key = inflightKey(uid, attemptId);
+  const existing = inflightSaves.get(key);
+  if (existing) return existing;
+
+  const work = (async () => {
+    try {
+      const delta = await writeSettlement(uid, payload.result, payload.meta, attemptId);
+      clearProgress(uid);
+      removePendingEntry(uid, { ...payload, attemptId });
+      const att = await buildAttemptDoc(payload.result, payload.meta);
+      att.id = attemptId;
+      att.at = { toMillis: () => Date.now() };
+      appendAttemptCache(att);
+      return { ok: true, wrongBookDelta: delta };
+    } catch (e) {
+      return { ok: false, error: e, wrongBookDelta: 0 };
+    }
+  })().finally(() => {
+    inflightSaves.delete(key);
+  });
+
+  inflightSaves.set(key, work);
+  return work;
+}
+
+/**
  * @param {string} uid
  * @param {object} result startQuiz / buildResult 輸出
  * @param {{scope:object, mode:'instant'|'exam', questions:object[]}} meta
  */
 export async function saveAttempt(uid, result, meta) {
-  const payload = { result, meta, savedAt: Date.now() };
-  try {
-    const delta = await writeSettlement(uid, result, meta);
-    clearProgress(uid);
-    removePendingEntry(uid, payload);
-    const att = await buildAttemptDoc(result, meta);
-    att.at = { toMillis: () => Date.now() };
-    appendAttemptCache(att);
-    return { ok: true, wrongBookDelta: delta };
-  } catch (e) {
-    enqueuePending(uid, payload);
-    return { ok: false, error: e, wrongBookDelta: 0 };
-  }
-}
-
-export function enqueuePending(uid, entry) {
-  const list = readPending(uid);
-  // 同 savedAt 不重複
-  if (!list.some((x) => x.savedAt === entry.savedAt)) list.push(entry);
-  writePending(uid, list);
+  const payload = enqueueAttempt(uid, result, meta);
+  return settleOnce(uid, payload);
 }
 
 /**
- * 先入隊，再嘗試寫入；逾時仍回 pending，背景繼續。
+ * 先入隊（若尚未），再嘗試寫入；逾時仍回 pending，背景繼續。與 flushPending 共用 inflight。
  * @param {string} uid
  * @param {object} result
  * @param {object} meta
  * @param {number} [ms]
  * @param {{onSuccess?:(delta:number)=>void}} [hooks]
+ * @param {{attemptId:string, result:object, meta:object, savedAt:number}} [existingPayload]
  */
-export async function saveAttemptWithTimeout(uid, result, meta, ms = 8000, hooks = {}) {
-  const payload = { result, meta, savedAt: Date.now() };
-  enqueuePending(uid, payload);
-
-  const work = (async () => {
-    const delta = await writeSettlement(uid, result, meta);
-    clearProgress(uid);
-    removePendingEntry(uid, payload);
-    const att = await buildAttemptDoc(result, meta);
-    att.at = { toMillis: () => Date.now() };
-    appendAttemptCache(att);
-    return { ok: true, wrongBookDelta: delta };
-  })();
+export async function saveAttemptWithTimeout(
+  uid,
+  result,
+  meta,
+  ms = 8000,
+  hooks = {},
+  existingPayload = null,
+) {
+  const payload = existingPayload || enqueueAttempt(uid, result, meta);
+  const work = settleOnce(uid, payload);
 
   const timed = await new Promise((resolve) => {
     const t = setTimeout(() => resolve({ ok: false, timedOut: true, wrongBookDelta: 0 }), ms);
@@ -406,22 +488,12 @@ export async function saveAttemptWithTimeout(uid, result, meta, ms = 8000, hooks
   if (timed.ok) {
     hooks.onSuccess?.(timed.wrongBookDelta || 0);
   } else {
-    // 逾時後背景成功時再更新 UI
-    work
-      .then((r) => {
-        if (r?.ok) hooks.onSuccess?.(r.wrongBookDelta || 0);
-      })
-      .catch(() => {
-        /* 已在 pending 佇列 */
-      });
+    work.then((r) => {
+      if (r?.ok) hooks.onSuccess?.(r.wrongBookDelta || 0);
+    });
   }
 
   return timed;
-}
-
-function removePendingEntry(uid, entry) {
-  const list = readPending(uid).filter((x) => x.savedAt !== entry.savedAt);
-  writePending(uid, list);
 }
 
 async function buildAttemptDoc(result, meta) {
@@ -440,15 +512,28 @@ async function buildAttemptDoc(result, meta) {
   };
 }
 
-async function writeSettlement(uid, result, meta, retries = 3) {
+/**
+ * @param {string} uid
+ * @param {object} result
+ * @param {object} meta
+ * @param {string} attemptId 固定 client id；已存在則不重算 qstats
+ * @param {number} [retries]
+ */
+async function writeSettlement(uid, result, meta, attemptId, retries = 3) {
   const { db, fs } = await ensureFb();
   const questions = meta.questions || [];
   const qById = Object.fromEntries(questions.map((q) => [q.id, q]));
   let wrongBookDelta = 0;
+  const id = attemptId || attemptIdFor(result);
 
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       wrongBookDelta = await fs.runTransaction(db, async (tx) => {
+        const attRef = fs.doc(db, 'users', uid, 'attempts', id);
+        const existing = await tx.get(attRef);
+        // idempotent：同一 attempt 已寫入則略過（錯題本差量不重複）
+        if (existing.exists()) return 0;
+
         let delta = 0;
         /** @type {Record<string,object>} */
         const nextStats = {};
@@ -470,7 +555,6 @@ async function writeSettlement(uid, result, meta, retries = 3) {
           tx.set(ref, { ...data, lastAt: fs.serverTimestamp() }, { merge: false });
         }
         const byUnit = computeByUnit(questions, result.answers);
-        const attRef = fs.doc(fs.collection(db, 'users', uid, 'attempts'));
         tx.set(attRef, {
           scope: meta.scope,
           mode: meta.mode,
@@ -499,23 +583,24 @@ async function writeSettlement(uid, result, meta, retries = 3) {
  */
 export async function flushPending(uid) {
   const list = readPending(uid);
-  if (!list.length) return { flushed: 0, failed: 0 };
+  // 空佇列：不算成功（呼叫端勿把 failed===0 當已存檔）
+  if (!list.length) return { flushed: 0, failed: 0, wrongBookDelta: 0 };
   let flushed = 0;
   let failed = 0;
-  const remain = [];
+  let wrongBookDelta = 0;
   for (const item of list) {
-    try {
-      await writeSettlement(uid, item.result, item.meta);
-      clearProgress(uid);
+    const payload = {
+      ...item,
+      attemptId: item.attemptId || attemptIdFor(item.result),
+    };
+    const r = await settleOnce(uid, payload);
+    if (r.ok) {
       flushed++;
-    } catch {
-      failed++;
-      remain.push(item);
-    }
+      wrongBookDelta += r.wrongBookDelta || 0;
+    } else failed++;
   }
-  writePending(uid, remain);
   if (flushed) cachedAttempts30d = null;
-  return { flushed, failed };
+  return { flushed, failed, wrongBookDelta };
 }
 
 /**

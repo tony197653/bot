@@ -6,6 +6,12 @@ import {
   computeStrength,
   mergeKnownUnits,
   sortStrengthRows,
+  attemptIdFor,
+  enqueueAttempt,
+  listPending,
+  hasPending,
+  flushPending,
+  pendingKey,
 } from '../js/stats.js';
 import { wrongPracticeLabel, formatUnitsExportText, SUBJECT_LABELS } from '../js/views.js';
 
@@ -141,6 +147,55 @@ function fail(n, e) {
   if (!text.includes('理化')) fail('export missing 理化', text);
   else if (!text.includes('最常錯的 5 題：hl-p9a-p9-3-r2-q05（錯 3 次）')) fail('export top wrong', text);
   else pass('§9.12 export 最常錯的 5 題');
+}
+
+// I-3b：固定 attemptId＋入隊去重；空 flush 不算成功
+{
+  const uid = 'unit-test-uid';
+  try {
+    localStorage?.clear?.();
+  } catch {
+    /* node：用假 storage */
+  }
+  // Node 無 localStorage：shim
+  if (typeof globalThis.localStorage === 'undefined') {
+    const mem = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+      setItem: (k, v) => mem.set(k, String(v)),
+      removeItem: (k) => mem.delete(k),
+      clear: () => mem.clear(),
+    };
+  }
+  localStorage.clear();
+  const result = {
+    startedAt: 1000,
+    endedAt: 2000,
+    score: 80,
+    total: 5,
+    correct: 4,
+    qids: ['q1', 'q2'],
+    answers: [0, 1],
+    mode: 'instant',
+  };
+  const id1 = attemptIdFor(result);
+  const id2 = attemptIdFor({ ...result });
+  if (id1 !== id2 || !id1.startsWith('att_')) fail('attemptIdFor stable', id1);
+  else pass('I-3b attemptIdFor stable');
+
+  const meta = { scope: { type: 'round' }, mode: 'instant', questions: [] };
+  const p1 = enqueueAttempt(uid, result, meta);
+  const p2 = enqueueAttempt(uid, result, meta);
+  const list = listPending(uid);
+  if (list.length !== 1 || p1.attemptId !== p2.attemptId) fail('enqueue dedupe', list);
+  else if (!hasPending(uid, p1.attemptId)) fail('hasPending');
+  else pass('I-3b enqueueAttempt dedupe by attemptId');
+
+  // 空佇列 flush（清掉後）
+  localStorage.setItem(pendingKey(uid), '[]');
+  const empty = await flushPending(uid);
+  if (empty.flushed !== 0 || empty.failed !== 0) fail('empty flush', empty);
+  else pass('I-3 empty flush is not success (flushed=0)');
 }
 
 console.log(`\nunit.test ${failed ? 'FAILED' : 'OK'} (${failed} failed)`);

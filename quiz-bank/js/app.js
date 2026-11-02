@@ -18,6 +18,8 @@ import { escHtml } from './render.js';
 import {
   saveAttemptWithTimeout,
   flushPending,
+  enqueueAttempt,
+  listPending,
   progressKey,
   clearProgress,
   updateQstatManualOut,
@@ -42,6 +44,8 @@ let activeQuizScope = null;
 let quizStarted = false;
 let quizNavigating = false;
 let restoringHash = false;
+/** finishQuiz 換頁／上傳進行中：/result 路由不可 flush 空佇列誤判成功 */
+let finishInFlight = false;
 
 const mount = () => document.getElementById('app-main');
 const toastEl = () => document.getElementById('app-toast');
@@ -261,17 +265,23 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
       navigate('#/');
     },
     onRetryCloud: async () => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        toast('目前離線，連上線後會自動上傳');
+        return;
+      }
       const r = await flushPending(user.uid);
-      if (!r.failed) {
-        const snap = loadLastResult(user.uid);
-        if (snap) {
-          snap.cloudStatus = 'ok';
-          saveLastResult(user.uid, snap);
-        }
-        const banner = main.querySelector('.cloud-warn');
-        banner?.remove();
+      if (r.flushed > 0 && r.failed === 0) {
+        applyCloudOk(user.uid, r.wrongBookDelta || 0);
         toast('已存到雲端');
-      } else toast('仍無法寫入，請稍後再試');
+      } else if (r.failed > 0) {
+        toast('仍無法寫入，請稍後再試');
+      } else if (!listPending(user.uid).length) {
+        // 佇列已空：背景上傳可能已完成（與重試共用 inflight）
+        applyCloudOk(user.uid, loadLastResult(user.uid)?.wrongBookDelta ?? 0);
+        toast('已存到雲端');
+      } else {
+        toast('仍無法寫入，請稍後再試');
+      }
     },
   });
   resultDestroy = () => view.destroy();
@@ -325,16 +335,19 @@ async function finishQuiz(result, scope) {
     questions: result.questions,
   };
 
-  // 本機優先：先存快照並立刻顯示「還沒存到雲端」
+  // 換頁前先入隊，避免 /result 路由 flush 空佇列誤判成功
+  const payload = enqueueAttempt(user.uid, result, meta);
   saveLastResult(user.uid, {
     result: { ...result, title: scope.title || result.title },
     scope,
     summaryText,
     wrongBookDelta: 0,
     cloudStatus: 'pending',
-    savedAt: Date.now(),
+    attemptId: payload.attemptId,
+    savedAt: payload.savedAt,
   });
 
+  finishInFlight = true;
   quizNavigating = true;
   history.replaceState(null, '', '#/result');
   location.replace('#/result');
@@ -347,10 +360,19 @@ async function finishQuiz(result, scope) {
   });
   quizNavigating = false;
 
-  // 背景上傳：逾時仍維持 pending；成功時 onSuccess 更新 UI
-  await saveAttemptWithTimeout(user.uid, result, meta, 8000, {
-    onSuccess: (delta) => applyCloudOk(user.uid, delta),
-  });
+  try {
+    // 背景上傳：逾時仍維持 pending；成功時 onSuccess 更新 UI（與重試共用 inflight）
+    await saveAttemptWithTimeout(
+      user.uid,
+      result,
+      meta,
+      8000,
+      { onSuccess: (delta) => applyCloudOk(user.uid, delta) },
+      payload,
+    );
+  } finally {
+    finishInFlight = false;
+  }
 }
 
 function startScope(scope) {
@@ -519,23 +541,22 @@ async function renderRoute(route) {
     if (resultDestroy) return;
     const snap = loadLastResult(user.uid);
     if (snap?.result?.questions?.length) {
-      if (snap.cloudStatus === 'pending') {
-        flushPending(user.uid).then((r) => {
-          if (!r.failed) {
-            snap.cloudStatus = 'ok';
-            saveLastResult(user.uid, snap);
-            const banner = main.querySelector('.cloud-warn');
-            banner?.remove();
-          }
-        });
-      }
+      const status = snap.cloudStatus || 'ok';
       paintResultView({
         result: snap.result,
         scope: snap.scope || lastSession || {},
         summaryText: snap.summaryText || '',
         wrongBookDelta: snap.wrongBookDelta ?? 0,
-        cloudStatus: snap.cloudStatus || 'ok',
+        cloudStatus: status,
       });
+      // 交卷進行中不 flush；空佇列 flush 不可當成功
+      if (status === 'pending' && !finishInFlight) {
+        flushPending(user.uid).then((r) => {
+          if (r.flushed > 0 && r.failed === 0) {
+            applyCloudOk(user.uid, snap.wrongBookDelta ?? 0);
+          }
+        });
+      }
       return;
     }
     document.body.dataset.view = '';

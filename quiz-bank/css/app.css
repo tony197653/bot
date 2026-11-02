@@ -37,7 +37,7 @@
  box-shadow:inset 1em 1em var(--accent);clip-path:polygon(14% 44%,0 65%,50% 100%,100% 16%,80% 0,43% 62%)}
 .ctrl-check input[type=checkbox]:checked{border-color:var(--accent);background:var(--sel)}
 .ctrl-check input[type=checkbox]:checked::before{transform:scale(1)}
-.ctrl-check input[type=checkbox]:focus-visible{box-shadow:var(--halo)}
+.ctrl-check input[type=checkbox]:focus-visible{outline:none;box-shadow:var(--halo)}
 .book-grid{display:grid;gap:16px}
 @media (min-width:900px){
  .book-grid{grid-template-columns:repeat(3,1fr)}
@@ -55,6 +55,7 @@
 .start-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .start-panel-head h2{margin:0;font-size:17px}
 .start-panel label{display:block;margin:10px 0;font-size:14px}
+.start-panel label.ctrl-check,.start-panel .ctrl-check{display:inline-flex;align-items:center;gap:10px}
 .start-panel .btn.b1{width:100%;margin-top:12px}
 .dock{position:sticky;bottom:0;z-index:20;padding:12px;margin:0 -4px;background:var(--surface);box-shadow:0 -1px 0 var(--line);display:grid;gap:8px;border-radius:var(--r) var(--r) 0 0}
 .import-work{padding-bottom:140px}
@@ -92,7 +93,7 @@
 @media (min-width:960px){.import-split{grid-template-columns:320px 1fr}}
 .import-row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:flex-start;gap:6px;width:100%;text-align:left;padding:12px;border:0;background:var(--surface);border-radius:var(--r-sm);margin-bottom:6px;cursor:pointer;min-height:56px}
 .import-row>span:first-child{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
-.import-row .l3{flex:1 1 100%;margin-left:0}
+.import-row .l3{flex:0 1 auto;flex-basis:100%;width:max-content;max-width:100%;margin-left:0;align-self:flex-start}
 .import-row.sel{box-shadow:inset 0 0 0 2px var(--accent)}
 .p3{display:flex;gap:8px;list-style:none;padding:0;margin:0 0 16px}
 .p3 li{padding:6px 10px;border-radius:999px;background:var(--surface-2);font-size:13px}
