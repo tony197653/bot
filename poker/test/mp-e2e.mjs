@@ -1045,6 +1045,29 @@ async function runMineCardStates(browser, base, viewport, label) {
   });
   await guest.page.evaluate(() => window.__qaHideNotify?.());
 
+  // Snapshot host while table still open (closing for settle would flip host → 待結帳)
+  const hostAgain = await host.page.evaluate(() => ({
+    ...window.__qaMineSnapshot(),
+    top: window.__qaTopStatus?.() || '',
+  }));
+  const hostMenu = await host.page.evaluate(() => window.__qaOpenMenu?.() || []);
+  await host.page.evaluate(() => document.getElementById('mpMenuBtn')?.click());
+  const topBar = await host.page.evaluate(() => {
+    const top = document.querySelector('.mp-lobby .mp-top');
+    if (!top) return null;
+    const r = top.getBoundingClientRect();
+    const foot = document.querySelector('.mp-foot');
+    const footLinks = [...document.querySelectorAll('.mp-foot [data-act="solo"], .mp-foot [data-act="signout"]')];
+    return {
+      h: Math.round(r.height),
+      hasTotal: /總計/.test(document.body.innerText),
+      footHidden: !foot || getComputedStyle(foot).display === 'none',
+      footHasLegacy: footLinks.length > 0,
+      hasMenu: !!document.getElementById('mpMenuBtn'),
+      menuIsM7: document.getElementById('mpMenuBtn')?.classList.contains('m7') === true,
+    };
+  });
+
   // Settle: close room → guest sees 結帳離開
   await emuCloseRoom(roomId, code);
   await guest.page.evaluate(async () => {
@@ -1077,28 +1100,6 @@ async function runMineCardStates(browser, base, viewport, label) {
   await guest.page.screenshot({
     path: join(ART, `mp-${label}-away-toast.png`),
     fullPage: true,
-  });
-
-  // Host never 房主失聯; height stable across host→(same card)
-  const hostAgain = await host.page.evaluate(() => ({
-    ...window.__qaMineSnapshot(),
-    top: window.__qaTopStatus?.() || '',
-  }));
-  const hostMenu = await host.page.evaluate(() => window.__qaOpenMenu?.() || []);
-  const topBar = await host.page.evaluate(() => {
-    const top = document.querySelector('.mp-lobby .mp-top');
-    if (!top) return null;
-    const r = top.getBoundingClientRect();
-    const foot = document.querySelector('.mp-foot');
-    const footLinks = [...document.querySelectorAll('.mp-foot [data-act="solo"], .mp-foot [data-act="signout"]')];
-    return {
-      h: Math.round(r.height),
-      hasTotal: /總計/.test(document.body.innerText),
-      footHidden: !foot || getComputedStyle(foot).display === 'none',
-      footHasLegacy: footLinks.length > 0,
-      hasMenu: !!document.getElementById('mpMenuBtn'),
-      menuIsM7: document.getElementById('mpMenuBtn')?.classList.contains('m7') === true,
-    };
   });
 
   await host.ctx.close();
