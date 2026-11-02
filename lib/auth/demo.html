@@ -16,7 +16,14 @@ pre{color:#c9bf9f;font-size:12px;white-space:pre-wrap}
 <pre id="log"></pre>
 <script type="module">
 import { initAuth, onUser, signIn, signOut, getFirebase } from './auth.js';
-import { renderAuthUi } from './auth-ui.js';
+import { renderAuthUi, AUTH_UI_CSS } from './auth-ui.js';
+
+if (!document.getElementById('auth-ui-css')) {
+  const s = document.createElement('style');
+  s.id = 'auth-ui-css';
+  s.textContent = AUTH_UI_CSS;
+  document.head.appendChild(s);
+}
 
 const cfg = {
   apiKey: 'AIzaSyAt35bQoP7z5_lDPF9bMbm5t8R5aJgBJQw',
@@ -30,17 +37,40 @@ const cfg = {
 const root = document.getElementById('root');
 const log = document.getElementById('log');
 
-await initAuth({ firebaseConfig: cfg, mode: 'auto', sameDomainAuth: true });
-onUser((ev) => {
-  renderAuthUi(root, ev, { brand: 'Auth Demo', onRetry: () => signIn() });
-  log.textContent = JSON.stringify({ status: ev.status, user: ev.user, fromCache: ev.fromCache, error: ev.error, hasFb: !!getFirebase() }, null, 2);
-  if (ev.status === 'signed-in') {
-    const b = document.createElement('button');
-    b.textContent = '登出';
-    b.onclick = () => signOut();
-    root.appendChild(b);
+/** ?state= 或 #state=loading|error|error-safari 可預覽次要細框鈕（略過 Firebase） */
+const preview =
+  new URLSearchParams(location.search).get('state') ||
+  new URLSearchParams(location.hash.replace(/^#/, '')).get('state');
+if (preview === 'loading' || preview === 'error' || preview === 'error-safari') {
+  if (preview === 'error-safari') {
+    Object.defineProperty(navigator, 'userAgent', {
+      get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+    });
+    Object.defineProperty(navigator, 'standalone', { get: () => true });
   }
-});
+  const status = preview.startsWith('error') ? 'error' : 'loading';
+  renderAuthUi(
+    root,
+    { status, user: null, error: status === 'error' ? { message: '請再試一次' } : null },
+    { brand: 'Auth Demo', onRetry: () => {} },
+  );
+  if (status === 'loading') {
+    root.querySelector('[data-act="retry"]')?.classList.remove('hidden');
+  }
+  log.textContent = JSON.stringify({ preview, status }, null, 2);
+} else {
+  await initAuth({ firebaseConfig: cfg, mode: 'auto', sameDomainAuth: true });
+  onUser((ev) => {
+    renderAuthUi(root, ev, { brand: 'Auth Demo', onRetry: () => signIn() });
+    log.textContent = JSON.stringify({ status: ev.status, user: ev.user, fromCache: ev.fromCache, error: ev.error, hasFb: !!getFirebase() }, null, 2);
+    if (ev.status === 'signed-in') {
+      const b = document.createElement('button');
+      b.textContent = '登出';
+      b.onclick = () => signOut();
+      root.appendChild(b);
+    }
+  });
+}
 </script>
 </body>
 </html>
