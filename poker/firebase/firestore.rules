@@ -517,7 +517,9 @@ service cloud.firestore {
           && d.topUps == resource.data.topUps + e.topUps
           && d.topUpChips == resource.data.topUpChips + e.topUpChips
           && d.handsPlayed == resource.data.handsPlayed + e.hands
-          && (d.get('hostRoomId', null) == resource.data.get('hostRoomId', null) || d.hostRoomId == null)
+          // hostRoomId：不變，或僅在先前指向的房已 closed／不存在時可清掉（房仍開不可兑現順便清）
+          && (d.get('hostRoomId', null) == resource.data.get('hostRoomId', null)
+              || (d.hostRoomId == null && hostRoomPriorGone()))
           && d.updatedAt == request.time;
       }
       allow get: if signedIn();

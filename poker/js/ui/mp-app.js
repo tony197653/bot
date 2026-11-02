@@ -56,6 +56,7 @@ import {
   listenHole,
 } from '../net/client.js';
 import { startPresence, maybeTakeover } from '../net/presence.js';
+import { placeDealer, placeBets, placeShowdownReveals } from './layout-felt.js';
 import {
   hostShouldWarn,
   hostMustStopNewHand,
@@ -1550,6 +1551,14 @@ function renderSeatOverlays() {
   if (menuHost) {
     menuHost.textContent = `房主 ${displayNameOf(room.hostUid)}`;
   }
+
+  // Place D / bets after DOM seats+board settle (CSS default is table centre → covers board)
+  requestAnimationFrame(() => {
+    placeDealer();
+    placeBets();
+    placeDealer();
+    placeShowdownReveals();
+  });
 }
 
 function SLOT_FALLBACK(seat, viewer) {

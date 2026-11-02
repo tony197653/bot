@@ -410,6 +410,73 @@ await t('#L3', '原房仍開時不能清掉 hostRoomId', 'deny', async () => {
   await S();
   await updateDoc(doc(db('H'), 'pokerPlayers', 'H'), { hostRoomId: R, updatedAt: serverTimestamp() });
 }, () => updateDoc(doc(db('H'), 'pokerPlayers', 'H'), { hostRoomId: null, updatedAt: serverTimestamp() }));
+// 兑現／結帳 batch 也不能在房仍開時順便清掉 hostRoomId（否則房主每次買入／兑現就能再開一桌）
+await t('#L3', '房仍開時結帳不能順便清掉 hostRoomId', 'deny', async () => {
+  await seed({
+    players: { H: player({ bank: 0, inPlay: 7000, total: 7000, tableRoomId: R, sessionNo: 1, hostRoomId: R }) },
+  });
+}, async () => {
+  const d = db('H');
+  const r = await cur();
+  const p = await curP('H');
+  const s = r.sess[0];
+  const amt = r.stacks[0];
+  const id = `${R}_${s.sessionNo}_cashout`;
+  const b = writeBatch(d);
+  b.update(roomRef(d), {
+    rev: r.rev + 1,
+    updatedAt: serverTimestamp(),
+    seatUids: ['', 'A', '', '', '', ''],
+    stacks: [0, 3000, 0, 0, 0, 0],
+    chipTotal: r.chipTotal - amt,
+    sess: [null, r.sess[1], null, null, null, null],
+    lastMoneyEvent: { uid: 'H', id, seat: 0, type: 'cashout', amount: amt },
+  });
+  b.set(doc(d, 'pokerPlayers', 'H', 'ledger', id), {
+    type: 'cashout',
+    amount: amt,
+    roomId: R,
+    sessionNo: s.sessionNo,
+    seat: 0,
+    buyIn: s.buyIn,
+    topUps: s.topUps,
+    topUpChips: s.topUpChips,
+    hands: s.hands,
+    nightKey: s.nightKey,
+    bankAfter: p.bank + amt,
+    by: 'H',
+    at: serverTimestamp(),
+  });
+  b.update(doc(d, 'pokerPlayers', 'H'), {
+    bank: p.bank + amt,
+    inPlay: 0,
+    total: p.bank + amt,
+    tableRoomId: null,
+    topUps: p.topUps + s.topUps,
+    topUpChips: p.topUpChips + s.topUpChips,
+    handsPlayed: p.handsPlayed + s.hands,
+    hostRoomId: null,
+    updatedAt: serverTimestamp(),
+  });
+  b.set(doc(d, 'pokerPlayers', 'H', 'nights', s.nightKey), {
+    nightKey: s.nightKey,
+    uid: 'H',
+    name: 'x',
+    buyIn: s.buyIn + s.topUpChips,
+    cashOut: amt,
+    net: amt - s.buyIn - s.topUpChips,
+    topUps: s.topUps,
+    hands: s.hands,
+    lastEntry: id,
+    updatedAt: serverTimestamp(),
+  });
+  return b.commit();
+});
+await t('#L3', '房仍開時結帳可保留 hostRoomId', 'ok', async () => {
+  await seed({
+    players: { H: player({ bank: 0, inPlay: 7000, total: 7000, tableRoomId: R, sessionNo: 1, hostRoomId: R }) },
+  });
+}, () => hostCashout(0, 'H', { by: 'H' }));
 await t('#L3', '原房 closed 後可改指新房', 'ok', async () => {
   await S();
   await updateDoc(doc(db('H'), 'pokerPlayers', 'H'), { hostRoomId: R, updatedAt: serverTimestamp() });

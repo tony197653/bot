@@ -269,8 +269,10 @@ export async function selfRescueCashout(fb, uid, room) {
     handsPlayed: p.handsPlayed + sessRow.hands,
     updatedAt: fs.serverTimestamp(),
   };
-  // 附錄 L3：自救時若這桌是自己開的，清掉 hostRoomId
-  if (p.hostRoomId === roomId) playerPatch.hostRoomId = null;
+  // 附錄 L3：只有房間已 closed 才清 hostRoomId；房仍開著時保留，避免房主兑現後又能再開一桌
+  if (p.hostRoomId === roomId && room.status === 'closed') {
+    playerPatch.hostRoomId = null;
+  }
   batch.update(pref, playerPatch);
   const nref = fs.doc(db, 'pokerPlayers', uid, 'nights', sessRow.nightKey);
   const nSnap = await fs.getDoc(nref);
