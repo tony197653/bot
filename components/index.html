@@ -548,10 +548,10 @@ dialog.dlg:not([open]){display:none}
 /* 目前步驟的光：四層細光圈由內往外依序淡入、微微擴開（每層錯開 .16s，全程約 1.2s）。每層是一圈柔邊漸層帶，峰值由內往外 38%→22%→12%→5%（貼圓那層最深），相鄰兩層交疊相加後從圓邊往外單調變淡，取代原本一次出現的 4px box-shadow 光圈；只動 transform、opacity */
 .sd .glow{position:absolute;inset:0;pointer-events:none}
 .sd .glow i{position:absolute;border-radius:50%;z-index:-1;opacity:0;transition:opacity .25s var(--ease)}
-.sd .glow i:nth-child(1){inset:-19.5px;background:radial-gradient(closest-side,transparent 27px,color-mix(in srgb,var(--sage) 5%,transparent) 31px,transparent 35px);--d:.48s}
-.sd .glow i:nth-child(2){inset:-15.5px;background:radial-gradient(closest-side,transparent 22px,color-mix(in srgb,var(--sage) 12%,transparent) 27px,transparent 31px);--d:.32s}
-.sd .glow i:nth-child(3){inset:-11.5px;background:radial-gradient(closest-side,transparent 17px,color-mix(in srgb,var(--sage) 22%,transparent) 22px,transparent 27px);--d:.16s}
-.sd .glow i:nth-child(4){inset:-6.5px;background:radial-gradient(closest-side,color-mix(in srgb,var(--sage) 38%,transparent) 17px,transparent 22px);--d:0s}
+.sd .glow i:nth-child(1){inset:-10.5px;background:radial-gradient(closest-side,transparent 22px,color-mix(in srgb,var(--sage) 7%,transparent) 24.5px,transparent 27px);--d:.48s}
+.sd .glow i:nth-child(2){inset:-8.5px;background:radial-gradient(closest-side,transparent 19.5px,color-mix(in srgb,var(--sage) 18%,transparent) 22px,transparent 25px);--d:.32s}
+.sd .glow i:nth-child(3){inset:-6.5px;background:radial-gradient(closest-side,transparent 17px,color-mix(in srgb,var(--sage) 36%,transparent) 19.5px,transparent 23px);--d:.16s}
+.sd .glow i:nth-child(4){inset:-4.5px;background:radial-gradient(closest-side,color-mix(in srgb,var(--sage) 62%,transparent) 17px,transparent 21px);--d:0s}
 [data-state=current] > .sd .glow i{opacity:1;animation:p3-glow .72s var(--ease-out) var(--d) both}
 @keyframes p3-glow{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
 [data-state=done] > .sd{background:var(--sage);border-color:var(--sage);color:#fff;cursor:pointer}
