@@ -233,5 +233,5 @@ body{
   .sk::after{animation:none}
   .cursor{animation:none;opacity:1}
   .toast{transition:none}
-  .b1-icon:active,.b2:active,.b4:active{transform:none}
+  .b1-icon:not(:disabled):active,.b2:active,.b4:active{transform:none}
 }
