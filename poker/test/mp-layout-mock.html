@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MP layout mock</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/game.css">
+</head>
+<body>
+<div class="mp-root" id="root" style="position:relative"></div>
+<script type="module">
+import {
+  renderMpLobby,
+  renderCreateRoom,
+  renderShareRoom,
+  renderJoinCode,
+} from '../js/ui/lobby.js';
+import { renderStats } from '../js/ui/stats.js';
+
+const root = document.getElementById('root');
+const view = new URLSearchParams(location.search).get('v') || 'lobby';
+const noop = () => {};
+
+if (view === 'lobby') {
+  renderMpLobby(root, {
+    user: { displayName: '宗良', photoURL: null, uid: 'u1' },
+    player: { bank: 0, inPlay: 12480, total: 12480 },
+    lastRoom: { name: '週五牌局', code: '482913', seat: 0, chips: 12480 },
+    leaderPreview: [
+      { displayName: '阿哲', total: 15200 },
+      { displayName: '小芸', total: 9800 },
+      { displayName: '宗良', total: 12480 },
+    ],
+    onContinue: noop, onCreate: noop, onJoin: noop, onStats: noop, onSolo: noop, onSignOut: noop, onRescue: noop, onAvatar: noop,
+  });
+} else if (view === 'create') {
+  renderCreateRoom(root, {
+    defaults: { name: '週五牌局', sb: 10, chips: 2000 },
+    creating: false,
+    error: '',
+    onCancel: noop,
+    onSubmit: noop,
+  });
+} else if (view === 'share') {
+  renderShareRoom(root, {
+    name: '週五牌局',
+    code: '482913',
+    roomId: 'rdemo',
+    onShare: noop,
+    onCopy: noop,
+    onEnter: noop,
+  });
+} else if (view === 'join') {
+  renderJoinCode(root, {
+    digits: '482',
+    joining: false,
+    error: '',
+    ended: false,
+    onBack: noop,
+    onChange: noop,
+    onJoin: noop,
+    onLobby: noop,
+  });
+} else if (view === 'stats') {
+  renderStats(root, {
+    mode: 'total',
+    rows: [
+      { uid: 'a', displayName: '阿哲', total: 15200 },
+      { uid: 'u1', displayName: '宗良', total: 12480, tableRoomId: 'r1' },
+      { uid: 'c', displayName: '小芸', total: 9800 },
+    ],
+    myUid: 'u1',
+    onBack: noop,
+    onMode: noop,
+    onNight: noop,
+  });
+} else if (view === 'auth') {
+  root.innerHTML = `<div class="mp-shell mp-auth"><h1 class="mp-brand">週五牌局</h1><div class="mp-auth-card"><span>德州撲克</span></div><button type="button" class="mp-b1">用 Google 帳號登入</button></div>`;
+}
+</script>
+</body>
+</html>

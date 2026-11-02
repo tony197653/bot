@@ -1,0 +1,53 @@
+{
+  "firestore": {
+    "database": "(default)",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9099
+    },
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8195
+    },
+    "ui": {
+      "enabled": false
+    }
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/test/**",
+      "**/test-artifacts/**",
+      "**/*.rules",
+      "**/rules.test.mjs",
+      "**/run-rules-tests.mjs",
+      "**/results*.json",
+      "**/results*.txt",
+      "**/firestore-debug.log",
+      "**/sdkconfig.json",
+      "**/firestore.indexes.json",
+      "**/stage.sh",
+      "**/package.json",
+      "**/package-lock.json",
+      "**/README.md",
+      "**/component-library-index.html",
+      "**/style-green-mockup.html"
+    ],
+    "redirects": [
+      { "source": "/", "destination": "/poker/", "type": 302 }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css|html)",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      }
+    ]
+  }
+}

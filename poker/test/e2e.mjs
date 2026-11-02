@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
-const OUT = join(ROOT, '..', '..', 'opt', 'cursor', 'artifacts');
+const REPO = join(ROOT, '..');
 // Prefer /opt/cursor/artifacts if present
 const ART = existsSync('/opt/cursor/artifacts')
   ? '/opt/cursor/artifacts'
@@ -31,9 +31,14 @@ function startServer() {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
       let path = decodeURIComponent(req.url.split('?')[0]);
-      if (path === '/') path = '/index.html';
-      const file = join(ROOT, path.replace(/^\//, ''));
-      if (!file.startsWith(ROOT) || !existsSync(file)) {
+      let file;
+      if (path.startsWith('/lib/')) {
+        file = join(REPO, path.replace(/^\//, ''));
+      } else {
+        if (path === '/') path = '/index.html';
+        file = join(ROOT, path.replace(/^\//, ''));
+      }
+      if (!existsSync(file) || !(file.startsWith(ROOT) || file.startsWith(join(REPO, 'lib')))) {
         res.writeHead(404);
         res.end('not found');
         return;
@@ -68,8 +73,8 @@ async function playHands(page, label) {
     }
   });
 
-  await page.goto('/', { waitUntil: 'networkidle' });
-  // Wait for boot
+  await page.goto('/?solo=1', { waitUntil: 'domcontentloaded' });
+  // Wait for boot (solo bypass skips MP auth)
   await page.waitForSelector('#lobbyScreen.is-on', { timeout: 15000 });
   await page.screenshot({ path: join(ART, `poker-${label}-lobby.png`), fullPage: true });
 

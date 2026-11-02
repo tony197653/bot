@@ -1,0 +1,6 @@
+public/
+firestore-debug.log
+*.log
+node_modules/
+.firebase/
+results.json

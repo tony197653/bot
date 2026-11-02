@@ -1,0 +1,48 @@
+name: Deploy poker to Firebase Hosting
+
+on:
+  pull_request:
+    paths:
+      - 'poker/**'
+      - 'lib/**'
+      - '.github/workflows/poker-deploy.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'poker/**'
+      - 'lib/**'
+      - '.github/workflows/poker-deploy.yml'
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage hosting public/
+        run: bash poker/firebase/stage.sh
+
+      - name: Deploy preview (PR)
+        if: github.event_name == 'pull_request'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TONY_POKER }}
+          projectId: tony-poker
+          entryPoint: poker/firebase
+          expires: 7d
+
+      - name: Deploy live (main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TONY_POKER }}
+          projectId: tony-poker
+          entryPoint: poker/firebase
+          channelId: live

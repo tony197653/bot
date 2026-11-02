@@ -36,6 +36,7 @@ import {
   DEAL_FX,
   SHOWDOWN_FX,
 } from './fx.js';
+import { startMpApp, setSoloOpener } from './mp-app.js';
 
 /**
  * Single-device: other seats who don't tap → MUCK (not coin-flip).
@@ -414,7 +415,30 @@ async function boot() {
   await new Promise((r) => setTimeout(r, 220));
   $('#boot').classList.add('is-done');
   setTimeout(() => $('#boot').classList.add('hidden'), 480);
-  openLobby();
+  // Milestone 2: Google login + multiplayer lobby. Solo hot-seat via「同一支手機輪流玩」.
+  setSoloOpener(() => openLobby());
+  // Keep solo dialogs out of tab order until pass-and-play opens them
+  document.querySelectorAll('.screen, #lobbyScreen').forEach((el) => {
+    el.inert = true;
+    el.setAttribute('aria-hidden', 'true');
+    el.classList.add('hidden');
+  });
+  const raise = $('#raisePanel');
+  if (raise) {
+    raise.inert = true;
+    raise.setAttribute('aria-hidden', 'true');
+  }
+  // ?solo=1 — skip MP auth (local Playwright / pass-and-play smoke)
+  if (new URLSearchParams(location.search).get('solo') === '1') {
+    openLobby();
+    return;
+  }
+  try {
+    await startMpApp();
+  } catch (e) {
+    console.warn('mp boot failed, falling back to solo lobby', e);
+    openLobby();
+  }
 }
 
 function setupFullscreenButton() {
@@ -456,9 +480,11 @@ function setupFullscreenButton() {
 /* ─── Lobby ─── */
 function openLobby() {
   const scr = $('#lobbyScreen');
+  scr.inert = false;
+  scr.removeAttribute('aria-hidden');
   scr.classList.remove('hidden');
   scr.classList.add('is-on');
-  $('#passScreen').classList.remove('is-on');
+  $('#passScreen')?.classList.remove('is-on');
   needsPass = false;
   const box = $('#playerRows');
   const seated = state.seats.map((p, i) => (p ? p.name : null));
@@ -596,8 +622,11 @@ function showPass() {
     $('#heroHole').innerHTML = '';
     $('#heroChips').textContent = '';
   }
-  $('#passScreen').classList.remove('hidden');
-  $('#passScreen').classList.add('is-on');
+  const pass = $('#passScreen');
+  pass.inert = false;
+  pass.removeAttribute('aria-hidden');
+  pass.classList.remove('hidden');
+  pass.classList.add('is-on');
   $('#passName').textContent = p.name;
   $('#passHint').textContent =
     '請把裝置交給這位玩家。其他人請勿偷看手牌。';
@@ -741,6 +770,8 @@ function syncPausePanel() {
   if (!scr) return;
   if (!state.pause?.active) {
     scr.classList.remove('is-on');
+    scr.inert = true;
+    scr.setAttribute('aria-hidden', 'true');
     $('#toast')?.classList.remove('is-on');
     return;
   }
@@ -751,6 +782,9 @@ function syncPausePanel() {
   }
   holdDeadline = null;
   $('#toast')?.classList.remove('is-on');
+  scr.inert = false;
+  scr.removeAttribute('aria-hidden');
+  scr.classList.remove('hidden');
   scr.classList.add('is-on');
   const list = $('#pauseList');
   const countEl = $('#pauseCount');
@@ -2545,6 +2579,9 @@ function renderHandOver() {
 function showSummary() {
   const rows = sessionSummary(state);
   const scr = $('#summaryScreen');
+  scr.inert = false;
+  scr.removeAttribute('aria-hidden');
+  scr.classList.remove('hidden');
   scr.classList.add('is-on');
   const body = rows
     .map((r) => {

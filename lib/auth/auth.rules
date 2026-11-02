@@ -1,0 +1,25 @@
+    // ===== [AUTH MODULE] 可重用登入模組：users/{uid} ===============================
+    // 這一段可以原樣貼進任何專案的 firestore.rules（放在 match /databases/{database}/documents 裡）。
+    // 依賴：無。集合名稱若改了（initAuth 的 usersCollection），把 /users/ 一起改掉。
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function strOk(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+    function urlOk(v) { return v == null || (v is string && v.size() <= 500 && v.matches('https://.+')); }
+
+    match /users/{uid} {
+      allow get: if isSelf(uid);
+      allow list: if false;
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['displayName', 'photoURL', 'createdAt', 'lastSeen'])
+        && strOk(request.resource.data.displayName, 60)
+        && urlOk(request.resource.data.get('photoURL', null))
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastSeen == request.time;
+      allow update: if isSelf(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastSeen'])
+        && strOk(request.resource.data.displayName, 60)
+        && urlOk(request.resource.data.get('photoURL', null))
+        && request.resource.data.lastSeen == request.time;
+      allow delete: if false;
+    }
+    // ===== [/AUTH MODULE] =====================================================
