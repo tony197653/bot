@@ -71,3 +71,7 @@ body{letter-spacing:.03em}
 
 .bub:active .bub-d{transform:none}
 .opt,.opt .key,.opt .mk svg{transform:none}
+
+/* 鍵盤高亮：浮起陰影＋字母圈變深，不縮放不位移 */
+.opt:not([aria-disabled]):focus-visible::after{opacity:1}
+.opt:not([aria-disabled]):focus-visible .key{box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--accent)}

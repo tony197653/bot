@@ -561,6 +561,151 @@ try {
     await page.close();
   }
 
+  // --- 鍵盤：↑↓ 環繞、空白鍵選／前進、不捲頁、repeat 忽略、hint 觸控隱藏 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt[role="radio"]');
+    const group = await page.locator('.opts').getAttribute('role');
+    if (group !== 'radiogroup') throw new Error(`expected radiogroup, got ${group}`);
+
+    await page.locator('.opt[data-k="0"]').focus();
+    const nOpts = await page.locator('.opt').count();
+    await page.keyboard.press('ArrowUp');
+    const wrapHi = await page.evaluate(() =>
+      document.activeElement?.getAttribute('data-k'),
+    );
+    if (wrapHi !== String(nOpts - 1)) {
+      throw new Error(`ArrowUp wrap expected ${nOpts - 1}, got ${wrapHi}`);
+    }
+    await page.keyboard.press('ArrowDown');
+    const wrap0 = await page.evaluate(() => document.activeElement?.getAttribute('data-k'));
+    if (wrap0 !== '0') throw new Error(`ArrowDown wrap expected 0, got ${wrap0}`);
+    pass('keyboard arrow wrap');
+
+    // Space 選題 → focus 下一題 → Space 前進
+    await page.locator('.opt[data-k="0"]').focus();
+    await page.keyboard.press('Space');
+    await page.waitForSelector('.qcard.revealed');
+    const focusedAct = await page.evaluate(
+      () => document.activeElement?.getAttribute('data-act'),
+    );
+    if (focusedAct !== 'next') {
+      throw new Error(`after pick focus should be next, got ${focusedAct}`);
+    }
+    await page.keyboard.press('Space');
+    await page.waitForFunction(
+      () => (document.querySelector('[data-el="count"]')?.textContent || '').includes('2'),
+    );
+    pass('keyboard Space pick then Space advance');
+
+    // Space 必須 preventDefault（瀏覽器預設空白鍵會往下捲）
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=exam`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    await page.evaluate(() => {
+      document.documentElement.style.minHeight = '4000px';
+      window.scrollTo(0, 600);
+    });
+    const scrollCheck = await page.evaluate(() => {
+      const opt = document.querySelector('.opt[data-k="0"]');
+      opt.focus({ preventScroll: true });
+      const y0 = window.scrollY;
+      let prevented = false;
+      const onKey = (e) => {
+        if (e.key === ' ' || e.key === 'Spacebar') prevented = e.defaultPrevented;
+      };
+      // bubble、在 quiz 監聽之後：確認已 preventDefault
+      document.addEventListener('keydown', onKey);
+      opt.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: ' ',
+          code: 'Space',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      document.removeEventListener('keydown', onKey);
+      return { y0, y1: window.scrollY, prevented };
+    });
+    if (!scrollCheck.prevented) throw new Error('Space keydown not preventDefault');
+    if (scrollCheck.y1 !== scrollCheck.y0) {
+      throw new Error(`Space changed scroll: ${scrollCheck.y0}→${scrollCheck.y1}`);
+    }
+    pass('keyboard Space does not scroll page');
+
+    // key repeat 忽略（不重複作答／前進）
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    await page.locator('.opt[data-k="0"]').focus();
+    await page.evaluate(() => {
+      const opt = document.querySelector('.opt[data-k="0"]');
+      opt.dispatchEvent(
+        new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true, repeat: true }),
+      );
+    });
+    await page.waitForTimeout(60);
+    const stillOpen = await page.locator('.qcard.revealed').count();
+    if (stillOpen) throw new Error('repeat Space should not pick');
+    pass('keyboard Space/Enter repeat ignored');
+
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+      hasTouch: true,
+      isMobile: true,
+    });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('[data-el="kbh"]', { state: 'attached' });
+    const hintCss = await page.locator('[data-el="kbh"]').evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { display: cs.display, aria: el.getAttribute('aria-hidden') };
+    });
+    if (hintCss.display !== 'none') {
+      throw new Error(`kb-hint should be hidden on touch 390, got ${hintCss.display}`);
+    }
+    if (hintCss.aria !== 'true') throw new Error('kb-hint must be aria-hidden');
+    pass('keyboard hint hidden at 390 touch');
+    await page.close();
+  }
+
+  // exam：空白鍵選完後空白鍵下一題，底列仍 B2／152
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=exam`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    const nextW = await page.locator('[data-act="next"]').evaluate((el) => el.getBoundingClientRect().width);
+    await page.locator('.opt[data-k="0"]').focus();
+    await page.keyboard.press('Space');
+    await page.waitForFunction(
+      () => document.activeElement?.getAttribute('data-act') === 'next',
+    );
+    await page.keyboard.press('Space');
+    await page.waitForFunction(
+      () => (document.querySelector('[data-el="count"]')?.textContent || '').includes('2'),
+    );
+    const nextW2 = await page.locator('[data-act="next"]').evaluate((el) => el.getBoundingClientRect().width);
+    const skipB2 = await page.locator('[data-act="skip"]').evaluate((el) => el.classList.contains('b2'));
+    if (Math.round(nextW) !== 152 || Math.round(nextW2) !== 152) {
+      throw new Error(`exam next width not 152: ${nextW}→${nextW2}`);
+    }
+    if (!skipB2) throw new Error('skip must stay b2');
+    pass('exam keyboard Space pick/advance + bar unchanged');
+    await page.close();
+  }
+
   await browser.close();
 } catch (e) {
   fail('e2e suite', e.stack || e.message || e);

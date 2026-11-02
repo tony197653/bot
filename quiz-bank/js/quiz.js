@@ -284,6 +284,35 @@ function createSession(opts) {
     }
   }
 
+  function hint(answered) {
+    if (!answered) return '<kbd>↑↓</kbd> 選擇 · <kbd>空白鍵</kbd> 確定';
+    return `<kbd>空白鍵</kbd> ${i === qs.length - 1 ? '看結果' : '下一題'}`;
+  }
+
+  function optEls() {
+    return [...stageEl.querySelectorAll('.opt')];
+  }
+
+  function hiIdx() {
+    const idx = optEls().findIndex((b) => b.tabIndex === 0);
+    return idx < 0 ? 0 : idx;
+  }
+
+  /** 鍵盤高亮：roving tabindex；可選 focus + preventScroll */
+  function setHi(k, focus, noScroll) {
+    const o = optEls();
+    if (!o.length) return;
+    k = ((k % o.length) + o.length) % o.length;
+    o.forEach((b, j) => {
+      b.tabIndex = j === k ? 0 : -1;
+    });
+    if (focus) o[k].focus({ preventScroll: !!noScroll });
+  }
+
+  function focusNextBtn() {
+    root.querySelector('[data-act="next"]')?.focus({ preventScroll: true });
+  }
+
   function cardHtml(n) {
     const q = qs[n];
     const a = answers[n];
@@ -297,6 +326,7 @@ function createSession(opts) {
       ${groupPassageHtml(group, { collapsed: true })}
       ${stemHtml(q)}
       ${optionsHtml(q, a >= 0 ? a : null, { revealed, mode })}
+      <p class="kb-hint" data-el="kbh" aria-hidden="true">${hint(a >= 0)}</p>
       <div class="fb-slot" data-el="fb" aria-live="polite">${
         revealed ? feedbackHtml(q, a, { onReport: !!opts.onReport, reported: reported.has(q.id) }) : ''
       }</div>
@@ -319,6 +349,7 @@ function createSession(opts) {
     paint();
     window.scrollTo({ top: 0, behavior: RM() ? 'auto' : 'smooth' });
     if (focusStem) stageEl.querySelector('.stem')?.focus({ preventScroll: true });
+    else setHi(hiIdx(), true, true);
   }
 
   function pick(k) {
@@ -329,12 +360,13 @@ function createSession(opts) {
     confirming = false;
     if (mode === 'exam') {
       paint();
+      focusNextBtn();
       return;
     }
     const card = stageEl.querySelector('[data-el="card"]');
     card?.classList.add('revealed', 'fresh');
-    const optsEl = stageEl.querySelectorAll('.opt');
-    optsEl.forEach((b, j) => {
+    const optsList = optEls();
+    optsList.forEach((b, j) => {
       let cls = 'opt';
       if (j === k) cls += ' chosen';
       if (j === q.answer) cls += ' ok';
@@ -342,8 +374,12 @@ function createSession(opts) {
       if (j !== k && j !== q.answer) cls += ' dim';
       b.className = cls;
       b.setAttribute('aria-disabled', 'true');
+      b.setAttribute('aria-checked', j === k ? 'true' : 'false');
+      b.tabIndex = j === k ? 0 : -1;
       b.querySelector('.mk').innerHTML = j === q.answer ? ICON.ok : j === k ? ICON.bad : '';
     });
+    const kbh = stageEl.querySelector('[data-el="kbh"]');
+    if (kbh) kbh.innerHTML = hint(true);
     const fb = stageEl.querySelector('[data-el="fb"]');
     if (fb) {
       fb.innerHTML = feedbackHtml(q, k, {
@@ -354,6 +390,7 @@ function createSession(opts) {
     }
     strip();
     bar();
+    focusNextBtn();
     setTimeout(() => card?.classList.remove('fresh'), 1200);
     saveProgress();
   }
@@ -500,24 +537,57 @@ function createSession(opts) {
 
   function onKey(e) {
     if (destroyed) return;
-    if (e.target.closest('input, textarea, select, dialog') || e.metaKey || e.ctrlKey || e.altKey) {
+    const tg = e.target instanceof Element ? e.target : document.body;
+    if (
+      tg.closest('input,textarea,select,[contenteditable]:not([contenteditable=false])') ||
+      e.metaKey ||
+      e.ctrlKey ||
+      e.altKey
+    ) {
       return;
     }
     const k = e.key;
+    const opt = tg.closest('.opt');
+    const done = answers[i] >= 0;
+    const sp = k === ' ' || k === 'Spacebar';
+    if ((sp || k === 'Enter') && e.repeat) {
+      e.preventDefault();
+      return;
+    }
     const m =
       '1234'.indexOf(k) > -1
         ? '1234'.indexOf(k)
         : 'abcd'.indexOf(k.toLowerCase());
-    if (k.length === 1 && m > -1 && (mode === 'exam' || answers[i] < 0)) {
+    if (
+      k.length === 1 &&
+      m > -1 &&
+      m < qs[i].options.length &&
+      (mode === 'exam' || !done)
+    ) {
       e.preventDefault();
+      setHi(m);
       pick(m);
       return;
     }
-    if (k === 'Enter' && !e.target.closest('button, a')) {
-      if (mode === 'exam' || answers[i] >= 0) {
+    if (k === 'ArrowDown' || k === 'ArrowUp') {
+      if (tg.closest('.g1')) return;
+      e.preventDefault();
+      if (busy) return;
+      setHi(opt ? hiIdx() + (k === 'ArrowDown' ? 1 : -1) : hiIdx(), true);
+      return;
+    }
+    if (sp || k === 'Enter') {
+      if (opt) {
         e.preventDefault();
-        next();
+        if (done) next();
+        else pick(+opt.dataset.k);
+        return;
       }
+      /* 其他按鈕（下一題、上一題…）交給瀏覽器原生行為 */
+      if (tg.closest('button,a,summary')) return;
+      e.preventDefault();
+      if (done) next();
+      else setHi(hiIdx(), true);
       return;
     }
     if (k === 'ArrowRight') go(i + 1);

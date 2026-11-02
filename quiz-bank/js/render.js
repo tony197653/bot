@@ -134,10 +134,12 @@ export function optionsHtml(q, answer, opts = {}) {
   const revealed = !!opts.revealed;
   const mode = opts.mode || 'instant';
   const a = answer === undefined || answer === null ? null : answer;
-  return `<div class="opts" role="group" aria-label="選項">${q.options
+  const answered = a !== null && a >= 0;
+  const hi = answered ? a : 0;
+  return `<div class="opts" role="radiogroup" aria-label="選項，用上下鍵選擇，空白鍵確定">${q.options
     .map((o, k) => {
       let cls = 'opt';
-      if (a !== null && a >= 0) {
+      if (answered) {
         if (k === a) cls += ' chosen';
         if (revealed && mode === 'instant') {
           if (k === q.answer) cls += ' ok';
@@ -155,7 +157,7 @@ export function optionsHtml(q, answer, opts = {}) {
           : '';
       const disabled = revealed && mode === 'instant';
       const ariaLab = `選項 ${L[k]}，${optionLabelText(o)}`;
-      return `<button type="button" class="${cls}" data-k="${k}" style="--i:${k}"
+      return `<button type="button" class="${cls}" role="radio" aria-checked="${answered && k === a}" tabindex="${k === hi ? 0 : -1}" data-k="${k}" style="--i:${k}"
         ${disabled ? 'aria-disabled="true"' : ''} aria-label="${escHtml(ariaLab)}">
         <span class="key">${L[k]}</span>
         <span class="txt"><span class="tx">${escHtml(o)}</span></span>

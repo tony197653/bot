@@ -67,10 +67,10 @@ export function showResult(opts) {
   const delta =
     opts.wrongBookDelta == null
       ? wrongN
-        ? `+${wrongN} 題加入`
+        ? `${wrongN} 題加入`
         : '沒有變化'
       : opts.wrongBookDelta > 0
-        ? `+${opts.wrongBookDelta} 題加入`
+        ? `${opts.wrongBookDelta} 題加入`
         : opts.wrongBookDelta < 0
           ? `${opts.wrongBookDelta} 題移出`
           : '沒有變化';
