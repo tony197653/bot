@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+<meta name="robots" content="noindex">
+<title>跟 AI 提問</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>跟 AI 提問</h1>
+    <div class="top-end">
+      <span class="quota l5inline is-loading" id="quota" aria-live="polite">
+        <span class="quota-full">今天還能問 <b id="quota-num">—</b> 題<span class="quota-reset" hidden>早上 8 點重置</span></span>
+        <span class="quota-short">剩 <b>—</b> 題<span class="quota-reset" hidden>8 點重置</span></span>
+      </span>
+      <button type="button" class="btn b5" id="clear" disabled>清除畫面</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="log" id="log" role="log" aria-relevant="additions">
+      <div class="emp" id="empty">
+        <svg class="art" viewBox="0 0 96 96" fill="none" aria-hidden="true" focusable="false">
+          <rect x="8" y="18" width="44" height="32" rx="10" stroke="#8A8E83" stroke-width="1.8" fill="#F7F7F3"/>
+          <path d="M20 50v8l10-8" stroke="#8A8E83" stroke-width="1.8" fill="#F7F7F3"/>
+          <rect x="44" y="42" width="44" height="32" rx="10" stroke="#8A8E83" stroke-width="1.8" fill="#F7F7F3"/>
+          <path d="M76 74v8l-10-8" stroke="#8A8E83" stroke-width="1.8" fill="#F7F7F3"/>
+          <circle cx="66" cy="58" r="8" stroke="#9C7C74" stroke-width="1.6" fill="#FBFBF8"/>
+          <text x="66" y="62" text-anchor="middle" font-size="12" font-family="Noto Sans TC,sans-serif" fill="#9C7C74" font-weight="700">?</text>
+        </svg>
+        <p class="lead">問我一般問題，我會用繁體中文簡短回答。</p>
+        <p class="disc">AI 可能出錯，不是專業建議。</p>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div class="composer">
+      <div class="input-wrap i1" id="input-wrap">
+        <label class="sr" for="q">你的問題</label>
+        <textarea id="q" class="in" rows="1" maxlength="2000" placeholder="輸入你的問題…" aria-label="你的問題" enterkeyhint="send"></textarea>
+        <button type="button" class="btn b1-icon" id="send" data-mode="send" aria-label="送出" disabled>
+          <svg class="ico ico-send" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="ico ico-stop" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <rect x="7" y="7" width="10" height="10" rx="1.5"/>
+          </svg>
+        </button>
+      </div>
+      <div class="meta-row">
+        <span class="shortcut" id="shortcut">Enter 送出．Shift+Enter 換行</span>
+        <span>
+          <span class="counter" id="counter" hidden>0/500</span>
+          <span class="counter-limit" id="counter-limit" hidden>最多 500 字</span>
+        </span>
+      </div>
+      <p class="foot-disc">AI 可能出錯，不是專業建議；請勿輸入個資或密碼。</p>
+    </div>
+  </main>
+</div>
+
+<div class="toast-region" aria-live="polite">
+  <div class="toast n1" id="toast" role="status"></div>
+</div>
+<div class="sr" id="status" role="status" aria-live="polite"></div>
+<div id="turnstile-host"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
+  integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
+  crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js"
+  integrity="sha384-JEyTNhjM6R1ElGoJns4U2Ln4ofPcqzSsynQkmEc/KGy6336qAZl70tDLufbkla+3"
+  crossorigin="anonymous"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onAskTurnstileLoad" async defer></script>
+<script src="app.js"></script>
+</body>
+</html>

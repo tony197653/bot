@@ -1,0 +1,14 @@
+{
+  "name": "ask-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "mock-worker": "node test/mock-worker.mjs 8787",
+    "serve": "npx --yes serve -l 4173 .",
+    "test:e2e": "node test/e2e.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.1",
+    "playwright": "1.49.0"
+  }
+}
