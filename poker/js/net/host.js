@@ -18,6 +18,9 @@ import { DEAL_FX } from '../ui/fx.js';
 import { nightKeyOf, hostCashoutBatch } from './ledger.js';
 import { recordWrite, hostMustStopNewHand } from './quota.js';
 import { listenPresence } from './presence.js';
+import { buildLobbySummary } from './room.js';
+
+const AWAY_UNSEAT_MS = 30 * 60_000;
 
 /**
  * @param {{ db:any, fs:any }} fb
@@ -54,6 +57,8 @@ export function createHostLoop(fb, opts) {
   const leaveQueue = [];
   /** @type {Record<number, true>} */
   let away = {};
+  /** @type {Record<number, number>} local ms when seat became away */
+  const awaySince = {};
   let seatedAt = [0, 0, 0, 0, 0, 0];
   let topUpReqs = {};
   let pendingSeats = [];
@@ -198,6 +203,16 @@ export function createHostLoop(fb, opts) {
         return;
       }
 
+      const phase = pub?.phase || latest.pub?.phase;
+      const listStatus =
+        phase === 'lobby' || phase === 'hand_over' || !phase ? 'lobby' : 'playing';
+      const lobby = buildLobbySummary(
+        { ...latest, name: latest.name, config: latest.config, seatUids: latest.seatUids },
+        {
+          hostName: playerName(latest.hostUid, latest.lobby?.hostName),
+          hostPhoto: latest.lobby?.hostPhoto ?? null,
+        },
+      );
       const patch = {
         rev: latest.rev + 1,
         updatedAt: fs.serverTimestamp(),
@@ -207,7 +222,9 @@ export function createHostLoop(fb, opts) {
         chipTotal,
         sess,
         seatUids: latest.seatUids,
-        ...(patchFn ? patchFn(latest, { stacks, sess, pub }) : {}),
+        status: listStatus,
+        lobby,
+        ...(patchFn ? patchFn(latest, { stacks, sess, pub, lobby, listStatus }) : {}),
       };
 
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), patch);
@@ -464,6 +481,7 @@ export function createHostLoop(fb, opts) {
     actionSeq += 1;
     onLocalState?.(engine);
 
+    const nextRoom = { ...room, seatUids, stacks, sess };
     await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), {
       rev: room.rev + 1,
       updatedAt: fs.serverTimestamp(),
@@ -478,8 +496,13 @@ export function createHostLoop(fb, opts) {
         type: 'buyin',
         amount,
       },
-      pub: buildPub({ ...room, seatUids }),
+      pub: buildPub(nextRoom),
       deadlineAt: null,
+      status: 'lobby',
+      lobby: buildLobbySummary(nextRoom, {
+        hostName: playerName(room.hostUid, room.lobby?.hostName),
+        hostPhoto: room.lobby?.hostPhoto ?? null,
+      }),
     });
     lastWriteAt = Date.now();
     recordWrite();
@@ -507,6 +530,14 @@ export function createHostLoop(fb, opts) {
     }
     actionSeq += 1;
 
+    const nextHost = handOffTo || room.hostUid;
+    const nextRoom = {
+      ...room,
+      seatUids,
+      stacks,
+      sess,
+      hostUid: nextHost,
+    };
     const roomPatch = {
       rev: room.rev + 1,
       seatUids,
@@ -520,8 +551,14 @@ export function createHostLoop(fb, opts) {
         type: 'cashout',
         amount,
       },
-      pub: buildPub({ ...room, seatUids }),
+      pub: buildPub(nextRoom),
       deadlineAt: null,
+      status: 'lobby',
+      lobby: buildLobbySummary(nextRoom, {
+        hostName: playerName(nextHost, room.lobby?.hostName),
+        hostPhoto:
+          nextHost === room.hostUid ? room.lobby?.hostPhoto ?? null : null,
+      }),
       ...(handOffTo
         ? { hostUid: handOffTo, hostSince: fs.serverTimestamp() }
         : {}),
@@ -537,6 +574,7 @@ export function createHostLoop(fb, opts) {
       amount,
       playerName: displayNameOf?.(playerUid),
     });
+    delete awaySince[seat];
     lastWriteAt = Date.now();
     onLocalState?.(engine);
   }
@@ -665,16 +703,34 @@ export function createHostLoop(fb, opts) {
       const isAway = Date.now() - seen > 60_000;
       if (isAway && !away[i]) {
         away[i] = true;
+        awaySince[i] = Date.now();
         try {
           engine = applyAction(engine, { type: 'SET_AWAY', seat: i, away: true });
         } catch { /* */ }
         queueWrite();
       } else if (!isAway && away[i]) {
         delete away[i];
+        delete awaySince[i];
         try {
           engine = applyAction(engine, { type: 'SET_AWAY', seat: i, away: false });
         } catch { /* */ }
         queueWrite();
+      }
+    }
+
+    // 附錄 L5：暫離連續 30 分鐘 → 在 LOBBY／HAND_OVER 自動離座結帳
+    const between =
+      engine.phase === PHASE.LOBBY || engine.phase === PHASE.HAND_OVER;
+    if (between) {
+      for (let i = 0; i < 6; i++) {
+        const u = room.seatUids[i];
+        if (!u || !away[i] || !awaySince[i]) continue;
+        if (Date.now() - awaySince[i] < AWAY_UNSEAT_MS) continue;
+        // Don't auto-cashout self-as-host here without handoff candidate
+        if (u === uid) continue;
+        cashoutSeat(i, u).catch((e) => console.warn('[host] auto-unseat', e));
+        delete away[i];
+        delete awaySince[i];
       }
     }
 

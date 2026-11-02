@@ -57,6 +57,7 @@ export async function ensurePlayerGrant(fb, uid, roomId, n, profile) {
     topUpChips: 0,
     handsPlayed: 0,
     lastRoomId: roomId,
+    hostRoomId: null,
     createdAt: fs.serverTimestamp(),
     updatedAt: fs.serverTimestamp(),
   });
@@ -258,7 +259,7 @@ export async function selfRescueCashout(fb, uid, room) {
     by: uid,
     at: fs.serverTimestamp(),
   });
-  batch.update(pref, {
+  const playerPatch = {
     bank: p.bank + amount,
     inPlay: 0,
     total: p.bank + amount,
@@ -267,7 +268,10 @@ export async function selfRescueCashout(fb, uid, room) {
     topUpChips: p.topUpChips + sessRow.topUpChips,
     handsPlayed: p.handsPlayed + sessRow.hands,
     updatedAt: fs.serverTimestamp(),
-  });
+  };
+  // 附錄 L3：自救時若這桌是自己開的，清掉 hostRoomId
+  if (p.hostRoomId === roomId) playerPatch.hostRoomId = null;
+  batch.update(pref, playerPatch);
   const nref = fs.doc(db, 'pokerPlayers', uid, 'nights', sessRow.nightKey);
   const nSnap = await fs.getDoc(nref);
   const base = nSnap.exists()

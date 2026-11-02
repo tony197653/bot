@@ -10,22 +10,24 @@ const env = await initializeTestEnvironment({
   firestore: { host: '127.0.0.1', port: 8195, rules: fs.readFileSync(RULES, 'utf8') },
 });
 
-const R = 'R1', CODE = '123456', NK = '20261101';
+const R = 'R1', CODE = '123', NK = '20261101';
 const ago = (ms) => Timestamp.fromMillis(Date.now() - ms);
 const MIN = 60000;
 const sessOf = (uid, no, buyIn, extra = {}) => ({ uid, sessionNo: no, buyIn, topUps: 0, topUpChips: 0, hands: 3, nightKey: NK, startAt: ago(60 * MIN), ...extra });
 function baseRoom(o = {}) {
   return {
     name: '家庭桌', code: CODE, hostUid: 'H', hostSince: ago(60 * MIN), members: ['H', 'A', 'B', 'C', 'D'],
-    seatUids: ['H', 'A', '', '', '', ''], status: 'open',
+    seatUids: ['H', 'A', '', '', '', ''], status: 'lobby',
     config: { sb: 10, bb: 20, newPlayerChips: 5000, actionMs: 30000, topUpAmount: 2000 },
     rev: 5, createdAt: ago(60 * MIN), updatedAt: ago(5000), pub: { phase: 'hand_over', handNo: 3, actionSeq: 10 },
     deadlineAt: null, stacks: [7000, 3000, 0, 0, 0, 0], chipTotal: 10000,
-    sess: [sessOf('H', 1, 5000), sessOf('A', 1, 5000), null, null, null, null], lastMoneyEvent: null, ...o,
+    sess: [sessOf('H', 1, 5000), sessOf('A', 1, 5000), null, null, null, null], lastMoneyEvent: null,
+    lobby: { name: '家庭桌', hostName: 'H', hostPhoto: null, blinds: '10/20', seated: 2 },
+    ...o,
   };
 }
 const player = (o = {}) => ({ displayName: 'x', photoURL: null, bank: 0, inPlay: 5000, total: 5000, tableRoomId: R, sessionNo: 1,
-  topUps: 0, topUpChips: 0, handsPlayed: 0, lastRoomId: R, createdAt: ago(60 * MIN), updatedAt: ago(60 * MIN), ...o });
+  topUps: 0, topUpChips: 0, handsPlayed: 0, lastRoomId: R, hostRoomId: null, createdAt: ago(60 * MIN), updatedAt: ago(60 * MIN), ...o });
 
 async function seed({ room = {}, players = {}, extra } = {}) {
   await env.clearFirestore();
@@ -124,13 +126,13 @@ await t('#3', '房主寫 hole/A', 'ok', S, () => setDoc(doc(db('H'), 'pokerRooms
 // #4 籌碼帳戶
 await t('#4', '正常：第一次來 D 建帳戶＋grant', 'ok', S, async () => {
   const d = db('D'); const b = writeBatch(d);
-  b.set(doc(d, 'pokerPlayers', 'D'), { displayName: 'D', photoURL: null, bank: 5000, inPlay: 0, total: 5000, tableRoomId: null, sessionNo: 0, topUps: 0, topUpChips: 0, handsPlayed: 0, lastRoomId: R, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  b.set(doc(d, 'pokerPlayers', 'D'), { displayName: 'D', photoURL: null, bank: 5000, inPlay: 0, total: 5000, tableRoomId: null, sessionNo: 0, topUps: 0, topUpChips: 0, handsPlayed: 0, lastRoomId: R, hostRoomId: null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   b.set(doc(d, 'pokerPlayers', 'D', 'ledger', R + '_0_grant'), { type: 'grant', amount: 5000, roomId: R, sessionNo: 0, bankAfter: 5000, by: 'D', at: serverTimestamp() });
   return b.commit();
 });
 await t('#4', '第一次來 bank 灌成 99999', 'deny', S, async () => {
   const d = db('D'); const b = writeBatch(d);
-  b.set(doc(d, 'pokerPlayers', 'D'), { displayName: 'D', photoURL: null, bank: 99999, inPlay: 0, total: 99999, tableRoomId: null, sessionNo: 0, topUps: 0, topUpChips: 0, handsPlayed: 0, lastRoomId: R, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  b.set(doc(d, 'pokerPlayers', 'D'), { displayName: 'D', photoURL: null, bank: 99999, inPlay: 0, total: 99999, tableRoomId: null, sessionNo: 0, topUps: 0, topUpChips: 0, handsPlayed: 0, lastRoomId: R, hostRoomId: null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   b.set(doc(d, 'pokerPlayers', 'D', 'ledger', R + '_0_grant'), { type: 'grant', amount: 99999, roomId: R, sessionNo: 0, bankAfter: 99999, by: 'D', at: serverTimestamp() });
   return b.commit();
 });
@@ -140,7 +142,7 @@ await t('#4', '正常：B 帶入（帳戶＋帳本 buyin）', 'ok', S, () => buy
 await t('#4', '帶入時 bank 沒歸 0', 'deny', S, () => buyinBatch('B', R, { player: { bank: 5000 } }));
 await t('#4', '帶入時 inPlay ≠ 原 bank', 'deny', S, () => buyinBatch('B', R, { player: { inPlay: 4000 }, ledger: { amount: 4000 } }));
 await t('#4', '帶入沒附帳本', 'deny', S, async () => { const d = db('B'); return updateDoc(doc(d, 'pokerPlayers', 'B'), { bank: 0, inPlay: 5000, tableRoomId: R, sessionNo: 1, lastRoomId: R, updatedAt: serverTimestamp() }); });
-await t('#4', 'A 已坐 R1，再帶入 R2', 'deny', async () => { await seed({ extra: (d) => setDoc(doc(d, 'pokerRooms', 'R2'), baseRoom({ code: '654321', members: ['H', 'A'] })) }); }, () => buyinBatch('A', 'R2'));
+await t('#4', 'A 已坐 R1，再帶入 R2', 'deny', async () => { await seed({ extra: (d) => setDoc(doc(d, 'pokerRooms', 'R2'), baseRoom({ code: '654', members: ['H', 'A'] })) }); }, () => buyinBatch('A', 'R2'));
 await t('#4', '正常：房主讓 B 坐下（金額＝帳本 buyin）', 'ok', async () => { await S(); await buyinBatch('B'); }, () => seatBatch(2, 'B', 5000));
 await t('#4', '房主讓 B 坐下金額 ≠ 帳本 buyin', 'deny', async () => { await S(); await buyinBatch('B'); }, () => seatBatch(2, 'B', 6000));
 await t('#4', '房主寫 Σstacks ≠ chipTotal', 'deny', S, async () => { const r = await cur(); return hostUpd(db('H'), r, { stacks: [8000, 3000, 0, 0, 0, 0] }); });
@@ -367,12 +369,12 @@ const exp24 = (deltaMs) => Timestamp.fromMillis(Date.now() + 24 * 3600e3 + delta
 const newCode = (c, expiresAt) => setDoc(doc(db('H'), 'pokerCodes', c), {
   roomId: R, hostUid: 'H', createdAt: serverTimestamp(), expiresAt,
 });
-await t('#22', '建房號 expiresAt = +24h-9m（窗內）', 'ok', S, () => newCode('111111', exp24(-MIN9)));
-await t('#22', '建房號 expiresAt = +24h+9m（窗內）', 'ok', S, () => newCode('222222', exp24(+MIN9)));
-await t('#22', '建房號 expiresAt = +24h-11m（窗外）', 'deny', S, () => newCode('333333', exp24(-MIN11)));
-await t('#22', '建房號 expiresAt = +24h+11m（窗外）', 'deny', S, () => newCode('444444', exp24(+MIN11)));
-await t('#22', '建房號 expiresAt = +24h（正中）', 'ok', S, () => newCode('555555', exp24(0)));
-await t('#22', '非房主 B 建房號指向 H 的房間', 'deny', S, () => setDoc(doc(db('B'), 'pokerCodes', '666666'), {
+await t('#22', '建房號 expiresAt = +24h-9m（窗內）', 'ok', S, () => newCode('111', exp24(-MIN9)));
+await t('#22', '建房號 expiresAt = +24h+9m（窗內）', 'ok', S, () => newCode('222', exp24(+MIN9)));
+await t('#22', '建房號 expiresAt = +24h-11m（窗外）', 'deny', S, () => newCode('333', exp24(-MIN11)));
+await t('#22', '建房號 expiresAt = +24h+11m（窗外）', 'deny', S, () => newCode('444', exp24(+MIN11)));
+await t('#22', '建房號 expiresAt = +24h（正中）', 'ok', S, () => newCode('555', exp24(0)));
+await t('#22', '非房主 B 建房號指向 H 的房間', 'deny', S, () => setDoc(doc(db('B'), 'pokerCodes', '666'), {
   roomId: R, hostUid: 'B', createdAt: serverTimestamp(), expiresAt: exp24(0),
 }));
 await t('#22', '房主延長 expiresAt = +24h-9m', 'ok', S, () => updateDoc(doc(db('H'), 'pokerCodes', CODE), { expiresAt: exp24(-MIN9) }));
@@ -381,6 +383,46 @@ await t('#22', '房主延長 expiresAt = +24h-11m（窗外）', 'deny', S, () =>
 await t('#22', '房主延長 expiresAt = +24h+11m（窗外）', 'deny', S, () => updateDoc(doc(db('H'), 'pokerCodes', CODE), { expiresAt: exp24(+MIN11) }));
 await t('#22', '非房主 B 延長房號', 'deny', S, () => updateDoc(doc(db('B'), 'pokerCodes', CODE), { expiresAt: exp24(0) }));
 await t('#22', '房主收桌：expiresAt = request.time（serverTimestamp）', 'ok', S, () => updateDoc(doc(db('H'), 'pokerCodes', CODE), { expiresAt: serverTimestamp() }));
+
+// 附錄 L3 hostRoomId
+await t('#L3', '本人 hostRoomId null→R（房間存在且自己是房主）', 'ok', S, () =>
+  updateDoc(doc(db('H'), 'pokerPlayers', 'H'), { hostRoomId: R, updatedAt: serverTimestamp() }));
+await t('#L3', '本人再設第二個 hostRoomId 被拒', 'deny', async () => {
+  await S();
+  await updateDoc(doc(db('H'), 'pokerPlayers', 'H'), { hostRoomId: R, updatedAt: serverTimestamp() });
+}, () => updateDoc(doc(db('H'), 'pokerPlayers', 'H'), { hostRoomId: 'R2', updatedAt: serverTimestamp() }));
+await t('#L3', '本人清掉 hostRoomId', 'ok', async () => {
+  await S();
+  await updateDoc(doc(db('H'), 'pokerPlayers', 'H'), { hostRoomId: R, updatedAt: serverTimestamp() });
+}, () => updateDoc(doc(db('H'), 'pokerPlayers', 'H'), { hostRoomId: null, updatedAt: serverTimestamp() }));
+await t('#L3', '非本人改 H 的 hostRoomId', 'deny', S, () =>
+  updateDoc(doc(db('A'), 'pokerPlayers', 'H'), { hostRoomId: R, updatedAt: serverTimestamp() }));
+
+// 附錄 L4 自動收桌
+await t('#L4', '成員 A：updatedAt 31 分前 → auto closed', 'ok',
+  () => seed({ room: { updatedAt: ago(31 * MIN) } }),
+  () => updateDoc(doc(db('A'), 'pokerRooms', R), { status: 'closed', closedBy: 'auto', closedAt: serverTimestamp() }));
+await t('#L4', '成員 A：updatedAt 29 分前 → 不能 auto closed', 'deny',
+  () => seed({ room: { updatedAt: ago(29 * MIN) } }),
+  () => updateDoc(doc(db('A'), 'pokerRooms', R), { status: 'closed', closedBy: 'auto', closedAt: serverTimestamp() }));
+await t('#L4', '非成員 X：不能 auto closed', 'deny',
+  () => seed({ room: { updatedAt: ago(31 * MIN) } }),
+  () => updateDoc(doc(db('X'), 'pokerRooms', R), { status: 'closed', closedBy: 'auto', closedAt: serverTimestamp() }));
+
+// 附錄 L7：list 房間、3 碼重用
+await t('#L7', '登入者可 list pokerRooms', 'ok', S, async () => {
+  const { getDocs, collection, query, where, orderBy, limit } = await import('firebase/firestore');
+  return getDocs(query(collection(db('A'), 'pokerRooms'), where('status', 'in', ['lobby', 'playing']), orderBy('updatedAt', 'desc'), limit(20)));
+});
+await t('#L7', '不能 list pokerCodes', 'deny', S, async () => {
+  const { getDocs, collection } = await import('firebase/firestore');
+  return getDocs(collection(db('A'), 'pokerCodes'));
+});
+await t('#L7', '收桌後可覆蓋重用 3 碼房號', 'ok', async () => {
+  await seed({ room: { status: 'closed' } });
+}, () => setDoc(doc(db('H'), 'pokerCodes', CODE), {
+  roomId: R, hostUid: 'H', createdAt: serverTimestamp(), expiresAt: exp24(0),
+}));
 
 fs.writeFileSync(process.env.OUT || 'results.json', JSON.stringify({ rules: RULES, startAt: process.env.STARTAT || 'serverTimestamp', results, raceInfo, retry, cancelBack }, null, 1));
 for (const r of results) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.group} ${r.name} | 預期 ${r.expect} 實際 ${r.got} ${r.pass ? '' : r.err}`);

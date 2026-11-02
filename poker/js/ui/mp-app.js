@@ -24,7 +24,9 @@ import {
 import {
   createRoom,
   joinByCode,
+  joinByRoomId,
   listenRoom,
+  listenOpenTables,
   getLastRoom,
   rememberLastRoom,
   clearLastRoom,
@@ -32,6 +34,8 @@ import {
   formatCode,
   extendCode,
   closeRoom,
+  maybeAutoCloseIdleRoom,
+  isRoomOpenStatus,
 } from '../net/room.js';
 import {
   ensurePlayerGrant,
@@ -53,11 +57,17 @@ import {
 } from '../net/client.js';
 import { startPresence, maybeTakeover } from '../net/presence.js';
 import { hostShouldWarn, resetTimeTaipeiLabel } from '../net/quota.js';
+import { decideRescue } from '../net/rescue.js';
 import {
   renderMpLobby,
   renderCreateRoom,
   renderShareRoom,
   renderJoinCode,
+  patchOpenTables,
+  showLobbyNotify,
+  hideLobbyNotify,
+  flashMyTableAttn,
+  ensureLobbyNotify,
 } from './lobby.js';
 import { renderStats } from './stats.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
@@ -125,6 +135,12 @@ let rescueChips = null;
 let membersPanelOpen = false;
 let raiseOpen = false;
 let autoResumeTried = false;
+/** @type {any[]} */
+let openTables = [];
+/** @type {(() => void)|null} */
+let stopOpenTables = null;
+/** Toast once when auto-unseated while away (附錄 L5). */
+let pendingAwayUnseatToast = false;
 
 function looksLikeUidStub(name, uid) {
   if (!name || !uid) return !name;
@@ -199,6 +215,70 @@ export async function startMpApp() {
   if (emu) {
     window.__qaSignIn = async (uid, displayName) => {
       await qaEmuSignIn(uid, displayName || uid);
+    };
+    window.__qaRefreshRescue = async () => {
+      const changed = await maybeRefreshRescue();
+      if (screen === 'lobby') paint();
+      let debug = null;
+      try {
+        const fb = getFirebase();
+        const tid = playerDoc?.tableRoomId;
+        if (fb && tid) {
+          const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
+          const d = snap.exists() ? snap.data() : null;
+          let hostBeatMs = null;
+          if (d?.hostUid) {
+            const hp = await fb.fs.getDoc(
+              fb.fs.doc(fb.db, 'pokerRooms', tid, 'presence', d.hostUid),
+            );
+            if (hp.exists()) hostBeatMs = hp.data()?.beat?.toMillis?.() ?? null;
+          }
+          debug = {
+            status: d?.status || null,
+            hostUid: d?.hostUid || null,
+            me: getUser()?.uid || null,
+            updatedAtMs: d?.updatedAt?.toMillis?.() || 0,
+            hostBeatMs,
+            ageRoom: d?.updatedAt ? Date.now() - d.updatedAt.toMillis() : null,
+            ageHost: hostBeatMs != null ? Date.now() - hostBeatMs : null,
+          };
+        }
+      } catch (e) {
+        debug = { err: String(e?.message || e) };
+      }
+      return {
+        changed,
+        rescueOk,
+        rescueReason,
+        hostLoop: !!hostLoop,
+        presence: !!presence,
+        roomId,
+        tableRoomId: playerDoc?.tableRoomId || null,
+        debug,
+      };
+    };
+    window.__qaLeaveToLobby = () => {
+      leaveToLobby();
+    };
+    window.__qaShowAwayToast = () => {
+      showLobbyNotify('你暫離超過 30 分鐘，已自動離座，籌碼已回帳戶');
+      return !!document.getElementById('mpNtc')?.classList.contains('on');
+    };
+    window.__qaHideNotify = () => hideLobbyNotify();
+    window.__qaMineSnapshot = () => {
+      const mine = document.querySelector('.mp-mine');
+      const my = document.querySelector('.mp-my');
+      const create = document.querySelector('[data-act="create"].mp-btn-primary, .mp-btn-primary[data-act="create"]');
+      return {
+        hasMine: !!mine,
+        kind: mine?.className || '',
+        dataK: my?.getAttribute('data-k') || '',
+        tag: mine?.querySelector('.mp-lbl3')?.textContent || '',
+        act: mine?.querySelector('.mp-act')?.textContent?.replace(/\s+/g, ' ').trim() || '',
+        hasCreate: !!create,
+        height: my ? Math.round(my.getBoundingClientRect().height) : 0,
+        text: (mine?.innerText || '').slice(0, 240),
+      };
     };
   }
 
@@ -316,59 +396,126 @@ function paint() {
     root.classList.remove('mp-root-table');
     if (app) app.classList.add('hidden');
     silenceSoloScreens();
+    ensureOpenTablesListen();
+    if (pendingAwayUnseatToast) {
+      pendingAwayUnseatToast = false;
+      ensureLobbyNotify();
+      showLobbyNotify('你暫離超過 30 分鐘，已自動離座，籌碼已回帳戶');
+    }
     const last = getLastRoom();
-    // Auto-resume open table after host refresh (QA round-2)
+    const continueId =
+      playerDoc?.tableRoomId ||
+      playerDoc?.hostRoomId ||
+      last?.roomId ||
+      null;
+    // Auto-resume after refresh only (not after intentional 回大廳)
     if (
-      last?.roomId &&
-      playerDoc?.tableRoomId === last.roomId &&
+      continueId &&
+      playerDoc?.tableRoomId === continueId &&
       !rescueOk &&
       !autoResumeTried
     ) {
       autoResumeTried = true;
-      enterRoom(last.roomId);
+      enterRoom(continueId);
       return;
     }
-    // Refresh rescue eligibility (host gone ≥10m) without blocking paint
-    maybeRefreshRescue().then((changed) => {
+    maybeRefreshRescue().then(async (changed) => {
+      // L4: lazy auto-close idle rooms we know about
+      try {
+        const fb = getFirebase();
+        const tid = playerDoc?.tableRoomId || playerDoc?.hostRoomId;
+        if (fb && tid) {
+          const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
+          if (snap.exists()) {
+            await maybeAutoCloseIdleRoom(fb, { id: tid, ...snap.data() });
+          }
+        }
+      } catch {
+        /* ignore */
+      }
       if (changed && screen === 'lobby') paint();
     });
-    // Enrich seat labels for continue card
     const seatIdx =
-      last && room?.seatUids
+      room?.seatUids
         ? room.seatUids.indexOf(authState.user?.uid)
         : last?.seat;
+    const stackChips =
+      seatIdx >= 0 && Array.isArray(room?.stacks)
+        ? room.stacks[seatIdx]
+        : null;
+    const myTable =
+      continueId && (playerDoc?.tableRoomId || playerDoc?.hostRoomId || rescueOk)
+        ? {
+            roomId: continueId,
+            code: room?.code || last?.code || '',
+            name: room?.name || last?.name || '牌桌',
+            chips:
+              stackChips != null
+                ? stackChips
+                : last?.chips ?? playerDoc?.inPlay,
+            seat: seatIdx >= 0 ? seatIdx : last?.seat ?? null,
+            seated:
+              room?.lobby?.seated ??
+              (room?.seatUids || []).filter(Boolean).length,
+            blinds:
+              room?.lobby?.blinds ||
+              (room?.config
+                ? `${room.config.sb}/${room.config.bb}`
+                : '10/20'),
+            hostName:
+              room?.lobby?.hostName ||
+              (room?.hostUid ? displayNameOf(room.hostUid) : '房主'),
+            phase:
+              room?.status === 'playing' ||
+              (room?.pub?.phase &&
+                room.pub.phase !== 'lobby' &&
+                room.pub.phase !== 'hand_over')
+                ? 'playing'
+                : 'lobby',
+          }
+        : null;
     renderMpLobby(root, {
       user: authState.user,
       player: playerDoc,
-      lastRoom: last
-        ? {
-            ...last,
-            name: room?.name || last.name,
-            chips: playerDoc?.inPlay,
-            seat: seatIdx >= 0 ? seatIdx : last.seat,
-          }
-        : null,
+      myTable,
+      openTables: openTables.filter(
+        (t) => t.id !== myTable?.roomId && isRoomOpenStatus(t.status),
+      ),
+      joinDigits,
+      joinError,
+      joining,
       leaderPreview,
       offline: authState.status === 'offline',
       rescueAvailable: rescueOk,
       rescueReason,
       rescueChips,
-      onContinue: () => last && enterRoom(last.roomId),
+      onContinue: () => myTable && enterRoom(myTable.roomId),
       onCreate: () => {
+        if (playerDoc?.hostRoomId) {
+          enterRoom(playerDoc.hostRoomId, { asHostSit: true });
+          return;
+        }
         if (playerDoc?.tableRoomId && !rescueOk) {
-          toast('先回到牌桌或等房主失聯後結帳');
+          const nm = myTable?.name || '牌桌';
+          showLobbyNotify(
+            `先離開「${nm}」`,
+            '你正坐在這桌，離座結帳後才能開新牌桌。',
+            {
+              label: '回到這一桌',
+              run: () => myTable && enterRoom(myTable.roomId),
+            },
+          );
+          flashMyTableAttn(root);
           return;
         }
         screen = 'create';
         paint();
       },
-      onJoin: () => {
-        joinDigits = '';
-        joinError = '';
-        joinEnded = false;
-        screen = 'join';
-        paint();
+      onJoinCode: (code) => {
+        joinDigits = code;
+        doJoin(code);
       },
+      onOpenTable: (rid) => enterOpenTable(rid),
       onStats: () => openStats(),
       onSolo: () => openSolo(),
       onSignOut: () => signOut(),
@@ -430,7 +577,7 @@ function paint() {
         paint();
       },
       onChange: (d) => {
-        joinDigits = d.replace(/\D/g, '').slice(0, 6);
+        joinDigits = d.replace(/\D/g, '').slice(0, 3);
         joinError = '';
         paint();
       },
@@ -480,6 +627,43 @@ function paint() {
   }
 }
 
+function ensureOpenTablesListen() {
+  if (stopOpenTables) return;
+  const fb = getFirebase();
+  if (!fb) return;
+  stopOpenTables = listenOpenTables(
+    fb,
+    (rows) => {
+      openTables = rows;
+      if (screen !== 'lobby') return;
+      const root = $('#mpRoot');
+      const myId = playerDoc?.tableRoomId || playerDoc?.hostRoomId || null;
+      const visible = openTables.filter(
+        (t) => t.id !== myId && (t.status === 'lobby' || t.status === 'playing' || t.status === 'open'),
+      );
+      if (root && patchOpenTables(root, visible)) return;
+      paint();
+    },
+    (err) => console.warn('open tables', err),
+  );
+}
+
+async function enterOpenTable(roomId) {
+  const fb = getFirebase();
+  const user = getUser();
+  if (!fb || !user || !roomId) return;
+  try {
+    const res = await joinByRoomId(fb, roomId, user.uid);
+    if (res.ended || res.error) {
+      toast(res.error || '牌桌已結束');
+      return;
+    }
+    await enterRoom(roomId);
+  } catch (e) {
+    toast(String(e.message || '無法加入'));
+  }
+}
+
 async function maybeRefreshRescue() {
   const fb = getFirebase();
   const uid = getUser()?.uid;
@@ -493,28 +677,46 @@ async function maybeRefreshRescue() {
   }
   try {
     const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
+    const prev = rescueOk;
     if (!snap.exists()) {
-      const prev = rescueOk;
+      // Missing room: allow cash-out of inPlay (cancel-buyin / gone)
       rescueOk = true;
       rescueReason = 'gone';
       rescueChips = playerDoc?.inPlay ?? 0;
       return prev !== rescueOk;
     }
     const d = snap.data();
-    const updatedMs = d.updatedAt?.toMillis?.() || 0;
     const seat = Array.isArray(d.seatUids) ? d.seatUids.indexOf(uid) : -1;
     const stackAmt =
       seat >= 0 && Array.isArray(d.stacks) ? Number(d.stacks[seat]) || 0 : null;
     const settled =
       stackAmt != null ? stackAmt : Number(playerDoc?.inPlay) || 0;
-    const prev = rescueOk;
-    if (d.status === 'closed') {
+
+    let hostBeatMs = null;
+    if (d.hostUid && d.status !== 'closed') {
+      try {
+        const hp = await fb.fs.getDoc(
+          fb.fs.doc(fb.db, 'pokerRooms', tid, 'presence', d.hostUid),
+        );
+        if (hp.exists()) hostBeatMs = hp.data()?.beat?.toMillis?.() ?? null;
+      } catch {
+        hostBeatMs = null;
+      }
+    }
+
+    const decision = decideRescue({
+      uid,
+      room: {
+        status: d.status,
+        hostUid: d.hostUid,
+        updatedAtMs: d.updatedAt?.toMillis?.() || 0,
+      },
+      hostBeatMs,
+    });
+
+    if (decision.ok) {
       rescueOk = true;
-      rescueReason = 'closed';
-      rescueChips = settled;
-    } else if (Date.now() - updatedMs >= 10 * 60_000) {
-      rescueOk = true;
-      rescueReason = 'gone';
+      rescueReason = decision.reason;
       rescueChips = settled;
     } else {
       rescueOk = false;
@@ -547,15 +749,44 @@ async function doCreate(data) {
     const res = await createRoom(fb, {
       uid: user.uid,
       name: data.name,
+      displayName: user.displayName || '',
+      photoURL: user.photoURL || null,
       sb: data.sb,
       bb: data.bb,
       newPlayerChips: data.newPlayerChips,
     });
+    if (res.existing) {
+      // L3: already hosting → go straight back to that table
+      creating = false;
+      screen = 'lobby';
+      await enterRoom(res.roomId, { asHostSit: true });
+      return;
+    }
     shareInfo = res;
+    // Ensure player doc + hostRoomId so a second「開新牌桌」returns here (L3)
+    try {
+      await ensurePlayerGrant(
+        fb,
+        user.uid,
+        res.roomId,
+        res.config.newPlayerChips,
+        user,
+      );
+      await fb.fs.updateDoc(fb.fs.doc(fb.db, 'pokerPlayers', user.uid), {
+        hostRoomId: res.roomId,
+        updatedAt: fb.fs.serverTimestamp(),
+      });
+      playerDoc = await getPlayer(fb, user.uid);
+    } catch (e) {
+      console.warn('hostRoomId claim', e);
+    }
     screen = 'share';
   } catch (e) {
     console.error(e);
-    createError = '開房失敗，請再試一次';
+    createError =
+      e?.code === 'too-many-tables' || /牌桌太多/.test(String(e?.message || ''))
+        ? '牌桌太多，稍後再試'
+        : '開房失敗，請再試一次';
   }
   creating = false;
   paint();
@@ -567,17 +798,30 @@ async function doJoin(code, expectedR = null) {
   if (!fb || !user) return;
   joining = true;
   joinError = '';
+  joinEnded = false;
+  joinDigits = String(code || '').replace(/\D/g, '').slice(0, 3);
   paint();
   try {
     const res = await Promise.race([
       joinByCode(fb, code, user.uid, expectedR),
       new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 3000)),
     ]);
-    if (res.ended) {
-      joinEnded = true;
-    } else if (res.error) {
-      joinError = res.error;
+    if (res.ended || res.error) {
+      // Keep digits so B-boxes can select-all for overwrite (BD §4)
+      const digits = joinDigits;
+      joinError =
+        res.error && /找不到|不存在/.test(res.error)
+          ? `房號 ${digits} 不存在，請再確認`
+          : res.error || '牌桌已結束';
+      joinEnded = !!res.ended;
+      if (joinEnded && expectedR) {
+        // deep-link mismatch → ended screen
+      } else {
+        // stay on lobby with error state
+      }
     } else if (res.roomId) {
+      joinDigits = '';
+      joinError = '';
       await enterRoom(res.roomId);
       return;
     }
@@ -585,7 +829,7 @@ async function doJoin(code, expectedR = null) {
     joinError =
       e?.message === 'timeout'
         ? '連線逾時，請再試一次'
-        : '找不到這個房號。請確認 6 位數字，或請房主重新分享連結。';
+        : `房號 ${joinDigits} 不存在，請再確認`;
   }
   joining = false;
   paint();
@@ -610,6 +854,48 @@ async function enterRoom(id, { asHostSit = false } = {}) {
   const fb = getFirebase();
   const user = getUser();
   if (!fb || !user) return;
+
+  // Soft resume after leaveToLobby keepAlive: same room still listening — just show table.
+  if (
+    roomId === id &&
+    room &&
+    stopRoom &&
+    room.status !== 'closed' &&
+    (room.hostUid === user.uid || (room.seatUids || []).includes(user.uid))
+  ) {
+    if (!animQ) {
+      animQ = createAnimQueue(async (ev) => {
+        if (prefersReducedMotion() && ev.type !== 'snap' && ev.type !== 'hostChange') {
+          paintTableChrome();
+          return;
+        }
+        paintTableChrome();
+      });
+    }
+    if (room.hostUid === user.uid && !hostLoop) {
+      hostLoop = createHostLoop(fb, {
+        roomId: id,
+        uid: user.uid,
+        getRoom: () => room,
+        displayNameOf,
+        onLocalState: () => paintTableChrome(),
+      });
+      hostLoop.start();
+    }
+    if (!presence) {
+      presence = startPresence(fb, id, user.uid, {
+        isHost: () => room?.hostUid === user.uid,
+        lastRoomWriteAt: () => hostLoop?.lastRoomWriteAt?.() || 0,
+      });
+    } else {
+      presence.beatNow?.();
+    }
+    if (!intents) intents = createIntentSender(fb, id, user.uid);
+    screen = 'table';
+    paint();
+    return;
+  }
+
   tearDownRoom();
   roomId = id;
 
@@ -740,6 +1026,21 @@ async function enterRoom(id, { asHostSit = false } = {}) {
             toast(String(e.message || e));
           }
         }
+        // L3: ensure hostRoomId points at this table
+        if (r.hostUid === user.uid) {
+          try {
+            const p = await getPlayer(fb, user.uid);
+            if (p && p.hostRoomId !== id) {
+              await fb.fs.updateDoc(fb.fs.doc(fb.db, 'pokerPlayers', user.uid), {
+                hostRoomId: id,
+                updatedAt: fb.fs.serverTimestamp(),
+              });
+            }
+            playerDoc = await getPlayer(fb, user.uid);
+          } catch {
+            /* ignore */
+          }
+        }
       } else {
         // host loop ownership
         if (r.hostUid === user.uid && !hostLoop) {
@@ -794,7 +1095,8 @@ async function enterRoom(id, { asHostSit = false } = {}) {
 }
 
 function paintTableChrome() {
-  if (!room) return;
+  // Host loop keeps running in lobby (§6.2) — skip DOM work off-table
+  if (!room || screen !== 'table') return;
   const user = getUser();
   const title = $('#roomTitle');
   if (title) title.textContent = room.name || '週五牌局';
@@ -1429,10 +1731,56 @@ function openSolo() {
   openSoloFn({ fromMp: true });
 }
 
+/**
+ * Return to lobby without 離座. Spec §6.2 / EGM #7: host loop + presence
+ * keep running on any visible screen so the host is never judged「失聯」by self.
+ */
 function leaveToLobby() {
-  tearDownRoom();
-  // Allow auto-resume only when still seated at an open table
-  if (!playerDoc?.tableRoomId) autoResumeTried = false;
+  const user = getUser();
+  const uid = user?.uid;
+  const keepAlive =
+    !!roomId &&
+    !!playerDoc?.tableRoomId &&
+    room?.status !== 'closed' &&
+    !!uid &&
+    (room?.hostUid === uid || (room?.seatUids || []).includes(uid));
+
+  // Intentional lobby visit while still bound to a table — do not auto-bounce
+  autoResumeTried = true;
+
+  if (keepAlive) {
+    // Soft detach: table-only UI; keep listenRoom, presence, hostLoop
+    stopHole?.();
+    stopHole = null;
+    intents = null;
+    animQ?.clear();
+    animQ = null;
+    myHole = null;
+    membersPanelOpen = false;
+    raiseOpen = false;
+    removeMpMenuExtras();
+    if (room?.hostUid === uid && !hostLoop) {
+      hostLoop = createHostLoop(getFirebase(), {
+        roomId,
+        uid,
+        getRoom: () => room,
+        displayNameOf,
+        onLocalState: () => paintTableChrome(),
+      });
+      hostLoop.start();
+    }
+    if (!presence && roomId && uid) {
+      presence = startPresence(getFirebase(), roomId, uid, {
+        isHost: () => room?.hostUid === uid,
+        lastRoomWriteAt: () => hostLoop?.lastRoomWriteAt?.() || 0,
+      });
+    } else {
+      presence?.beatNow?.();
+    }
+  } else {
+    tearDownRoom();
+    if (!playerDoc?.tableRoomId) autoResumeTried = false;
+  }
   screen = 'lobby';
   paint();
 }
@@ -1454,6 +1802,7 @@ function tearDownRoom() {
   prevPub = null;
   myHole = null;
   membersPanelOpen = false;
+  raiseOpen = false;
   removeMpMenuExtras();
 }
 
