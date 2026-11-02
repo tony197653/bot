@@ -4,8 +4,15 @@
 import { validateBatch, figureByteSize, flagLabel, reportReasonLabel } from './schema.js';
 import { escHtml, renderMath, stemHtml, optionsHtml, groupPassageHtml } from './render.js';
 import { askConfirm } from './dialog.js';
-import { readImportDraft, createDraftAutosave, clearImportDraft } from './import-draft.js';
+import {
+  readImportDraft,
+  createDraftAutosave,
+  clearImportDraft,
+  DRAFT_KEY,
+} from './import-draft.js';
 import { ERR, zhFromError } from './errors.js';
+
+export { DRAFT_KEY };
 
 /** 紅標畫面：中文＋代碼小字（batchFlags 字串取：前代碼） */
 function flagHtml(flagOrCode, batch) {
@@ -807,4 +814,4 @@ export async function renderImport(mount, ctx) {
   await paint();
 }
 
-export { DRAFT_KEY, loadExistingIds };
+export { loadExistingIds };

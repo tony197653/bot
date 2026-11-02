@@ -7,8 +7,9 @@ import { ERR } from './errors.js';
 const IDB_NAME = 'quizbank-v1';
 const IDB_STORE = 'importDraft';
 const IDB_KEY = 'current';
-/** 舊版 localStorage 鍵，啟動時遷移一次 */
-const LEGACY_LS = 'quizbank:v1:importDraft';
+/** 舊版 localStorage 鍵，啟動時遷移一次；對外別名 DRAFT_KEY */
+export const DRAFT_KEY = 'quizbank:v1:importDraft';
+const LEGACY_LS = DRAFT_KEY;
 
 /** @type {IDBDatabase|null} */
 let dbPromiseCache = null;
