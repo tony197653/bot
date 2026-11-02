@@ -112,13 +112,6 @@ section.cat{padding:64px 0 8px}
 .b4:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
 .b4:disabled{background:#ECEEF0;color:#A7AEB6}
 
-.b5{background:none;color:var(--ink);padding:0 4px;border-radius:var(--r-sm);font-weight:500;transition:color .18s var(--ease),opacity .18s var(--ease),transform .12s var(--ease)}
-.b5::after{content:"";position:absolute;left:4px;right:4px;bottom:9px;height:1px;background:currentColor;transform:scaleX(.35);transform-origin:left;transition:transform .22s var(--ease)}
-@media (hover:hover) and (pointer:fine){.b5:hover{color:var(--rose)}}
-@media (hover:hover) and (pointer:fine){.b5:hover::after{transform:scaleX(1)}}
-.b5:active{opacity:.7;transform:scale(.97)}
-.b5:disabled{color:#AEB0A9}
-.b5:disabled::after{transform:scaleX(0)}
 
 
 /* ========== 表格 ========== */
@@ -514,7 +507,9 @@ dialog.dlg:not([open]){display:none}
 .acc-i.open .acc-tx{opacity:1;transform:none;transition:opacity .35s var(--ease-out) .06s,transform .4s var(--ease-out) .06s}
 .a1 .acc-i{border-bottom:1px solid var(--line)}
 .a1 .acc-i:first-child{border-top:1px solid var(--line)}
-@media (hover:hover){.a1 .acc-b:not(:disabled):hover .t{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:5px}}
+.a1 .acc-b{position:relative;isolation:isolate}
+.a1 .acc-b::before{content:"";position:absolute;z-index:-1;inset:3px -8px;border-radius:var(--r-sm);background:var(--line-soft);opacity:0;transition:opacity .22s var(--ease);pointer-events:none}
+@media (hover:hover) and (pointer:fine){.a1 .acc-b:not(:disabled):hover::before{opacity:1}}
 .a1 .acc-b:focus-visible{outline-offset:-2px;border-radius:var(--r-sm)}
 .a3 .acc-i{border-bottom:1px dashed var(--line)}
 .a3 .acc-b{align-items:flex-start;padding:16px 4px}
@@ -781,7 +776,7 @@ dialog.dlg:not([open]){display:none}
   <div class="wrap">
     <h1>元件風格庫</h1>
     <p class="lead">每個元件都有編號，滑過、按下、用 Tab 鍵移動都能看到真實效果。挑好後，之後做網頁就能直接說「按鈕用 B1、表格用 T1」。</p>
-    <div class="meta"><span>共 <b>14 類 47 個</b>（第一批 6 類 23 個＋第二批 8 類 20 個＋輸入框 I6＋功能清單鈕 M6、M7＋回首頁站名 M8）</span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
+    <div class="meta"><span>共 <b>14 類 46 個</b>（第一批 6 類 22 個＋第二批 8 類 20 個＋輸入框 I6＋功能清單鈕 M6、M7＋回首頁站名 M8）</span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
   </div>
 </header>
 
@@ -816,8 +811,6 @@ dialog.dlg:not([open]){display:none}
       <div class="stage"><button class="btn b2 js-load"><span class="lbl"><span class="lbl-idle">儲存草稿</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>儲存中</span></span></button><button class="btn b2" disabled>無法匯出</button></div></article>
     <article class="spec"><div class="spec-head"><span class="code">B4</span><div><h3>淡底填色</h3><p>仿 Apple 的淡色底深色字，柔和但看得出能按；按下底色加深。</p></div></div>
       <div class="stage"><button class="btn b4 js-load"><span class="lbl"><span class="lbl-idle">加入收藏</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>處理中</span></span></button><button class="btn b4" disabled>已收藏</button></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">B5</span><div><h3>文字底線</h3><p>雜誌感的純文字鈕，滑過底線從短變長、字轉為玫瑰灰。</p></div></div>
-      <div class="stage"><button class="btn b5 js-load"><span class="lbl"><span class="lbl-idle">看全部作品</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>載入中</span></span></button><button class="btn b5" disabled>沒有更多</button></div></article>
   </div>
 </section>
 
@@ -1114,7 +1107,7 @@ dialog.dlg:not([open]){display:none}
         <div class="lm-grid" aria-hidden="true"></div>
         <div class="meterx"><i></i></div>
         <p class="cap" aria-live="polite"></p>
-        <div class="btns"><button class="btn b2 js-more-btn"><span class="lbl"><span class="lbl-idle">載入更多</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>載入中</span></span></button><button class="btn b5 js-more-reset" hidden>回到開頭</button></div>
+        <div class="btns"><button class="btn b2 js-more-btn"><span class="lbl"><span class="lbl-idle">載入更多</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>載入中</span></span></button><button class="btn b2 js-more-reset" hidden>回到開頭</button></div>
       </div></div></article>
 
     <article class="spec"><div class="spec-head"><span class="code">P3</span><div><h3>圓點步驟條</h3><p>仿 coss ui Stepper，完成的步驟變綠並打勾、連線往前推；點已完成的圓點可以回去改。</p></div></div>
@@ -1152,7 +1145,7 @@ dialog.dlg:not([open]){display:none}
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">已出貨</span><time>11/22 16:40</time><span class="ds">黑貓宅急便，單號會簡訊通知。</span></li>
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">已送達</span><time>11/24 11:15</time><span class="ds">簽收後 7 天內可退換。</span></li>
         </ol>
-        <div class="stp-ctl"><button class="btn b5" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
+        <div class="stp-ctl"><button class="btn b2" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
       </div></div>
         <div class="p5-v"><p class="p5-lab"><span class="sc">P5-B</span>底弧滾動</p><div class="stp p5 p5b js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達">
         <ol aria-label="訂單 #1046 進度（B 底弧滾動）">
@@ -1162,7 +1155,7 @@ dialog.dlg:not([open]){display:none}
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">已出貨</span><time>11/22 16:40</time><span class="ds">黑貓宅急便，單號會簡訊通知。</span></li>
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">已送達</span><time>11/24 11:15</time><span class="ds">簽收後 7 天內可退換。</span></li>
         </ol>
-        <div class="stp-ctl"><button class="btn b5" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
+        <div class="stp-ctl"><button class="btn b2" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
       </div></div>
       </div></div></article>
   </div>
@@ -1188,7 +1181,7 @@ dialog.dlg:not([open]){display:none}
         </div>
         <div class="got e1-full" hidden>
           <div class="mini-card"><span class="th"><svg class="ico"><use href="#i-vase"/></svg></span><span><b>秋日灰釉盤</b><small>剛剛新增・草稿</small></span></div>
-          <button class="btn b5 js-e1-clear">清空，回到空狀態</button>
+          <button class="btn b2 js-e1-clear">清空，回到空狀態</button>
         </div>
       </div></article>
 
@@ -1201,7 +1194,7 @@ dialog.dlg:not([open]){display:none}
           <h4>找不到「<span class="js-term"></span>」</h4>
           <p>試試看其他系列名稱：</p>
           <div class="sugg"><button class="tag l2" data-q="青瓷">青瓷</button><button class="tag l2" data-q="灰釉">灰釉</button><button class="tag l2" data-q="柴燒">柴燒</button></div>
-          <div class="btns" style="margin-top:6px"><button class="btn b5 js-e2-clear">清除搜尋</button></div>
+          <div class="btns" style="margin-top:6px"><button class="btn b2 js-e2-clear">清除搜尋</button></div>
         </div>
       </div></article>
 

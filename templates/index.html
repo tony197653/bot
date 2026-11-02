@@ -62,9 +62,12 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 .nw{white-space:nowrap}
 .lic.tool{border:1px solid var(--line);color:var(--sand);line-height:18px}
 .note{margin:0 0 10px;font-size:14px;line-height:1.65;flex:1}
-.links{margin:0;display:flex;gap:18px;font-size:14px}
-.links a{color:var(--sage);text-decoration:none;border-bottom:1px solid currentColor;padding:6px 0 1px}
-.links a:hover{color:var(--ink)}
+.links{margin:0;display:flex;flex-wrap:wrap;gap:8px;font-size:14px}
+/* 連結改用元件庫 B2 細框鈕（文字底線樣式已停用） */
+.links a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font-weight:500;text-decoration:none;-webkit-tap-highlight-color:transparent;transition:background-color .18s cubic-bezier(.2,.7,.2,1),border-color .18s cubic-bezier(.2,.7,.2,1)}
+@media (hover:hover) and (pointer:fine){.links a:hover{background:#fff;border-color:#BFC3B8}}
+.links a:active{background:var(--sage-soft)}
+.links a:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
 .legend{margin:36px 0 0;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--mute);display:grid;gap:4px}
 .legend p{margin:0}
 @media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
@@ -89,7 +92,7 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
   h3{font-size:15px}
   .src{margin:0 0 6px;font-size:12px}
   .note{font-size:13.5px;line-height:1.6;margin-bottom:6px}
-  .links a{padding:9px 0 1px}
+  .links a{padding:0 14px}
 }
 @media (max-width:350px){[role=tab]{font-size:14px}}
 @media (prefers-reduced-motion:no-preference){
