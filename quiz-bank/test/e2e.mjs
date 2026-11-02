@@ -430,7 +430,7 @@ try {
     await page.close();
   }
 
-  // --- 底列：略過永遠可見；下一題寬度固定（390／1280）---
+  // --- 底列 B2 略過：單列、寬度固定、禁用仍有邊框（390／1280）---
   async function assertBarStable(viewport) {
     const page = await browser.newPage({ viewport });
     await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
@@ -441,18 +441,28 @@ try {
       page.evaluate(() => {
         const next = document.querySelector('[data-act="next"]');
         const skip = document.querySelector('[data-act="skip"]');
+        const prev = document.querySelector('[data-act="prev"]');
         const nb = next.getBoundingClientRect();
+        const sb = skip.getBoundingClientRect();
+        const pb = prev.getBoundingClientRect();
+        const cs = getComputedStyle(skip);
+        const sameRow =
+          Math.abs(pb.top - sb.top) < 2 &&
+          Math.abs(sb.top - nb.top) < 2 &&
+          pb.bottom > pb.top;
         return {
           nextW: Math.round(nb.width * 100) / 100,
+          skipW: Math.round(sb.width * 100) / 100,
+          prevW: Math.round(pb.width * 100) / 100,
           nextLabel: next.querySelector('.nx-t')?.textContent,
-          skipVisible: !!(
-            skip &&
-            getComputedStyle(skip).display !== 'none' &&
-            getComputedStyle(skip).visibility !== 'hidden' &&
-            skip.getBoundingClientRect().width > 0
-          ),
+          skipVisible: cs.display !== 'none' && cs.visibility !== 'hidden' && sb.width > 0,
           skipDisabled: !!skip?.disabled,
           skipText: skip?.textContent?.trim(),
+          skipIsB2: skip.classList.contains('b2') && !skip.classList.contains('b5'),
+          skipBorder: cs.borderTopWidth,
+          skipBorderColor: cs.borderTopColor,
+          sameRow,
+          barWrap: document.querySelector('.bar-in').scrollHeight > pb.height + 8,
         };
       });
 
@@ -460,7 +470,14 @@ try {
     if (!q1Unanswered.skipVisible || q1Unanswered.skipText !== '略過') {
       throw new Error(`skip not visible on q1: ${JSON.stringify(q1Unanswered)}`);
     }
+    if (!q1Unanswered.skipIsB2) throw new Error('skip must use b2');
     if (q1Unanswered.skipDisabled) throw new Error('skip should be enabled when unanswered');
+    if (!q1Unanswered.sameRow || q1Unanswered.barWrap) {
+      throw new Error(`bar not single row @${viewport.width}: ${JSON.stringify(q1Unanswered)}`);
+    }
+    if (Math.abs(q1Unanswered.prevW - q1Unanswered.skipW) > 1) {
+      throw new Error(`prev/skip widths unequal: ${q1Unanswered.prevW} vs ${q1Unanswered.skipW}`);
+    }
 
     await page.locator(`.opt[data-k="${batch.questions[0].answer}"]`).click();
     await page.waitForTimeout(80);
@@ -471,17 +488,25 @@ try {
     if (q1Answered.nextW !== q1Unanswered.nextW) {
       throw new Error(`next width changed after answer @${viewport.width}: ${q1Unanswered.nextW}→${q1Answered.nextW}`);
     }
+    if (q1Answered.skipW !== q1Unanswered.skipW) {
+      throw new Error(`skip width changed after answer @${viewport.width}: ${q1Unanswered.skipW}→${q1Answered.skipW}`);
+    }
+    // 禁用仍保留 b2 邊框
+    const borderPx = parseFloat(q1Answered.skipBorder);
+    if (!(borderPx >= 1)) {
+      throw new Error(`disabled skip missing border: ${JSON.stringify(q1Answered)}`);
+    }
+    if (!q1Answered.sameRow) throw new Error(`bar wrapped after answer @${viewport.width}`);
 
     await page.locator('[data-act="next"]').click();
     await page.waitForFunction(
       () => (document.querySelector('[data-el="count"]')?.textContent || '').includes('2'),
     );
     const q2 = await measure();
-    if (q2.nextW !== q1Unanswered.nextW) {
-      throw new Error(`next width changed on q2 @${viewport.width}: ${q1Unanswered.nextW}→${q2.nextW}`);
+    if (q2.nextW !== q1Unanswered.nextW || q2.skipW !== q1Unanswered.skipW) {
+      throw new Error(`widths drifted on q2 @${viewport.width}`);
     }
 
-    // 最後一題：標籤變「看結果」，寬度仍相同
     const lastN = batch.questions.length;
     await page.locator(`.bub[data-n="${lastN - 1}"]`).click();
     await page.waitForSelector(`[data-el="count"] >> text=/${lastN}/`, { timeout: 5000 });
@@ -504,13 +529,16 @@ try {
       clip: { x: 0, y: viewport.height - 100, width: viewport.width, height: 100 },
     });
     await page.close();
-    return q1Unanswered.nextW;
+    return { nextW: q1Unanswered.nextW, skipW: q1Unanswered.skipW };
   }
 
   {
-    const w390 = await assertBarStable({ width: 390, height: 844 });
-    const w1280 = await assertBarStable({ width: 1280, height: 800 });
-    pass(`bar skip always visible + next fixed width (390=${w390}, 1280=${w1280})`);
+    const m390 = await assertBarStable({ width: 390, height: 844 });
+    const m1280 = await assertBarStable({ width: 1280, height: 800 });
+    if (m390.nextW !== 152 || m1280.nextW !== 152) {
+      throw new Error(`next should be 152px, got 390=${m390.nextW} 1280=${m1280.nextW}`);
+    }
+    pass(`bar B2 skip + fixed next (390 next=${m390.nextW} skip=${m390.skipW}; 1280 next=${m1280.nextW} skip=${m1280.skipW})`);
   }
 
   // --- exam 模式底列三鈕仍在，下一題寬度不變 ---

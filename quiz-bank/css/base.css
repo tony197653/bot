@@ -89,13 +89,12 @@ body[data-view=result] .count,body[data-view=result] .prog{visibility:hidden}
 .report::after{left:4px;right:4px}
 /* G 操作列 */
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--bar-bg);padding:10px max(16px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));transition:transform .3s var(--ease-out),opacity .3s var(--ease-out)}
+/* 上一題 | 略過 …… 下一題（1280 時交卷在略過與下一題之間，同為 B2） */
 .bar-in{max-width:776px;margin:0 auto;display:flex;align-items:center;gap:8px}
-.bar .prev{flex:0 0 auto;padding:0 14px 0 10px}
-/* 略過永遠佔位，禁用時仍佔寬，避免下一題被拉開 */
-.bar .skip{flex:0 0 auto;min-width:3.25em;padding:0 10px;text-align:center}
-.bar .skip:disabled{opacity:.38;cursor:default}
+.bar .prev,.bar .skip{flex:0 0 auto;min-width:5.5rem;padding:0 16px;box-sizing:border-box}
+.bar .skip:disabled{cursor:default}
 .bar .submit{display:none;flex:0 0 auto}
-/* 下一題固定寬：含「確定交卷」最長標籤；各題／各模式寬度不變 */
+/* 下一題固定寬 9.5rem（152px）：含「確定交卷」；各題／各模式寬度不變 */
 .bar .next{margin-left:auto;flex:0 0 9.5rem;width:9.5rem;min-width:9.5rem;max-width:9.5rem;padding:0 12px;justify-content:center;box-sizing:border-box}
 .bar .next .nx-t{display:block;width:100%;text-align:center;white-space:nowrap}
 .warn{max-width:776px;margin:0 auto;font-size:14px;color:var(--bad-ink);line-height:1.6;height:0;opacity:0;overflow:hidden;transition:opacity .22s var(--ease)}

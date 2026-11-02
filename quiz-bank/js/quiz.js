@@ -141,7 +141,7 @@ function createSession(opts) {
       <p class="warn" data-el="warn" role="status"></p>
       <div class="bar-in">
         <button type="button" class="btn b2 prev" data-act="prev"><span>上一題</span></button>
-        <button type="button" class="btn b5 skip" data-act="skip">略過</button>
+        <button type="button" class="btn b2 skip" data-act="skip">略過</button>
         <button type="button" class="btn b2 submit" data-act="submit"><span>交卷</span></button>
         <button type="button" class="btn b1 next" data-act="next"><span class="nx-t">下一題</span></button>
       </div>
