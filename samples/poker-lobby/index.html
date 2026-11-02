@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <!--
-  德撲大廳 BD 風格定稿樣張（我的牌桌、可加入的牌桌、開新牌桌主按鈕、3 位房號 A/B）
-  只用德撲 tokens（僅衍生透明度）；不使用任何 transform: scale；動效只用 transform / opacity。
+  德撲大廳 BD 風格定稿樣張（我的牌桌 4 種狀態、自動離座 toast、可加入的牌桌、開新牌桌主按鈕、3 位房號 B 三格）
+  只用德撲 tokens（僅衍生透明度）；按下／hover／選取只變顏色、陰影、透明度，不縮放、不位移；動畫只用 opacity。
   展示用假資料：房號 123 成功，其他 700ms 後顯示「房號不存在」；可加入的牌桌每 2.6 秒模擬人數變動。
 -->
 <style>
@@ -19,7 +19,7 @@
   --page:#13231a; --page2:#21392c; --panel:#101b14;
   --ink:#f3ead2; --mute:#c9bf9f;
   --gold:#d6b45a; --accent:#e6bf5a; --accent2:#c99a2e; --ring:#d6b45a;
-  --warn:#ff4d3a;
+  --warn:#ff7566;
   /* 線上大廳既有字型與圓角 */
   --tf:"Noto Serif TC","Noto Serif CJK TC",serif;
   --uf:"Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif;
@@ -31,7 +31,7 @@
   --card:rgba(16,27,20,.72);            /* panel 72%：卡片底 */
   --field:rgba(16,27,20,.9);            /* panel 90%：輸入底 */
   --halo:0 0 0 1px rgba(214,180,90,.38),0 0 0 4px rgba(214,180,90,.12),0 0 16px 2px rgba(214,180,90,.22);
-  --halo-err:0 0 0 1px rgba(255,77,58,.34),0 0 0 4px rgba(255,77,58,.10),0 0 16px 2px rgba(255,77,58,.18);
+  --halo-err:0 0 0 1px rgba(255,117,102,.34),0 0 0 4px rgba(255,117,102,.10),0 0 16px 2px rgba(255,117,102,.18);
   /* 動效 */
   --ease:cubic-bezier(.2,.7,.2,1);
   --t:.22s;
@@ -56,13 +56,14 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 .demo .grp{display:flex;align-items:center;gap:8px;min-width:0}
 .tgl{min-height:38px;padding:0 12px;border-radius:999px;border:1px solid var(--line);font-size:13px;font-weight:700;color:var(--mute);background:rgba(16,27,20,.85);white-space:nowrap;transition:color var(--t) var(--ease),border-color var(--t) var(--ease),background-color var(--t) var(--ease)}
 .tgl[aria-pressed="true"]{color:var(--accent);border-color:rgba(230,191,90,.55)}
-.seg{position:relative;display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:rgba(16,27,20,.85);border:1px solid var(--line);min-width:0;width:176px}
-.seg input{position:absolute;opacity:0;pointer-events:none}
-.seg label{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;min-height:38px;padding:0 10px;border-radius:999px;font-size:13px;font-weight:700;color:var(--mute);cursor:pointer;white-space:nowrap;transition:color var(--t) var(--ease)}
-.seg input:checked+label{color:var(--panel)}
-.seg input:focus-visible+label{outline:2px solid var(--ring);outline-offset:3px}
-.seg .knob{position:absolute;top:3px;left:3px;bottom:3px;width:calc(50% - 3px);border-radius:999px;background:linear-gradient(var(--accent),var(--accent2));transition:transform var(--t) var(--ease)}
-.seg[data-v="B"] .knob{transform:translateX(100%)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{position:relative;display:inline-flex}
+.chip input{position:absolute;opacity:0;pointer-events:none}
+.chip span{display:flex;align-items:center;min-height:36px;padding:0 11px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;font-weight:700;color:var(--mute);background:rgba(16,27,20,.85);white-space:nowrap;cursor:pointer;transition:color var(--t) var(--ease),border-color var(--t) var(--ease),background-color var(--t) var(--ease)}
+.chip input:checked+span{color:var(--panel);border-color:transparent;background:var(--accent)}
+.chip input:focus-visible+span{outline:2px solid var(--ring);outline-offset:3px}
+@media (hover:hover) and (pointer:fine){.chip input:not(:checked)+span:hover{color:var(--ink);border-color:rgba(214,180,90,.4)}}
+.demo .row-d{display:flex;flex-direction:column;gap:6px;width:100%}
 
 /* ── 頂部 ── */
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:56px}
@@ -94,7 +95,7 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 .rows li+li{border-top:1px solid rgba(214,180,90,.10)}
 @media (hover:hover) and (pointer:fine){
   .row:hover{background:rgba(214,180,90,.06);border-color:rgba(214,180,90,.28)}
-  .row:hover .go svg{transform:translateX(2px)}
+  .row:hover .go svg{opacity:1}
 }
 .row:active{background:rgba(16,27,20,.9);border-color:rgba(214,180,90,.4);box-shadow:inset 0 1px 3px rgba(16,27,20,.7);transition-duration:.06s}
 .row:focus-visible{outline:2px solid var(--ring);outline-offset:3px}
@@ -118,12 +119,65 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 .row.full .blinds{color:var(--mute)}
 .row:not(.full) .tag{display:none}
 .go{display:flex;align-items:center;gap:4px;font-size:14px;font-weight:700;color:var(--accent);white-space:nowrap}
-.go svg{width:16px;height:16px;transition:transform var(--t) var(--ease)}
-.row[aria-busy="true"] .go{color:var(--mute)}
-.mine .dot{justify-self:center;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(230,191,90,.18)}
-.mine .dot.idle{background:var(--mute);box-shadow:0 0 0 3px rgba(201,191,159,.14)}
-.toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));z-index:20;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:999px;font-size:14px;color:var(--ink);background:rgba(16,27,20,.94);border:1px solid rgba(214,180,90,.35);box-shadow:0 8px 24px rgba(16,27,20,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;opacity:0;transform:translate(-50%,8px);transition:opacity var(--t) var(--ease),transform var(--t) var(--ease)}
-.toast.on{opacity:1;transform:translate(-50%,0)}
+.go svg{width:16px;height:16px;opacity:.7;transition:opacity var(--t) var(--ease)}
+
+/* ── 我的牌桌卡（整張是一顆按鈕；回到牌桌／結帳離開） ── */
+.mine{transition:border-color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
+.mine.attn{border-color:rgba(214,180,90,.6);box-shadow:0 0 0 1px rgba(214,180,90,.38),0 0 18px 2px rgba(214,180,90,.2)}
+.my{width:100%;display:flex;flex-direction:column;gap:10px;padding:10px;text-align:left;border-radius:var(--radius-sm);border:1px solid transparent;
+  transition:background-color var(--t) var(--ease),border-color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
+.my .mt{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
+.my .txt{min-width:0;display:flex;flex-direction:column;gap:2px}
+.my .l1{display:flex;align-items:center;gap:8px;min-width:0}
+.my .dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(230,191,90,.18)}
+.my b{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.my em{font-style:normal;font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.my .lbl3{flex:none;font-size:11px;font-weight:700;line-height:18px;padding:0 7px;border-radius:999px;color:var(--accent);border:1px solid rgba(230,191,90,.45);background:rgba(230,191,90,.08)}
+.my .chips-n{display:flex;flex-direction:column;align-items:flex-end;gap:0;white-space:nowrap}
+.my .chips-n small{font-size:11px;color:var(--mute)}
+.my .chips-n strong{font-size:18px;font-weight:700;line-height:1.3;color:var(--gold);font-variant-numeric:tabular-nums}
+.my .act{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 14px;border-radius:var(--radius-sm);font-size:15px;font-weight:700;letter-spacing:.02em;
+  color:var(--accent);background:rgba(230,191,90,.12);border:1px solid rgba(230,191,90,.45);
+  transition:background-color var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
+.my .act svg{width:16px;height:16px;flex:none}
+.my .act .num{color:var(--gold);font-variant-numeric:tabular-nums}
+@media (hover:hover) and (pointer:fine){
+  .my:hover{background:rgba(214,180,90,.06);border-color:rgba(214,180,90,.28)}
+  .my:hover .act{background:rgba(230,191,90,.18);border-color:rgba(230,191,90,.65)}
+}
+.my:active{background:rgba(16,27,20,.9);border-color:rgba(214,180,90,.4);box-shadow:inset 0 1px 3px rgba(16,27,20,.7);transition-duration:.06s}
+.my:active .act{background:rgba(16,27,20,.6);box-shadow:inset 0 1px 3px rgba(16,27,20,.7);transition-duration:.06s}
+.my:focus-visible{outline:2px solid var(--ring);outline-offset:3px}
+.my[aria-busy="true"] .act{color:var(--mute);border-color:rgba(201,191,159,.35);background:transparent}
+/* 已收桌待結帳：安靜，沒有亮點，只有金色數字 */
+.my[data-k="settle"] .dot{background:var(--mute);box-shadow:0 0 0 3px rgba(201,191,159,.14)}
+.my[data-k="settle"] .lbl3{color:var(--mute);border-color:rgba(201,191,159,.4);background:rgba(201,191,159,.08)}
+.my[data-k="settle"] .act{color:var(--ink);background:rgba(243,234,210,.05);border-color:rgba(214,180,90,.3)}
+@media (hover:hover) and (pointer:fine){.my[data-k="settle"]:hover .act{background:rgba(243,234,210,.09);border-color:rgba(214,180,90,.5)}}
+
+/* 輕提示（樣張示意用；opacity 淡入淡出） */
+.toast{position:fixed;left:16px;right:16px;margin:0 auto;width:fit-content;bottom:max(20px,env(safe-area-inset-bottom));z-index:20;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:999px;font-size:14px;color:var(--ink);background:rgba(16,27,20,.94);border:1px solid rgba(214,180,90,.35);box-shadow:0 8px 24px rgba(16,27,20,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;opacity:0;transition:opacity var(--t) var(--ease)}
+.toast.on{opacity:1}
+
+/* 通知 toast（自動離座、先離開某桌）：頂部置中、可換行、有關閉鈕；只用 opacity */
+.ntc{position:fixed;z-index:30;left:16px;right:16px;top:max(12px,env(safe-area-inset-top));margin:0 auto;max-width:480px;
+  display:grid;grid-template-columns:20px minmax(0,1fr) 44px;align-items:start;gap:10px;padding:12px 4px 12px 14px;border-radius:var(--radius-md);
+  color:var(--ink);background:rgba(16,27,20,.96);border:1px solid rgba(214,180,90,.4);
+  box-shadow:inset 3px 0 0 var(--gold),0 12px 32px -6px rgba(16,27,20,.75),0 2px 6px rgba(16,27,20,.5);
+  opacity:0;visibility:hidden;transition:opacity .28s var(--ease),visibility 0s linear .28s}
+.ntc.on{opacity:1;visibility:visible;transition:opacity var(--t) var(--ease),visibility 0s}
+.ntc .ni{width:20px;height:20px;margin-top:1px;color:var(--gold)}
+.ntc .nb{min-width:0;padding-top:1px}
+.ntc .nt{font-size:14.5px;font-weight:700;line-height:1.45}
+.ntc .nd{font-size:13px;color:var(--mute);line-height:1.5;margin-top:2px}
+.ntc .nd:empty{display:none}
+.ntc .na{display:inline-flex;align-items:center;min-height:36px;margin-top:6px;padding:0 12px;border-radius:var(--radius-sm);font-size:13.5px;font-weight:700;color:var(--accent);border:1px solid rgba(230,191,90,.45);background:rgba(230,191,90,.1);transition:background-color var(--t) var(--ease),border-color var(--t) var(--ease)}
+.ntc .na[hidden]{display:none}
+.ntc .nx{width:44px;height:44px;margin:-10px 0 -10px;display:grid;place-items:center;border-radius:var(--radius-sm);color:var(--mute);transition:color var(--t) var(--ease),background-color var(--t) var(--ease)}
+.ntc .nx svg{width:16px;height:16px}
+@media (hover:hover) and (pointer:fine){.ntc .nx:hover{color:var(--ink);background:rgba(214,180,90,.08)}.ntc .na:hover{background:rgba(230,191,90,.18)}}
+.ntc .nx:active,.ntc .na:active{background:rgba(16,27,20,.9);transition-duration:.06s}
+.ntc .bar{position:absolute;left:14px;right:14px;bottom:0;height:2px;border-radius:2px;background:rgba(214,180,90,.5);opacity:0}
 
 /* E1 空狀態 */
 .empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:18px 16px 22px}
@@ -159,29 +213,7 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 .status .msg{overflow:hidden;text-overflow:ellipsis}
 .spin{flex:none;width:16px;height:16px;border-radius:50%;border:2px solid rgba(214,180,90,.28);border-top-color:var(--accent);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-#stA .spin{display:none} /* A 的轉圈在框內，狀態列只留文字 */
 .again{font-size:13px;color:var(--mute);text-decoration:underline;text-underline-offset:3px;padding:0 2px;margin-left:auto;min-height:20px}
-
-/* A：單框寬字距 */
-.fa{position:relative;flex:none;width:148px}
-.fa input{display:block;width:100%;height:48px;padding:0 28px;border-radius:var(--radius-sm);
-  font-family:var(--uf);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.5em;text-indent:.5em;text-align:center;
-  color:var(--ink);background:var(--field);border:1px solid var(--line-in);outline:none;-webkit-appearance:none;appearance:none;caret-color:var(--accent);
-  transition:border-color var(--t) var(--ease),box-shadow var(--t) var(--ease)}
-.fa input::placeholder{font-size:16px;font-weight:400;letter-spacing:.3em;text-indent:.3em;color:rgba(201,191,159,.5)}
-@media (hover:hover) and (pointer:fine){.fa input:hover:not(:focus){border-color:rgba(214,180,90,.5)}}
-.fa input:focus{border-color:var(--gold);box-shadow:var(--halo)}
-.fa[data-s="typing"] input{border-color:var(--line-hi)}
-.fa[data-s="typing"] input:focus{border-color:var(--gold)}
-.fa[data-s="joining"] input{color:rgba(243,234,210,.6);border-color:var(--line-hi)}
-.fa[data-s="error"] input{border-color:var(--warn)}
-.fa[data-s="error"] input:focus{box-shadow:var(--halo-err)}
-.fa[data-s="success"] input{border-color:var(--accent);color:var(--accent)}
-.fa .slot-r{position:absolute;right:10px;top:50%;width:16px;height:16px;margin-top:-8px;display:grid;place-items:center;pointer-events:none}
-.fa .slot-r>*{grid-area:1/1;opacity:0;transition:opacity var(--t) var(--ease)}
-.fa[data-s="joining"] .slot-r .spin{opacity:1}
-.fa[data-s="success"] .slot-r .ok{opacity:1}
-.fa .slot-r .ok{width:16px;height:16px;color:var(--accent)}
 
 /* B：三格（一個真 input 驅動） */
 .fb{position:relative;flex:none}
@@ -224,6 +256,7 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
   .live-dot{animation:none!important}
   .spin{animation:none!important;border-color:rgba(214,180,90,.28);border-top-color:var(--accent);border-right-color:var(--accent)}
   .fb.focus .cell.cur .caret{animation:none!important;opacity:1}
+  .ntc,.ntc.on,.toast{transition:none!important}
 }
 </style>
 </head>
@@ -231,11 +264,13 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 <div class="shell">
 
   <div class="demo" role="group" aria-label="樣張控制（正式版沒有）">
-    <div class="grp"><small>房號樣式</small>
-      <div class="seg" id="seg" data-v="A">
-        <span class="knob" aria-hidden="true"></span>
-        <input type="radio" name="variant" id="vA" value="A" checked><label for="vA">A 單框</label>
-        <input type="radio" name="variant" id="vB" value="B"><label for="vB">B 三格</label>
+    <div class="row-d"><small>我的牌桌狀態</small>
+      <div class="chips" role="radiogroup" aria-label="我的牌桌狀態" id="stSel">
+        <label class="chip"><input type="radio" name="my" value="none"><span>無牌桌</span></label>
+        <label class="chip"><input type="radio" name="my" value="host" checked><span>我是房主</span></label>
+        <label class="chip"><input type="radio" name="my" value="guest"><span>坐在別人桌</span></label>
+        <label class="chip"><input type="radio" name="my" value="settle"><span>已收桌待結帳</span></label>
+        <label class="chip"><input type="radio" name="my" value="away"><span>自動離座回來（toast）</span></label>
       </div>
     </div>
     <button type="button" class="tgl" id="tglEmpty" aria-pressed="false">清單空狀態</button>
@@ -243,21 +278,24 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
 
   <header class="top">
     <div class="who"><span class="av" aria-hidden="true">謝</span><span>謝宗良</span></div>
-    <div class="bal"><span>帳戶 0</span><span>牌桌中 2,000</span><strong>總計 2,000</strong></div>
+    <div class="bal" id="bal"><span>帳戶 <span id="bAcc">160</span></span><span>牌桌中 <span id="bTab">1,840</span></span><strong>總計 2,000</strong></div>
   </header>
 
   <div class="cols">
     <div class="main">
 
-      <section class="panel mine" aria-labelledby="myH">
-        <div class="panel-h"><h2 id="myH">我的牌桌</h2><span>點一下回座</span></div>
-        <ul class="rows">
-          <li><button type="button" class="row" data-name="週五牌局" data-act="seat">
-            <span class="dot" aria-hidden="true"></span>
-            <span class="txt"><span class="l1"><b>週五牌局</b></span><em>房號 482 · 座位 3 · 籌碼 1,840</em></span>
-            <span class="go"><span class="go-t">回座</span><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg></span>
-          </button></li>
-        </ul>
+      <section class="panel mine" id="mine" aria-labelledby="myH">
+        <div class="panel-h"><h2 id="myH">我的牌桌</h2><span id="myNote">點一下回到牌桌</span></div>
+        <button type="button" class="my" id="myCard" data-k="seat">
+          <span class="mt">
+            <span class="txt">
+              <span class="l1"><span class="dot" aria-hidden="true"></span><b id="myName">週五牌局</b><span class="lbl3" id="myTag">房主</span></span>
+              <em id="myMeta">房號 482 · 盲注 10/20 · 4/6 人 · 座位 3</em>
+            </span>
+            <span class="chips-n"><small id="myChipL">我的籌碼</small><strong id="myChips">1,840</strong></span>
+          </span>
+          <span class="act" id="myAct"></span>
+        </button>
       </section>
 
       <section class="panel open" aria-labelledby="openH">
@@ -284,23 +322,8 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
         <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 3.5v11M3.5 9h11"/></svg>開新牌桌
       </button>
 
-      <!-- A：單框 -->
-      <section class="join" id="joinA">
-        <div class="jr">
-          <div class="jt"><label class="lbl" for="codeA">有房號？</label><span class="sub">輸入 3 位數直接加入</span></div>
-          <div class="fa" id="fa" data-s="empty">
-            <input id="codeA" name="roomcode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3"
-              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go"
-              placeholder="000" aria-describedby="stA">
-            <span class="slot-r" aria-hidden="true"><span class="spin"></span>
-              <svg class="ok" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5 7.5 13 14 5.5"/></svg></span>
-          </div>
-        </div>
-        <div class="status" id="stA" data-s="empty" aria-live="polite"><span class="msg">打滿 3 位會自動加入</span></div>
-      </section>
-
       <!-- B：三格 -->
-      <section class="join" id="joinB" hidden>
+      <section class="join" id="joinB">
         <div class="jr">
           <div class="jt"><label class="lbl" for="codeB">有房號？</label><span class="sub">輸入 3 位數直接加入</span></div>
           <div class="fb" id="fb" data-s="empty">
@@ -327,6 +350,11 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
   </div>
 
   <p class="toast" id="toast" role="status" aria-live="polite"></p>
+  <div class="ntc" id="ntc" role="status" aria-live="polite" aria-atomic="true">
+    <svg class="ni" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="7.6"/><path d="M10 9v4.6M10 6.3v.1"/></svg>
+    <div class="nb"><p class="nt" id="ntcT"></p><p class="nd" id="ntcD"></p><button type="button" class="na" id="ntcA" hidden></button></div>
+    <button type="button" class="nx" id="ntcX" aria-label="關閉通知"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+  </div>
 
   <footer class="foot">
     <button type="button" class="link">同一支手機輪流玩</button>
@@ -343,7 +371,7 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
   };
   const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  /* ── 房號輸入（A/B 共用狀態機） ── */
+  /* ── 房號輸入（B 三格狀態機） ── */
   function makeJoin({ input, wrap, status, idleMsg, onRender }) {
     let state = 'empty', timer = 0;
     const set = (s, html) => {
@@ -399,9 +427,6 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
     return { reset, get state() { return state; } };
   }
 
-  const A = makeJoin({ input: document.getElementById('codeA'), wrap: document.getElementById('fa'),
-    status: document.getElementById('stA'), idleMsg: '打滿 3 位會自動加入' });
-
   const fb = document.getElementById('fb'), inB = document.getElementById('codeB');
   const cells = [...fb.querySelectorAll('.cell')];
   const renderB = () => {
@@ -423,14 +448,6 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
   inB.addEventListener('keyup', renderB);
   document.addEventListener('selectionchange', () => { if (document.activeElement === inB) renderB(); });
   renderB();
-
-  const seg = document.getElementById('seg');
-  seg.addEventListener('change', (e) => {
-    const v = e.target.value; seg.dataset.v = v;
-    document.getElementById('joinA').hidden = v !== 'A';
-    document.getElementById('joinB').hidden = v !== 'B';
-    A.reset(); B.reset();
-  });
 
   /* ── 可加入的牌桌（假資料＋即時人數） ── */
   const tables = [
@@ -485,20 +502,96 @@ button:focus-visible,[role="button"]:focus-visible{outline:2px solid var(--ring)
   /* ── 點列：回座／進桌觀戰 ── */
   const toast = document.getElementById('toast'); let tt = 0;
   const flash = (_, msg) => { toast.textContent = msg; toast.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => toast.classList.remove('on'), 2200); };
-  document.querySelector('.mine .row').addEventListener('click', function () {
-    if (this.getAttribute('aria-busy') === 'true') return;
-    this.setAttribute('aria-busy', 'true');
-    const t = this.querySelector('.go-t'); t.textContent = '回座中…';
-    setTimeout(() => { this.removeAttribute('aria-busy'); t.textContent = '回座'; flash(null, `（樣張）已回到「${this.dataset.name}」`); }, DELAY);
-  });
   list.addEventListener('click', (e) => {
     const row = e.target.closest('.row'); if (!row) return;
     const t = tables.find((x) => x.id === row.dataset.id);
     flash(null, t.seated >= 6 ? `（樣張）進入「${t.name}」觀戰` : `（樣張）進入「${t.name}」，點空位入座`);
   });
-  document.getElementById('btnCreate').addEventListener('click', () => flash(null, '（樣張）開新牌桌 → 進入開房頁'));
 
-  window.__demo = { A, B, tables, setSeated, stop: () => clearInterval(tick) };
+  /* ── 通知 toast：5 秒自動消失，滑過或聚焦時暫停 ── */
+  const ntc = document.getElementById('ntc'), nT = document.getElementById('ntcT'), nD = document.getElementById('ntcD'), nA = document.getElementById('ntcA');
+  let nTimer = 0, nAct = null;
+  const NTC_MS = 5000;
+  const hideNtc = () => { clearTimeout(nTimer); ntc.classList.remove('on'); };
+  const armNtc = () => { clearTimeout(nTimer); nTimer = setTimeout(hideNtc, NTC_MS); };
+  function notify(title, desc = '', action = null) {
+    nT.textContent = title; nD.textContent = desc;
+    nAct = action; nA.hidden = !action; if (action) nA.textContent = action.label;
+    ntc.classList.add('on'); armNtc();
+  }
+  document.getElementById('ntcX').addEventListener('click', hideNtc);
+  nA.addEventListener('click', () => { hideNtc(); nAct && nAct.run(); });
+  ntc.addEventListener('pointerenter', () => clearTimeout(nTimer));
+  ntc.addEventListener('pointerleave', () => { if (ntc.classList.contains('on')) armNtc(); });
+  ntc.addEventListener('focusin', () => clearTimeout(nTimer));
+  ntc.addEventListener('focusout', (e) => { if (!ntc.contains(e.relatedTarget) && ntc.classList.contains('on')) armNtc(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ntc.classList.contains('on')) hideNtc(); });
+
+  /* ── 我的牌桌：狀態 ── */
+  const ARROW = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>';
+  const fmt = (n) => n.toLocaleString('en-US');
+  const MY = {
+    host:   { k: 'seat', name: '週五牌局', tag: '房主', meta: '房號 482 · 盲注 10/20 · 4/6 人 · 座位 3', chipL: '我的籌碼', chips: 1840, note: '點一下回到牌桌', btn: false, acc: 160, tab: 1840 },
+    guest:  { k: 'seat', name: '週六家族盃', tag: '入座中', meta: '房主 阿姨 · 房號 317 · 盲注 10/20 · 3/6 人', chipL: '我的籌碼', chips: 1840, note: '點一下回到牌桌', btn: true, acc: 160, tab: 1840 },
+    settle: { k: 'settle', name: '週五牌局', tag: '已收桌', meta: '沒人在線 30 分鐘，已自動收桌', chipL: '可帶回', chips: 1840, note: '結帳後籌碼回到帳戶', btn: true, acc: 160, tab: 1840 },
+    none:   { none: true, btn: true, acc: 2000, tab: 0 },
+    away:   { none: true, btn: true, acc: 2000, tab: 0 }
+  };
+  const mine = document.getElementById('mine'), my = document.getElementById('myCard'), btn = document.getElementById('btnCreate');
+  let cur = 'host', busyT = 0;
+  function render(k) {
+    cur = k; const d = MY[k];
+    clearTimeout(busyT); my.removeAttribute('aria-busy'); mine.classList.remove('attn');
+    toast.classList.remove('on');
+    mine.hidden = !!d.none; btn.hidden = !d.btn;
+    document.getElementById('bAcc').textContent = fmt(d.acc); document.getElementById('bTab').textContent = fmt(d.tab);
+    if (d.none) return;
+    my.dataset.k = d.k;
+    document.getElementById('myName').textContent = d.name;
+    document.getElementById('myTag').textContent = d.tag;
+    document.getElementById('myMeta').textContent = d.meta;
+    document.getElementById('myChipL').textContent = d.chipL;
+    document.getElementById('myChips').textContent = fmt(d.chips);
+    document.getElementById('myNote').textContent = d.note;
+    setAct(d);
+  }
+  function setAct(d, busy) {
+    const act = document.getElementById('myAct');
+    if (d.k === 'settle') {
+      act.innerHTML = busy ? '結帳中…' : `<span>結帳離開（帶回 <span class="num">${fmt(d.chips)}</span>）</span>`;
+      my.setAttribute('aria-label', `${d.name}，已自動收桌。結帳離開，帶回 ${fmt(d.chips)} 籌碼`);
+    } else {
+      act.innerHTML = busy ? '回座中…' : `回到牌桌${ARROW}`;
+      my.setAttribute('aria-label', `回到牌桌：${d.name}，${d.tag}，${d.meta.replace(/ · /g, '，')}，我的籌碼 ${fmt(d.chips)}`);
+    }
+  }
+  my.addEventListener('click', () => {
+    if (my.getAttribute('aria-busy') === 'true') return;
+    const d = MY[cur]; my.setAttribute('aria-busy', 'true'); setAct(d, true);
+    busyT = setTimeout(() => {
+      my.removeAttribute('aria-busy');
+      if (d.k === 'settle') { setRadio('none'); render('none'); flash(null, `（樣張）已結帳，${fmt(d.chips)} 回到帳戶`); }
+      else { setAct(d); flash(null, `（樣張）已回到「${d.name}」`); }
+    }, DELAY);
+  });
+  btn.addEventListener('click', () => {
+    if (cur === 'guest') {
+      const d = MY.guest;
+      notify(`先離開「${d.name}」`, '你正坐在這桌，離座結帳後才能開新牌桌。', { label: '回到這一桌', run: () => my.click() });
+      mine.classList.add('attn'); setTimeout(() => mine.classList.remove('attn'), 1600);
+      return;
+    }
+    flash(null, '（樣張）開新牌桌 → 進入開房頁');
+  });
+  const sel = document.getElementById('stSel');
+  const setRadio = (k) => { sel.querySelector(`input[value="${k}"]`).checked = true; };
+  sel.addEventListener('change', (e) => {
+    const k = e.target.value; hideNtc(); render(k);
+    if (k === 'away') notify('你暫離超過 30 分鐘，已自動離座，籌碼已回帳戶');
+  });
+  render('host');
+
+  window.__demo = { B, tables, setSeated, render, notify, hideNtc, NTC_MS, stop: () => clearInterval(tick) };
 })();
 </script>
 </body>
