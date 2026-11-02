@@ -306,6 +306,20 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/pokerCodes/$(d.code)).data.roomId == roomId
           && getAfter(playerPath(request.auth.uid)).data.hostRoomId == roomId;
       }
+      // 舊客戶端無 hostRoomId：若 player 已指向自己開著的桌（hostRoomId 或 lastRoomId），拒第二桌
+      function hostHasOpenTable() {
+        let p = playerPath(request.auth.uid);
+        return exists(p) && (
+          (get(p).data.get('hostRoomId', null) != null
+            && exists(roomPath(get(p).data.hostRoomId))
+            && roomOpen(get(roomPath(get(p).data.hostRoomId)).data.status)
+            && get(roomPath(get(p).data.hostRoomId)).data.hostUid == request.auth.uid)
+          || (get(p).data.lastRoomId is string
+            && exists(roomPath(get(p).data.lastRoomId))
+            && roomOpen(get(roomPath(get(p).data.lastRoomId)).data.status)
+            && get(roomPath(get(p).data.lastRoomId)).data.hostUid == request.auth.uid)
+        );
+      }
       // 線上舊客戶端建房：status open、6 碼、無 lobby／hostRoomId（部署相容，merge 後可刪）
       function createLegacyOpenRoomOk() {
         let d = request.resource.data;
@@ -332,7 +346,8 @@ service cloud.firestore {
           && d.code is string && d.code.matches('[0-9]{6}')
           && validConfig(d.config)
           && betweenHands(d.pub)
-          && getAfter(/databases/$(database)/documents/pokerCodes/$(d.code)).data.roomId == roomId;
+          && getAfter(/databases/$(database)/documents/pokerCodes/$(d.code)).data.roomId == roomId
+          && !hostHasOpenTable();
       }
 
       allow get: if signedIn() && (request.auth.uid in resource.data.members || roomOpen(resource.data.status));
@@ -401,7 +416,9 @@ service cloud.firestore {
           && d.createdAt == request.time
           && d.expiresAt >= request.time + duration.value(24, 'h') - duration.value(10, 'm')
           && d.expiresAt <= request.time + duration.value(24, 'h') + duration.value(10, 'm')
-          && getAfter(roomPath(d.roomId)).data.hostUid == request.auth.uid;
+          && getAfter(roomPath(d.roomId)).data.hostUid == request.auth.uid
+          // 房號文件 id 必須等於房間自己的 code（防一桌掛滿 1000 個碼）
+          && getAfter(roomPath(d.roomId)).data.code == code;
       }
       function codeReclaimable() {
         return resource.data.expiresAt < request.time
@@ -435,13 +452,14 @@ service cloud.firestore {
       function createOk() {
         let d = request.resource.data;
         let r = exists(roomPath(d.lastRoomId)) ? roomOf(d.lastRoomId) : getAfter(roomPath(d.lastRoomId)).data;
-        return d.keys().hasAll(playerKeys()) && d.keys().hasOnly(playerKeys())
+        // hostRoomId 選填：線上 main ensurePlayerGrant 不寫此欄
+        return d.keys().hasAll(playerKeys().removeAll(['hostRoomId'])) && d.keys().hasOnly(playerKeys())
           && strOk(d.displayName, 60) && urlOk(d.get('photoURL', null))
           && d.lastRoomId is string && request.auth.uid in r.members
           && d.bank == r.config.newPlayerChips && d.inPlay == 0 && d.total == d.bank
           && d.tableRoomId == null && d.sessionNo == 0
           && d.topUps == 0 && d.topUpChips == 0 && d.handsPlayed == 0
-          && (d.hostRoomId == null || d.hostRoomId == d.lastRoomId)
+          && (d.get('hostRoomId', null) == null || d.hostRoomId == d.lastRoomId)
           && d.createdAt == request.time && d.updatedAt == request.time
           && existsAfter(ledgerPath(uid, d.lastRoomId + '_0_grant'));
       }

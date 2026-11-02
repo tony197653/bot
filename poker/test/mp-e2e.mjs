@@ -127,7 +127,8 @@ async function makePlayer(browser, base, name, uid, viewport) {
 }
 
 async function createAndShare(host) {
-  await host.page.click('[data-act="create"]');
+  // Prefer visible CTA (empty-state #mpBtnCreateE may stay in DOM under [hidden])
+  await host.page.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
   await host.page.waitForSelector('form, .mp-create', { timeout: 8000 });
   await host.page.click('button[type="submit"]');
   await host.page.waitForSelector('.mp-url', { timeout: 20000 });
@@ -812,6 +813,8 @@ async function runOpenTablesList(browser, base, viewport, label) {
 
   const before = await viewer.page.evaluate((ids) => {
     const rows = [...document.querySelectorAll('.mp-open .mp-row[data-act="open-table"]')];
+    const empty = document.getElementById('mpOpenEmpty');
+    const emptyCs = empty ? getComputedStyle(empty) : null;
     const byId = Object.fromEntries(
       rows.map((r) => [r.getAttribute('data-rid'), (r.textContent || '').replace(/\s+/g, ' ')]),
     );
@@ -822,6 +825,9 @@ async function runOpenTablesList(browser, base, viewport, label) {
         return [id, { top: b.top, height: b.height, width: b.width, left: b.left }];
       }),
     );
+    const sampleRow = rows[0];
+    const sampleB = sampleRow?.querySelector('b');
+    const sampleEm = sampleRow?.querySelector('em');
     return {
       n: rows.length,
       hasTitle: /可加入的牌桌/.test(document.body.innerText),
@@ -835,6 +841,16 @@ async function runOpenTablesList(browser, base, viewport, label) {
         return m ? Number(m[1]) : null;
       }),
       boxes,
+      // empty under list must not show when tables exist ([hidden] vs display:flex)
+      emptyHiddenAttr: empty?.hidden === true || empty?.hasAttribute('hidden') === true,
+      emptyDisplayNone: emptyCs?.display === 'none',
+      rowLineHeightOk:
+        sampleB &&
+        parseFloat(getComputedStyle(sampleB).lineHeight) >=
+          parseFloat(getComputedStyle(sampleB).fontSize) * 1.45 &&
+        sampleEm &&
+        parseFloat(getComputedStyle(sampleEm).lineHeight) >=
+          parseFloat(getComputedStyle(sampleEm).fontSize) * 1.45,
     };
   }, [t1.roomId, t2.roomId, t3.roomId]);
 
@@ -907,13 +923,16 @@ async function runOpenTablesList(browser, base, viewport, label) {
 
   // Code reuse: force Math.random toward t1.code and create
   const reuser = await makePlayer(browser, base, '宜靜', `reuse${label}`, viewport);
-  await reuser.page.waitForSelector('[data-act="create"]', { timeout: 15000 });
+  await reuser.page
+    .locator('.mp-btn-primary[data-act="create"]:visible')
+    .first()
+    .waitFor({ timeout: 15000 });
   await reuser.page.evaluate((want) => {
     const n = Number(want);
     window.__qaOrigRandom = Math.random;
     Math.random = () => (n + 0.05) / 1000;
   }, Number(t1.code));
-  await reuser.page.click('[data-act="create"]');
+  await reuser.page.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
   await reuser.page.waitForSelector('form, .mp-create', { timeout: 8000 });
   await reuser.page.click('button[type="submit"]');
   await reuser.page.waitForSelector('.mp-url', { timeout: 20000 });
@@ -941,7 +960,9 @@ async function runOpenTablesList(browser, base, viewport, label) {
   });
   await stalePage.evaluate(([u, n]) => window.__qaSignIn(u, n), [`stale${label}`, '聰實']);
   await stalePage.waitForTimeout(3500);
-  const ended = await stalePage.evaluate(() => /牌桌已結束/.test(document.body.innerText));
+  const ended = await stalePage.evaluate(() =>
+    /這桌已經結束了|牌桌已結束/.test(document.body.innerText),
+  );
   await stalePage.screenshot({
     path: join(ART, `mp-${label}-stale-link.png`),
     fullPage: true,
@@ -966,6 +987,9 @@ async function runOpenTablesList(browser, base, viewport, label) {
       before.our >= 3 &&
       before.hasTitle &&
       before.hasThreeCells &&
+      before.emptyHiddenAttr &&
+      before.emptyDisplayNone &&
+      before.rowLineHeightOk &&
       seatsLive &&
       noLayoutShift &&
       !afterClose.stillHas &&
@@ -1035,7 +1059,7 @@ async function runMineCardStates(browser, base, viewport, label) {
   }));
   const guestMenu = await guest.page.evaluate(() => window.__qaOpenMenu?.() || []);
   await guest.page.evaluate(() => document.getElementById('mpMenuBtn')?.click());
-  await guest.page.click('.mp-btn-primary[data-act="create"]');
+  await guest.page.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
   await guest.page.waitForTimeout(400);
   const leaveHint = await guest.page.evaluate(() => {
     const n = document.getElementById('mpNtc');
