@@ -46,18 +46,44 @@ export function escHtml(s) {
  * @param {Array<{id:string,src:string,alt:string,caption?:string}>} figures
  * @param {string} [className]
  */
+function safeFigSrc(src) {
+  const s = String(src || '');
+  if (!s) return '';
+  // 截短／無效的 data URL 會觸發 ERR_INVALID_URL
+  if (s.startsWith('data:')) {
+    if (/[……]/.test(s) || s.includes('（截短）') || s.length < 32) return '';
+  }
+  try {
+    if (s.startsWith('http:') || s.startsWith('https:') || s.startsWith('data:') || s.startsWith('blob:')) {
+      return s;
+    }
+  } catch {
+    return '';
+  }
+  return s;
+}
+
 export function figuresHtml(figures, className = 'fig') {
   if (!figures?.length) return '';
   return figures
-    .map(
-      (f) =>
-        `<figure class="${className}">
-          <button type="button" class="fig-zoom" data-src="${escHtml(f.src)}" data-alt="${escHtml(f.alt)}" aria-label="放大圖片：${escHtml(f.alt)}">
-            <img src="${escHtml(f.src)}" alt="${escHtml(f.alt)}" loading="lazy" decoding="async" width="640" height="360">
+    .map((f) => {
+      const src = safeFigSrc(f.src);
+      if (!src) {
+        return `<figure class="${className} fig-missing"><p class="mute">（圖檔無法顯示）</p>${
+          f.caption ? `<figcaption>${escHtml(f.caption)}</figcaption>` : ''
+        }</figure>`;
+      }
+      const nw = f.crop?.w || f.width || '';
+      const nh = f.crop?.h || f.height || '';
+      const wh =
+        nw && nh ? ` width="${escHtml(String(nw))}" height="${escHtml(String(nh))}"` : '';
+      return `<figure class="${className}">
+          <button type="button" class="fig-zoom" data-src="${escHtml(src)}" data-alt="${escHtml(f.alt)}" aria-label="放大圖片：${escHtml(f.alt)}">
+            <img src="${escHtml(src)}" alt="${escHtml(f.alt)}" loading="lazy" decoding="async"${wh}>
           </button>
           ${f.caption ? `<figcaption>${escHtml(f.caption)}</figcaption>` : ''}
-        </figure>`,
-    )
+        </figure>`;
+    })
     .join('');
 }
 

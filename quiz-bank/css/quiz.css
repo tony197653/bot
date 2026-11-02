@@ -1,7 +1,9 @@
 /* 作答＋結算延伸（template-demo 與正式站共用） */
 body[data-view=quiz] .app-shell .app-top,
-body[data-view=quiz] .app-shell .app-main{padding:0}
-body[data-view=quiz] .app-shell .app-main{max-width:none}
+body[data-view=quiz] .app-shell .app-nav,
+body[data-view=quiz] .app-shell [data-drawer-toggle],
+body[data-view=quiz] .app-shell .nav-avatar{display:none!important}
+body[data-view=quiz] .app-shell .app-main{padding:0;max-width:none}
 body[data-view=result] .app-shell .app-main{max-width:808px}
 /* 超過約 12 題：只有泡泡列橫向捲，頁面本身不橫捲 */
 .strip.strip-scroll,.bub-strip.strip-scroll{
@@ -21,12 +23,13 @@ body[data-view=result] .app-shell .app-main{max-width:808px}
   html,body{overflow-x:hidden;overflow-x:clip;max-width:100vw}
 }
 .group-pass{margin-bottom:12px}
-.fig-zoom{border:0;padding:0;background:none;cursor:pointer;border-radius:var(--r-sm);display:block;max-width:100%}
-.fig-zoom img{max-width:100%;height:auto;display:block;border-radius:var(--r-sm)}
+.fig,.fig-zoom{max-width:100%}
+.fig-zoom{border:0;padding:0;background:none;cursor:pointer;border-radius:var(--r-sm);display:block;width:fit-content;max-width:100%}
+.fig-zoom img,.fig img{max-width:100%;width:auto;height:auto;max-height:min(70dvh,640px);object-fit:contain;display:block;border-radius:var(--r-sm)}
 .lightbox{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px}
 .lightbox-backdrop{position:absolute;inset:0;background:rgba(31,31,29,.72)}
 .lightbox-panel{position:relative;z-index:1;max-width:min(100%,900px)}
-.lightbox-panel img{max-width:100%;max-height:90dvh;border-radius:var(--r);display:block}
+.lightbox-panel img{max-width:100%;width:auto;height:auto;max-height:90dvh;object-fit:contain;border-radius:var(--r);display:block}
 .lightbox-close{position:absolute;top:8px;right:8px;z-index:2}
 .lightbox-open{overflow:hidden}
 body[data-view=result] .result{max-width:808px;margin:0 auto}

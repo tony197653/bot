@@ -197,6 +197,17 @@ export async function renderImport(mount, ctx) {
     return !!state.batchAck;
   }
 
+  /** 任一題仍有未消紅標（含 LOW_CONFIDENCE）時不可存入 */
+  function hasOpenQuestionFlags() {
+    if (!state.batch?.questions?.length) return false;
+    return state.batch.questions.some((q) => undismissedFlags(q.id).length > 0);
+  }
+
+  function canSave() {
+    const checkedN = state.batch?.questions?.filter((q) => q.review?.status === 'checked').length || 0;
+    return checkedN > 0 && batchGateOk() && !hasOpenQuestionFlags();
+  }
+
   async function parseInput(text) {
     const data = JSON.parse(text);
     existingIds = await loadExistingIds(ctx);
@@ -220,11 +231,25 @@ export async function renderImport(mount, ctx) {
       ctx.toast?.('請先處理整批紅標（按「我知道了」）');
       return;
     }
+    if (hasOpenQuestionFlags()) {
+      ctx.toast?.('還有紅標題未處理，請先確認或按「我看過了」');
+      return;
+    }
     const checked = state.batch.questions.filter((q) => q.review?.status === 'checked');
     if (!checked.length) {
       ctx.toast?.('沒有已確認的題目可存入');
       return;
     }
+    const saveBtn = mount.querySelector('#import-save');
+    const prevLabel = saveBtn?.textContent || '';
+    if (saveBtn) {
+      if (saveBtn.dataset.busy === '1') return;
+      saveBtn.dataset.busy = '1';
+      saveBtn.style.width = `${saveBtn.getBoundingClientRect().width}px`;
+      saveBtn.disabled = true;
+      saveBtn.textContent = '存入中…';
+    }
+    try {
     const { db, fs } = await ensureFb(ctx);
     const book = state.batch.book;
     const bookRef = fs.doc(db, 'banks', book.bookId);
@@ -305,6 +330,15 @@ export async function renderImport(mount, ctx) {
     existingIds = await loadExistingIds(ctx);
     saveState();
     paint();
+    } catch (err) {
+      ctx.toast?.(err?.message || '存入失敗，請稍後再試');
+      if (saveBtn) {
+        saveBtn.dataset.busy = '';
+        saveBtn.style.width = '';
+        saveBtn.disabled = !canSave();
+        saveBtn.textContent = prevLabel || `存入 ${checked.length} 題`;
+      }
+    }
   }
 
   function paintEditor(q) {
@@ -351,7 +385,7 @@ export async function renderImport(mount, ctx) {
         flags.length ? ' disabled' : ''
       }>這題確認</button>
       <button type="button" class="btn b5" data-act="delete-q">刪題</button>
-      <label>換圖<input type="file" accept="image/*" id="fig-file"></label>
+      <label class="btn b2 fig-upload">換圖<input type="file" accept="image/*" id="fig-file" hidden></label>
     </div>`;
   }
 
@@ -524,13 +558,18 @@ export async function renderImport(mount, ctx) {
           ? paintEditor(state.batch.questions.find((q) => q.id === state.selectedId))
           : '';
 
+    const saveDisabled = !canSave();
+    const saveHint = hasOpenQuestionFlags()
+      ? '<p class="mute save-hint">還有紅標題未處理，存入已停用</p>'
+      : '';
     mount.innerHTML = `<div class="page import">
+      <h1 class="page-title">匯入校對</h1>
       <ol class="p3 steps"><li class="${step >= 1 ? 'on' : ''}">① 選檔</li><li class="${step >= 2 ? 'on' : ''}">② 紅標</li><li class="${step >= 3 ? 'on' : ''}">③ 預覽</li></ol>
       <div class="tabs g2">
-        <button type="button" data-tab="all" class="${state.tab === 'all' ? 'on' : ''}">全部</button>
-        <button type="button" data-tab="flagged" class="${state.tab === 'flagged' ? 'on' : ''}">紅標</button>
-        <button type="button" data-tab="checked" class="${state.tab === 'checked' ? 'on' : ''}">已確認</button>
-        <button type="button" data-tab="reports" class="${state.tab === 'reports' ? 'on' : ''}">回報</button>
+        <button type="button" class="tab${state.tab === 'all' ? ' on' : ''}" data-tab="all">全部</button>
+        <button type="button" class="tab${state.tab === 'flagged' ? ' on' : ''}" data-tab="flagged">紅標</button>
+        <button type="button" class="tab${state.tab === 'checked' ? ' on' : ''}" data-tab="checked">已確認</button>
+        <button type="button" class="tab${state.tab === 'reports' ? ' on' : ''}" data-tab="reports">回報</button>
       </div>
       ${
         state.tab !== 'reports' && step === 1
@@ -566,11 +605,12 @@ export async function renderImport(mount, ctx) {
         ${
           state.tab !== 'reports' && state.batch
             ? `<footer class="dock">
+          ${saveHint}
           <button type="button" class="btn b2" id="confirm-unflagged"${
             unflagged.length ? '' : ' disabled'
           }>確認所有無旗標題目（${unflagged.length}）</button>
           <button type="button" class="btn b1" id="import-save"${
-            !checkedN || !batchGateOk() ? ' disabled' : ''
+            saveDisabled ? ' disabled' : ''
           }>存入 ${checkedN} 題</button>
         </footer>`
             : ''
@@ -652,25 +692,44 @@ export async function renderImport(mount, ctx) {
     mount.querySelector('#report-save')?.addEventListener('click', async () => {
       const q = state.batch.questions.find((x) => x.id === state.reportFocus?.qid);
       if (!q || !state.reportFocus) return;
-      const { db, fs } = await ensureFb(ctx);
-      await fs.setDoc(
-        fs.doc(db, 'questions', q.id),
-        {
-          ...q,
-          updatedAt: fs.serverTimestamp(),
-          review: {
-            ...q.review,
-            status: 'checked',
-            checkedBy: ctx.user.email,
-            checkedAt: new Date().toISOString(),
+      const btn = mount.querySelector('#report-save');
+      if (btn?.dataset.busy === '1') return;
+      const prev = btn?.textContent || '存這題';
+      if (btn) {
+        btn.dataset.busy = '1';
+        btn.style.width = `${btn.getBoundingClientRect().width}px`;
+        btn.disabled = true;
+        btn.textContent = '儲存中…';
+      }
+      try {
+        const { db, fs } = await ensureFb(ctx);
+        await fs.setDoc(
+          fs.doc(db, 'questions', q.id),
+          {
+            ...q,
+            updatedAt: fs.serverTimestamp(),
+            review: {
+              ...q.review,
+              status: 'checked',
+              checkedBy: ctx.user.email,
+              checkedAt: new Date().toISOString(),
+            },
           },
-        },
-        { merge: true },
-      );
-      await fs.updateDoc(fs.doc(db, 'reports', state.reportFocus.id), { status: 'done' });
-      ctx.toast?.('已存這題並標記回報完成');
-      state.reportFocus = null;
-      paint();
+          { merge: true },
+        );
+        await fs.updateDoc(fs.doc(db, 'reports', state.reportFocus.id), { status: 'done' });
+        ctx.toast?.('已存這題並標記回報完成');
+        state.reportFocus = null;
+        paint();
+      } catch (err) {
+        ctx.toast?.(err?.message || '儲存失敗');
+        if (btn) {
+          btn.dataset.busy = '';
+          btn.style.width = '';
+          btn.disabled = false;
+          btn.textContent = prev;
+        }
+      }
     });
     mount.querySelector('#report-skip')?.addEventListener('click', async () => {
       if (!state.reportFocus) return;

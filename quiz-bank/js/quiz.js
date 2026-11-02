@@ -133,10 +133,10 @@ function createSession(opts) {
       <p class="count" data-el="count"></p>
     </div>
     <div class="prog" data-el="prog" aria-hidden="true"><i></i></div></header>
-    <main class="wrap quiz-wrap">
+    <section class="wrap quiz-wrap" aria-label="作答">
       <nav class="strip bub-strip" data-el="strip" aria-label="題目進度"></nav>
       <div class="stage" data-el="stage"></div>
-    </main>
+    </section>
     <footer class="bar" data-el="bar">
       <p class="warn" data-el="warn" role="status"></p>
       <div class="bar-in">
@@ -275,7 +275,9 @@ function createSession(opts) {
     skip.hidden = false;
     skip.textContent = '略過';
     skip.disabled = !(mode === 'instant' && a < 0);
-    submit.querySelector('span').textContent = confirming ? '確定交卷' : '交卷';
+    // 確認交卷時只讓下一題顯示「確定交卷」，交卷鈕維持「交卷」避免雙重同文
+    submit.querySelector('span').textContent = '交卷';
+    submit.disabled = confirming;
     if (confirming && unanswered) {
       warnEl.textContent = `還有 ${unanswered} 題沒寫。確定要交卷嗎？沒寫的題目會算錯。`;
       warnEl.classList.add('on');
@@ -487,17 +489,32 @@ function createSession(opts) {
     const q = qs[i];
     if (!opts.onReport || reported.has(q.id)) return;
     const btn = stageEl.querySelector('.report');
+    if (btn?.dataset.busy === '1') return;
+    const prev = btn?.textContent || '回報題目有誤';
+    if (btn) {
+      btn.dataset.busy = '1';
+      btn.style.width = `${btn.getBoundingClientRect().width}px`;
+      btn.disabled = true;
+      btn.textContent = '送出中…';
+    }
     try {
       await opts.onReport({ qid: q.id, reason, note });
       reported.add(q.id);
       toast('已回報，謝謝');
       if (btn) {
+        btn.dataset.busy = '';
+        btn.style.width = '';
         btn.disabled = true;
         btn.textContent = '已回報';
       }
     } catch (err) {
       toast(err?.message || '回報失敗，請稍後再試');
-      if (btn) btn.disabled = false;
+      if (btn) {
+        btn.dataset.busy = '';
+        btn.style.width = '';
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
     }
   }
 

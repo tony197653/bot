@@ -6,6 +6,7 @@ import { initFirebase } from './fb.js';
 
 const PENDING_PREFIX = 'quizbank:v1:pending:';
 const PROGRESS_PREFIX = 'quizbank:v1:progress:';
+const RESULT_PREFIX = 'quizbank:v1:lastResult:';
 
 /** @type {any[]|null} */
 let cachedAttempts30d = null;
@@ -24,6 +25,36 @@ export function pendingKey(uid) {
 
 export function progressKey(uid) {
   return `${PROGRESS_PREFIX}${uid}`;
+}
+
+export function resultKey(uid) {
+  return `${RESULT_PREFIX}${uid}`;
+}
+
+/** 結算快照：離線／重整後還原結果頁 */
+export function saveLastResult(uid, payload) {
+  try {
+    localStorage.setItem(resultKey(uid), JSON.stringify(payload));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+export function loadLastResult(uid) {
+  try {
+    const raw = localStorage.getItem(resultKey(uid));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearLastResult(uid) {
+  try {
+    localStorage.removeItem(resultKey(uid));
+  } catch {
+    /* ignore */
+  }
 }
 
 function readPending(uid) {

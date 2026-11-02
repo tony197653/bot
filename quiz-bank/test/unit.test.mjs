@@ -7,7 +7,7 @@ import {
   mergeKnownUnits,
   sortStrengthRows,
 } from '../js/stats.js';
-import { wrongPracticeLabel } from '../js/views.js';
+import { wrongPracticeLabel, formatUnitsExportText, SUBJECT_LABELS } from '../js/views.js';
 
 let failed = 0;
 function pass(n) {
@@ -111,6 +111,36 @@ function fail(n, e) {
   else if (wrongPracticeLabel(7) !== '練這 7 題') fail('label7');
   else if (wrongPracticeLabel(12) !== '練 10 題（共 12 題）') fail('label12');
   else pass('§9.19 wrong practice label');
+}
+
+// §9.12 複製給家教：理化＋最常錯的 5 題
+{
+  if (SUBJECT_LABELS.sci !== '理化') fail('sci label', SUBJECT_LABELS.sci);
+  else pass('§9.12 subject 理化');
+  const text = formatUnitsExportText({
+    strengthRows: [
+      {
+        subject: 'sci',
+        unitCode: 'P9-3',
+        unit: '功與能',
+        total: 10,
+        correct: 4,
+        rate: 0.4,
+        status: 'weak',
+        lowSample: false,
+        label: '需加強',
+      },
+    ],
+    wrongBySubject: { sci: 2 },
+    recentAttempts: [],
+    topWrong: [
+      { qid: 'hl-p9a-p9-3-r2-q05', wrong: 3 },
+      { qid: 'hl-p9a-p9-3-r2-q06', wrong: 2 },
+    ],
+  });
+  if (!text.includes('理化')) fail('export missing 理化', text);
+  else if (!text.includes('最常錯的 5 題：hl-p9a-p9-3-r2-q05（錯 3 次）')) fail('export top wrong', text);
+  else pass('§9.12 export 最常錯的 5 題');
 }
 
 console.log(`\nunit.test ${failed ? 'FAILED' : 'OK'} (${failed} failed)`);

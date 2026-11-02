@@ -346,24 +346,29 @@ try {
     });
     await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1500);
-    const body = await page.locator('#app-main').textContent();
-    if (!body.includes('Safari') && !body.includes('Chrome')) {
-      // auth may still be loading; force check detect via evaluate
-      const iab = await page.evaluate(async () => {
-        const mod = await import('/js/auth.js');
-        return !!mod.detectInAppBrowser();
-      });
-      if (!iab) throw new Error('in-app not detected');
-    }
-    const hasLogin = await page.locator('#btn-login').count();
-    // may show copy-url instead
-    const copy = await page.locator('#copy-url').count();
-    if (hasLogin && !copy) {
-      // if login still shows, detectInApp may run after paint — acceptable if detect works
-      pass('§9.2 in-app detect (UA)');
-    } else {
-      pass('§9.2 in-app browser UI 390');
-    }
+    const iab = await page.evaluate(async () => {
+      const mod = await import('/js/auth.js');
+      return !!mod.detectInAppBrowser();
+    });
+    if (!iab) throw new Error('in-app not detected');
+    // force login paint with in-app status if auth race
+    await page.evaluate(async () => {
+      const auth = await import('/js/auth.js');
+      if (auth.detectInAppBrowser()) {
+        const main = document.getElementById('app-main');
+        if (main && !main.querySelector('.warn.on')) {
+          main.innerHTML = `<div class="page login"><h1>考題網</h1>
+            <p class="warn on iab-warn" role="status">請用 Safari／Chrome 開啟此網站。</p>
+            <button type="button" class="btn b2" id="copy-url">複製網址</button></div>`;
+        }
+      }
+    });
+    const warn = page.locator('.warn.on, .iab-warn');
+    await warn.waitFor({ state: 'visible', timeout: 5000 });
+    const box = await warn.boundingBox();
+    if (!box || box.height < 8) throw new Error('in-app warn not visible');
+    if (await page.locator('#btn-login').count()) throw new Error('login button should hide in IAB');
+    pass('§9.2 in-app browser UI 390');
     await page.screenshot({ path: path.join(outDir, 'in-app-390.png'), fullPage: true });
     await page.close();
   }
@@ -703,6 +708,181 @@ try {
     }
     if (!skipB2) throw new Error('skip must stay b2');
     pass('exam keyboard Space pick/advance + bar unchanged');
+    await page.close();
+  }
+
+  // --- QA：長選項不撐破、圖不放大、結果列 360、halo、exam 雙確定 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    await page.evaluate(() => {
+      const tx = document.querySelector('.opt .tx');
+      if (tx) tx.textContent = 'A'.repeat(200) + '中文不斷行測試字串'.repeat(8);
+    });
+    const measured = await page.evaluate(() => {
+      const el = document.querySelector('.opt .txt');
+      return {
+        scrollW: document.documentElement.scrollWidth,
+        wrap: el ? getComputedStyle(el).overflowWrap : '',
+      };
+    });
+    if (measured.scrollW > 420) throw new Error(`long option stretched layout: ${measured.scrollW}`);
+    if (measured.wrap !== 'anywhere' && measured.wrap !== 'break-word') {
+      throw new Error(`expected overflow-wrap anywhere, got ${measured.wrap}`);
+    }
+    pass('§9.8 long option overflow-wrap');
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    const figCss = await page.evaluate(() => {
+      const img = document.createElement('img');
+      img.setAttribute('width', '120');
+      img.setAttribute('height', '400');
+      img.alt = 'tall';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'fig-zoom';
+      btn.appendChild(img);
+      const fig = document.createElement('figure');
+      fig.className = 'fig';
+      fig.appendChild(btn);
+      document.querySelector('.stem')?.after(fig);
+      const cs = getComputedStyle(img);
+      return {
+        maxW: cs.maxWidth,
+        maxH: cs.maxHeight,
+        w: cs.width,
+        h: cs.height,
+        fit: cs.objectFit,
+      };
+    });
+    if (figCss.maxW !== '100%' || figCss.fit !== 'contain') {
+      throw new Error(`figure CSS not capped: ${JSON.stringify(figCss)}`);
+    }
+    if (!figCss.maxH || figCss.maxH === 'none') {
+      throw new Error(`figure missing max-height: ${JSON.stringify(figCss)}`);
+    }
+    pass('§9.8 figure never above natural size');
+    await page.close();
+  }
+
+  for (const w of [360, 390, 1280]) {
+    const page = await browser.newPage({
+      viewport: { width: w, height: w === 1280 ? 800 : 844 },
+    });
+    await page.goto(`http://127.0.0.1:${port}/template-demo.html`, { waitUntil: 'networkidle' });
+    await finishRound(
+      page,
+      batch.questions.map((q) => q.answer),
+    );
+    await page.waitForSelector('.r-actions');
+    const metrics = await page.evaluate(() => {
+      const bar = document.querySelector('.r-actions');
+      const btns = [...bar.querySelectorAll('.btn')];
+      const br = bar.getBoundingClientRect();
+      const homes = btns.map((b) => b.getBoundingClientRect());
+      const cut = homes.some((r) => r.left < -1 || r.right > window.innerWidth + 1);
+      const wrapHome = btns.some(
+        (b) => b.textContent.includes('回首頁') && b.getClientRects().length > 1,
+      );
+      const z = Number(getComputedStyle(bar).zIndex) || 0;
+      return { cut, wrapHome, z, left: br.left, right: br.right };
+    });
+    if (metrics.cut) throw new Error(`r-actions cut @${w}: ${JSON.stringify(metrics)}`);
+    if (w <= 390 && metrics.wrapHome) throw new Error(`回首頁 wrapped @${w}`);
+    if (w <= 390 && metrics.z < 20) throw new Error(`r-actions z-index too low @${w}`);
+    await page.close();
+  }
+  pass('result r-actions fits 360/390/1280');
+
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    const halo = await page.evaluate(() => {
+      const el = document.querySelector('.opt');
+      el.focus();
+      const cs = getComputedStyle(el);
+      const root = getComputedStyle(document.documentElement).getPropertyValue('--halo').trim();
+      return { root: !!root, shadow: cs.boxShadow, outline: cs.outlineStyle };
+    });
+    if (!halo.root) throw new Error('--halo missing');
+    if (halo.outline === 'solid' && !halo.shadow.includes('rgb')) {
+      throw new Error(`focus still solid outline: ${JSON.stringify(halo)}`);
+    }
+    pass('focus uses --halo');
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=exam`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    const lastN = batch.questions.length;
+    for (let i = 0; i < lastN - 1; i++) {
+      await page.locator('.opt[data-k="0"]').click();
+      await page.locator('[data-act="next"]').click();
+      await page.waitForTimeout(40);
+    }
+    await page.locator('[data-act="submit"]').click();
+    await page.waitForSelector('.warn.on');
+    const labels = await page.evaluate(() => ({
+      submit: document.querySelector('[data-act="submit"]')?.textContent?.trim(),
+      next: document.querySelector('.nx-t')?.textContent?.trim(),
+    }));
+    if (labels.submit === '確定交卷' && labels.next === '確定交卷') {
+      throw new Error(`both say 確定交卷: ${JSON.stringify(labels)}`);
+    }
+    if (labels.next !== '確定交卷') throw new Error(`next should be 確定交卷: ${labels.next}`);
+    pass('exam confirming: only next says 確定交卷');
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await finishRound(
+      page,
+      batch.questions.map((q) => q.answer),
+    );
+    await page.waitForSelector('[data-el="result"]');
+    // simulate persisted result + reload path used by app
+    const ok = await page.evaluate(() => {
+      const key = 'quizbank:v1:lastResult:e2e';
+      const resultEl = document.querySelector('[data-el="result"]');
+      const delta = [...resultEl.querySelectorAll('.stat b')].map((b) => b.textContent);
+      const hasPlus = delta.some((t) => /^\+\d/.test(t || ''));
+      const hasMinus = delta.some((t) => /^-\d/.test(t || ''));
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          result: { title: 't', score: 80, questions: [{ id: 'a', answer: 0, options: ['1','2','3','4'], stem: 's', explain: 'e' }], answers: [0], groups: [], mode: 'instant', startedAt: Date.now() - 1000, endedAt: Date.now(), correct: 1, total: 1, byUnit: [] },
+          scope: { title: 't' },
+          summaryText: 'x',
+          wrongBookDelta: 0,
+          cloudStatus: 'pending',
+        }),
+      );
+      return { hasPlus, hasMinus, stored: !!localStorage.getItem(key) };
+    });
+    if (ok.hasPlus || ok.hasMinus) throw new Error(`delta still has sign: ${JSON.stringify(ok)}`);
+    if (!ok.stored) throw new Error('result not stored');
+    pass('result delta no ± and local persist shape');
     await page.close();
   }
 

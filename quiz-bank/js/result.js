@@ -72,7 +72,7 @@ export function showResult(opts) {
       : opts.wrongBookDelta > 0
         ? `${opts.wrongBookDelta} 題加入`
         : opts.wrongBookDelta < 0
-          ? `${opts.wrongBookDelta} 題移出`
+          ? `${Math.abs(opts.wrongBookDelta)} 題移出`
           : '沒有變化';
 
   const cloudBanner =
@@ -85,7 +85,7 @@ export function showResult(opts) {
 
   const html = `<section class="result${showWrongOnly ? ' only-wrong' : ''}" data-el="result">
     <div class="r-hero">
-      <p class="eyebrow">${escHtml(r.title)}・結果</p>
+      <h1 class="eyebrow">${escHtml(r.title)}・結果</h1>
       <p class="score" aria-label="${r.score} 分"><span class="num">${r.score}</span><span class="unit">分</span></p>
       <div class="segs bub-result" aria-label="各題對錯">
         ${qs
@@ -306,15 +306,37 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
     }
   };
 
-  function onReportSubmit(e) {
+  async function onReportSubmit(e) {
     const val = e.submitter?.value;
     if (val === 'ok') {
+      const btn = e.submitter;
+      if (btn?.dataset.busy === '1') {
+        e.preventDefault();
+        return;
+      }
+      if (btn) {
+        btn.dataset.busy = '1';
+        btn.style.width = `${btn.getBoundingClientRect().width}px`;
+        btn.disabled = true;
+        const prev = btn.textContent;
+        btn.textContent = '送出中…';
+        btn.dataset.prevLabel = prev || '送出';
+      }
       const fd = new FormData(e.target);
-      submitResultReport(
-        String(fd.get('qid') || ''),
-        String(fd.get('reason') || 'other'),
-        String(fd.get('note') || '').slice(0, 200),
-      );
+      try {
+        await submitResultReport(
+          String(fd.get('qid') || ''),
+          String(fd.get('reason') || 'other'),
+          String(fd.get('note') || '').slice(0, 200),
+        );
+      } finally {
+        if (btn) {
+          btn.dataset.busy = '';
+          btn.style.width = '';
+          btn.disabled = false;
+          btn.textContent = btn.dataset.prevLabel || '送出';
+        }
+      }
     }
   }
 

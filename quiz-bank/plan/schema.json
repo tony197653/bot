@@ -181,7 +181,7 @@
         {
           "groupId": "hl-p9a-p9-3-r2-g1", "title": "題組：斜面上的木塊",
           "passage": "小蕎把質量 \\(2\\,\\text{kg}\\) 的木塊放在斜面上，用彈簧秤沿斜面向上等速拉動，裝置如圖（一）。請回答第 5～6 題。",
-          "figures": [ { "id": "fig1", "src": "data:image/webp;base64,UklGR…（截短）", "alt": "斜面示意圖：木塊在 30 度斜面上，彈簧秤沿斜面向上拉，箭頭標示拉力 F，斜面長 1.5 m。", "caption": "圖（一）", "crop": { "photo": "IMG_0413.jpg", "x": 120, "y": 860, "w": 640, "h": 380 } } ],
+          "figures": [ { "id": "fig1", "src": "data:image/webp;base64,UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA=", "alt": "斜面示意圖：木塊在 30 度斜面上，彈簧秤沿斜面向上拉，箭頭標示拉力 F，斜面長 1.5 m。", "caption": "圖（一）", "crop": { "photo": "IMG_0413.jpg", "x": 120, "y": 860, "w": 640, "h": 380 } } ],
           "questionIds": ["hl-p9a-p9-3-r2-q05", "hl-p9a-p9-3-r2-q06"]
         }
       ],

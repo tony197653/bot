@@ -15,7 +15,7 @@ import {
 
 export const SUBJECT_LABELS = {
   math: '數學',
-  sci: '自然',
+  sci: '理化',
   chi: '國文',
   eng: '英文',
   soc: '社會',
@@ -141,7 +141,13 @@ function taipeiDateParts(d = new Date()) {
   return parts;
 }
 
-export function formatUnitsExportText({ strengthRows, wrongBySubject, recentAttempts, productName = '羽蕎考題網' }) {
+export function formatUnitsExportText({
+  strengthRows,
+  wrongBySubject,
+  recentAttempts,
+  topWrong = [],
+  productName = '羽蕎考題網',
+}) {
   const p = taipeiDateParts();
   const dateStr = `${p.year}/${p.month}/${p.day}`;
   const lines = [`${productName}學習摘要（${dateStr} 產生，統計最近 30 天）`];
@@ -180,6 +186,16 @@ export function formatUnitsExportText({ strengthRows, wrongBySubject, recentAtte
         })
         .join('；')}`,
     );
+  }
+  if (topWrong?.length) {
+    lines.push(
+      `最常錯的 5 題：${topWrong
+        .slice(0, 5)
+        .map((w) => `${w.qid || w.id}（錯 ${w.wrong || 0} 次）`)
+        .join('、')}`,
+    );
+  } else {
+    lines.push('最常錯的 5 題：目前沒有');
   }
   return lines.join('\n');
 }
@@ -269,11 +285,12 @@ export async function renderHome(mount, ctx) {
       : '';
 
     mount.innerHTML = `<div class="page home">
+      <h1 class="page-title">首頁</h1>
       ${suggestHtml}
       ${unitPracticeEntry}
       <div class="filters s3">
-        <label>科目
-          <select id="home-subject">
+        <label class="field">科目
+          <select id="home-subject" class="ctrl-select">
             <option value="">全部</option>
             ${Object.entries(SUBJECT_LABELS)
               .map(([k, v]) => `<option value="${k}"${subject === k ? ' selected' : ''}>${v}</option>`)
@@ -282,13 +299,17 @@ export async function renderHome(mount, ctx) {
         </label>
       </div>
       <div class="book-grid">${bookCards}</div>
-      <aside class="start-panel" id="start-panel" hidden>
-        <h2>開始設定</h2>
+      <div class="start-scrim" id="start-scrim" hidden></div>
+      <aside class="start-panel" id="start-panel" hidden role="dialog" aria-labelledby="start-panel-h">
+        <div class="start-panel-head">
+          <h2 id="start-panel-h">開始設定</h2>
+          <button type="button" class="btn b5 start-close" id="start-close" aria-label="關閉">關閉</button>
+        </div>
         <p class="start-title" id="start-title"></p>
-        <label class="s3">對答案方式
-          <select id="start-mode"><option value="instant">當場對</option><option value="exam">交卷才對</option></select>
+        <label class="field s3">對答案方式
+          <select id="start-mode" class="ctrl-select"><option value="instant">當場對</option><option value="exam">交卷才對</option></select>
         </label>
-        <label class="s1"><input type="checkbox" id="start-shuffle" checked> 打亂順序</label>
+        <label class="ctrl-check s1"><input type="checkbox" id="start-shuffle" checked> 打亂順序</label>
         <button type="button" class="btn b1" id="start-go">開始作答</button>
       </aside>
     </div>`;
@@ -321,10 +342,21 @@ export async function renderHome(mount, ctx) {
           title: `${bookTitle}・${t.dataset.unitName}・${roundLabel}`,
         };
         const panel = mount.querySelector('#start-panel');
+        const scrim = mount.querySelector('#start-scrim');
         panel.hidden = false;
+        if (scrim) scrim.hidden = false;
         mount.querySelector('#start-title').textContent = pendingScope.title || '';
       }
     });
+
+    const closeStart = () => {
+      const panel = mount.querySelector('#start-panel');
+      const scrim = mount.querySelector('#start-scrim');
+      if (panel) panel.hidden = true;
+      if (scrim) scrim.hidden = true;
+    };
+    mount.querySelector('#start-close')?.addEventListener('click', closeStart);
+    mount.querySelector('#start-scrim')?.addEventListener('click', closeStart);
 
     mount.querySelector('#home-subject')?.addEventListener('change', (e) => {
       writeFilters({ subject: e.target.value });
@@ -345,6 +377,7 @@ export async function renderHome(mount, ctx) {
         ctx.toast?.('這個範圍沒有題目');
         return;
       }
+      closeStart();
       ctx.startScope?.({
         ...pendingScope,
         mode,
@@ -374,6 +407,7 @@ export async function renderWrongBook(mount, ctx) {
     const count = stats.length;
     const label = wrongPracticeLabel(count);
     mount.innerHTML = `<div class="page wrong">
+      <h1 class="page-title">錯題本</h1>
       <div class="tabs g2">${Object.entries(SUBJECT_LABELS)
         .map(
           ([k, v]) =>
@@ -470,10 +504,15 @@ export async function renderUnits(mount, ctx) {
     wrongStats.forEach((s) => {
       wrongBySubject[s.subject] = (wrongBySubject[s.subject] || 0) + 1;
     });
+    const topWrong = [...wrongStats]
+      .sort((a, b) => (b.wrong || 0) - (a.wrong || 0) || String(a.qid).localeCompare(String(b.qid)))
+      .slice(0, 5)
+      .map((s) => ({ qid: s.qid, wrong: s.wrong || 0 }));
     const exportText = formatUnitsExportText({
       strengthRows: strength,
       wrongBySubject,
       recentAttempts: summary.recent,
+      topWrong,
     });
 
     const totalAttempts = attempts.reduce((n, a) => n + (a.total || 0), 0);
@@ -483,6 +522,7 @@ export async function renderUnits(mount, ctx) {
     const sortMark = (k) => (sortKey === k ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
 
     mount.innerHTML = `<div class="page units-page">
+      <h1 class="page-title">單元強弱表</h1>
       <p class="note">最近 30 天</p>
       <div class="stat-grid">${[
         ['作答題數', totalAttempts],
@@ -494,10 +534,10 @@ export async function renderUnits(mount, ctx) {
         .join('')}</div>
       <table class="t1 strength">
         <thead><tr>
-          <th><button type="button" class="th-sort" data-sort="unit">單元${sortMark('unit')}</button></th>
-          <th class="r"><button type="button" class="th-sort" data-sort="rate">正確率${sortMark('rate')}</button></th>
-          <th><button type="button" class="th-sort" data-sort="status">狀態${sortMark('status')}</button></th>
-          <th></th>
+          <th scope="col"><button type="button" class="th-sort" data-sort="unit">單元${sortMark('unit')}</button></th>
+          <th scope="col" class="r"><button type="button" class="th-sort" data-sort="rate">正確率${sortMark('rate')}</button></th>
+          <th scope="col"><button type="button" class="th-sort" data-sort="status">狀態${sortMark('status')}</button></th>
+          <th scope="col"><span class="vh">操作</span></th>
         </tr></thead>
         <tbody>${strength
           .map(
@@ -515,13 +555,17 @@ export async function renderUnits(mount, ctx) {
         <textarea class="i1" readonly rows="8">${escHtml(exportText)}</textarea>
       </label>
       <button type="button" class="btn b1" id="copy-units">複製給家教 TU</button>
-      <aside class="start-panel" id="unit-start-panel" hidden>
-        <h2>開始設定</h2>
+      <div class="start-scrim" id="unit-start-scrim" hidden></div>
+      <aside class="start-panel" id="unit-start-panel" hidden role="dialog" aria-labelledby="unit-start-h">
+        <div class="start-panel-head">
+          <h2 id="unit-start-h">開始設定</h2>
+          <button type="button" class="btn b5 start-close" id="unit-start-close" aria-label="關閉">關閉</button>
+        </div>
         <p class="start-title" id="unit-start-title"></p>
-        <label class="s3">對答案方式
-          <select id="unit-start-mode"><option value="instant">當場對</option><option value="exam">交卷才對</option></select>
+        <label class="field s3">對答案方式
+          <select id="unit-start-mode" class="ctrl-select"><option value="instant">當場對</option><option value="exam">交卷才對</option></select>
         </label>
-        <label class="s1"><input type="checkbox" id="unit-start-shuffle" checked> 打亂順序</label>
+        <label class="ctrl-check s1"><input type="checkbox" id="unit-start-shuffle" checked> 打亂順序</label>
         <button type="button" class="btn b1" id="unit-start-go">開始作答</button>
       </aside>
     </div>`;
@@ -570,11 +614,22 @@ export async function renderUnits(mount, ctx) {
           bookTitle: book.title || '',
         };
         const panel = mount.querySelector('#unit-start-panel');
+        const scrim = mount.querySelector('#unit-start-scrim');
         panel.hidden = false;
+        if (scrim) scrim.hidden = false;
         mount.querySelector('#unit-start-title').textContent =
           `${book.title}・${unitCode} 單元練習`;
       });
     });
+
+    const closeUnitStart = () => {
+      const panel = mount.querySelector('#unit-start-panel');
+      const scrim = mount.querySelector('#unit-start-scrim');
+      if (panel) panel.hidden = true;
+      if (scrim) scrim.hidden = true;
+    };
+    mount.querySelector('#unit-start-close')?.addEventListener('click', closeUnitStart);
+    mount.querySelector('#unit-start-scrim')?.addEventListener('click', closeUnitStart);
 
     mount.querySelector('#unit-start-go')?.addEventListener('click', async () => {
       if (!pendingUnit) return;
@@ -590,6 +645,7 @@ export async function renderUnits(mount, ctx) {
         ctx.toast?.('這個單元還沒有題目');
         return;
       }
+      closeUnitStart();
       ctx.startScope?.({
         type: 'unit',
         bookId: pendingUnit.bookId,

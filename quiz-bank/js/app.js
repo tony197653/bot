@@ -21,6 +21,9 @@ import {
   progressKey,
   clearProgress,
   updateQstatManualOut,
+  saveLastResult,
+  loadLastResult,
+  clearLastResult,
 } from './stats.js';
 import { bindLightboxOnce } from './lightbox.js';
 import { formatRoundSummary, taipeiStamp } from './summary.js';
@@ -98,7 +101,7 @@ function renderLogin(ev) {
     ${ev?.error ? `<p class="err" role="alert">${errMsg}${errEmail ? `（${errEmail}）` : ''}</p>` : ''}
     ${
       ev?.status === 'in-app-browser'
-        ? `<p class="warn">請用 Safari／Chrome 開啟此網站。</p>
+        ? `<p class="warn on iab-warn" role="status">請用 Safari／Chrome 開啟此網站。</p>
            <button type="button" class="btn b2" id="copy-url">複製網址</button>`
         : `<button type="button" class="btn b1" id="btn-login"${ev?.status === 'loading' ? ' disabled' : ''}>用 Google 登入</button>`
     }
@@ -219,6 +222,61 @@ function beginQuiz(scope) {
   });
 }
 
+function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStatus }) {
+  const user = getUser();
+  const main = mount();
+  if (!main || !user) return;
+  document.body.dataset.view = 'result';
+  lastSession = scope;
+  const view = showResult({
+    mount: main,
+    result: { ...result, title: scope?.title || result.title },
+    getSummaryText: () => summaryText,
+    wrongBookDelta,
+    cloudStatus,
+    onReport: submitReport,
+    onRetryWrong: () => {
+      const wrongQs = result.questions.filter((q, n) => result.answers[n] !== q.answer);
+      clearLastResult(user.uid);
+      startScope({
+        ...scope,
+        type: 'retry',
+        mode: 'instant',
+        shuffle: true,
+        questions: wrongQs.length ? wrongQs : result.questions,
+        groups: scope.groups,
+        title: wrongQs.length ? '再練錯題' : scope.title,
+      });
+    },
+    onRestart: () => {
+      clearLastResult(user.uid);
+      startScope({
+        ...scope,
+        questions: lastSession?.questions || result.questions,
+        groups: lastSession?.groups || [],
+      });
+    },
+    onHome: () => {
+      clearLastResult(user.uid);
+      navigate('#/');
+    },
+    onRetryCloud: async () => {
+      const r = await flushPending(user.uid);
+      if (!r.failed) {
+        const snap = loadLastResult(user.uid);
+        if (snap) {
+          snap.cloudStatus = 'ok';
+          saveLastResult(user.uid, snap);
+        }
+        const banner = main.querySelector('.cloud-warn');
+        banner?.remove();
+        toast('已存到雲端');
+      } else toast('仍無法寫入，請稍後再試');
+    },
+  });
+  resultDestroy = () => view.destroy();
+}
+
 async function finishQuiz(result, scope) {
   const user = getUser();
   const main = mount();
@@ -258,38 +316,16 @@ async function finishQuiz(result, scope) {
     round: scope.round,
   });
 
-  const view = showResult({
-    mount: main,
+  saveLastResult(user.uid, {
     result: { ...result, title: scope.title || result.title },
-    getSummaryText: () => summaryText,
+    scope,
+    summaryText,
     wrongBookDelta,
     cloudStatus,
-    onReport: submitReport,
-    onRetryWrong: () => {
-      const wrongQs = result.questions.filter((q, n) => result.answers[n] !== q.answer);
-      startScope({
-        ...scope,
-        type: 'retry',
-        mode: 'instant',
-        shuffle: true,
-        questions: wrongQs.length ? wrongQs : result.questions,
-        groups: scope.groups,
-        title: wrongQs.length ? '再練錯題' : scope.title,
-      });
-    },
-    onRestart: () =>
-      startScope({
-        ...scope,
-        questions: lastSession?.questions || result.questions,
-        groups: lastSession?.groups || [],
-      }),
-    onHome: () => navigate('#/'),
-    onRetryCloud: async () => {
-      const r = await flushPending(user.uid);
-      toast(r.failed ? '仍無法寫入，請稍後再試' : '已存到雲端');
-    },
+    savedAt: Date.now(),
   });
-  resultDestroy = () => view.destroy();
+
+  paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStatus });
   quizNavigating = false;
 }
 
@@ -457,6 +493,28 @@ async function renderRoute(route) {
     }
   } else if (route === '/result') {
     if (resultDestroy) return;
+    const snap = loadLastResult(user.uid);
+    if (snap?.result?.questions?.length) {
+      if (snap.cloudStatus === 'pending') {
+        flushPending(user.uid).then((r) => {
+          if (!r.failed) {
+            snap.cloudStatus = 'ok';
+            saveLastResult(user.uid, snap);
+            const banner = main.querySelector('.cloud-warn');
+            banner?.remove();
+          }
+        });
+      }
+      paintResultView({
+        result: snap.result,
+        scope: snap.scope || lastSession || {},
+        summaryText: snap.summaryText || '',
+        wrongBookDelta: snap.wrongBookDelta ?? 0,
+        cloudStatus: snap.cloudStatus || 'ok',
+      });
+      return;
+    }
+    document.body.dataset.view = '';
     main.innerHTML = `<p class="e1">請從首頁開始練習。</p><button type="button" class="btn b1" data-home>回首頁</button>`;
     main.querySelector('[data-home]')?.addEventListener('click', () => navigate('#/'));
   } else {
@@ -466,7 +524,19 @@ async function renderRoute(route) {
 
 function toggleDrawer(open) {
   document.body.classList.toggle('drawer-open', open);
-  document.getElementById('app-drawer')?.setAttribute('aria-hidden', open ? 'false' : 'true');
+  const drawer = document.getElementById('app-drawer');
+  const backdrop = document.querySelector('.drawer-backdrop');
+  drawer?.setAttribute('aria-hidden', open ? 'false' : 'true');
+  if (drawer) {
+    if (open) drawer.removeAttribute('inert');
+    else drawer.setAttribute('inert', '');
+  }
+  if (backdrop) {
+    backdrop.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (open) backdrop.removeAttribute('inert');
+    else backdrop.setAttribute('inert', '');
+  }
+  document.querySelector('[data-drawer-toggle]')?.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 function onHashChange() {
@@ -493,12 +563,14 @@ function onHashChange() {
 
 async function boot() {
   bindLightboxOnce(document);
+  toggleDrawer(false);
   document.getElementById('btn-signout')?.addEventListener('click', () => signOut());
   document.querySelector('[data-drawer-toggle]')?.addEventListener('click', () => {
     toggleDrawer(!document.body.classList.contains('drawer-open'));
   });
+  document.querySelector('.drawer-backdrop')?.addEventListener('click', () => toggleDrawer(false));
   document.getElementById('app-drawer')?.addEventListener('click', (e) => {
-    if (e.target.matches('.drawer-backdrop')) toggleDrawer(false);
+    if (e.target.matches('a,[data-route]')) toggleDrawer(false);
   });
   document.querySelectorAll('[data-route]').forEach((a) => {
     a.addEventListener('click', () => toggleDrawer(false));
