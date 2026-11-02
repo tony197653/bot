@@ -732,6 +732,17 @@ dialog.dlg:not([open]){display:none}
 .menu.mbp.is-open{opacity:1;visibility:visible;transition:opacity .22s var(--ease),visibility 0s}
 .menu.mbp.l{left:0}.menu.mbp.r{right:0}
 .menu.mbp:focus{outline:none}
+/* M8 網站名稱／回首頁 */
+.mbar.m8bar{gap:4px;container-type:inline-size}
+.blink{position:relative;display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 10px;border-radius:var(--r-sm);color:var(--ink);text-decoration:none;white-space:nowrap;min-width:0;flex:0 1 auto;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.blink::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--bg);opacity:0;transition:opacity .22s var(--ease)}
+@media (hover:hover) and (pointer:fine){.blink:hover::before{opacity:1}}
+.blink:active::before{opacity:1;background:var(--line-soft);transition-duration:.06s}
+.blink:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.blink .bmark{position:relative;flex:none;width:24px;height:24px;display:grid;place-items:center;border-radius:var(--r-xs);background:var(--ink);color:#fff;font-size:13px;font-weight:700;line-height:1}
+.blink .bname{position:relative;font-size:17px;font-weight:600;color:var(--ink);line-height:1;overflow:hidden;text-overflow:clip}
+@container (max-width:200px){.blink .bname{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}}
+.mav{flex:none;width:32px;height:32px;margin-right:6px;border-radius:50%;display:grid;place-items:center;background:var(--sage-soft);color:var(--sage-deep);font-size:13px;font-weight:600}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -770,7 +781,7 @@ dialog.dlg:not([open]){display:none}
   <div class="wrap">
     <h1>元件風格庫</h1>
     <p class="lead">每個元件都有編號，滑過、按下、用 Tab 鍵移動都能看到真實效果。挑好後，之後做網頁就能直接說「按鈕用 B1、表格用 T1」。</p>
-    <div class="meta"><span>共 <b>14 類 46 個</b>（第一批 6 類 23 個＋第二批 8 類 20 個＋輸入框 I6＋功能清單鈕 M6、M7）</span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
+    <div class="meta"><span>共 <b>14 類 47 個</b>（第一批 6 類 23 個＋第二批 8 類 20 個＋輸入框 I6＋功能清單鈕 M6、M7＋回首頁站名 M8）</span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
   </div>
 </header>
 
@@ -1056,6 +1067,17 @@ dialog.dlg:not([open]){display:none}
           <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-gear"/></svg>設定</button>
         </div>
       </div></div><p class="out" id="m7-out"></p></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">M8</span><div><h3>網站名稱／回首頁</h3><p>標題列左上的站名連結，緊貼 M6 右邊，點了回首頁。只有淡底回饋、不縮放；太窄時只留字母方塊。</p></div></div>
+      <div class="stage mid"><div class="mbar m8bar"><div class="mbw js-mbtn" data-out="m8-out">
+        <button type="button" class="mbtn m6" aria-label="開啟選單" aria-haspopup="menu" aria-expanded="false" aria-controls="m8-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><line class="l1" x1="5" y1="7" x2="19" y2="7"/><line class="l2" x1="5" y1="12" x2="19" y2="12"/><line class="l3" x1="5" y1="17" x2="19" y2="17"/></svg></button>
+        <div class="menu mbp l" role="menu" id="m8-menu" aria-label="功能清單">
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-home"/></svg>首頁</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-vase"/></svg>作品</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-box"/></svg>訂單</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-gear"/></svg>設定</button>
+        </div>
+      </div><a class="blink js-blink" href="./" aria-label="小森陶房 首頁" data-out="m8-out"><span class="bmark" aria-hidden="true">森</span><span class="bname" aria-hidden="true">小森陶房</span></a><span class="sp"></span><span class="mav" role="img" aria-label="會員頭像">林</span></div><p class="out" id="m8-out"></p></div></article>
 
   </div>
 </section>
@@ -1640,6 +1662,8 @@ $$('.js-mbtn').forEach(root=>{
   outside.push(e=>{if(open&&!root.contains(e.target))hide()});
 });
 
+/* M8 回首頁（示範不換頁） */
+$$('.js-blink').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();const o=$('#'+a.dataset.out);if(o)o.innerHTML='回首頁（示範）';}));
 /* ================= A 手風琴（grid-template-rows 0fr→1fr 平滑展開；結構參考 Radix Accordion，MIT，自行改寫） ================= */
 $$('.acc').forEach(acc=>{
   const multi=acc.hasAttribute('data-multi'), its=$$('.acc-i',acc);
