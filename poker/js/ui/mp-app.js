@@ -391,7 +391,12 @@ export async function startMpApp() {
     };
     window.__qaShowAwayToast = () => {
       awayLobbyStatus = '已自動離座';
-      showLobbyNotify('你暫離超過 30 分鐘，已自動離座，籌碼已回帳戶');
+      showLobbyNotify(
+        '你暫離超過 30 分鐘，已自動離座，籌碼已回帳戶',
+        '',
+        { label: '知道了' },
+        { sticky: true },
+      );
       paint();
       return !!document.getElementById('mpNtc')?.classList.contains('on');
     };
@@ -539,7 +544,12 @@ function paint() {
       pendingAwayUnseatToast = false;
       awayLobbyStatus = '已自動離座';
       ensureLobbyNotify();
-      showLobbyNotify('你暫離超過 30 分鐘，已自動離座，籌碼已回帳戶');
+      showLobbyNotify(
+        '你暫離超過 30 分鐘，已自動離座，籌碼已回帳戶',
+        '',
+        { label: '知道了' },
+        { sticky: true },
+      );
     }
     // Clear away status only when back on an open hosted/seated table (not settle)
     if (

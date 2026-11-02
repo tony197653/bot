@@ -994,15 +994,19 @@ async function runMineCardStates(browser, base, viewport, label) {
     const top = document.querySelector('.mp-lobby .mp-top');
     const r = top?.getBoundingClientRect();
     const stl = document.getElementById('mpStl');
-    const create = document.querySelector('.mp-btn-primary[data-act="create"]');
+    const creates = [...document.querySelectorAll('.mp-btn-primary[data-act="create"]')];
+    const visibleCreate = creates.find((el) => getComputedStyle(el).display !== 'none');
+    const emptyCta = document.getElementById('mpBtnCreateE');
     const join = document.getElementById('mpJoinCode');
     return {
       top: window.__qaTopStatus?.() || '',
       h: r ? Math.round(r.height) : 0,
       stlTag: stl?.tagName || '',
       stlClickable: !!(stl && (stl.closest('button') || stl.getAttribute('role') === 'button')),
-      hasCreate: !!create,
-      createVisible: !!(create && getComputedStyle(create).display !== 'none'),
+      hasCreate: creates.length > 0,
+      createVisible: !!visibleCreate,
+      emptyCta: !!(emptyCta && !emptyCta.hidden && getComputedStyle(emptyCta).display !== 'none'),
+      isEmpty: document.querySelector('.mp-lobby')?.classList.contains('is-empty') === true,
       hasJoin: !!join,
       menu: window.__qaOpenMenu?.() || [],
     };
@@ -1031,12 +1035,16 @@ async function runMineCardStates(browser, base, viewport, label) {
   await guest.page.waitForTimeout(400);
   const leaveHint = await guest.page.evaluate(() => {
     const n = document.getElementById('mpNtc');
+    const a = document.getElementById('mpNtcA');
     return {
       on: n?.classList.contains('on'),
       title: document.getElementById('mpNtcT')?.textContent || '',
       desc: document.getElementById('mpNtcD')?.textContent || '',
       attn: document.querySelector('.mp-mine')?.classList.contains('mp-attn'),
       role: n?.getAttribute('role') || '',
+      sticky: n?.dataset.sticky === '1',
+      action: a?.textContent || '',
+      actionShown: !!(a && !a.hidden),
     };
   });
   await guest.page.screenshot({
@@ -1089,12 +1097,16 @@ async function runMineCardStates(browser, base, viewport, label) {
   const toast = await guest.page.evaluate(() => {
     window.__qaShowAwayToast?.();
     const n = document.getElementById('mpNtc');
+    const a = document.getElementById('mpNtcA');
     return {
       on: n?.classList.contains('on'),
       title: document.getElementById('mpNtcT')?.textContent || '',
       role: n?.getAttribute('role'),
       style: getComputedStyle(n).transitionProperty || '',
       top: window.__qaTopStatus?.() || '',
+      sticky: n?.dataset.sticky === '1',
+      action: a?.textContent || '',
+      actionShown: !!(a && !a.hidden),
     };
   });
   await guest.page.screenshot({
@@ -1124,7 +1136,10 @@ async function runMineCardStates(browser, base, viewport, label) {
     guestMenu.some((t) => /回到牌桌/.test(t)) &&
     leaveHint.on &&
     /先離開/.test(leaveHint.title) &&
-    leaveHint.role === 'status';
+    leaveHint.role === 'status' &&
+    leaveHint.sticky &&
+    leaveHint.actionShown &&
+    /回到這一桌/.test(leaveHint.action);
   const settleOk =
     settleCard.hasMine &&
     settleCard.dataK === 'settle' &&
@@ -1136,7 +1151,10 @@ async function runMineCardStates(browser, base, viewport, label) {
     toast.on &&
     /自動離座/.test(toast.title) &&
     toast.role === 'status' &&
-    toast.top === '已自動離座';
+    toast.top === '已自動離座' &&
+    toast.sticky &&
+    toast.actionShown &&
+    /知道了/.test(toast.action);
   const heightOk =
     h1 > 0 &&
     Math.abs((guestCard.height || 0) - (settleCard.height || 0)) < 8;
@@ -1155,6 +1173,7 @@ async function runMineCardStates(browser, base, viewport, label) {
     !idle.stlClickable &&
     idle.hasCreate &&
     idle.createVisible &&
+    (!idle.isEmpty || idle.emptyCta) &&
     idle.hasJoin &&
     idle.menu.some((t) => t === '戰績') &&
     idle.menu.some((t) => t === '設定') &&

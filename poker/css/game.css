@@ -6,6 +6,8 @@
   --tink:#f3ead2; --tmute:#cfe3d2;
   --panel:#101b14; --panelline:rgba(214,180,90,.18); --btn:#24372c; --btnink:#f3ead2;
   --accent:#e6bf5a; --accent2:#c99a2e; --accentink:#2a1d02; --gold:#d6b45a;
+  /* components P3/P4 B1 (15a1503): deep green — poker primaries still use --accent */
+  --sage:#66745F; --sage-deep:#505C4A; --sage-soft:#DFE4DA;
   /* Fold/warn: #ff7566 clears 4.5:1 on --btn/#24372c (QA Low contrast) */
   --warn:#ff7566;
   --chipA:#c8343a; --chipB:#f4efe6; --chipC:#2f5fb3;
@@ -831,13 +833,14 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-ntc-t{font-size:14.5px;font-weight:700;line-height:1.45;margin:0}
 .mp-ntc-d{font-size:13px;color:var(--mute);line-height:1.5;margin:2px 0 0}
 .mp-ntc-d:empty{display:none}
-.mp-ntc-a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin-top:6px;padding:0 14px;border-radius:var(--radius-sm);font-size:15px;font-weight:700;color:var(--accent);border:1px solid rgba(230,191,90,.45);background:rgba(230,191,90,.1);transition:background-color var(--mp-t) var(--mp-ease),border-color var(--mp-t) var(--mp-ease)}
+/* BD r5: notify action = 44px B2 (transparent fill) */
+.mp-ntc-a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:88px;margin-top:8px;padding:0 16px;border-radius:var(--radius-sm);font-size:14px;font-weight:700;color:var(--accent);border:1px solid rgba(230,191,90,.45);background:transparent;transition:background-color var(--mp-t) var(--mp-ease),border-color var(--mp-t) var(--mp-ease)}
 .mp-ntc-a[hidden]{display:none}
 .mp-ntc-x{width:44px;height:44px;margin:-10px 0 -10px;display:grid;place-items:center;border-radius:var(--radius-sm);color:var(--mute);transition:color var(--mp-t) var(--mp-ease),background-color var(--mp-t) var(--mp-ease)}
 .mp-ntc-x svg{width:16px;height:16px}
 @media (hover:hover) and (pointer:fine){
   .mp-ntc-x:hover{color:var(--ink);background:rgba(214,180,90,.08)}
-  .mp-ntc-a:hover{background:rgba(230,191,90,.18)}
+  .mp-ntc-a:hover{background:rgba(230,191,90,.1);border-color:rgba(230,191,90,.65)}
 }
 .mp-ntc-x:active,.mp-ntc-a:active{background:rgba(16,27,20,.9);transition-duration:.06s}
 @media (prefers-reduced-motion:reduce){
@@ -847,6 +850,9 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-empty svg{width:132px;height:88px;margin-bottom:6px}
 .mp-empty h3{font-size:16px;font-weight:700;margin:0;line-height:1.5}
 .mp-empty p{font-size:16px;color:var(--mute);margin:0;line-height:1.5}
+.mp-empty .mp-btn-primary{width:auto;min-width:200px;margin-top:10px}
+/* BD r5: single-column empty — CTA lives in empty card; hide duplicate side primary */
+@media (max-width:1023px){.mp-lobby.is-empty #mpBtnCreate{display:none}}
 .mp-btn-primary{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;padding:0 20px;border-radius:var(--radius-md);
   font-size:16px;font-weight:700;letter-spacing:.04em;color:var(--panel);
   background:linear-gradient(180deg,var(--accent) 0%,var(--accent2) 100%);
@@ -992,16 +998,17 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-seat-state.is-away-tag{color:var(--accent);border-color:rgba(230,191,90,.45)}
 .mp-actions{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 .mp-foot{display:none} /* L9: 同一支手機輪流玩／登出 → ⋯ menu only */
-/* P3/P4 step controls: 8px radius, fixed 112×44; prev B2 / next B1; no scale */
+/* P3/P4 (15a1503): prev white+#A9ADA3 B2; next sage-deep B1; poker page primaries stay --accent */
 .mp-stp-ctl{display:flex;justify-content:center;gap:10px;margin-top:22px}
 .mp-stp-prev,.mp-stp-next{box-sizing:border-box;width:112px;min-width:112px;height:44px;min-height:44px;padding:0 12px;border-radius:8px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;transition:background-color .22s cubic-bezier(.2,.7,.2,1),border-color .22s cubic-bezier(.2,.7,.2,1),opacity .22s cubic-bezier(.2,.7,.2,1);transform:none}
 .mp-stp-prev:active,.mp-stp-next:active{transform:none}
-.mp-stp-prev{background:transparent;color:var(--ink);border:1px solid rgba(214,180,90,.45)}
-@media (hover:hover) and (pointer:fine){.mp-stp-prev:hover:not(:disabled){background:rgba(214,180,90,.1);border-color:rgba(214,180,90,.6)}}
-.mp-stp-prev:disabled{opacity:.45;cursor:default;color:var(--mute);border-color:rgba(214,180,90,.22)}
-.mp-stp-next{background:linear-gradient(180deg,var(--accent),var(--accent2));color:var(--panel);border:0}
-@media (hover:hover) and (pointer:fine){.mp-stp-next:hover:not(:disabled){filter:brightness(1.04)}}
-.mp-stp-next:disabled{opacity:.45;cursor:default;filter:none}
+.mp-stp-prev{background:#fff;color:var(--ink-solid);border:1px solid #A9ADA3}
+@media (hover:hover) and (pointer:fine){.mp-stp-prev:hover:not(:disabled){background:var(--sage-soft);border-color:#A9ADA3}}
+.mp-stp-prev:disabled{opacity:.55;cursor:default}
+.mp-stp-next{background:var(--sage-deep);color:#fff;border:0}
+@media (hover:hover) and (pointer:fine){.mp-stp-next:hover:not(:disabled){background:#454F40}}
+.mp-stp-next:active:not(:disabled){background:#3B4436}
+.mp-stp-next:disabled{opacity:.55;cursor:default;background:var(--sage-deep);color:#fff}
 .mp-ranks{list-style:none;display:flex;flex-direction:column;gap:8px;padding:0;margin:0}
 .mp-ranks li{display:flex;justify-content:space-between;gap:12px;font-size:14px}
 .mp-offline{color:var(--accent);font-size:13px;text-align:center;font-weight:600}
@@ -1062,6 +1069,40 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-members li{display:flex;justify-content:space-between;gap:8px}
 .menu-btn{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
 .seat.is-away .plate{opacity:.55}
+/* BD r5 手機字級（紅線 7）：正文 ≥16、次要 ≥14、標籤 ≥13；頂部列不動 */
+@media (max-width:600px){
+  .mp-lobby .mp-panel-h h2,
+  .mp-lobby .mp-row b,
+  .mp-lobby .mp-my b,
+  .mp-lobby .mp-empty h3,
+  .mp-lobby .mp-c1 h3{font-size:16px}
+  .mp-lobby .mp-ntc-t,
+  .mp-lobby .mp-ntc-d,
+  .mp-lobby .mp-ntc-a,
+  .mp-lobby .mp-empty p,
+  .mp-lobby .mp-lbl,
+  .mp-lobby .mp-sub,
+  .mp-lobby .mp-join-status,
+  .mp-lobby .mp-my .mp-act,
+  .mp-lobby .mp-ranks li{font-size:16px;line-height:1.5}
+  .mp-ntc .mp-ntc-t,
+  .mp-ntc .mp-ntc-d,
+  .mp-ntc .mp-ntc-a{font-size:16px;line-height:1.5}
+  .mp-lobby .mp-row em,
+  .mp-lobby .mp-my em,
+  .mp-lobby .mp-seats,
+  .mp-lobby .mp-blinds{font-size:14px}
+  .mp-lobby .mp-panel-h span,
+  .mp-lobby .mp-tag,
+  .mp-lobby .mp-lbl3,
+  .mp-lobby .mp-row .mp-blinds small,
+  .mp-lobby .mp-my .mp-chips-n small{font-size:13px}
+  .mp-lobby .mp-tag,
+  .mp-lobby .mp-lbl3{line-height:20px}
+  .mp-lobby .mp-row{gap:10px;padding:10px 8px}
+  .mp-lobby .mp-l1{gap:5px}
+  .mp-lobby .mp-join-status{font-size:16px;min-height:24px;line-height:24px}
+}
 @media (min-width:1024px){
   .mp-shell{max-width:1080px;padding:28px 32px}
   .mp-lobby .mp-cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px;align-items:start}

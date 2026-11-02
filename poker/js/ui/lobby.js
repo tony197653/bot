@@ -26,8 +26,10 @@ const X_ICO = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke
 const NTC_MS = 5000;
 let ntcTimer = 0;
 let ntcAction = null;
+/** BD r5: sticky when action button present, or opt.sticky. */
+let ntcSticky = false;
 
-/** §2.2 gold info toast — opacity only, 5s auto-hide. */
+/** §2.2 gold info toast — plain 5s auto-hide; sticky when action / opt.sticky. */
 export function ensureLobbyNotify() {
   let el = document.getElementById('mpNtc');
   if (el) return el;
@@ -48,8 +50,9 @@ export function ensureLobbyNotify() {
   const hide = () => hideLobbyNotify();
   $('#mpNtcX', el)?.addEventListener('click', hide);
   $('#mpNtcA', el)?.addEventListener('click', () => {
+    const run = ntcAction;
     hide();
-    ntcAction?.();
+    run?.();
   });
   el.addEventListener('pointerenter', () => clearTimeout(ntcTimer));
   el.addEventListener('pointerleave', () => {
@@ -67,22 +70,25 @@ export function ensureLobbyNotify() {
 
 function armNtc() {
   clearTimeout(ntcTimer);
-  ntcTimer = setTimeout(() => hideLobbyNotify(), NTC_MS);
+  if (!ntcSticky) ntcTimer = setTimeout(() => hideLobbyNotify(), NTC_MS);
 }
 
 export function hideLobbyNotify() {
   clearTimeout(ntcTimer);
   const el = document.getElementById('mpNtc');
   el?.classList.remove('on');
+  if (el) el.dataset.sticky = '';
   ntcAction = null;
+  ntcSticky = false;
 }
 
 /**
  * @param {string} title
  * @param {string} [desc]
- * @param {{ label:string, run:()=>void }|null} [action]
+ * @param {{ label:string, run?:()=>void }|null} [action]
+ * @param {{ sticky?: boolean }} [opt]
  */
-export function showLobbyNotify(title, desc = '', action = null) {
+export function showLobbyNotify(title, desc = '', action = null, opt = {}) {
   const el = ensureLobbyNotify();
   const t = $('#mpNtcT', el);
   const d = $('#mpNtcD', el);
@@ -90,13 +96,15 @@ export function showLobbyNotify(title, desc = '', action = null) {
   if (t) t.textContent = title;
   if (d) d.textContent = desc || '';
   ntcAction = action?.run || null;
+  ntcSticky = !!opt.sticky || !!action;
+  el.dataset.sticky = ntcSticky ? '1' : '';
   if (a) {
     a.hidden = !action;
     if (action) a.textContent = action.label;
   }
   el.classList.add('on');
-  // UI/UX #4: actionable notices stay until dismiss/action (no auto-jump while reading)
-  if (action) clearTimeout(ntcTimer);
+  // BD r5 / 紅線 4: actionable or sticky notices never auto-close
+  if (ntcSticky) clearTimeout(ntcTimer);
   else armNtc();
 }
 
@@ -276,6 +284,7 @@ export function patchOpenTables(root, tables) {
   if (countEl) countEl.textContent = String(tables.length);
   list.hidden = tables.length === 0;
   empty.hidden = tables.length !== 0;
+  root.querySelector('.mp-lobby')?.classList.toggle('is-empty', tables.length === 0);
 
   tables.forEach((t) => {
     const seated = seatedCountOf(t);
@@ -373,16 +382,27 @@ export function renderMpLobby(root, vm) {
     <ul class="mp-rows" id="mpOpenList" ${openTables.length ? '' : 'hidden'}>${openRows}</ul>
     <div class="mp-empty" id="mpOpenEmpty" data-e1 ${openTables.length ? 'hidden' : ''}>
       ${EMPTY_SVG}
-      <h3>現在沒有牌桌，開一桌吧</h3>
-      <p>開好之後，家人登入就會在這裡看到。請用下方「開新牌桌」開始。</p>
+      <h3 id="mpEmH">${
+        showCreateBtn ? '現在沒有牌桌，開一桌吧' : '現在沒有其他牌桌'
+      }</h3>
+      <p id="mpEmP">${
+        showCreateBtn
+          ? '開好之後，家人登入就會在這裡看到。'
+          : '家人開桌後會出現在這裡；回你的牌桌請點上面的卡片。'
+      }</p>
+      ${
+        showCreateBtn && !offline
+          ? `<button type="button" class="mp-btn-primary" data-act="create" id="mpBtnCreateE">${PLUS_SVG}開新牌桌</button>`
+          : ''
+      }
     </div>
   </section>`;
 
   const createBtn = showCreateBtn
     ? offline
-      ? `<button type="button" class="mp-btn-primary" data-act="create" disabled aria-disabled="true">${PLUS_SVG}開新牌桌</button>
+      ? `<button type="button" class="mp-btn-primary" data-act="create" id="mpBtnCreate" disabled aria-disabled="true">${PLUS_SVG}開新牌桌</button>
          <p class="mp-meta">沒有網路，連上後才能開桌或加入</p>`
-      : `<button type="button" class="mp-btn-primary" data-act="create">${PLUS_SVG}開新牌桌</button>`
+      : `<button type="button" class="mp-btn-primary" data-act="create" id="mpBtnCreate">${PLUS_SVG}開新牌桌</button>`
     : '';
 
   const joinState = joining ? 'joining' : joinError ? 'error' : joinDigits ? 'typing' : 'empty';
@@ -446,7 +466,7 @@ export function renderMpLobby(root, vm) {
   };
 
   root.innerHTML = `
-    <div class="mp-shell mp-lobby">
+    <div class="mp-shell mp-lobby${openTables.length ? '' : ' is-empty'}">
       <header class="mp-top" data-status="${esc(statusWord)}">
         <button type="button" class="mp-av" data-act="avatar" aria-label="${esc(name)}的帳號">
           ${avatarHtml(user)}
