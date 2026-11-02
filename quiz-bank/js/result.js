@@ -206,6 +206,25 @@ export function showResult(opts) {
     setTimeout(() => resultEl?.classList.remove('in'), 1600);
   }
 
+  // R5-2：切到結算後 350ms 內忽略點擊，避免雙擊「看結果」誤觸「回首頁」
+  const clickQuietUntil = Date.now() + 350;
+  opts.mount.style.pointerEvents = 'none';
+  const releaseQuiet = () => {
+    if (opts.mount) opts.mount.style.pointerEvents = '';
+  };
+  setTimeout(releaseQuiet, 350);
+  const quietGuard = (e) => {
+    if (Date.now() >= clickQuietUntil) {
+      document.removeEventListener('click', quietGuard, true);
+      document.removeEventListener('pointerup', quietGuard, true);
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  document.addEventListener('click', quietGuard, true);
+  document.addEventListener('pointerup', quietGuard, true);
+
   const segs = opts.mount.querySelector('.segs');
   if (segs && qs.length > 12) segs.classList.add('strip-scroll');
 
@@ -267,6 +286,11 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
   }
 
   const onClick = async (e) => {
+    if (Date.now() < clickQuietUntil) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     const t = e.target.closest('button');
     if (!t || !opts.mount.contains(t)) return;
     if (t.matches('.acc-b')) {
@@ -370,6 +394,9 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
   return {
     summaryText,
     destroy() {
+      releaseQuiet();
+      document.removeEventListener('click', quietGuard, true);
+      document.removeEventListener('pointerup', quietGuard, true);
       opts.mount.removeEventListener('click', onClick);
       reportDlg?.removeEventListener('submit', onReportSubmit);
     },

@@ -53,13 +53,39 @@ let finishInFlight = false;
 const mount = () => document.getElementById('app-main');
 const toastEl = () => document.getElementById('app-toast');
 
-function toast(msg) {
+/**
+ * @param {string} msg
+ * @param {{ onRetry?: () => void, retryLabel?: string, ms?: number }} [opts]
+ */
+function toast(msg, opts) {
   const el = toastEl();
   if (!el) return;
-  el.textContent = msg;
+  el.replaceChildren();
+  const text = document.createElement('span');
+  text.className = 'toast-msg';
+  text.textContent = msg;
+  el.appendChild(text);
+  const hasRetry = typeof opts?.onRetry === 'function';
+  if (hasRetry) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn b2 toast-act';
+    btn.textContent = opts.retryLabel || '重試';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.remove('on');
+      opts.onRetry();
+    });
+    el.appendChild(btn);
+    el.classList.add('has-act');
+  } else {
+    el.classList.remove('has-act');
+  }
   el.classList.add('on');
   clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('on'), 2200);
+  const ms = opts?.ms ?? (hasRetry ? 5000 : 2200);
+  el._t = setTimeout(() => el.classList.remove('on'), ms);
 }
 
 function navigate(hash) {
@@ -295,8 +321,12 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
       navigate('#/');
     },
     onRetryCloud: async () => {
+      const retryAgain = () => {
+        const btn = main?.querySelector('[data-act="retry-cloud"]');
+        btn?.click();
+      };
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        toast(ERR.network);
+        toast(ERR.network, { onRetry: retryAgain });
         return;
       }
       const r = await flushPending(user.uid);
@@ -310,14 +340,14 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
           showSessionExpiredBanner();
           toast(ERR.sessionExpiredResult);
         } else {
-          toast(zhFromError(last, 'network'));
+          toast(zhFromError(last, 'network'), { onRetry: retryAgain });
         }
       } else if (!listPending(user.uid).length) {
         // 佇列已空：背景上傳可能已完成（與重試共用 inflight）
         applyCloudOk(user.uid, loadLastResult(user.uid)?.wrongBookDelta ?? 0);
         toast('已存到雲端');
       } else {
-        toast(ERR.network);
+        toast(ERR.network, { onRetry: retryAgain });
       }
     },
     onRelogin: () => signIn(),
@@ -724,21 +754,72 @@ function onHashChange() {
   renderRoute(route);
 }
 
+function isDesktopNav() {
+  return typeof matchMedia === 'function' && matchMedia('(min-width:900px)').matches;
+}
+
+function setUserMenuOpen(open) {
+  const btn = document.getElementById('nav-avatar');
+  const menu = document.getElementById('nav-user-menu');
+  if (!btn || !menu) return;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) menu.removeAttribute('hidden');
+  else menu.setAttribute('hidden', '');
+}
+
+function paintNavUser(user) {
+  const avatar = document.getElementById('nav-avatar');
+  if (!avatar || !user) return;
+  const name = user.name || user.displayName || user.email || '帳號';
+  const letter = (user.name || user.displayName || user.email || '?').trim().charAt(0) || '?';
+  const letterEl = avatar.querySelector('.nav-avatar-letter');
+  const nameEl = avatar.querySelector('.nav-avatar-name');
+  if (letterEl) letterEl.textContent = letter;
+  if (nameEl) nameEl.textContent = name;
+  avatar.title = name;
+  avatar.setAttribute('aria-label', `${name} 帳號選單`);
+}
+
 async function boot() {
   bindLightboxOnce(document);
   toggleDrawer(false);
+  setUserMenuOpen(false);
   bindM6Drawer();
-  document.getElementById('btn-signout')?.addEventListener('click', () => signOut());
-  document.getElementById('nav-avatar')?.addEventListener('click', () => {
-    const open = document.body.classList.contains('drawer-open');
-    toggleDrawer(!open);
+  const doSignOut = () => {
+    setUserMenuOpen(false);
+    toggleDrawer(false);
+    signOut();
+  };
+  document.getElementById('btn-signout')?.addEventListener('click', doSignOut);
+  document.getElementById('btn-signout-menu')?.addEventListener('click', doSignOut);
+  document.getElementById('nav-avatar')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (isDesktopNav()) {
+      const open = document.getElementById('nav-avatar')?.getAttribute('aria-expanded') === 'true';
+      setUserMenuOpen(!open);
+      toggleDrawer(false);
+    } else {
+      setUserMenuOpen(false);
+      const open = document.body.classList.contains('drawer-open');
+      toggleDrawer(!open);
+    }
+  });
+  document.addEventListener('click', (e) => {
+    const root = document.querySelector('.nav-user');
+    if (root && !root.contains(e.target)) setUserMenuOpen(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') setUserMenuOpen(false);
   });
   document.querySelector('.drawer-backdrop')?.addEventListener('click', () => toggleDrawer(false));
   document.getElementById('app-drawer')?.addEventListener('click', (e) => {
     if (e.target.matches('a,[data-route]')) toggleDrawer(false);
   });
   document.querySelectorAll('[data-route]').forEach((a) => {
-    a.addEventListener('click', () => toggleDrawer(false));
+    a.addEventListener('click', () => {
+      toggleDrawer(false);
+      setUserMenuOpen(false);
+    });
   });
 
   onUser(async (ev) => {
@@ -749,11 +830,7 @@ async function boot() {
     if (signedIn) {
       clearSessionExpiredBanner();
       await flushPending(ev.user.uid);
-      const avatar = document.getElementById('nav-avatar');
-      if (avatar) {
-        avatar.textContent = ev.user.name?.[0] || ev.user.email?.[0] || '?';
-        avatar.title = ev.user.displayName || ev.user.email;
-      }
+      paintNavUser(ev.user);
       await renderRoute(parseRoute());
     } else if (ev.status === 'signed-out' && (quizStarted || parseRoute() === '/import' || parseRoute() === '/quiz' || parseRoute() === '/result')) {
       // 紅線 4／11：作答或校對中登入過期不踢人、不清畫面

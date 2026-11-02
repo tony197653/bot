@@ -26,14 +26,22 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><line class="l1" x1="5" y1="7" x2="19" y2="7"/><line class="l2" x1="5" y1="12" x2="19" y2="12"/><line class="l3" x1="5" y1="17" x2="19" y2="17"/></svg>
           </button>
           <a class="blink" href="#/" data-route="home" aria-label="考題網 首頁"><span class="bmark" aria-hidden="true">考</span><span class="bname" aria-hidden="true">考題網</span></a>
+          <nav class="app-nav" aria-label="主要">
+            <a href="#/" data-route="home">首頁</a>
+            <a href="#/wrong" data-route="wrong">錯題本</a>
+            <a href="#/units" data-route="units">單元表</a>
+            <a href="#/import" data-route="import" data-admin-only hidden>匯入</a>
+          </nav>
         </div>
-        <nav class="app-nav" aria-label="主要">
-          <a href="#/" data-route="home">首頁</a>
-          <a href="#/wrong" data-route="wrong">錯題本</a>
-          <a href="#/units" data-route="units">單元表</a>
-          <a href="#/import" data-route="import" data-admin-only hidden>匯入</a>
-        </nav>
-        <button type="button" class="nav-avatar" id="nav-avatar" title="帳號選單" aria-label="帳號選單" aria-haspopup="menu" aria-controls="app-drawer">?</button>
+        <div class="nav-user m1">
+          <button type="button" class="nav-avatar" id="nav-avatar" title="帳號選單" aria-label="帳號選單" aria-haspopup="menu" aria-expanded="false" aria-controls="nav-user-menu">
+            <span class="nav-avatar-letter" aria-hidden="true">?</span>
+            <span class="nav-avatar-label"><span class="nav-avatar-name">帳號</span><span class="nav-avatar-chev" aria-hidden="true">↓</span></span>
+          </button>
+          <div class="nav-user-menu" id="nav-user-menu" role="menu" aria-label="帳號" hidden>
+            <button type="button" class="mi" role="menuitem" id="btn-signout-menu">登出</button>
+          </div>
+        </div>
       </div>
     </header>
     <main class="app-main" id="app-main" tabindex="-1"></main>

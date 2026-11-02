@@ -2007,6 +2007,178 @@ try {
     }
   }
 
+  // --- QA r5：今日建議用 scope.round；桌機導覽旁站名＋M1；錯題本「全部」首位；草稿單例；結算點擊靜默 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+    await page.evaluate(() => {
+      document.body.classList.remove('signed-out');
+      document.body.classList.add('signed-in');
+      const letter = document.querySelector('.nav-avatar-letter');
+      const name = document.querySelector('.nav-avatar-name');
+      if (letter) letter.textContent = '宗';
+      if (name) name.textContent = '宗良';
+    });
+    const desk = await page.evaluate(() => {
+      const brand = document.querySelector('a.blink');
+      const nav = document.querySelector('.hdr-title .app-nav, .app-nav');
+      const avatar = document.querySelector('.nav-avatar');
+      const menu = document.getElementById('nav-user-menu');
+      const br = brand?.getBoundingClientRect();
+      const nr = nav ? getComputedStyle(nav) : null;
+      const ar = avatar?.getBoundingClientRect();
+      const navVis = nr && nr.display !== 'none';
+      const label = avatar?.querySelector('.nav-avatar-label');
+      const labelVis = label && getComputedStyle(label).display !== 'none';
+      // 導覽應在站名右側（同列）
+      const navAfterBrand =
+        !!br &&
+        !!nav &&
+        navVis &&
+        nav.getBoundingClientRect().left >= br.left - 2;
+      return {
+        navVis,
+        labelVis,
+        navAfterBrand,
+        avatarText: (avatar?.innerText || '').replace(/\s+/g, ' ').trim(),
+        hasMenu: !!menu,
+        avatarH: Math.round(ar?.height || 0),
+      };
+    });
+    if (!desk.navVis || !desk.labelVis || !desk.navAfterBrand) {
+      throw new Error(`R5-5 desktop nav/M1 layout: ${JSON.stringify(desk)}`);
+    }
+    if (!/宗良/.test(desk.avatarText) || !/↓/.test(desk.avatarText)) {
+      throw new Error(`R5-5 expected 宗良 ↓, got ${desk.avatarText}`);
+    }
+    if (desk.avatarH !== 44) throw new Error(`R5-5 M1 height ${desk.avatarH}`);
+    await page.locator('#nav-avatar').click();
+    const menuOpen = await page.evaluate(
+      () => document.getElementById('nav-user-menu') && !document.getElementById('nav-user-menu').hidden,
+    );
+    if (!menuOpen) throw new Error('R5-5 M1 menu did not open');
+    await page.screenshot({ path: path.join(outDir, 'r5-desktop-m1-1280.png') });
+    pass('R5-5 desktop nav by brand + 宗良 ↓ M1');
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+    const suggest = await page.evaluate(() => {
+      // 模擬 progress：第 1 回答到第 4 題
+      const uid = 'e2e-uid';
+      localStorage.setItem(
+        `quizbank:v1:progress:${uid}`,
+        JSON.stringify({
+          scope: { round: 1, roundLabel: '第 1 回', unitCode: 'M9-2' },
+          idx: 3,
+          qids: ['a', 'b', 'c', 'd', 'e'],
+        }),
+      );
+      const prog = JSON.parse(localStorage.getItem(`quizbank:v1:progress:${uid}`));
+      const cur = (prog.idx || 0) + 1;
+      const total = prog.qids?.length || '?';
+      const roundNum = prog.scope?.round;
+      const roundLabel =
+        prog.scope?.roundLabel ||
+        (roundNum != null && roundNum !== '' ? `第 ${roundNum} 回` : null);
+      return roundLabel
+        ? `繼續${roundLabel}（${cur}/${total}）`
+        : `繼續作答（${cur}/${total}）`;
+    });
+    if (suggest !== '繼續第 1 回（4/5）') {
+      throw new Error(`R5-1 suggest wording: ${suggest}`);
+    }
+    pass('R5-1 suggest uses scope.round not idx');
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+    // #22：並發 askConfirm 同標題只開一個
+    const n = await page.evaluate(async () => {
+      const { askConfirm } = await import('/js/dialog.js');
+      const p1 = askConfirm({ title: '繼續上次草稿？', message: 'x', okLabel: '繼續', cancelLabel: '丟掉草稿' });
+      const p2 = askConfirm({ title: '繼續上次草稿？', message: 'x', okLabel: '繼續', cancelLabel: '丟掉草稿' });
+      const p3 = askConfirm({ title: '繼續上次草稿？', message: 'x', okLabel: '繼續', cancelLabel: '丟掉草稿' });
+      const count = document.querySelectorAll('dialog.confirm-dlg').length;
+      document.querySelector('dialog.confirm-dlg button[value=cancel]')?.click();
+      await Promise.all([p1, p2, p3]);
+      return count;
+    });
+    if (n !== 1) throw new Error(`#22 expected 1 draft dialog, got ${n}`);
+    pass('#22 single 繼續上次草稿 dialog');
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    const answers = batch.questions.map((q) => q.answer);
+    for (let i = 0; i < answers.length - 1; i++) {
+      await page.locator(`.opt[data-k="${answers[i]}"]`).click();
+      await page.waitForTimeout(30);
+      await page.locator('[data-act="next"]').click();
+      await page.waitForTimeout(40);
+    }
+    await page.locator(`.opt[data-k="${answers[answers.length - 1]}"]`).click();
+    await page.waitForTimeout(30);
+    // 雙擊看結果：第二下應被 350ms 靜默吃掉，不應立刻回首頁
+    await page.locator('[data-act="next"]').dblclick({ delay: 40 });
+    await page.waitForSelector('[data-el="result"]', { timeout: 5000 });
+    await page.waitForTimeout(120);
+    const stillResult = await page.evaluate(
+      () => !!document.querySelector('[data-el="result"]') && document.body.dataset.view === 'result',
+    );
+    if (!stillResult) throw new Error('R5-2 double-click left result too early');
+    pass('R5-2 result click quiet after transition');
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.setContent(`<!DOCTYPE html><html><head>
+      <link rel="stylesheet" href="http://127.0.0.1:${port}/css/base.css">
+      <link rel="stylesheet" href="http://127.0.0.1:${port}/css/b.css">
+      <link rel="stylesheet" href="http://127.0.0.1:${port}/css/app.css">
+      </head><body>
+      <div class="page wrong"><div class="tabs g2">
+        <button type="button" class="tab on" data-sub="">全部<span class="l5">12</span></button>
+        <button type="button" class="tab" data-sub="math">數學<span class="l5">8</span></button>
+        <button type="button" class="tab" data-sub="sci">理化<span class="l5">4</span></button>
+      </div>
+      <button type="button" class="import-row"><span>q1</span><span class="l3">將覆蓋</span></button>
+      </div></body></html>`);
+    const tabs = await page.evaluate(() => {
+      const tabsEl = document.querySelector('.page.wrong .tabs.g2');
+      const first = tabsEl?.querySelector('.tab')?.textContent?.replace(/\s+/g, ' ').trim();
+      const cs = getComputedStyle(tabsEl);
+      const wrap = cs.flexWrap;
+      const rowH = tabsEl.getBoundingClientRect().height;
+      const badge = document.querySelector('.import-row .l3');
+      const br = badge?.getBoundingClientRect();
+      const rr = document.querySelector('.import-row')?.getBoundingClientRect();
+      return {
+        first,
+        wrap,
+        rowH,
+        badgeW: br?.width || 0,
+        rowW: rr?.width || 0,
+      };
+    });
+    if (!/^全部/.test(tabs.first || '')) throw new Error(`R5-6 全部 not first: ${tabs.first}`);
+    if (tabs.wrap !== 'nowrap') throw new Error(`R5-6 tabs wrap=${tabs.wrap}`);
+    if (tabs.rowH > 56) throw new Error(`R5-6 tabs wrapped tall ${tabs.rowH}`);
+    if (tabs.badgeW > tabs.rowW * 0.5) throw new Error(`N-8 將覆蓋 too wide ${tabs.badgeW}/${tabs.rowW}`);
+    pass('R5-6/N-8 wrong tabs + overwrite badge');
+    await page.close();
+  }
+
   await browser.close();
 } catch (e) {
   fail('e2e suite', e.stack || e.message || e);

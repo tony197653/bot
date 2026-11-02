@@ -99,6 +99,38 @@ export async function fetchQuestionsForUnit(ctx, bookId, unitCode, limit = 10) {
   return { questions: qs, groups };
 }
 
+function stemSnippet(stem) {
+  const t = String(stem || '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!t) return '';
+  return t.length > 56 ? `${t.slice(0, 56)}…` : t;
+}
+
+/** @returns {Promise<Record<string,string>>} */
+async function loadStemSnippets(ctx, qids) {
+  /** @type {Record<string,string>} */
+  const out = {};
+  const ids = [...new Set((qids || []).filter(Boolean))];
+  if (!ids.length) return out;
+  try {
+    const { db, fs } = await ensureFb(ctx);
+    for (let i = 0; i < ids.length; i += 30) {
+      const chunk = ids.slice(i, i + 30);
+      const q = fs.query(fs.collection(db, 'questions'), fs.where(fs.documentId(), 'in', chunk));
+      const snap = await fs.getDocs(q);
+      snap.forEach((d) => {
+        const snip = stemSnippet(d.data()?.stem);
+        if (snip) out[d.id] = snip;
+      });
+    }
+  } catch {
+    /* ignore — cards fall back */
+  }
+  return out;
+}
+
 export async function fetchWrongQuestions(ctx, uid, filterSubject) {
   const stats = await loadQstatsWrong(uid);
   let rows = stats;
@@ -254,7 +286,16 @@ export async function renderHome(mount, ctx) {
         const prog = JSON.parse(progRaw);
         const cur = (prog.idx || 0) + 1;
         const total = prog.qids?.length || '?';
-        const bits = [`繼續第 ${cur} 回（${cur}/${total}）`];
+        // R5-1：回數用 scope.round／roundLabel，不可把題號當回數
+        const roundNum = prog.scope?.round;
+        const roundLabel =
+          prog.scope?.roundLabel ||
+          (roundNum != null && roundNum !== '' ? `第 ${roundNum} 回` : null);
+        const bits = [
+          roundLabel
+            ? `繼續${roundLabel}（${cur}/${total}）`
+            : `繼續作答（${cur}/${total}）`,
+        ];
         if (wrongN) bits.push(`錯題本 ${wrongN} 題`);
         if (weakest) bits.push(`最弱：${weakest.unitCode || ''} ${weakest.unit || ''}`.trim());
         suggestHtml = bits.join('｜');
@@ -495,14 +536,20 @@ export async function renderWrongBook(mount, ctx) {
     const stats = unitFilter ? bySubject.filter((r) => r.unitCode === unitFilter) : bySubject;
     const count = stats.length;
     const label = wrongPracticeLabel(count);
+    // R5-3：卡片顯示題幹摘要，不露內部 id
+    const stemById = await loadStemSnippets(
+      ctx,
+      stats.map((s) => s.qid),
+    );
     mount.innerHTML = `<div class="page wrong">
-      <div class="tabs g2">${Object.entries(SUBJECT_LABELS)
-        .map(
-          ([k, v]) =>
-            `<button type="button" class="tab${subject === k ? ' on' : ''}" data-sub="${k}">${v}<span class="l5">${allRows.filter((s) => s.subject === k).length || ''}</span></button>`,
-        )
-        .join('')}
-        <button type="button" class="tab${!subject ? ' on' : ''}" data-sub="">全部</button>
+      <div class="tabs g2">
+        <button type="button" class="tab${!subject ? ' on' : ''}" data-sub="">全部<span class="l5">${allRows.length || ''}</span></button>
+        ${Object.entries(SUBJECT_LABELS)
+          .map(
+            ([k, v]) =>
+              `<button type="button" class="tab${subject === k ? ' on' : ''}" data-sub="${k}">${v}<span class="l5">${allRows.filter((s) => s.subject === k).length || ''}</span></button>`,
+          )
+          .join('')}
       </div>
       <div class="filters m1">
         <label>單元
@@ -518,7 +565,7 @@ export async function renderWrongBook(mount, ctx) {
               .map(
                 (s) => `<article class="card c1 wrong-card" data-qid="${escHtml(s.qid)}">
           <p class="meta">${escHtml(s.unitCode)} · 連對 ${Math.min(s.streak || 0, 2)}/2</p>
-          <p class="qid">${escHtml(s.qid)}</p>
+          <p class="stem-snip">${escHtml(stemById[s.qid] || '（題幹載入失敗）')}</p>
         </article>`,
               )
               .join('')
@@ -529,7 +576,7 @@ export async function renderWrongBook(mount, ctx) {
             ${
               subject || unitFilter
                 ? '<button type="button" class="btn b2" data-clear-filter>看全部科目</button>'
-                : '<a class="btn b1" href="#/">回首頁選一回</a>'
+                : ''
             }
           </div>`
       }

@@ -14,6 +14,9 @@ import { ERR, zhFromError } from './errors.js';
 
 export { DRAFT_KEY };
 
+/** 同一次匯入頁掛載中，草稿續用對話框只問一次（避免 auth／hash 重渲疊出多個） */
+let draftResumeGate = null;
+
 /** 紅標畫面：中文＋代碼小字（batchFlags 字串取：前代碼） */
 function flagHtml(flagOrCode, batch) {
   const raw = String(flagOrCode || '');
@@ -148,19 +151,62 @@ export async function renderImport(mount, ctx) {
     pasteText: '',
   };
 
-  if (draft?.batch?.questions?.length) {
-    const n = draft.batch.questions.length;
-    const keep = await askConfirm({
-      title: '繼續上次草稿？',
-      message: `上次還有 ${n} 題沒存入。要繼續校對，還是丟掉草稿重新開始？`,
-      okLabel: '繼續',
-      cancelLabel: '丟掉草稿',
-    });
-    if (keep) state = { ...state, ...draft };
-    else await clearImportDraft(ctx.toast);
+  const hasBatchDraft = !!(draft?.batch?.questions?.length);
+  const hasPasteDraft = !!(draft?.pasteText && String(draft.pasteText).trim());
+  if (hasBatchDraft) {
+    const gateKey = `b:${draft.batch.questions.length}:${draft.batch.questions.map((q) => q.id).join(',')}`;
+    if (!draftResumeGate || draftResumeGate.key !== gateKey) {
+      draftResumeGate = {
+        key: gateKey,
+        promise: (async () => {
+          document.querySelectorAll('dialog.confirm-dlg').forEach((d) => {
+            try {
+              d.close();
+            } catch {
+              /* ignore */
+            }
+            d.remove();
+          });
+          const n = draft.batch.questions.length;
+          const keep = await askConfirm({
+            title: '繼續上次草稿？',
+            message: `上次還有 ${n} 題沒存入。要繼續校對，還是丟掉草稿重新開始？`,
+            okLabel: '繼續',
+            cancelLabel: '丟掉草稿',
+          });
+          if (!keep) {
+            await clearImportDraft(ctx.toast);
+            return null;
+          }
+          return draft;
+        })(),
+      };
+    }
+    const kept = await draftResumeGate.promise;
+    if (kept) state = { ...state, ...kept };
+  } else if (hasPasteDraft) {
+    // 尚未成 JSON 的貼上文字也要還原進 textarea
+    state = { ...state, pasteText: draft.pasteText, step: draft.step || 1 };
   }
 
-  const autosave = createDraftAutosave(() => (state.batch ? state : null), ctx.toast, 1000);
+  const snapshotDraft = () => {
+    if (state.batch) return state;
+    if (state.pasteText && String(state.pasteText).trim()) {
+      return {
+        step: state.step || 1,
+        batch: null,
+        validation: null,
+        selectedId: null,
+        tab: state.tab || 'all',
+        dismissed: {},
+        batchAck: false,
+        reportFocus: null,
+        pasteText: state.pasteText,
+      };
+    }
+    return null;
+  };
+  const autosave = createDraftAutosave(snapshotDraft, ctx.toast, 1000);
   const saveState = () => {
     autosave.schedule();
   };
@@ -326,10 +372,12 @@ export async function renderImport(mount, ctx) {
         state.batch = null;
         state.validation = null;
         state.pasteText = '';
+        draftResumeGate = null;
         await autosave.clear();
         paint();
       });
     } else {
+      draftResumeGate = null;
       await autosave.clear();
       state.step = 1;
       state.batch = null;
@@ -648,6 +696,8 @@ export async function renderImport(mount, ctx) {
       let pasteT = 0;
       ta?.addEventListener('input', () => {
         state.pasteText = ta.value;
+        // 部分／非 JSON 文字也要進草稿（刷新後還原）
+        saveState();
         clearTimeout(pasteT);
         pasteT = setTimeout(() => {
           try {
@@ -668,7 +718,7 @@ export async function renderImport(mount, ctx) {
             }
             saveState();
           } catch {
-            /* 輸入中：不強制清文字 */
+            /* 輸入中：不強制清文字；草稿已由上方 saveState 保存 */
           }
         }, 500);
       });
