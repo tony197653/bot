@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>I3 浮動標籤：兩種改法試用</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 色票照元件庫 components/index.html :root；三種樣式用同一組顏色，只比互動效果 */
+:root{
+  --bg:#EDEEE9;--surface:#FBFBF8;--ink:#2F312D;--mute:#696C64;--line:#D6D9D0;--line-soft:#E4E6DF;
+  --sage:#66745F;--sage-deep:#505C4A;--sage-soft:#DFE4DA;--slate:#5F6B78;--slate-soft:#E1E5EA;
+  --danger:#A4483C;--danger-soft:#F3E2DE;
+  --shadow:0 1px 2px rgba(40,42,36,.05),0 4px 16px rgba(40,42,36,.05);
+  --halo:0 0 0 3px rgba(95,107,120,.18);
+  --halo-err:0 0 0 3px rgba(164,72,60,.16);
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --font:"Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  /* 三種共用 */
+  --fill:#fff;--border:var(--line);--border-hover:#BFC3B8;--accent:var(--slate);--hint:#8C8F86;
+  --t:.22s;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+::selection{background:var(--sage-soft)}
+:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+h1,h2,h3{line-height:1.3;margin:0;font-weight:600;text-wrap:balance}
+.wrap{max-width:1120px;margin:0 auto;padding:48px 24px 72px}
+header h1{font-size:clamp(24px,3.4vw,34px);letter-spacing:.01em}
+header .lead{margin:12px 0 0;color:var(--mute);font-size:15.5px;max-width:44em}
+header .lead b{color:var(--ink);font-weight:600}
+.grid{margin-top:28px;display:grid;gap:20px;grid-template-columns:repeat(3,minmax(0,1fr))}
+.spec{background:var(--surface);border:1px solid var(--line-soft);border-radius:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0}
+.spec-head{padding:18px 20px 0;display:flex;gap:12px;align-items:flex-start}
+.code{flex:none;display:inline-grid;place-items:center;min-width:40px;height:26px;padding:0 8px;border-radius:7px;background:var(--ink);color:#fff;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.code.ref{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.spec-head h3{font-size:16px}
+.spec-head p{color:var(--mute);font-size:13.5px;margin:2px 0 0}
+.stage{flex:1;margin:16px 16px 0;padding:28px 20px 22px;border-radius:12px;background:var(--bg);display:flex;flex-direction:column;gap:14px}
+.try{margin:12px 20px 18px;font-size:13px;color:var(--mute);display:flex;gap:8px;align-items:baseline}
+.try::before{content:"試試";flex:none;font-size:11.5px;font-weight:600;color:var(--sage-deep);background:var(--sage-soft);border-radius:999px;padding:1px 8px;letter-spacing:.04em}
+.note{margin-top:22px;font-size:13px;color:var(--mute)}
+
+/* ===== 共用欄位 ===== */
+.field{width:100%;display:flex;flex-direction:column;gap:6px}
+.field .help{font-size:12.5px;color:var(--mute);min-height:1.5em;transition:color var(--t) var(--ease)}
+.field.err .help{color:var(--danger)}
+.in{font:inherit;font-size:16px;color:var(--ink);width:100%;margin:0;-webkit-appearance:none;appearance:none}
+.in::placeholder{color:transparent}
+
+/* ===== 對照 I1（照抄元件庫） ===== */
+.i1 label{font-size:13.5px;font-weight:500}
+.i1 .in{min-height:44px;padding:0 12px;border:1px solid var(--border);border-radius:8px;background:var(--fill);transition:border-color .2s,box-shadow .2s,background .2s}
+.i1 .in::placeholder{color:#9EA198}
+.i1 .in:hover{border-color:var(--border-hover)}
+.i1 .in:focus{outline:none;border-color:var(--slate);box-shadow:var(--halo)}
+.i1.err .in{border-color:var(--danger)}
+.i1.err .in:focus{box-shadow:var(--halo-err)}
+
+/* ===== 樣品 A 外框式（標籤嵌進框線缺口） ===== */
+.oa .box{position:relative;border-radius:8px;background:var(--fill)}
+.oa .in{position:relative;z-index:1;height:56px;padding:0 16px;border:0;background:transparent;border-radius:8px}
+.oa .in:focus{outline:none}
+.oa fieldset{position:absolute;inset:-6px 0 0;margin:0;padding:0 11px;border:1px solid var(--border);border-radius:8px;pointer-events:none;z-index:2;
+  transition:border-color var(--t) var(--ease),border-width 0s}
+.oa legend{float:unset;width:auto;height:12px;padding:0;font-size:12px;line-height:12px;visibility:hidden;max-width:.01px;white-space:nowrap;overflow:hidden;
+  transition:max-width .1s var(--ease)}
+.oa legend span{padding:0 4px;display:inline-block}
+.oa label{position:absolute;z-index:3;left:16px;top:0;font-size:16px;line-height:20px;color:var(--hint);pointer-events:none;transform-origin:left top;
+  transform:translate(0,18px) scale(1);transition:transform var(--t) var(--ease),color var(--t) var(--ease)}
+.oa .box:hover fieldset{border-color:var(--border-hover)}
+.oa .in:focus ~ fieldset{border-width:2px;padding:0 10px;border-color:var(--accent)}
+.oa .in:focus ~ fieldset legend,.oa .in:not(:placeholder-shown) ~ fieldset legend{max-width:100%;transition:max-width .16s var(--ease) .04s}
+.oa .in:focus ~ label,.oa .in:not(:placeholder-shown) ~ label{transform:translate(0,-7px) scale(.75);color:var(--mute)}
+.oa .in:focus ~ label{color:var(--accent)}
+.oa.err fieldset,.oa.err .box:hover fieldset{border-color:var(--danger)}
+.oa.err .in ~ label,.oa.err .in:focus ~ label{color:var(--danger)}
+.oa.err .in:focus ~ fieldset{border-color:var(--danger)}
+
+/* ===== 樣品 B 填色底線式（標籤留在框內，底線從中間長出） ===== */
+.fb .box{position:relative;background:var(--fill);border-radius:8px 8px 0 0;transition:background var(--t) var(--ease)}
+.fb .in{position:relative;z-index:1;height:56px;padding:24px 16px 6px;border:0;background:transparent;border-radius:8px 8px 0 0}
+.fb .in:focus{outline:none}
+.fb .box::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--border-hover);transition:background var(--t) var(--ease)}
+.fb .bar{position:absolute;z-index:2;left:0;right:0;bottom:0;height:2px;background:var(--accent);transform:scaleX(0);transition:transform var(--t) var(--ease),background var(--t) var(--ease)}
+.fb label{position:absolute;z-index:3;left:16px;top:0;font-size:16px;line-height:20px;color:var(--hint);pointer-events:none;transform-origin:left top;
+  transform:translate(0,18px) scale(1);transition:transform var(--t) var(--ease),color var(--t) var(--ease)}
+.fb .box:hover::after{background:var(--ink)}
+.fb .in:focus ~ .bar{transform:scaleX(1)}
+.fb .in:focus ~ label,.fb .in:not(:placeholder-shown) ~ label{transform:translate(0,8px) scale(.75);color:var(--mute)}
+.fb .in:focus ~ label{color:var(--accent)}
+.fb.err .box::after{background:var(--danger)}
+.fb.err .bar{background:var(--danger)}
+.fb.err .in ~ label,.fb.err .in:focus ~ label{color:var(--danger)}
+
+@media (max-width:639px){
+  .wrap{padding:32px 16px 56px}
+  .grid{grid-template-columns:1fr;gap:16px}
+  .stage{margin:14px 14px 0;padding:22px 14px 18px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms!important;transition-delay:0s!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>I3 浮動標籤：兩種改法試用</h1>
+  <p class="lead">現在的 I3 和 I1 長得太像。三格<b>顏色完全相同</b>（白底、同色細框、藍灰聚焦色、同一個紅色錯誤），只差<b>互動效果</b>：標籤怎麼動、框線怎麼變、聚焦線怎麼出現。每格上面是空白欄、下面是錯誤狀態，打字會即時檢查。</p>
+</header>
+
+<div class="grid">
+  <article class="spec">
+    <div class="spec-head"><span class="code ref">I1</span><div><h3>對照：細框光環</h3><p>現在的 I1。標籤固定在框上方，聚焦時外圍一圈光環。</p></div></div>
+    <div class="stage">
+      <div class="field i1"><label for="r1">手機號碼</label><input id="r1" class="in js-phone-in" inputmode="tel" placeholder="例如：0912-345-678" aria-describedby="r1h"><span class="help" id="r1h">出貨時會傳簡訊通知。</span></div>
+      <div class="field i1 err js-phone"><label for="r2">手機號碼</label><input id="r2" class="in" inputmode="tel" value="0912-34" aria-invalid="true" aria-describedby="r2h"><span class="help" id="r2h">手機號碼是 10 碼，目前只有 6 碼。</span></div>
+    </div>
+    <p class="try">點進去看光環；把下面那格補到 10 碼，紅框會消失。</p>
+  </article>
+
+  <article class="spec">
+    <div class="spec-head"><span class="code">A</span><div><h3>外框式</h3><p>標籤坐在框內正中，點進去縮小「爬上」框線，框線在標籤後面讓出缺口，框加粗成 2px。</p></div></div>
+    <div class="stage">
+      <div class="field oa js-phone-opt"><div class="box"><input id="a1" class="in" inputmode="tel" placeholder=" " aria-describedby="a1h"><fieldset aria-hidden="true"><legend><span>手機號碼</span></legend></fieldset><label for="a1">手機號碼</label></div><span class="help" id="a1h">出貨時會傳簡訊通知。</span></div>
+      <div class="field oa err js-phone"><div class="box"><input id="a2" class="in" inputmode="tel" placeholder=" " value="0912-34" aria-invalid="true" aria-describedby="a2h"><fieldset aria-hidden="true"><legend><span>手機號碼</span></legend></fieldset><label for="a2">手機號碼</label></div><span class="help" id="a2h">手機號碼是 10 碼，目前只有 6 碼。</span></div>
+    </div>
+    <p class="try">點進去、打字、再清空，看標籤爬上框線、框線讓出缺口再合起來。</p>
+  </article>
+
+  <article class="spec">
+    <div class="spec-head"><span class="code">B</span><div><h3>填色底線式</h3><p>上方圓角、下方平直，只有一條底線；點進去標籤在框內往上縮，2px 底線從中間往兩邊長出。</p></div></div>
+    <div class="stage">
+      <div class="field fb js-phone-opt"><div class="box"><input id="b1" class="in" inputmode="tel" placeholder=" " aria-describedby="b1h"><span class="bar" aria-hidden="true"></span><label for="b1">手機號碼</label></div><span class="help" id="b1h">出貨時會傳簡訊通知。</span></div>
+      <div class="field fb err js-phone"><div class="box"><input id="b2" class="in" inputmode="tel" placeholder=" " value="0912-34" aria-invalid="true" aria-describedby="b2h"><span class="bar" aria-hidden="true"></span><label for="b2">手機號碼</label></div><span class="help" id="b2h">手機號碼是 10 碼，目前只有 6 碼。</span></div>
+    </div>
+    <p class="try">點進去看底線從中間展開；點到別處，底線往中間收回。</p>
+  </article>
+</div>
+<p class="note">參考：Material Design 3 Text fields（外框式 Outlined、填色式 Filled）。動畫 0.22 秒、元件庫緩動曲線；系統設定「減少動態效果」時直接切換。</p>
+</div>
+<script>
+(function(){
+  function digits(v){return v.replace(/\D/g,'').length;}
+  var BAD=function(n){return '手機號碼是 10 碼，目前只有 '+n+' 碼。';};
+  // 錯誤示範欄：一律即時檢查
+  document.querySelectorAll('.js-phone').forEach(function(f){
+    var i=f.querySelector('input'),h=f.querySelector('.help');
+    i.addEventListener('input',function(){var n=digits(i.value),ok=n===10;
+      f.classList.toggle('err',!ok);i.setAttribute('aria-invalid',String(!ok));
+      h.textContent=ok?'號碼格式正確。':(n===0?'請填手機號碼。':BAD(n));});
+  });
+  // 空白欄：有打字才檢查，清空就回到說明文字
+  document.querySelectorAll('.js-phone-opt, .i1:not(.js-phone)').forEach(function(f){
+    var i=f.querySelector('input'),h=f.querySelector('.help'),base=h.textContent;
+    function check(final){var n=digits(i.value);
+      if(n===0){f.classList.remove('err');i.removeAttribute('aria-invalid');h.textContent=base;return;}
+      if(n===10){f.classList.remove('err');i.setAttribute('aria-invalid','false');h.textContent='號碼格式正確。';return;}
+      if(final||f.classList.contains('err')||n>10){f.classList.add('err');i.setAttribute('aria-invalid','true');h.textContent=n>10?'手機號碼是 10 碼，目前多了 '+(n-10)+' 碼。':BAD(n);}
+      else{h.textContent=base;}}
+    i.addEventListener('input',function(){check(false);});
+    i.addEventListener('blur',function(){check(true);});
+  });
+})();
+</script>
+</body>
+</html>
