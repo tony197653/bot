@@ -76,7 +76,7 @@ import {
 } from './lobby.js';
 import { renderStats } from './stats.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
-import { cardHtml, cardBackPair, heroBackPair, fmtChips, paintBoardSlots } from './cards-dom.js';
+import { cardHtml, cardBackPair, heroBackPair, fmtChips, paintBoardSlots, raisePresetsMarkup } from './cards-dom.js';
 import { mapSeatsClockwise } from './seating.js';
 import { prefersReducedMotion } from './fx.js';
 import { parseCard } from '../engine/cards.js';
@@ -1990,14 +1990,7 @@ function openMpRaise(minRaiseTo, send) {
 
   const presetsEl = $('#presets');
   if (presetsEl) {
-    presetsEl.innerHTML = presets
-      .map(
-        (p) =>
-          `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.to === mpRaiseTo}">` +
-          `<span class="preset-lbl">${p.label}</span>` +
-          `<span class="preset-amt">${fmtChips(p.to)}</span></button>`,
-      )
-      .join('');
+    presetsEl.innerHTML = raisePresetsMarkup(presets, mpRaiseTo);
     presetsEl.onclick = (e) => {
       const b = e.target.closest('button[data-to]');
       if (!b) return;

@@ -70,6 +70,26 @@ export function fmtChips(n) {
 }
 
 /**
+ * Approved #20 raise quick-pick grid markup (3×2).
+ * Each button shows label + resulting raise-to amount underneath.
+ * Shared by solo openRaisePanel and MP openMpRaise so MP cannot silently drop presets.
+ * @param {{ id: string, label: string, to: number }[]} presets
+ * @param {number} selectedTo currently selected raise-to
+ * @param {(n: number) => string} [format]
+ */
+export function raisePresetsMarkup(presets, selectedTo, format = fmtChips) {
+  const list = Array.isArray(presets) ? presets : [];
+  return list
+    .map(
+      (p) =>
+        `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.to === selectedTo}">` +
+        `<span class="preset-lbl">${p.label}</span>` +
+        `<span class="preset-amt">${format(p.to)}</span></button>`,
+    )
+    .join('');
+}
+
+/**
  * Markup for five fixed community-card slots (flop 1–3, turn 4, river 5).
  * Empty slots are invisible placeholders that reserve the river row width.
  * @param {{r:number,s:number}[]} cards

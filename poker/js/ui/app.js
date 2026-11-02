@@ -15,7 +15,7 @@ import {
   HOLD_MS_SHOWDOWN,
   HOLD_MS_FOLD_WIN,
 } from '../engine/index.js';
-import { cardHtml, cardBackPair, heroBackPair, fmtChips, cardFaceInner, paintBoardSlots } from './cards-dom.js';
+import { cardHtml, cardBackPair, heroBackPair, fmtChips, cardFaceInner, paintBoardSlots, raisePresetsMarkup } from './cards-dom.js';
 import { onTick } from './ticker.js';
 import { mapSeatsClockwise, seatVisualPos } from './seating.js';
 import {
@@ -2286,14 +2286,7 @@ function openRaisePanel(legal) {
     raiseTo = +range.value;
     syncRaiseUi();
   };
-  $('#presets').innerHTML = presets
-    .map(
-      (p) =>
-        `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.to === raiseTo}">` +
-        `<span class="preset-lbl">${p.label}</span>` +
-        `<span class="preset-amt">${fmtChips(p.to)}</span></button>`,
-    )
-    .join('');
+  $('#presets').innerHTML = raisePresetsMarkup(presets, raiseTo);
   $('#presets').onclick = (e) => {
     const b = e.target.closest('button[data-to]');
     if (!b) return;
