@@ -186,17 +186,141 @@ async function main() {
         const b = el?.querySelector("b");
         const r = el.getBoundingClientRect();
         const br = b.getBoundingClientRect();
+        const mid = (r.top + r.bottom) / 2;
+        const bmid = (br.top + br.bottom) / 2;
         return {
           text: el.innerText.replace(/\s+/g, " ").trim(),
           h: r.height,
+          offset: Math.abs(mid - bmid),
           sameLine: Math.abs(r.top - br.top) < 4 && Math.abs(r.bottom - br.bottom) < 8,
+          hasMain: !!document.querySelector("main#log"),
+          resetHidden: el.querySelector(".quota-reset")?.hidden === true,
         };
       });
       if (quota390.text !== "剩 19 題") throw new Error("quota text 390: " + quota390.text);
       if (!quota390.sameLine || quota390.h > 32) {
         throw new Error("quota badge wraps at 390: " + JSON.stringify(quota390));
       }
+      if (quota390.offset >= 1) {
+        throw new Error("quota badge offset >=1px at 390: " + quota390.offset);
+      }
+      if (!quota390.hasMain) throw new Error("missing <main id=log>");
+      if (!quota390.resetHidden) throw new Error("reset hint should hide when remaining>5");
+
+      // remaining <=5 shows reset hint with readable contrast
+      await page.evaluate(() => window.__ASK__.setQuotaDisplay(5));
+      const reset5 = await page.evaluate(() => {
+        const el = document.querySelector(".quota-short .quota-reset");
+        const cs = getComputedStyle(el);
+        const bg = getComputedStyle(document.body).backgroundColor;
+        function lum(c) {
+          const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (!m) return 1;
+          const [r, g, b] = [m[1], m[2], m[3]].map((x) => {
+            const s = Number(x) / 255;
+            return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        }
+        const L1 = lum(cs.color);
+        const L2 = lum(bg);
+        const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
+        return { hidden: el.hidden, text: el.textContent, ratio };
+      });
+      if (reset5.hidden || reset5.text !== "早上 8 點重置") {
+        throw new Error("reset hint at 5: " + JSON.stringify(reset5));
+      }
+      if (reset5.ratio < 4.5) throw new Error("reset contrast <4.5: " + reset5.ratio);
+
+      await page.evaluate(() => window.__ASK__.setQuotaDisplay(19));
       await shot(page, "ask-empty-390.png");
+
+      // fonts: only .foot-disc may be <16
+      const smallFonts = await page.evaluate(() => {
+        const bad = [];
+        const walk = (node) => {
+          if (node.nodeType !== 1) return;
+          if (node.matches?.(".foot-disc, .sr, [hidden], script, style, svg, svg *")) return;
+          const kids = node.children;
+          if (!kids.length && node.textContent.trim()) {
+            const fs = parseFloat(getComputedStyle(node).fontSize);
+            if (fs < 16) bad.push({ tag: node.tagName, cls: node.className, fs });
+          }
+          for (const c of kids) walk(c);
+        };
+        walk(document.body);
+        // also check known UI nodes with text
+        for (const sel of [
+          ".l5inline",
+          ".l5inline b",
+          ".btn",
+          ".emp .disc",
+          ".meta-row",
+          ".toast",
+        ]) {
+          const n = document.querySelector(sel);
+          if (!n) continue;
+          const fs = parseFloat(getComputedStyle(n).fontSize);
+          if (fs < 16) bad.push({ sel, fs });
+        }
+        const foot = parseFloat(getComputedStyle(document.querySelector(".foot-disc")).fontSize);
+        return { bad, foot };
+      });
+      if (Math.abs(smallFonts.foot - 13) > 0.5) {
+        throw new Error("foot-disc should stay 13px: " + smallFonts.foot);
+      }
+      if (smallFonts.bad.length) {
+        throw new Error("font <16 outside D: " + JSON.stringify(smallFonts.bad));
+      }
+
+      // over 500 → error halo; trim before length
+      await page.evaluate(() => {
+        const q = document.getElementById("q");
+        q.value = "  " + "啊".repeat(501) + "  ";
+        q.dispatchEvent(new Event("input"));
+      });
+      const errState = await page.evaluate(() =>
+        document.getElementById("input-wrap").classList.contains("is-error"),
+      );
+      if (!errState) throw new Error("expected is-error over 500 trimmed chars");
+      await page.evaluate(() => {
+        const q = document.getElementById("q");
+        q.value = "  " + "啊".repeat(500) + "  ";
+        q.dispatchEvent(new Event("input"));
+      });
+      const okState = await page.evaluate(() =>
+        document.getElementById("input-wrap").classList.contains("is-error"),
+      );
+      if (okState) throw new Error("500 trimmed chars should not error");
+      await page.fill("#q", "");
+
+      // overrides gated
+      const gate = await page.evaluate(() => ({
+        local: window.__ASK__.allowConfigOverrides("127.0.0.1"),
+        pages: window.__ASK__.allowConfigOverrides("foo.pages.dev"),
+        prod: window.__ASK__.allowConfigOverrides("tony197653.github.io"),
+      }));
+      if (!gate.local || !gate.pages || gate.prod) {
+        throw new Error("override host gate: " + JSON.stringify(gate));
+      }
+
+      // Turnstile: onAskTurnstileLoad 再呼叫不得重複 render
+      const extraRenders = await page.evaluate(() => {
+        let n = 0;
+        const orig = window.turnstile.render.bind(window.turnstile);
+        window.turnstile.render = (...a) => {
+          n++;
+          return orig(...a);
+        };
+        window.onAskTurnstileLoad?.();
+        window.onAskTurnstileLoad?.();
+        window.turnstile.render = orig;
+        return n;
+      });
+      if (extraRenders !== 0) {
+        throw new Error("Turnstile re-rendered: " + extraRenders);
+      }
+      results.push("override/fonts/error OK");
       const chips = await page.locator("#chips button").count();
       if (chips !== 2) throw new Error("expected 2 chips, got " + chips);
       // IME: composition Enter must not submit
@@ -268,9 +392,12 @@ async function main() {
         const b = el?.querySelector("b");
         const r = el.getBoundingClientRect();
         const br = b.getBoundingClientRect();
+        const mid = (r.top + r.bottom) / 2;
+        const bmid = (br.top + br.bottom) / 2;
         return {
           text: el.innerText.replace(/\s+/g, " ").trim(),
           h: r.height,
+          offset: Math.abs(mid - bmid),
           sameLine: Math.abs(r.top - br.top) < 4 && Math.abs(r.bottom - br.bottom) < 8,
         };
       });
@@ -279,6 +406,9 @@ async function main() {
       }
       if (!quota1280.sameLine || quota1280.h > 32) {
         throw new Error("quota badge wraps at 1280: " + JSON.stringify(quota1280));
+      }
+      if (quota1280.offset >= 1) {
+        throw new Error("quota badge offset >=1px at 1280: " + quota1280.offset);
       }
       await shot(page, "ask-empty-1280.png");
       await page.fill("#q", "用條列說明");
@@ -289,6 +419,25 @@ async function main() {
       await shot(page, "ask-streaming-1280.png");
       await page.waitForSelector(".actions", { timeout: 15000 });
       await shot(page, "ask-done-1280.png");
+
+      // answer <pre> gets tabindex=0
+      await page.evaluate(() => {
+        const t = window.__ASK__.turns[window.__ASK__.turns.length - 1];
+        t.aText = "```\ncode\n```";
+        t.mdEl.innerHTML = (() => {
+          // reuse page marked path via DOM
+          const wrap = document.createElement("div");
+          wrap.className = "a-md";
+          wrap.innerHTML = "<pre><code>code</code></pre>";
+          wrap.querySelector("pre").setAttribute("tabindex", "0");
+          return wrap.innerHTML;
+        })();
+      });
+      const tab = await page.evaluate(() =>
+        document.querySelector(".a-md pre")?.getAttribute("tabindex"),
+      );
+      if (tab !== "0") throw new Error("pre tabindex expected 0, got " + tab);
+
       // 停止測試：新問題
       await page.fill("#q", "__SLOW__");
       await page.click("#send");
@@ -336,8 +485,16 @@ async function main() {
     await withPage(1280, 800, async (page) => {
       await page.evaluate(() => window.__ASK__.setQuotaDisplay(0));
       await page.waitForTimeout(100);
-      const disabled = await page.evaluate(() => document.getElementById("q").disabled);
-      if (!disabled) throw new Error("q should disable at 0");
+      const zero = await page.evaluate(() => {
+        const q = document.getElementById("q");
+        const reset = document.querySelector(".quota-full .quota-reset");
+        return {
+          disabled: q.disabled,
+          resetShown: reset && !reset.hidden && reset.textContent === "早上 8 點重置",
+        };
+      });
+      if (!zero.disabled) throw new Error("q should disable at 0");
+      if (!zero.resetShown) throw new Error("reset hint should show at 0");
       await shot(page, "ask-zero-1280.png");
       results.push("zero quota OK");
     });

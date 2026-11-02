@@ -13,6 +13,8 @@ export default defineWorkersConfig({
             ALLOWED_ORIGIN: "https://tony197653.github.io",
             EXTRA_ALLOWED_ORIGIN: "http://127.0.0.1:4173",
             MOCK_AI: "1",
+            // 預設關閉：正式行為。需測時鐘時由個別測試改走 DO ?now=
+            ALLOW_TEST_NOW: "",
             WORKERS_AI_MODEL: "@cf/openai/gpt-oss-20b",
             WORKERS_AI_FALLBACK_MODEL: "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
             GROQ_MODEL: "openai/gpt-oss-120b",

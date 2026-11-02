@@ -35,6 +35,8 @@ GEMINI_MODEL = "gemini-2.0-flash"
 OPENROUTER_MODEL = "google/gemma-2-9b-it:free"
 # 測試用：設為 "1" 時走 mock 供應商（見 src/providers.ts）
 MOCK_AI = ""
+# 測試用：設為 "1" 才接受 body.now / ?now=；正式務必留空（勿寫 "1"）
+ALLOW_TEST_NOW = ""
 
 # 必填 secrets（勿寫進本檔，用 wrangler secret put）：
 #   TURNSTILE_SECRET

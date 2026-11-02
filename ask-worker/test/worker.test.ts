@@ -6,6 +6,7 @@ import { env, SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { hashIp } from "../src/hash";
 import { expandIpv6, networkKey } from "../src/network";
+import { resolveClientNow } from "../src/now";
 import { runMockFallbackChain, runWithFallback } from "../src/providers";
 import type { Env } from "../src/types";
 import {
@@ -20,14 +21,32 @@ import {
   readSse,
 } from "./helpers";
 
+function todayIso(): string {
+  return new Date().toISOString();
+}
+
+function nextUtcDayIso(): string {
+  const n = new Date();
+  return new Date(
+    Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate() + 1, 1, 0, 0),
+  ).toISOString();
+}
+
 describe("networkKey (IPv4 full / IPv6 /64)", () => {
   it("keeps IPv4 unchanged", () => {
     expect(networkKey("203.0.113.10")).toBe("203.0.113.10");
     expect(networkKey(" 198.51.100.1 ")).toBe("198.51.100.1");
   });
 
-  it("maps IPv4-mapped IPv6 to IPv4", () => {
+  it("maps IPv4-mapped IPv6 to IPv4 after full expand", () => {
     expect(networkKey("::ffff:192.0.2.10")).toBe("192.0.2.10");
+    expect(expandIpv6("::ffff:192.0.2.10")[5]).toBe("ffff");
+    expect(networkKey("0:0:0:0:0:ffff:c000:020a")).toBe("192.0.2.10");
+  });
+
+  it("rejects hextet longer than 4 chars", () => {
+    expect(() => expandIpv6("2001:db8:abcde::1")).toThrow(/invalid ipv6/);
+    expect(() => networkKey("2001:db8:abcde::1")).toThrow(/invalid ipv6/);
   });
 
   it("expands compressed IPv6 (::1) and takes /64", () => {
@@ -72,7 +91,7 @@ describe("networkKey (IPv4 full / IPv6 /64)", () => {
   });
 
   it("DO quota is shared across same IPv6 /64", async () => {
-    const now = "2026-11-02T06:00:00.000Z";
+    const now = todayIso();
     const ipA = "2001:db8:cafe:0001:1111::10";
     const ipB = "2001:db8:cafe:1:9999::20";
     const ipOther = "2001:db8:cafe:0002::1";
@@ -85,6 +104,20 @@ describe("networkKey (IPv4 full / IPv6 /64)", () => {
       headers: { Origin: ORIGIN, "CF-Connecting-IP": ipOther },
     });
     expect(((await qO.json()) as { remaining: number }).remaining).toBe(40);
+  });
+});
+
+describe("resolveClientNow (ALLOW_TEST_NOW)", () => {
+  it("ignores client now when flag is off", () => {
+    expect(resolveClientNow({ ALLOW_TEST_NOW: "" } as Env, "2099-01-01T00:00:00.000Z")).toBeUndefined();
+    expect(resolveClientNow({} as Env, "2099-01-01T00:00:00.000Z")).toBeUndefined();
+  });
+
+  it("accepts valid ISO when flag is on; rejects junk without throwing", () => {
+    const on = { ALLOW_TEST_NOW: "1" } as Env;
+    expect(resolveClientNow(on, "2026-11-02T12:00:00.000Z")).toBe("2026-11-02T12:00:00.000Z");
+    expect(resolveClientNow(on, "not-a-date")).toBeUndefined();
+    expect(resolveClientNow(on, "")).toBeUndefined();
   });
 });
 
@@ -129,7 +162,7 @@ describe("CORS", () => {
 describe("input limits + Turnstile", () => {
   it("rejects empty q with actual remaining (not forced 0)", async () => {
     const ip = "198.51.100.40";
-    const now = "2026-11-02T04:00:00.000Z";
+    const now = todayIso();
     await burnViaDo(3, now, ip);
     const res = await SELF.fetch("https://example.com/ask", {
       method: "POST",
@@ -138,12 +171,23 @@ describe("input limits + Turnstile", () => {
         Origin: ORIGIN,
         "CF-Connecting-IP": ip,
       },
-      body: JSON.stringify({ q: "   ", turnstileToken: TS_OK, now }),
+      body: JSON.stringify({ q: "   ", turnstileToken: TS_OK }),
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as { code: string; remaining?: number };
     expect(body.code).toBe("bad_input");
     expect(body.remaining).toBe(37);
+  });
+
+  it("trims then enforces 500-char limit", async () => {
+    const res = await ask({
+      q: "  " + "啊".repeat(500) + "  ",
+      turnstileToken: TS_OK,
+    });
+    expect(res.status).toBe(200);
+    await drain(res);
+    const over = await ask({ q: "啊".repeat(501), turnstileToken: TS_OK });
+    expect(over.status).toBe(400);
   });
 
   it("rejects q over 500 chars with remaining", async () => {
@@ -156,11 +200,7 @@ describe("input limits + Turnstile", () => {
   });
 
   it("accepts q of exactly 500 chars", async () => {
-    const res = await ask({
-      q: "啊".repeat(500),
-      turnstileToken: TS_OK,
-      now: "2026-11-02T03:00:00.000Z",
-    });
+    const res = await ask({ q: "啊".repeat(500), turnstileToken: TS_OK });
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type") || "").toContain("text/event-stream");
     await drain(res);
@@ -168,7 +208,7 @@ describe("input limits + Turnstile", () => {
 
   it("rejects missing token with actual remaining", async () => {
     const ip = "198.51.100.41";
-    const now = "2026-11-02T04:30:00.000Z";
+    const now = todayIso();
     await burnViaDo(1, now, ip);
     const res = await SELF.fetch("https://example.com/ask", {
       method: "POST",
@@ -177,7 +217,7 @@ describe("input limits + Turnstile", () => {
         Origin: ORIGIN,
         "CF-Connecting-IP": ip,
       },
-      body: JSON.stringify({ q: "你好", now }),
+      body: JSON.stringify({ q: "你好" }),
     });
     expect(res.status).toBe(403);
     const body = (await res.json()) as { code: string; remaining?: number };
@@ -211,7 +251,9 @@ async function burnViaDo(n: number, now: string, ip: string) {
   }
 }
 
-async function fetchAsk(ip: string, q: string, now: string): Promise<Response> {
+async function fetchAsk(ip: string, q: string, now?: string): Promise<Response> {
+  const body: Record<string, string> = { q, turnstileToken: TS_OK };
+  if (now) body.now = now;
   return SELF.fetch("https://example.com/ask", {
     method: "POST",
     headers: {
@@ -219,11 +261,11 @@ async function fetchAsk(ip: string, q: string, now: string): Promise<Response> {
       Origin: ORIGIN,
       "CF-Connecting-IP": ip,
     },
-    body: JSON.stringify({ q, turnstileToken: TS_OK, now }),
+    body: JSON.stringify(body),
   });
 }
 
-describe("daily quota + 08:00 Asia/Taipei reset (UTC day)", () => {
+describe("daily quota + client now hardening", () => {
   it("GET /quota returns remaining and resetAt", async () => {
     const res = await quota();
     expect(res.status).toBe(200);
@@ -233,41 +275,51 @@ describe("daily quota + 08:00 Asia/Taipei reset (UTC day)", () => {
     expect(body.resetAt).toMatch(/T00:00:00/);
   });
 
-  it("blocks the 41st question with daily_limit", async () => {
-    const dayStart = "2026-11-02T00:00:01.000Z";
+  it("blocks the 41st question even if client sends a future now", async () => {
+    const dayStart = todayIso();
     const ip = "198.51.100.21";
     await burnViaDo(40, dayStart, ip);
-    const res = await fetchAsk(ip, "第 41 題", dayStart);
+    const res = await fetchAsk(ip, "第 41 題", "2099-06-01T00:00:00.000Z");
     expect(res.status).toBe(429);
     const body = (await res.json()) as { code: string; remaining: number };
     expect(body.code).toBe("daily_limit");
     expect(body.remaining).toBe(0);
   });
 
-  it("resets at next UTC midnight (= 08:00 Taipei)", async () => {
-    const day1 = "2026-11-02T12:00:00.000Z";
-    const day2 = "2026-11-03T00:00:01.000Z";
+  it("junk now never returns 500", async () => {
+    const res = await ask({
+      q: "你好嗎",
+      turnstileToken: TS_OK,
+      now: "not-a-valid-date@@@",
+    });
+    expect(res.status).not.toBe(500);
+    expect(res.status).toBe(200);
+    await drain(res);
+  });
+
+  it("UTC day boundary resets DO count (= 08:00 Taipei)", async () => {
+    const day1 = todayIso();
+    const day2 = nextUtcDayIso();
     const ip = "198.51.100.22";
     await burnViaDo(40, day1, ip);
-    const blocked = await fetchAsk(ip, "還是第 41", day1);
+    const blocked = await fetchAsk(ip, "還是第 41");
     expect(blocked.status).toBe(429);
-    const ok = await fetchAsk(ip, "新的一天", day2);
-    expect(ok.status).toBe(200);
-    const events = await readSse(ok);
-    const meta = events.find((e) => e.event === "meta");
-    expect(meta).toBeTruthy();
-    expect(JSON.parse(meta!.data).remaining).toBe(39);
+    // 換日後的剩餘數以 DO 直接查（Worker 正式不吃客戶端 now）
+    const ipHash = await hashIp(ip, env.IP_SALT);
+    const stub = env.COUNTER.get(env.COUNTER.idFromName(ipHash));
+    const stRes = await stub.fetch(`https://c/quota?now=${encodeURIComponent(day2)}`);
+    const st = (await stRes.json()) as { remaining: number };
+    expect(st.remaining).toBe(40);
   });
 
   it("blocks burst: >3 asks within 10 seconds", async () => {
-    const now = "2026-11-02T08:00:00.000Z";
     const ip = "198.51.100.23";
     for (let i = 0; i < 3; i++) {
-      const res = await fetchAsk(ip, `連按 ${i}`, now);
+      const res = await fetchAsk(ip, `連按 ${i}`);
       expect(res.status).toBe(200);
       await drain(res);
     }
-    const tooFast = await fetchAsk(ip, "第四下", now);
+    const tooFast = await fetchAsk(ip, "第四下");
     expect(tooFast.status).toBe(429);
     expect(((await tooFast.json()) as { code: string }).code).toBe("too_fast");
   });

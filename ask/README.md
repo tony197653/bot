@@ -13,7 +13,7 @@ const CONFIG = {
 };
 ```
 
-本機預覽也可：`?worker=http://127.0.0.1:8787&sitekey=1x00000000000000000000AA`
+本機／`*.pages.dev` 預覽也可：`?worker=http://127.0.0.1:8787&sitekey=1x00000000000000000000BB`（正式 github.io 會忽略這兩個 query）。
 
 ## 本機預覽
 

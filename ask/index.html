@@ -15,13 +15,13 @@
   <header class="top">
     <h1>跟 AI 提問</h1>
     <span class="quota l5inline is-loading" id="quota" aria-live="polite">
-      <span class="quota-full">今天還能問 <b id="quota-num">—</b> 題</span>
-      <span class="quota-short">剩 <b>—</b> 題</span>
+      <span class="quota-full">今天還能問 <b id="quota-num">—</b> 題<span class="quota-reset" hidden>早上 8 點重置</span></span>
+      <span class="quota-short">剩 <b>—</b> 題<span class="quota-reset" hidden>早上 8 點重置</span></span>
     </span>
     <button type="button" class="btn b5" id="clear" disabled>清除畫面</button>
   </header>
 
-  <div class="log" id="log" role="log" aria-relevant="additions">
+  <main class="log" id="log" role="log" aria-relevant="additions">
     <div class="emp" id="empty">
       <svg class="art" viewBox="0 0 96 96" fill="none" aria-hidden="true" focusable="false">
         <rect x="8" y="18" width="44" height="32" rx="10" stroke="#8A8E83" stroke-width="1.8" fill="#F7F7F3"/>
@@ -35,7 +35,7 @@
       <p class="disc">AI 可能出錯，不是專業建議。</p>
     </div>
     <div class="chips" id="chips"></div>
-  </div>
+  </main>
 
   <div class="composer">
     <div class="input-wrap i1" id="input-wrap">

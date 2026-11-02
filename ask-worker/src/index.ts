@@ -1,6 +1,7 @@
 import { resolveOrigin, corsHeaders, jsonResponse } from "./cors";
 import { MAX_Q_LEN } from "./day";
 import { hashIp, shortHash } from "./hash";
+import { resolveClientNow, resolveNowFromUrl } from "./now";
 import { SYSTEM_PROMPT } from "./prompt";
 import { runWithFallback } from "./providers";
 import { QuotaCounter } from "./quota";
@@ -112,7 +113,7 @@ async function handleQuota(
   const ip = clientIp(request);
   const ipHash = await hashIp(ip, env.IP_SALT || "missing-salt");
   const stub = await counterStub(env, ipHash);
-  const nowIso = new URL(request.url).searchParams.get("now") || undefined;
+  const nowIso = resolveNowFromUrl(env, new URL(request.url));
   const state = (await callCounter(stub, "/quota", "GET", nowIso)) as QuotaState;
   return jsonResponse(
     { remaining: state.remaining, resetAt: state.resetAt },
@@ -141,7 +142,8 @@ async function handleAsk(
     return jsonResponse(errorBody("bad_input", remaining), 400, origin);
   }
 
-  const nowIso = typeof body.now === "string" ? body.now : undefined;
+  // 正式忽略客戶端 now；僅 ALLOW_TEST_NOW=1 且日期有效時才用
+  const nowIso = resolveClientNow(env, body.now);
   const q = typeof body.q === "string" ? body.q.trim() : "";
   if (!q || q.length > MAX_Q_LEN) {
     const remaining = await lookupRemaining(request, env, nowIso);
@@ -233,7 +235,6 @@ async function handleAsk(
     }
   })();
 
-  // 讓串流在背景跑完（含 refund），同時立刻回傳 SSE
   ctx.waitUntil(streamTask);
 
   return new Response(readable, {

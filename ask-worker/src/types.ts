@@ -10,6 +10,8 @@ export interface Env {
   GEMINI_MODEL: string;
   OPENROUTER_MODEL: string;
   MOCK_AI: string;
+  /** 僅測試：設為 "1" 才採納客戶端 now；正式勿設定 */
+  ALLOW_TEST_NOW?: string;
   TURNSTILE_SECRET: string;
   IP_SALT: string;
   GROQ_API_KEY?: string;

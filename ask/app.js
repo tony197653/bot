@@ -1,9 +1,9 @@
 /* ===== 預覽／正式切換：只改這裡 ===== */
 const CONFIG = {
-  // 部署後改成你的 workers.dev 網址，例如 https://ask-api.<account>.workers.dev
+  // TODO(launch): 正式 Worker 上線後改成實際 workers.dev 網址
   workerUrl: "https://ask-api.example.workers.dev",
-  // 正式：Cloudflare Turnstile Invisible site key；本機／CI 可用測試 key
-  turnstileSiteKey: "1x00000000000000000000AA",
+  // TODO(launch): 正式 Turnstile Invisible site key；預設為 Cloudflare 隱形測試 key
+  turnstileSiteKey: "1x00000000000000000000BB",
 };
 /* ===================================== */
 
@@ -47,6 +47,7 @@ const CONFIG = {
   let remaining = null; // null = unknown
   let turnstileReady = false;
   let turnstileWidgetId = null;
+  let turnstileStarted = false;
   let abortCtrl = null;
   let streaming = false;
   let autoScroll = true;
@@ -54,6 +55,12 @@ const CONFIG = {
   let busyRetryUntil = 0;
 
   const isDesktop = () => window.matchMedia("(min-width: 768px)").matches;
+
+  /** 僅本機與 *.pages.dev 預覽允許 ?worker= / ?sitekey= 覆寫 */
+  function allowConfigOverrides(hostname) {
+    const h = hostname || location.hostname;
+    return h === "localhost" || h === "127.0.0.1" || h.endsWith(".pages.dev");
+  }
 
   function announce(msg) {
     el.status.textContent = "";
@@ -74,16 +81,20 @@ const CONFIG = {
     remaining = n;
     const full = el.quotaWrap.querySelector(".quota-full");
     const short = el.quotaWrap.querySelector(".quota-short");
+    const showReset = typeof n === "number" && n <= 5;
     if (n === null || n === undefined) {
       el.quotaWrap.classList.add("is-loading");
-      full.innerHTML = "今天還能問 <b>—</b> 題";
-      short.innerHTML = "剩 <b>—</b> 題";
+      full.innerHTML =
+        '今天還能問 <b>—</b> 題<span class="quota-reset" hidden>早上 8 點重置</span>';
+      short.innerHTML =
+        '剩 <b>—</b> 題<span class="quota-reset" hidden>早上 8 點重置</span>';
       applyDisabledState();
       return;
     }
     el.quotaWrap.classList.remove("is-loading");
-    full.innerHTML = `今天還能問 <b>${n}</b> 題`;
-    short.innerHTML = `剩 <b>${n}</b> 題`;
+    const resetAttr = showReset ? "" : " hidden";
+    full.innerHTML = `今天還能問 <b>${n}</b> 題<span class="quota-reset"${resetAttr}>早上 8 點重置</span>`;
+    short.innerHTML = `剩 <b>${n}</b> 題<span class="quota-reset"${resetAttr}>早上 8 點重置</span>`;
     applyDisabledState();
   }
 
@@ -95,14 +106,19 @@ const CONFIG = {
     applyDisabledState();
   }
 
+  function trimmedLen() {
+    return el.q.value.trim().length;
+  }
+
   function applyDisabledState() {
     const out = remaining === 0;
     const empty = !el.q.value.trim();
-    const over = el.q.value.length > MAX_LEN;
+    const over = trimmedLen() > MAX_LEN;
     const canSend = !streaming && !out && !empty && !over && turnstileReady;
 
     el.q.disabled = out || streaming;
     el.inputWrap.classList.toggle("is-disabled", out);
+    el.inputWrap.classList.toggle("is-error", over && !out);
     if (out) {
       el.q.placeholder = "今天的 40 題用完了，明天早上 8 點後再來";
     } else if (!streaming) {
@@ -134,7 +150,7 @@ const CONFIG = {
   }
 
   function updateCounter() {
-    const n = el.q.value.length;
+    const n = trimmedLen();
     if (n > WARN_LEN) {
       el.counter.hidden = false;
       el.counter.textContent = `${n}/${MAX_LEN}`;
@@ -171,13 +187,16 @@ const CONFIG = {
     const raw = marked.parse(text || "", { async: false });
     const clean = DOMPurify.sanitize(raw, {
       USE_PROFILES: { html: true },
-      ADD_ATTR: ["target", "rel"],
+      ADD_ATTR: ["target", "rel", "tabindex"],
     });
     const wrap = document.createElement("div");
     wrap.innerHTML = clean;
     wrap.querySelectorAll("a[href]").forEach((a) => {
       a.setAttribute("target", "_blank");
       a.setAttribute("rel", "noopener noreferrer");
+    });
+    wrap.querySelectorAll("pre").forEach((pre) => {
+      pre.setAttribute("tabindex", "0");
     });
     return wrap.innerHTML;
   }
@@ -566,7 +585,12 @@ const CONFIG = {
   function finishPartialThenError(turn, code) {
     if (turn.aText) {
       ensureMd(turn);
-      scheduleRender(turn);
+      if (turn.raf) {
+        cancelAnimationFrame(turn.raf);
+        turn.raf = 0;
+      }
+      turn.dirty = false;
+      turn.mdEl.innerHTML = renderMarkdown(turn.aText);
       if (turn.cursor) {
         turn.cursor.remove();
         turn.cursor = null;
@@ -707,8 +731,9 @@ const CONFIG = {
 
   function initTurnstile() {
     const start = () => {
-      if (!window.turnstile) return;
-      // Invisible 模式在 Cloudflare 後台 widget 設定；不要傳 size（會觸發 Invalid value）
+      if (turnstileStarted || !window.turnstile) return;
+      turnstileStarted = true;
+      // Invisible 模式在 Cloudflare 後台 widget 設定；不要傳 size
       turnstileWidgetId = window.turnstile.render(el.turnstileHost, {
         sitekey: CONFIG.turnstileSiteKey,
         callback: () => {},
@@ -716,21 +741,9 @@ const CONFIG = {
       turnstileReady = true;
       applyDisabledState();
     };
-    if (window.turnstile) start();
-    else {
-      window.addEventListener("load", () => {
-        // turnstile script 可能仍在載
-        const wait = setInterval(() => {
-          if (window.turnstile) {
-            clearInterval(wait);
-            start();
-          }
-        }, 50);
-        setTimeout(() => clearInterval(wait), 10000);
-      });
-    }
-    // 也掛官方就緒回呼
+    // 官方 onload 回呼（單一入口）；若腳本已就緒則立即 render 一次
     window.onAskTurnstileLoad = start;
+    if (window.turnstile) start();
   }
 
   // 匯出給測試
@@ -740,6 +753,7 @@ const CONFIG = {
     stopStream,
     clearScreen,
     setQuotaDisplay,
+    allowConfigOverrides,
     __setTurnstileReady(v) {
       turnstileReady = !!v;
       if (turnstileWidgetId === null) turnstileWidgetId = 1;
@@ -758,13 +772,15 @@ const CONFIG = {
     appendTurn,
   };
 
-  // 預覽／測試可用 ?worker= 覆寫 Worker URL，或 page.addInitScript 設 __ASK_BOOT__
+  // 預覽／測試：僅 localhost／127.0.0.1／*.pages.dev 可用 ?worker= / ?sitekey=
   try {
     if (window.__ASK_BOOT__?.workerUrl) CONFIG.workerUrl = window.__ASK_BOOT__.workerUrl;
     if (window.__ASK_BOOT__?.sitekey) CONFIG.turnstileSiteKey = window.__ASK_BOOT__.sitekey;
-    const u = new URL(location.href);
-    if (u.searchParams.get("worker")) CONFIG.workerUrl = u.searchParams.get("worker");
-    if (u.searchParams.get("sitekey")) CONFIG.turnstileSiteKey = u.searchParams.get("sitekey");
+    if (allowConfigOverrides()) {
+      const u = new URL(location.href);
+      if (u.searchParams.get("worker")) CONFIG.workerUrl = u.searchParams.get("worker");
+      if (u.searchParams.get("sitekey")) CONFIG.turnstileSiteKey = u.searchParams.get("sitekey");
+    }
   } catch {
     /* ignore */
   }
