@@ -1,0 +1,532 @@
+{
+  "schemaVersion": 1,
+  "batch": {
+    "batchId": "20261102-demo-m9a-m9-1-r1",
+    "createdAt": "2026-11-02T10:00:00+08:00",
+    "createdBy": "TU",
+    "photos": [
+      "demo-page-01.jpg"
+    ],
+    "expectedCount": 13,
+    "note": "示範用假題，非真實參考書內容"
+  },
+  "book": {
+    "bookId": "demo-m9a",
+    "title": "示範數學練習冊",
+    "subject": "math",
+    "grade": 9,
+    "edition": "示範版"
+  },
+  "groups": [
+    {
+      "groupId": "demo-m9a-m9-1-r1-g1",
+      "title": "題組：三角形",
+      "passage": "如圖（一），直角三角形 ABC 中，\\(\\angle C = 90^\\circ\\)。請回答第 11～12 題。",
+      "figures": [
+        {
+          "id": "fig1",
+          "src": "data:image/webp;base64,UklGRtwAAABXRUJQVlA4IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "alt": "示範直角三角形示意，三邊分別標示 3、4、5 公分。",
+          "caption": "圖（一）"
+        }
+      ],
+      "questionIds": [
+        "demo-m9a-m9-1-r1-q11",
+        "demo-m9a-m9-1-r1-q12"
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "demo-m9a-m9-1-r1-q01",
+      "subject": "math",
+      "unit": "整數與有理數",
+      "unitCode": "M9-1",
+      "level": "易",
+      "type": "single",
+      "groupId": null,
+      "stem": "第 1 題：若 \\(a = 1\\)，則 \\(2a + 3\\) 的值為何？",
+      "figures": [],
+      "options": [
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "answer": 0,
+      "explain": "詳解：代入計算可得答案為選項 A。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "roundLabel": "第 1 回",
+        "number": 1,
+        "page": 11,
+        "matchKey": "M9-1|1|1"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.95,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-1-r1-q02",
+      "subject": "math",
+      "unit": "整數與有理數",
+      "unitCode": "M9-1",
+      "level": "易",
+      "type": "single",
+      "groupId": null,
+      "stem": "第 2 題：若 \\(a = 2\\)，則 \\(2a + 3\\) 的值為何？",
+      "figures": [],
+      "options": [
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "answer": 2,
+      "explain": "詳解：代入計算可得答案為選項 C。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "roundLabel": "第 1 回",
+        "number": 2,
+        "page": 12,
+        "matchKey": "M9-1|1|2"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.95,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-1-r1-q03",
+      "subject": "math",
+      "unit": "整數與有理數",
+      "unitCode": "M9-1",
+      "level": "中",
+      "type": "single",
+      "groupId": null,
+      "stem": "若 \\(x^2 - 4x + 3 = 0\\)，則較小的根為何？",
+      "figures": [],
+      "options": [
+        "\\(1\\)",
+        "\\(3\\)",
+        "\\(4\\)",
+        "\\(9\\)"
+      ],
+      "answer": 0,
+      "explain": "詳解：代入計算可得答案為選項 A。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "roundLabel": "第 1 回",
+        "number": 3,
+        "page": 13,
+        "matchKey": "M9-1|1|3"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.95,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-1-r1-q04",
+      "subject": "math",
+      "unit": "整數與有理數",
+      "unitCode": "M9-1",
+      "level": "易",
+      "type": "single",
+      "groupId": null,
+      "stem": "第 4 題：若 \\(a = 4\\)，則 \\(2a + 3\\) 的值為何？",
+      "figures": [],
+      "options": [
+        "10",
+        "11",
+        "12",
+        "13"
+      ],
+      "answer": 2,
+      "explain": "詳解：代入計算可得答案為選項 C。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "roundLabel": "第 1 回",
+        "number": 4,
+        "page": 14,
+        "matchKey": "M9-1|1|4"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.95,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-1-r1-q05",
+      "subject": "math",
+      "unit": "整數與有理數",
+      "unitCode": "M9-1",
+      "level": "易",
+      "type": "single",
+      "groupId": null,
+      "stem": "第 5 題：若 \\(a = 5\\)，則 \\(2a + 3\\) 的值為何？",
+      "figures": [],
+      "options": [
+        "12",
+        "13",
+        "14",
+        "15"
+      ],
+      "answer": 0,
+      "explain": "詳解：代入計算可得答案為選項 A。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "roundLabel": "第 1 回",
+        "number": 5,
+        "page": 15,
+        "matchKey": "M9-1|1|5"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.95,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-1-r1-q06",
+      "subject": "math",
+      "unit": "整數與有理數",
+      "unitCode": "M9-1",
+      "level": "中",
+      "type": "single",
+      "groupId": null,
+      "stem": "第 6 題：若 \\(a = 6\\)，則 \\(2a + 3\\) 的值為何？",
+      "figures": [],
+      "options": [
+        "14",
+        "15",
+        "16",
+        "17"
+      ],
+      "answer": 2,
+      "explain": "詳解：代入計算可得答案為選項 C。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "roundLabel": "第 1 回",
+        "number": 6,
+        "page": 16,
+        "matchKey": "M9-1|1|6"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.95,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-2-r1-q07",
+      "subject": "math",
+      "unit": "一元一次方程式",
+      "unitCode": "M9-2",
+      "level": "易",
+      "type": "single",
+      "groupId": null,
+      "stem": "第 7 題：若 \\(a = 7\\)，則 \\(2a + 3\\) 的值為何？",
+      "figures": [],
+      "options": [
+        "16",
+        "17",
+        "18",
+        "19"
+      ],
+      "answer": 0,
+      "explain": "詳解：代入計算可得答案為選項 A。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "roundLabel": "第 1 回",
+        "number": 7,
+        "page": 17,
+        "matchKey": "M9-2|1|7"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.95,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-2-r1-q08",
+      "subject": "math",
+      "unit": "一元一次方程式",
+      "unitCode": "M9-2",
+      "level": "易",
+      "type": "single",
+      "groupId": null,
+      "stem": "第 8 題：若 \\(a = 8\\)，則 \\(2a + 3\\) 的值為何？",
+      "figures": [],
+      "options": [
+        "18",
+        "19",
+        "20",
+        "21"
+      ],
+      "answer": 2,
+      "explain": "詳解：代入計算可得答案為選項 C。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "roundLabel": "第 1 回",
+        "number": 8,
+        "page": 18,
+        "matchKey": "M9-2|1|8"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.95,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-2-r1-q09",
+      "subject": "math",
+      "unit": "一元一次方程式",
+      "unitCode": "M9-2",
+      "level": "中",
+      "type": "single",
+      "groupId": null,
+      "stem": "第 9 題：若 \\(a = 9\\)，則 \\(2a + 3\\) 的值為何？",
+      "figures": [],
+      "options": [
+        "20",
+        "21",
+        "22",
+        "23"
+      ],
+      "answer": 0,
+      "explain": "詳解：代入計算可得答案為選項 A。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "roundLabel": "第 1 回",
+        "number": 9,
+        "page": 19,
+        "matchKey": "M9-2|1|9"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.95,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-2-r1-q10",
+      "subject": "math",
+      "unit": "一元一次方程式",
+      "unitCode": "M9-2",
+      "level": "易",
+      "type": "single",
+      "groupId": null,
+      "stem": "第 10 題：若 \\(a = 10\\)，則 \\(2a + 3\\) 的值為何？",
+      "figures": [],
+      "options": [
+        "22",
+        "23",
+        "24",
+        "25"
+      ],
+      "answer": 2,
+      "explain": "詳解：代入計算可得答案為選項 C。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "roundLabel": "第 1 回",
+        "number": 10,
+        "page": 20,
+        "matchKey": "M9-2|1|10"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.95,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-1-r1-q11",
+      "subject": "math",
+      "unit": "整數與有理數",
+      "unitCode": "M9-1",
+      "level": "中",
+      "type": "single",
+      "groupId": "demo-m9a-m9-1-r1-g1",
+      "stem": "依圖（一），斜邊長度為多少？",
+      "figures": [],
+      "options": [
+        "12",
+        "13",
+        "15",
+        "17"
+      ],
+      "answer": 2,
+      "explain": "勾股定理：\\(3^2+4^2=5^2\\)，斜邊 5，面積 \\(\\frac{3\\times4}{2}=6\\)… 依題意選答。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "number": 11,
+        "page": 22,
+        "matchKey": "M9-1|1|11"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.92,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-1-r1-q12",
+      "subject": "math",
+      "unit": "整數與有理數",
+      "unitCode": "M9-1",
+      "level": "中",
+      "type": "single",
+      "groupId": "demo-m9a-m9-1-r1-g1",
+      "stem": "依圖（一），面積為多少平方公分？",
+      "figures": [],
+      "options": [
+        "12",
+        "13",
+        "15",
+        "17"
+      ],
+      "answer": 1,
+      "explain": "勾股定理：\\(3^2+4^2=5^2\\)，斜邊 5，面積 \\(\\frac{3\\times4}{2}=6\\)… 依題意選答。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "number": 12,
+        "page": 22,
+        "matchKey": "M9-1|1|12"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.92,
+        "uncertain": []
+      }
+    },
+    {
+      "id": "demo-m9a-m9-2-r1-q13",
+      "subject": "math",
+      "unit": "一元一次方程式",
+      "unitCode": "M9-2",
+      "level": "難",
+      "type": "single",
+      "groupId": null,
+      "stem": "解方程式 \\(3(x-2)=2x+1\\)，\\(x\\) 的值為何？",
+      "figures": [],
+      "options": [
+        "\\(5\\)",
+        "\\(7\\)",
+        "\\(8\\)",
+        "\\(9\\)"
+      ],
+      "answer": 1,
+      "explain": "展開得 \\(3x-6=2x+1\\)，移項 \\(x=7\\)。",
+      "source": {
+        "bookId": "demo-m9a",
+        "round": 1,
+        "number": 13,
+        "page": 30,
+        "matchKey": "M9-2|1|13"
+      },
+      "review": {
+        "status": "checked",
+        "flags": [],
+        "note": "",
+        "checkedBy": "demo",
+        "checkedAt": "2026-11-02T12:00:00+08:00"
+      },
+      "extract": {
+        "confidence": 0.96,
+        "uncertain": []
+      }
+    }
+  ]
+}

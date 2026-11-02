@@ -382,7 +382,11 @@ function finish(){const total=R.qs.length,correct=R.qs.filter((q,n)=>R.ans[n]===
  <div class="r-grid"><section class="panel units"><h2>本回單元</h2><table class="t1"><thead><tr><th scope="col">單元</th><th scope="col" class="r">答對</th><th scope="col">狀態</th></tr></thead><tbody>
  ${R.res.units.map(u=>{const[s,t]=st(u);return `<tr><td><span class="ucode">${u.code}</span><span class="uname">${u.unit}</span></td><td class="r num">${u.c}/${u.t}</td><td><span class="l2 ${s}"><i></i>${t}</span>${u.t<3?'<span class="l3">題數少</span>':''}</td></tr>`}).join('')}
  </tbody></table></section>
+<<<<<<< HEAD
  <section class="panel review"><div class="rv-head"><h2>題目回顧</h2><div class="g1${wrongQ.length?' two':''}" role="tablist" aria-label="篩選"><span class="g1-thumb" aria-hidden="true"></span><button role="tab" aria-selected="${!wrongQ.length}" data-f="all">全部</button><button role="tab" aria-selected="${!!wrongQ.length}" data-f="wrong">只看錯題</button></div></div>
+=======
+ <section class="panel review"><div class="rv-head"><h2>題目回顧</h2><div class="g1${wrongQ.length?' two':''}" role="tablist" aria-label="篩選"><span class="g1-thumb" aria-hidden="true"></span><button role="tab" aria-selected="${wrongQ.length?'false':'true'}" data-f="all">全部</button><button role="tab" aria-selected="${wrongQ.length?'true':'false'}" data-f="wrong">只看錯題</button></div></div>
+>>>>>>> 26e5b0b (feat(quiz-bank): add stats, views, import, app shell and demo data)
  <ol class="rv-list">${R.qs.map((q,n)=>{const a=R.ans[n],ok=a===q.answer;return `<li class="rv ${ok?'ok':'bad'}"><p class="rv-q"><span class="rv-st">${ok?ICON.ok:ICON.bad}<span>${ok?'對':'錯'}</span></span><span class="rv-n">第 ${n+1} 題</span></p><div class="rv-stem">${q.stem}</div><p class="rv-a">你選：${a===null?'未作答':`(${L[a]}) ${q.options[a]}`}${ok?'':`　正確：(${L[q.answer]}) ${q.options[q.answer]}`}</p>${ok?'':`<div class="rv-ex">${q.explain}</div>`}</li>`}).join('')}</ol></section></div>
  <div class="r-actions"><button class="btn b1" id="retry">${wrongQ.length?`再練錯的 ${wrongQ.length} 題`:'再做一回'}</button><button class="btn b2" id="restart">從頭再做</button><button class="btn b2" id="copy">複製摘要</button><a class="btn b2" href="../">回首頁</a></div></section>`;
  const go2=()=>{$('#stage').innerHTML=html;strip();math($('#result'));window.scrollTo(0,0);const r=$('#result');

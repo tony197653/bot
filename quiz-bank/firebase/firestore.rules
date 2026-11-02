@@ -1,0 +1,158 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function allowed() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/allow/$(request.auth.token.email));
+    }
+    function admin() {
+      return allowed()
+        && get(/databases/$(database)/documents/allow/$(request.auth.token.email)).data.role == "admin";
+    }
+
+    function validStat(d) {
+      return d.keys().hasOnly([
+          'unitCode', 'subject', 'tries', 'correct', 'wrong',
+          'streak', 'inWrongBook', 'manualOut', 'lastAnswer', 'lastAt'
+        ])
+        && d.keys().hasAll([
+          'unitCode', 'subject', 'tries', 'correct', 'wrong',
+          'streak', 'inWrongBook', 'manualOut', 'lastAnswer', 'lastAt'
+        ])
+        && d.unitCode is string && d.unitCode.size() > 0 && d.unitCode.size() <= 32
+        && d.subject is string && d.subject in ['math', 'sci', 'chi', 'eng', 'soc']
+        && d.tries is int && d.tries >= 1 && d.tries <= 100000
+        && d.correct is int && d.correct >= 0
+        && d.wrong is int && d.wrong >= 0
+        && d.correct + d.wrong == d.tries
+        && d.streak is int && d.streak >= 0 && d.streak <= d.tries
+        && d.inWrongBook is bool
+        && d.manualOut is bool
+        && d.lastAnswer is int && d.lastAnswer >= -1 && d.lastAnswer <= 3
+        && d.lastAt == request.time;
+    }
+
+    function manualOutOnly() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['inWrongBook', 'manualOut', 'lastAt'])
+        && request.resource.data.inWrongBook == false
+        && request.resource.data.manualOut == true;
+    }
+
+    function validUnitEntry(u) {
+      return u is map
+        && u.keys().hasOnly(['unit', 'subject', 'correct', 'total'])
+        && u.keys().hasAll(['unit', 'subject', 'correct', 'total'])
+        && u.unit is string && u.unit.size() > 0 && u.unit.size() <= 80
+        && u.subject is string && u.subject in ['math', 'sci', 'chi', 'eng', 'soc']
+        && u.correct is int && u.correct >= 0
+        && u.total is int && u.total >= 1
+        && u.correct <= u.total;
+    }
+
+    function validAttempt(d) {
+      return d.keys().hasOnly([
+          'scope', 'mode', 'qids', 'answers', 'correct', 'total',
+          'score', 'byUnit', 'startedAt', 'endedAt', 'at'
+        ])
+        && d.keys().hasAll([
+          'scope', 'mode', 'qids', 'answers', 'correct', 'total',
+          'score', 'byUnit', 'startedAt', 'endedAt', 'at'
+        ])
+        && d.scope is map
+        && d.scope.keys().hasAll(['type'])
+        && d.scope.type in ['round', 'unit', 'wrong', 'retry']
+        && d.mode in ['instant', 'exam']
+        && d.qids is list && d.answers is list
+        && d.qids.size() == d.total
+        && d.answers.size() == d.total
+        && d.total is int && d.total >= 1 && d.total <= 200
+        && d.correct is int && d.correct >= 0 && d.correct <= d.total
+        && d.score is int && d.score >= 0 && d.score <= 100
+        && d.byUnit is map
+        && d.byUnit.size() >= 1 && d.byUnit.size() <= 50
+        && d.startedAt is timestamp
+        && d.endedAt is timestamp
+        && d.at == request.time;
+    }
+
+    function validReport(d) {
+      return d.keys().hasOnly(['qid', 'uid', 'reason', 'note', 'status', 'at'])
+        && d.keys().hasAll(['qid', 'uid', 'reason', 'note', 'status', 'at'])
+        && d.qid is string && d.qid.size() > 0 && d.qid.size() <= 120
+        && d.uid is string && d.uid == request.auth.uid
+        && d.reason in ['answer', 'typo', 'figure', 'other']
+        && d.note is string && d.note.size() <= 200
+        && d.status == 'open'
+        && d.at == request.time;
+    }
+
+    match /allow/{email} {
+      allow read: if signedIn() && (request.auth.token.email == email || admin());
+      allow write: if false;
+    }
+
+    match /banks/{id} {
+      allow read: if allowed();
+      allow write: if admin();
+    }
+
+    match /groups/{id} {
+      allow read: if allowed();
+      allow write: if admin();
+    }
+
+    match /questions/{id} {
+      allow read: if admin()
+        || (allowed() && resource.data.review.status == "checked");
+      allow write: if admin();
+    }
+
+    match /users/{uid}/attempts/{a} {
+      allow read: if allowed() && request.auth.uid == uid;
+      allow create: if allowed()
+        && request.auth.uid == uid
+        && validAttempt(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /users/{uid}/qstats/{q} {
+      allow read: if allowed() && request.auth.uid == uid;
+      allow create: if allowed()
+        && request.auth.uid == uid
+        && validStat(request.resource.data)
+        && request.resource.data.tries == 1;
+      allow update: if allowed()
+        && request.auth.uid == uid
+        && validStat(request.resource.data)
+        && (
+          (
+            request.resource.data.tries == resource.data.tries + 1
+            && request.resource.data.correct - resource.data.correct in [0, 1]
+          )
+          || manualOutOnly()
+        );
+      allow delete: if false;
+    }
+
+    match /reports/{r} {
+      allow create: if allowed()
+        && request.resource.data.uid == request.auth.uid
+        && r == request.resource.data.qid + "__" + request.auth.uid
+        && validReport(request.resource.data);
+      allow read: if admin();
+      allow update: if admin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == "done";
+      allow delete: if false;
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

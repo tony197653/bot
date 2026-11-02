@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tony197653.github.io/bot/quiz-bank/schema/v1.json",
+  "title": "參考書轉數位考題網：匯入批次 JSON（定稿 v1，2026-11-02）",
+  "description": "家教TU 讀一批照片後輸出一個這種檔案（一批＝同一本書、同一單元、同一回）。題目核心欄位沿用 TU 的 Canvas「羽蕎・會考數學與理化診斷小測驗」的 Q 型別：id、subject、unit、level、stem、options（4 個字串）、answer（0–3 索引）、explain，所以 Canvas 的題目可以直接轉進來。jev-quiz 的 {q, options, answer, explain} 也只差欄位名稱。新增的欄位是 unitCode、source、groupId、figures、review、extract。公式寫 KaTeX：行內 \\( \\)、獨立 \\[ \\]，化學式 \\ce{}。簡單的式子可以直接用 Unicode（−、²、√、×、÷），跟 Canvas 一樣。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "batch", "book", "groups", "questions"],
+  "properties": {
+    "schemaVersion": { "const": 1, "description": "格式版本。改格式就加 1，匯入頁看到不認得的版本會整批擋下。" },
+
+    "batch": {
+      "type": "object",
+      "description": "這一批的資訊。",
+      "additionalProperties": false,
+      "required": ["batchId", "createdAt", "createdBy", "photos", "expectedCount"],
+      "properties": {
+        "batchId": { "type": "string", "pattern": "^[0-9]{8}-[a-z0-9-]+$", "description": "日期-bookId-unitCode-r回數，全小寫，例：20261105-hl-m9a-m9-2-r3。" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "產出時間，帶 +08:00。" },
+        "createdBy": { "type": "string", "description": "固定填 \"TU\"。" },
+        "photos": { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "原始照片檔名，只做對照，不上傳。" },
+        "expectedCount": { "type": "integer", "minimum": 1, "description": "照片上實際數到的題數。questions 筆數不同時，匯入頁整批紅標 COUNT_MISMATCH。" },
+        "note": { "type": "string", "description": "TU 想提醒宗良的事，例如『第 12 題照片反光，請對照書本』。" }
+      }
+    },
+
+    "book": {
+      "type": "object",
+      "description": "參考書。同一本書每批都要填一樣的資料，匯入頁用 bookId 合併。",
+      "additionalProperties": false,
+      "required": ["bookId", "title", "subject", "grade"],
+      "properties": {
+        "bookId": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "description": "短代碼，全小寫英數加連字號，例：hl-m9a（翰林數學九上）。第一次用新書時由 TU 取名並寫進 TU 的記憶，之後固定。" },
+        "title": { "type": "string", "description": "書名全稱，例：翰林 數學 九上 評量。" },
+        "subject": { "$ref": "#/$defs/subject" },
+        "grade": { "type": "integer", "enum": [7, 8, 9], "description": "年級，國一＝7。" },
+        "edition": { "type": "string", "description": "版本或學年度，可空。" }
+      }
+    },
+
+    "groups": {
+      "type": "array",
+      "description": "題組或閱讀題組的共用題幹（跟 QTI 3 的 shared stimulus 同一個概念）。沒有題組就給空陣列。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["groupId", "passage", "figures", "questionIds"],
+        "properties": {
+          "groupId": { "type": "string", "description": "bookId-unitCode-r回數-g序號，例：hl-p9a-p9-3-r2-g1。" },
+          "title": { "type": "string", "description": "題組標題，可空，例：題組：斜面上的木塊。" },
+          "passage": { "type": "string", "description": "共用題幹全文，可含 KaTeX 和 \\n 換行。最後一句保留書上的『請回答第 5～6 題』。" },
+          "figures": { "type": "array", "items": { "$ref": "#/$defs/figure" } },
+          "questionIds": { "type": "array", "items": { "type": "string" }, "minItems": 2, "description": "依序列出屬於這個題組的題目 id，每題的 groupId 也要指回這個題組。" }
+        }
+      }
+    },
+
+    "questions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/question" }
+    }
+  },
+
+  "$defs": {
+    "subject": {
+      "type": "string",
+      "enum": ["math", "sci", "chi", "eng", "soc"],
+      "description": "科目代碼，math 和 sci 跟 Canvas 一樣：math 數學、sci 自然（理化、生物、地科都算）、chi 國文、eng 英文、soc 社會。v1 先用 math 和 sci。"
+    },
+    "figure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "src", "alt"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^fig[0-9]+$", "description": "在同一題或同一題組內不重複，例：fig1。選項是圖時，options 文字寫『[圖:fig2]』。" },
+        "src": { "type": "string", "pattern": "^data:image/webp;base64,", "description": "裁好的圖，用 WebP 的 base64 data URL 直接內嵌，所以整批只有一個檔案。每張 150 KB 以內，寬度 1000px 以內。" },
+        "alt": { "type": "string", "minLength": 4, "description": "用文字描述圖的內容和標示（給看不到圖時用，也方便校對），例：三角形 ABC，D 在 AB 上、E 在 AC 上，DE 平行 BC，AD=4、DB=2。" },
+        "caption": { "type": "string", "description": "書上的圖名，例：圖（一）。" },
+        "crop": {
+          "type": "object",
+          "description": "在原照片上的裁切框（像素），方便日後重裁。",
+          "additionalProperties": false,
+          "required": ["photo", "x", "y", "w", "h"],
+          "properties": {
+            "photo": { "type": "string" }, "x": { "type": "integer" }, "y": { "type": "integer" },
+            "w": { "type": "integer", "minimum": 1 }, "h": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "subject", "unit", "unitCode", "level", "type", "groupId", "stem", "figures", "options", "answer", "explain", "source", "review", "extract"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*-r[0-9]+-q[0-9]{2,3}$", "description": "唯一碼＝bookId-unitCode（小寫）-r回數-q題號（補成兩位數），例：hl-m9a-m9-2-r3-q07。因為題號每回會重編，id 一定要帶回數。" },
+        "subject": { "$ref": "#/$defs/subject" },
+        "unit": { "type": "string", "description": "單元名稱，給人看的，跟 Canvas 一樣，例：一元二次方程式。" },
+        "unitCode": { "type": "string", "pattern": "^[A-Z]+[0-9]-[0-9]+$", "description": "穩定的單元代碼，弱點統計以這個為準。規則：科目字母＋年級－章，M＝數學、P＝理化、B＝生物、E＝地科，例：M9-2＝數學九上第 2 章。九下的章接著編號（九上 4 章時，九下第 1 章＝M9-5）。單元表放在 TU 的記憶裡，不要自己亂編。" },
+        "curriculum": { "type": "string", "description": "選填：108 課綱學習內容代碼，例：A-9-2。不確定就不要填。" },
+        "skills": { "type": "array", "items": { "type": "string" }, "description": "選填：更細的觀念標籤，例：[\"配方法\",\"判別式\"]。" },
+        "level": { "type": "string", "enum": ["易", "中", "難"], "description": "難易度，沿用 Canvas 的三級。書上有星等時：1 星＝易、2 星＝中、3 星以上＝難；沒有星等就由 TU 判斷。" },
+        "type": { "const": "single", "description": "v1 只有單選。之後才會加 multiple、fill、numeric。" },
+        "groupId": { "type": ["string", "null"], "description": "屬於題組就填 groupId，否則填 null。" },
+        "stem": { "type": "string", "minLength": 2, "description": "題幹，照書上的原文，不改寫。題組題只寫這一題自己的小題幹，不要重複共用題幹。" },
+        "figures": { "type": "array", "items": { "$ref": "#/$defs/figure" }, "description": "這題自己的圖（題組共用的圖放在 groups）。沒有就給空陣列。" },
+        "options": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 4, "maxItems": 4, "description": "四個選項字串，依 A–D 排列，跟 Canvas 一樣。不要寫『(A)』前綴，畫面會自動加。" },
+        "answer": { "type": "integer", "minimum": 0, "maximum": 3, "description": "正解索引，0＝A、1＝B、2＝C、3＝D，跟 Canvas 和 jev-quiz 一樣。" },
+        "explain": { "type": "string", "description": "詳解，依書末詳解轉錄，可以補一句『常見錯誤』。找不到詳解就填空字串，並在 review.flags 加 EXPLAIN_MISSING。" },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["bookId", "round", "number", "page", "matchKey"],
+          "properties": {
+            "bookId": { "type": "string" },
+            "unitLabel": { "type": "string", "description": "書上的章節原文，例：第 2 章 一元二次方程式。" },
+            "round": { "type": "integer", "minimum": 1, "description": "第幾回（或第幾份、第幾節，書上怎麼分就怎麼算）。書上沒分回時填 1。" },
+            "roundLabel": { "type": "string", "description": "書上的回次原文，例：第 3 回、2-1 隨堂練習。" },
+            "number": { "type": "integer", "minimum": 1, "description": "書上的題號。" },
+            "page": { "type": "integer", "minimum": 1, "description": "題目所在的頁碼。" },
+            "answerPage": { "type": ["integer", "null"], "description": "詳解所在的頁碼，沒有就填 null。" },
+            "matchKey": { "type": "string", "pattern": "^[A-Z]+[0-9]-[0-9]+\\|[0-9]+\\|[0-9]+$", "description": "unitCode|回數|題號，例：M9-2|3|7。跟詳解頁配對一律用這把鑰匙，不能只看題號。" }
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "flags"],
+          "properties": {
+            "status": { "type": "string", "enum": ["draft", "flagged", "checked"], "description": "draft 待校對（TU 產出時一律填這個，有紅標就填 flagged）／flagged 有問題／checked 已校對（只有匯入頁按確認後才會變成這個；作答端只出 checked 的題目）。" },
+            "flags": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/flag" }, "description": "紅標原因。TU 自己查出的就先填；匯入頁會再自動檢查一次。" },
+            "note": { "type": "string", "description": "給校對的人看的說明。" },
+            "checkedBy": { "type": ["string", "null"], "description": "匯入頁寫入時填確認者的 email，TU 產出時填 null。" },
+            "checkedAt": { "type": ["string", "null"], "description": "確認時間，TU 產出時填 null。" }
+          }
+        },
+        "extract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["confidence", "uncertain"],
+          "properties": {
+            "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "TU 對這題轉錄正確的把握，低於 0.8 會自動加 LOW_CONFIDENCE。" },
+            "uncertain": { "type": "array", "items": { "type": "string" }, "description": "看不清或不確定的地方，匯入頁會用黃底列出，例：『第 2 行 13 或 18 看不清』。" }
+          }
+        }
+      }
+    },
+    "flag": {
+      "type": "string",
+      "enum": ["COUNT_MISMATCH", "EXPLAIN_MISSING", "EXPLAIN_MISMATCH", "ANSWER_MISSING", "OPTION_COUNT", "FORMULA_CHECK", "FIGURE_MISSING", "LOW_CONFIDENCE", "DUPLICATE_ID", "GROUP_BROKEN", "IMAGE_TOO_BIG"],
+      "description": "COUNT_MISMATCH 題數跟 expectedCount 不同（整批）｜EXPLAIN_MISSING 找不到詳解｜EXPLAIN_MISMATCH 詳解的答案或題號對不上｜ANSWER_MISSING 沒有答案｜OPTION_COUNT 書上不是 4 個選項｜FORMULA_CHECK 公式不確定或 KaTeX 渲染失敗｜FIGURE_MISSING 題目提到圖（圖、如右、下表）卻沒有附圖｜LOW_CONFIDENCE 把握低於 0.8｜DUPLICATE_ID 跟題庫或同批已有的 id 重複｜GROUP_BROKEN 題組跟題目互相指不到｜IMAGE_TOO_BIG 圖超過 150 KB"
+    }
+  },
+
+  "examples": [
+    {
+      "schemaVersion": 1,
+      "batch": { "batchId": "20261105-hl-m9a-m9-2-r3", "createdAt": "2026-11-05T20:30:00+08:00", "createdBy": "TU", "photos": ["IMG_0412.jpg", "IMG_0430.jpg"], "expectedCount": 1, "note": "範例一：有公式的單題" },
+      "book": { "bookId": "hl-m9a", "title": "（範例）翰林 數學 九上 評量", "subject": "math", "grade": 9 },
+      "groups": [],
+      "questions": [
+        {
+          "id": "hl-m9a-m9-2-r3-q07", "subject": "math", "unit": "一元二次方程式", "unitCode": "M9-2", "skills": ["判別式"], "level": "中", "type": "single", "groupId": null,
+          "stem": "若方程式 \\(x^2 - 6x + k = 0\\) 有兩個相等的實數解，則 \\(k\\) 的值為何？",
+          "figures": [],
+          "options": ["\\(-9\\)", "\\(6\\)", "\\(9\\)", "\\(36\\)"],
+          "answer": 2,
+          "explain": "兩相等實根 ⇒ 判別式 \\(b^2-4ac=0\\)。\\[(-6)^2-4\\cdot1\\cdot k=0 \\Rightarrow k=9\\]常見錯誤：把 \\(b\\) 代成 6，忘了負號；平方後雖然結果一樣，但 \\(-b/2a\\) 會算錯。",
+          "source": { "bookId": "hl-m9a", "unitLabel": "第 2 章 一元二次方程式", "round": 3, "roundLabel": "第 3 回", "number": 7, "page": 42, "answerPage": 118, "matchKey": "M9-2|3|7" },
+          "review": { "status": "draft", "flags": [], "note": "", "checkedBy": null, "checkedAt": null },
+          "extract": { "confidence": 0.95, "uncertain": [] }
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "batch": { "batchId": "20261105-hl-p9a-p9-3-r2", "createdAt": "2026-11-05T21:00:00+08:00", "createdBy": "TU", "photos": ["IMG_0413.jpg", "IMG_0431.jpg"], "expectedCount": 2, "note": "範例二：有圖的題組（base64 已截短，實際要放完整內容）" },
+      "book": { "bookId": "hl-p9a", "title": "（範例）翰林 理化 九上 評量", "subject": "sci", "grade": 9 },
+      "groups": [
+        {
+          "groupId": "hl-p9a-p9-3-r2-g1", "title": "題組：斜面上的木塊",
+          "passage": "小蕎把質量 \\(2\\,\\text{kg}\\) 的木塊放在斜面上，用彈簧秤沿斜面向上等速拉動，裝置如圖（一）。請回答第 5～6 題。",
+          "figures": [ { "id": "fig1", "src": "data:image/webp;base64,UklGR…（截短）", "alt": "斜面示意圖：木塊在 30 度斜面上，彈簧秤沿斜面向上拉，箭頭標示拉力 F，斜面長 1.5 m。", "caption": "圖（一）", "crop": { "photo": "IMG_0413.jpg", "x": 120, "y": 860, "w": 640, "h": 380 } } ],
+          "questionIds": ["hl-p9a-p9-3-r2-q05", "hl-p9a-p9-3-r2-q06"]
+        }
+      ],
+      "questions": [
+        {
+          "id": "hl-p9a-p9-3-r2-q05", "subject": "sci", "unit": "功與能", "unitCode": "P9-3", "skills": ["功的計算"], "level": "易", "type": "single", "groupId": "hl-p9a-p9-3-r2-g1",
+          "stem": "木塊沿斜面移動 \\(1.5\\,\\text{m}\\)，彈簧秤讀數 \\(12\\,\\text{N}\\)，拉力對木塊作功多少焦耳？",
+          "figures": [],
+          "options": ["8 J", "12 J", "18 J", "30 J"],
+          "answer": 2,
+          "explain": "\\(W = F \\times S = 12 \\times 1.5 = 18\\,\\text{J}\\)，拉力與位移同方向。",
+          "source": { "bookId": "hl-p9a", "unitLabel": "第 3 章 功與能", "round": 2, "roundLabel": "第 2 回", "number": 5, "page": 57, "answerPage": 131, "matchKey": "P9-3|2|5" },
+          "review": { "status": "flagged", "flags": ["LOW_CONFIDENCE"], "note": "", "checkedBy": null, "checkedAt": null },
+          "extract": { "confidence": 0.78, "uncertain": ["彈簧秤讀數 12 或 13 看不清楚，請對照書本"] }
+        },
+        {
+          "id": "hl-p9a-p9-3-r2-q06", "subject": "sci", "unit": "功與能", "unitCode": "P9-3", "skills": ["位能"], "level": "中", "type": "single", "groupId": "hl-p9a-p9-3-r2-g1",
+          "stem": "木塊被拉到斜面頂端時升高 \\(0.75\\,\\text{m}\\)，木塊增加的重力位能約為多少焦耳？（\\(g = 9.8\\,\\text{m/s}^2\\)）",
+          "figures": [],
+          "options": ["7.35 J", "14.7 J", "18 J", "29.4 J"],
+          "answer": 1,
+          "explain": "\\(U = mgh = 2 \\times 9.8 \\times 0.75 = 14.7\\,\\text{J}\\)。拉力作的功 18 J 比 14.7 J 多，差額是摩擦生熱。",
+          "source": { "bookId": "hl-p9a", "unitLabel": "第 3 章 功與能", "round": 2, "roundLabel": "第 2 回", "number": 6, "page": 57, "answerPage": 131, "matchKey": "P9-3|2|6" },
+          "review": { "status": "draft", "flags": [], "note": "", "checkedBy": null, "checkedAt": null },
+          "extract": { "confidence": 0.92, "uncertain": [] }
+        }
+      ]
+    }
+  ]
+}
