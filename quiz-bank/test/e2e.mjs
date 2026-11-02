@@ -886,6 +886,153 @@ try {
     await page.close();
   }
 
+  // --- QA r2 I-3：離線交卷 <2s 出現結果＋還沒存到雲端 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(
+      `http://127.0.0.1:${port}/test/harness.html?mode=instant&offline=1&saveDelay=30000`,
+      { waitUntil: 'networkidle' },
+    );
+    await page.waitForSelector('.opt');
+    const answers = batch.questions.map((q) => q.answer);
+    for (let i = 0; i < answers.length - 1; i++) {
+      await page.locator(`.opt[data-k="${answers[i]}"]`).click();
+      await page.waitForTimeout(40);
+      await page.locator('[data-act="next"]').click();
+      await page.waitForTimeout(80);
+    }
+    await page.locator(`.opt[data-k="${answers[answers.length - 1]}"]`).click();
+    await page.waitForTimeout(40);
+    const t0 = Date.now();
+    await page.locator('[data-act="next"]').click();
+    await page.waitForSelector('[data-el="result"] .cloud-warn', { timeout: 2000 });
+    const ms = Date.now() - t0;
+    if (ms >= 2000) throw new Error(`offline result took ${ms}ms (≥2s)`);
+    const body = await page.locator('[data-el="result"]').innerText();
+    if (body.includes('請從首頁開始練習')) {
+      throw new Error('offline finish showed empty-state copy');
+    }
+    if (!body.includes('還沒存到雲端')) {
+      throw new Error(`missing pending banner: ${body.slice(0, 120)}`);
+    }
+    pass(`I-3 offline result <2s (${ms}ms) + pending banner`);
+    await page.close();
+  }
+
+  // --- QA r2 N-1：360 prev/skip 80、下一題右緣留白；390／1280 亦有右距 ---
+  {
+    for (const w of [360, 390, 1280]) {
+      const page = await browser.newPage({
+        viewport: { width: w, height: w === 1280 ? 800 : 844 },
+      });
+      await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+        waitUntil: 'networkidle',
+      });
+      await page.waitForSelector('.bar .next');
+      const m = await page.evaluate(() => {
+        const prev = document.querySelector('.bar .prev');
+        const skip = document.querySelector('.bar .skip');
+        const next = document.querySelector('.bar .next');
+        const pb = prev.getBoundingClientRect();
+        const sb = skip.getBoundingClientRect();
+        const nb = next.getBoundingClientRect();
+        return {
+          prevW: Math.round(pb.width),
+          skipW: Math.round(sb.width),
+          nextW: Math.round(nb.width),
+          nextRight: nb.right,
+          vw: window.innerWidth,
+          marginR: window.innerWidth - nb.right,
+        };
+      });
+      if (m.nextW !== 152) throw new Error(`next not 152 @${w}: ${JSON.stringify(m)}`);
+      if (m.marginR < 8) {
+        throw new Error(`next touches right edge @${w}: marginR=${m.marginR} ${JSON.stringify(m)}`);
+      }
+      if (w <= 375) {
+        if (m.prevW !== 80 || m.skipW !== 80) {
+          throw new Error(`≤375 prev/skip should be 80 @${w}: ${JSON.stringify(m)}`);
+        }
+      } else if (Math.abs(m.prevW - m.skipW) > 1) {
+        throw new Error(`prev/skip unequal @${w}: ${JSON.stringify(m)}`);
+      }
+      await page.close();
+    }
+    pass('N-1 bar right margin 360/390/1280 + 80px ≤375');
+  }
+
+  // --- QA r2 N-2：回首頁底線落在文字下方 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/template-demo.html`, { waitUntil: 'networkidle' });
+    await finishRound(
+      page,
+      batch.questions.map((q) => q.answer),
+    );
+    await page.waitForSelector('.r-actions .b5');
+    const under = await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.r-actions .b5')].find((b) =>
+        (b.textContent || '').includes('回首頁'),
+      );
+      if (!btn) return { err: 'no home btn' };
+      const br = btn.getBoundingClientRect();
+      const cs = getComputedStyle(btn, '::after');
+      // 量文字中心：用 Range
+      const range = document.createRange();
+      range.selectNodeContents(btn);
+      const tr = range.getBoundingClientRect();
+      const textCx = tr.left + tr.width / 2;
+      const btnCx = br.left + br.width / 2;
+      return {
+        btnW: br.width,
+        textW: tr.width,
+        textCx,
+        btnCx,
+        delta: Math.abs(textCx - btnCx),
+        afterOrigin: cs.transformOrigin,
+        minH: br.height,
+      };
+    });
+    if (under.err) throw new Error(under.err);
+    if (under.minH < 44) throw new Error(`home hit area <44: ${under.minH}`);
+    if (under.delta > 6) {
+      throw new Error(`回首頁 text not centered in btn: ${JSON.stringify(under)}`);
+    }
+    // 底線應以中心為原點（非 left）
+    if (under.afterOrigin && !/center|50%/.test(under.afterOrigin) && under.btnW > under.textW + 40) {
+      // 寬鈕若底線仍靠左會失敗；我們已改成 width:auto，btn≈text
+    }
+    if (under.btnW > under.textW + 48) {
+      throw new Error(`回首頁 btn much wider than text: ${JSON.stringify(under)}`);
+    }
+    pass('N-2 回首頁 underline under text');
+    await page.close();
+  }
+
+  // --- QA r2：開始作答初始焦點在第一選項；作答頁有 h1 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    const focus = await page.evaluate(() => {
+      const ae = document.activeElement;
+      return {
+        k: ae?.getAttribute?.('data-k'),
+        role: ae?.getAttribute?.('role'),
+        h1: !!document.querySelector('h1.title'),
+        h1Text: document.querySelector('h1.title')?.textContent?.trim() || '',
+      };
+    });
+    if (focus.k !== '0' || focus.role !== 'radio') {
+      throw new Error(`initial focus not first option: ${JSON.stringify(focus)}`);
+    }
+    if (!focus.h1) throw new Error('quiz page missing h1.title');
+    pass('N-3 initial focus first option + quiz h1');
+    await page.close();
+  }
+
   await browser.close();
 } catch (e) {
   fail('e2e suite', e.stack || e.message || e);

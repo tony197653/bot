@@ -360,10 +360,63 @@ export async function saveAttempt(uid, result, meta) {
   }
 }
 
-function enqueuePending(uid, entry) {
+export function enqueuePending(uid, entry) {
   const list = readPending(uid);
-  list.push(entry);
+  // 同 savedAt 不重複
+  if (!list.some((x) => x.savedAt === entry.savedAt)) list.push(entry);
   writePending(uid, list);
+}
+
+/**
+ * 先入隊，再嘗試寫入；逾時仍回 pending，背景繼續。
+ * @param {string} uid
+ * @param {object} result
+ * @param {object} meta
+ * @param {number} [ms]
+ * @param {{onSuccess?:(delta:number)=>void}} [hooks]
+ */
+export async function saveAttemptWithTimeout(uid, result, meta, ms = 8000, hooks = {}) {
+  const payload = { result, meta, savedAt: Date.now() };
+  enqueuePending(uid, payload);
+
+  const work = (async () => {
+    const delta = await writeSettlement(uid, result, meta);
+    clearProgress(uid);
+    removePendingEntry(uid, payload);
+    const att = await buildAttemptDoc(result, meta);
+    att.at = { toMillis: () => Date.now() };
+    appendAttemptCache(att);
+    return { ok: true, wrongBookDelta: delta };
+  })();
+
+  const timed = await new Promise((resolve) => {
+    const t = setTimeout(() => resolve({ ok: false, timedOut: true, wrongBookDelta: 0 }), ms);
+    work.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      () => {
+        clearTimeout(t);
+        resolve({ ok: false, timedOut: false, wrongBookDelta: 0 });
+      },
+    );
+  });
+
+  if (timed.ok) {
+    hooks.onSuccess?.(timed.wrongBookDelta || 0);
+  } else {
+    // 逾時後背景成功時再更新 UI
+    work
+      .then((r) => {
+        if (r?.ok) hooks.onSuccess?.(r.wrongBookDelta || 0);
+      })
+      .catch(() => {
+        /* 已在 pending 佇列 */
+      });
+  }
+
+  return timed;
 }
 
 function removePendingEntry(uid, entry) {

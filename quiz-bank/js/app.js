@@ -16,7 +16,7 @@ import { startQuiz, getActiveQuiz, isQuizActive, requestLeave } from './quiz.js'
 import { showResult } from './result.js';
 import { escHtml } from './render.js';
 import {
-  saveAttempt,
+  saveAttemptWithTimeout,
   flushPending,
   progressKey,
   clearProgress,
@@ -277,6 +277,27 @@ function paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStat
   resultDestroy = () => view.destroy();
 }
 
+function applyCloudOk(uid, wrongBookDelta) {
+  const snap = loadLastResult(uid);
+  if (snap) {
+    snap.cloudStatus = 'ok';
+    snap.wrongBookDelta = wrongBookDelta;
+    saveLastResult(uid, snap);
+  }
+  const main = mount();
+  main?.querySelector('.cloud-warn')?.remove();
+  const deltaEl = main?.querySelector('.stats .stat:last-child b');
+  if (deltaEl && typeof wrongBookDelta === 'number') {
+    deltaEl.textContent =
+      wrongBookDelta > 0
+        ? `${wrongBookDelta} 題加入`
+        : wrongBookDelta < 0
+          ? `${Math.abs(wrongBookDelta)} 題移出`
+          : '沒有變化';
+  }
+  clearProgress(uid);
+}
+
 async function finishQuiz(result, scope) {
   const user = getUser();
   const main = mount();
@@ -285,12 +306,14 @@ async function finishQuiz(result, scope) {
   quizStarted = false;
   activeQuizScope = null;
   pendingQuiz = null;
-  quizNavigating = true;
-  history.replaceState(null, '', '#/result');
-  location.replace('#/result');
 
-  let cloudStatus = 'ok';
-  let wrongBookDelta = 0;
+  const summaryText = formatRoundSummary({
+    scope,
+    result,
+    bookTitle: scope.bookTitle,
+    unitName: scope.unitName,
+    round: scope.round,
+  });
   const meta = {
     scope: {
       type: scope.type || 'round',
@@ -301,32 +324,33 @@ async function finishQuiz(result, scope) {
     mode: result.mode,
     questions: result.questions,
   };
-  const save = await saveAttempt(user.uid, result, meta);
-  if (!save.ok) cloudStatus = 'pending';
-  else {
-    wrongBookDelta = save.wrongBookDelta || 0;
-    clearProgress(user.uid);
-  }
 
-  const summaryText = formatRoundSummary({
-    scope,
-    result,
-    bookTitle: scope.bookTitle,
-    unitName: scope.unitName,
-    round: scope.round,
-  });
-
+  // 本機優先：先存快照並立刻顯示「還沒存到雲端」
   saveLastResult(user.uid, {
     result: { ...result, title: scope.title || result.title },
     scope,
     summaryText,
-    wrongBookDelta,
-    cloudStatus,
+    wrongBookDelta: 0,
+    cloudStatus: 'pending',
     savedAt: Date.now(),
   });
 
-  paintResultView({ result, scope, summaryText, wrongBookDelta, cloudStatus });
+  quizNavigating = true;
+  history.replaceState(null, '', '#/result');
+  location.replace('#/result');
+  paintResultView({
+    result,
+    scope,
+    summaryText,
+    wrongBookDelta: 0,
+    cloudStatus: 'pending',
+  });
   quizNavigating = false;
+
+  // 背景上傳：逾時仍維持 pending；成功時 onSuccess 更新 UI
+  await saveAttemptWithTimeout(user.uid, result, meta, 8000, {
+    onSuccess: (delta) => applyCloudOk(user.uid, delta),
+  });
 }
 
 function startScope(scope) {

@@ -129,7 +129,7 @@ function createSession(opts) {
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>離開</span>
       </button>
-      <p class="title" data-el="title"></p>
+      <h1 class="title" data-el="title"></h1>
       <p class="count" data-el="count"></p>
     </div>
     <div class="prog" data-el="prog" aria-hidden="true"><i></i></div></header>
@@ -637,6 +637,8 @@ function createSession(opts) {
     }
     document.body.dataset.view = 'quiz';
     paint();
+    // 開始作答：焦點落在目前高亮選項（未答＝第一個）
+    setHi(hiIdx(), true, true);
   }
 
   function destroy(clearSession = true) {

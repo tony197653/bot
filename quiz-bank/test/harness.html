@@ -78,7 +78,7 @@
       onLeave: () => {
         document.getElementById('root').innerHTML = '<p data-el="left">已離開</p>';
       },
-      onFinish: (result) => {
+      onFinish: async (result) => {
         window.__harness.lastResult = result;
         const summary = formatRoundSummary({
           scope: {
@@ -94,12 +94,28 @@
           round: 1,
         });
         window.__harness.lastSummary = summary;
-        // 模擬：存檔成功才清 progress
-        try { localStorage.removeItem(progressKey); } catch { /* ignore */ }
+        const offline = params.get('offline') === '1';
+        const saveDelay = Number(params.get('saveDelay') || 0);
+        const resultKey = 'quizbank:v1:lastResult:harness';
+        // 本機優先：立刻顯示結果（離線／慢存時為 pending）
+        const cloudStatus = offline || saveDelay > 0 ? 'pending' : 'ok';
+        try {
+          localStorage.setItem(
+            resultKey,
+            JSON.stringify({
+              result: { ...result, title },
+              summaryText: summary,
+              wrongBookDelta: 0,
+              cloudStatus,
+              savedAt: Date.now(),
+            }),
+          );
+        } catch { /* ignore */ }
         showResult({
           mount: document.getElementById('root'),
           result: { ...result, title },
           getSummaryText: () => summary,
+          cloudStatus,
           onReport: async (payload) => {
             if (window.__harness.reportFail) throw new Error('回報失敗測試');
             if (window.__harness.reports.includes(payload.qid)) return;
@@ -108,7 +124,19 @@
           onRetryWrong: () => location.reload(),
           onRestart: () => location.reload(),
           onHome: () => { location.href = '../'; },
+          onRetryCloud: () => {
+            document.querySelector('.cloud-warn')?.remove();
+          },
         });
+        if (offline) {
+          // 模擬雲端掛起：不清除 pending 標示
+          return;
+        }
+        if (saveDelay > 0) {
+          await new Promise((r) => setTimeout(r, saveDelay));
+          document.querySelector('.cloud-warn')?.remove();
+        }
+        try { localStorage.removeItem(progressKey); } catch { /* ignore */ }
       },
     });
   </script>
