@@ -43,17 +43,6 @@ service cloud.firestore {
         && request.resource.data.manualOut == true;
     }
 
-    function validUnitEntry(u) {
-      return u is map
-        && u.keys().hasOnly(['unit', 'subject', 'correct', 'total'])
-        && u.keys().hasAll(['unit', 'subject', 'correct', 'total'])
-        && u.unit is string && u.unit.size() > 0 && u.unit.size() <= 80
-        && u.subject is string && u.subject in ['math', 'sci', 'chi', 'eng', 'soc']
-        && u.correct is int && u.correct >= 0
-        && u.total is int && u.total >= 1
-        && u.correct <= u.total;
-    }
-
     function validAttempt(d) {
       return d.keys().hasOnly([
           'scope', 'mode', 'qids', 'answers', 'correct', 'total',
@@ -144,7 +133,9 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && r == request.resource.data.qid + "__" + request.auth.uid
         && validReport(request.resource.data);
-      allow read: if admin();
+      // 本人可讀自己的回報（避免重複送出）；管理者可讀全部
+      allow read: if admin()
+        || (allowed() && resource.data.uid == request.auth.uid);
       allow update: if admin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
         && request.resource.data.status == "done";

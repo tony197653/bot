@@ -104,7 +104,7 @@ export function computeStrength(attempts) {
     .map((row) => {
       const rate = row.total ? row.correct / row.total : 0;
       let status = 'none';
-      let label = '30 天內未練';
+      let label = '尚未練習';
       if (row.total > 0) {
         if (rate >= 0.85) {
           status = 'good';
@@ -125,6 +125,59 @@ export function computeStrength(attempts) {
       if (!b.total) return -1;
       return a.rate - b.rate;
     });
+}
+
+/**
+ * 把題庫 units 併入強弱列：30 天內沒作答的單元顯示「尚未練習」。
+ * @param {object[]} strengthRows
+ * @param {{unitCode:string,name?:string,subject?:string,bookId?:string}[]} knownUnits
+ */
+export function mergeKnownUnits(strengthRows, knownUnits) {
+  const byCode = Object.fromEntries(strengthRows.map((r) => [r.unitCode, { ...r }]));
+  for (const u of knownUnits || []) {
+    if (!u?.unitCode) continue;
+    if (!byCode[u.unitCode]) {
+      byCode[u.unitCode] = {
+        unitCode: u.unitCode,
+        unit: u.name || u.unitCode,
+        subject: u.subject || 'math',
+        bookId: u.bookId || '',
+        correct: 0,
+        total: 0,
+        rate: 0,
+        status: 'none',
+        label: '尚未練習',
+        lowSample: false,
+      };
+    } else if (u.bookId && !byCode[u.unitCode].bookId) {
+      byCode[u.unitCode].bookId = u.bookId;
+    }
+  }
+  return Object.values(byCode).sort((a, b) => {
+    if (!a.total && !b.total) return a.unitCode.localeCompare(b.unitCode);
+    if (!a.total) return 1;
+    if (!b.total) return -1;
+    return a.rate - b.rate;
+  });
+}
+
+/** 欄頭排序：rate | unit | status；未練排最後 */
+export function sortStrengthRows(rows, key = 'rate', dir = 'asc') {
+  const mul = dir === 'desc' ? -1 : 1;
+  const list = rows.slice();
+  list.sort((a, b) => {
+    const aUn = !a.total;
+    const bUn = !b.total;
+    if (aUn !== bUn) return aUn ? 1 : -1;
+    if (key === 'unit') return mul * a.unitCode.localeCompare(b.unitCode);
+    if (key === 'status') {
+      const order = { weak: 0, mid: 1, good: 2, none: 3 };
+      return mul * ((order[a.status] ?? 9) - (order[b.status] ?? 9));
+    }
+    // rate 預設由低到高
+    return mul * (a.rate - b.rate);
+  });
+  return list;
 }
 
 function cutoff30d() {
@@ -211,7 +264,7 @@ export async function loadAttemptSummary(uid) {
  * @param {object} q
  * @param {number} answer -1..3
  */
-function nextQstat(prev, q, answer) {
+export function nextQstat(prev, q, answer) {
   const ok = answer === q.answer;
   const base = prev || {
     unitCode: q.unitCode,

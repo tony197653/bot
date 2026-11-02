@@ -7,6 +7,8 @@ import {
   loadQstatsWrong,
   loadAttemptSummary,
   computeStrength,
+  mergeKnownUnits,
+  sortStrengthRows,
   updateQstatManualOut,
   progressKey,
 } from './stats.js';
@@ -139,7 +141,7 @@ function taipeiDateParts(d = new Date()) {
   return parts;
 }
 
-export function formatUnitsExportText({ strengthRows, wrongBySubject, recentAttempts, productName = '考題網' }) {
+export function formatUnitsExportText({ strengthRows, wrongBySubject, recentAttempts, productName = '羽蕎考題網' }) {
   const p = taipeiDateParts();
   const dateStr = `${p.year}/${p.month}/${p.day}`;
   const lines = [`${productName}學習摘要（${dateStr} 產生，統計最近 30 天）`];
@@ -261,8 +263,13 @@ export async function renderHome(mount, ctx) {
             })
             .join('');
 
+    const unitPracticeEntry = filtered.some((b) => (b.units || []).length)
+      ? `<p class="home-unit-entry"><a class="btn b5" href="#/units">單元練習／強弱表</a></p>`
+      : '';
+
     mount.innerHTML = `<div class="page home">
       ${suggestHtml}
+      ${unitPracticeEntry}
       <div class="filters s3">
         <label>科目
           <select id="home-subject">
@@ -285,7 +292,7 @@ export async function renderHome(mount, ctx) {
       </aside>
     </div>`;
 
-    /** @type {null|{type:string,bookId:string,unitCode:string,round?:number,unitName?:string,title?:string}} */
+    /** @type {null|{type:string,bookId:string,unitCode:string,round?:number,unitName?:string,title?:string,bookTitle?:string}} */
     let pendingScope = null;
 
     mount.addEventListener('click', (e) => {
@@ -301,13 +308,15 @@ export async function renderHome(mount, ctx) {
         return;
       }
       if (t.classList.contains('round')) {
+        const bookTitle = t.closest('.book')?.querySelector('h2')?.textContent || '';
         pendingScope = {
           type: 'round',
           bookId: t.dataset.book,
           unitCode: t.dataset.unit,
           round: +t.dataset.round,
           unitName: t.dataset.unitName,
-          title: `${t.closest('.book')?.querySelector('h2')?.textContent || ''}・${t.dataset.unitName}・${t.textContent.trim()}`,
+          bookTitle,
+          title: `${bookTitle}・${t.dataset.unitName}・${t.textContent.trim()}`,
         };
         const panel = mount.querySelector('#start-panel');
         panel.hidden = false;
@@ -352,20 +361,32 @@ export async function renderHome(mount, ctx) {
 export async function renderWrongBook(mount, ctx) {
   mount.innerHTML = `<div class="page wrong"><div class="e3">載入中…</div></div>`;
   const uid = ctx.user.uid;
-  let subject = readFilters().wrongSubject || '';
+  const filters = readFilters();
+  let subject = filters.wrongSubject || '';
+  let unitFilter = filters.wrongUnit || '';
   try {
     const allRows = await loadQstatsWrong(uid);
-    const stats = subject ? allRows.filter((r) => r.subject === subject) : allRows;
+    const bySubject = subject ? allRows.filter((r) => r.subject === subject) : allRows;
+    const units = [...new Set(bySubject.map((r) => r.unitCode).filter(Boolean))].sort();
+    const stats = unitFilter ? bySubject.filter((r) => r.unitCode === unitFilter) : bySubject;
     const count = stats.length;
     const label = wrongPracticeLabel(count);
     mount.innerHTML = `<div class="page wrong">
       <div class="tabs g2">${Object.entries(SUBJECT_LABELS)
         .map(
           ([k, v]) =>
-            `<button type="button" class="tab${subject === k ? ' on' : ''}" data-sub="${k}">${v}<span class="l5">${stats.filter((s) => s.subject === k).length || ''}</span></button>`,
+            `<button type="button" class="tab${subject === k ? ' on' : ''}" data-sub="${k}">${v}<span class="l5">${allRows.filter((s) => s.subject === k).length || ''}</span></button>`,
         )
         .join('')}
         <button type="button" class="tab${!subject ? ' on' : ''}" data-sub="">全部</button>
+      </div>
+      <div class="filters m1">
+        <label>單元
+          <select id="wrong-unit">
+            <option value="">全部單元</option>
+            ${units.map((u) => `<option value="${escHtml(u)}"${unitFilter === u ? ' selected' : ''}>${escHtml(u)}</option>`).join('')}
+          </select>
+        </label>
       </div>
       <div class="wrong-list">${count ? stats.map((s) => `<article class="card c1 wrong-card" data-qid="${escHtml(s.qid)}">
           <p class="meta">${escHtml(s.unitCode)} · 連對 ${Math.min(s.streak || 0, 2)}/2</p>
@@ -377,13 +398,24 @@ export async function renderWrongBook(mount, ctx) {
 
     mount.querySelectorAll('.tab').forEach((tab) => {
       tab.addEventListener('click', () => {
-        writeFilters({ wrongSubject: tab.dataset.sub });
+        writeFilters({ wrongSubject: tab.dataset.sub, wrongUnit: '' });
         renderWrongBook(mount, ctx);
       });
     });
 
+    mount.querySelector('#wrong-unit')?.addEventListener('change', (e) => {
+      writeFilters({ wrongUnit: e.target.value });
+      renderWrongBook(mount, ctx);
+    });
+
     mount.querySelector('#wrong-practice')?.addEventListener('click', async () => {
-      const pack = await fetchWrongQuestions(ctx, uid, subject || undefined);
+      let pack = await fetchWrongQuestions(ctx, uid, subject || undefined);
+      if (unitFilter) {
+        pack = {
+          ...pack,
+          questions: pack.questions.filter((q) => q.unitCode === unitFilter).slice(0, 10),
+        };
+      }
       if (!pack.questions.length) {
         ctx.toast?.('沒有可練的錯題');
         return;
@@ -392,7 +424,7 @@ export async function renderWrongBook(mount, ctx) {
         type: 'wrong',
         mode: 'instant',
         shuffle: true,
-        questions: pack.questions,
+        questions: pack.questions.slice(0, 10),
         groups: pack.groups,
         title: '錯題本',
       });
@@ -410,14 +442,32 @@ export async function renderUnits(mount, ctx) {
   mount.innerHTML = `<div class="page units-page"><div class="e3">載入中…</div></div>`;
   const uid = ctx.user.uid;
   try {
-    const attempts = await loadAttempts30d(uid);
-    const strength = computeStrength(attempts);
-    const wrongStats = await loadQstatsWrong(uid);
+    const [attempts, banks, wrongStats, summary] = await Promise.all([
+      loadAttempts30d(uid),
+      fetchBanks(ctx),
+      loadQstatsWrong(uid),
+      loadAttemptSummary(uid),
+    ]);
+    const knownUnits = [];
+    for (const book of banks) {
+      for (const u of book.units || []) {
+        knownUnits.push({
+          unitCode: u.unitCode,
+          name: u.name,
+          subject: book.subject,
+          bookId: book.bookId,
+        });
+      }
+    }
+    let strength = mergeKnownUnits(computeStrength(attempts), knownUnits);
+    let sortKey = readFilters().unitsSortKey || 'rate';
+    let sortDir = readFilters().unitsSortDir || 'asc';
+    strength = sortStrengthRows(strength, sortKey, sortDir);
+
     const wrongBySubject = {};
     wrongStats.forEach((s) => {
       wrongBySubject[s.subject] = (wrongBySubject[s.subject] || 0) + 1;
     });
-    const summary = await loadAttemptSummary(uid);
     const exportText = formatUnitsExportText({
       strengthRows: strength,
       wrongBySubject,
@@ -427,6 +477,8 @@ export async function renderUnits(mount, ctx) {
     const totalAttempts = attempts.reduce((n, a) => n + (a.total || 0), 0);
     const totalCorrect = attempts.reduce((n, a) => n + (a.correct || 0), 0);
     const rate = totalAttempts ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
+
+    const sortMark = (k) => (sortKey === k ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
 
     mount.innerHTML = `<div class="page units-page">
       <p class="note">最近 30 天</p>
@@ -439,24 +491,51 @@ export async function renderUnits(mount, ctx) {
         .map(([k, v]) => `<div class="stat-box"><span>${k}</span><b>${v}</b></div>`)
         .join('')}</div>
       <table class="t1 strength">
-        <thead><tr><th>單元</th><th class="r">正確率</th><th>狀態</th><th></th></tr></thead>
+        <thead><tr>
+          <th><button type="button" class="th-sort" data-sort="unit">單元${sortMark('unit')}</button></th>
+          <th class="r"><button type="button" class="th-sort" data-sort="rate">正確率${sortMark('rate')}</button></th>
+          <th><button type="button" class="th-sort" data-sort="status">狀態${sortMark('status')}</button></th>
+          <th></th>
+        </tr></thead>
         <tbody>${strength
           .map(
             (u) => `<tr>
               <td><span class="ucode">${escHtml(u.unitCode)}</span> ${escHtml(u.unit)}</td>
               <td class="r">${u.total ? `${Math.round(u.rate * 100)}%（${u.total} 次）` : '—'}</td>
               <td><span class="l2 ${u.status}"><i></i>${escHtml(u.label)}</span>${u.lowSample ? '<span class="l3">題數少</span>' : ''}</td>
-              <td><button type="button" class="btn b5 unit-practice" data-unit="${escHtml(u.unitCode)}" data-book="">練這單元</button></td>
+              <td><button type="button" class="btn b5 unit-practice" data-unit="${escHtml(u.unitCode)}" data-book="${escHtml(u.bookId || '')}" data-unit-name="${escHtml(u.unit)}">練這單元</button></td>
             </tr>`,
           )
           .join('')}</tbody>
       </table>
-      ${strength.length === 0 ? '<p class="e1">最近 30 天做完一回就會出現資料。</p>' : ''}
+      ${strength.length === 0 ? '<p class="e1">題庫還沒有單元，或最近 30 天尚無作答。</p>' : ''}
       <label class="export-box">複製給家教 TU
         <textarea class="i1" readonly rows="8">${escHtml(exportText)}</textarea>
       </label>
       <button type="button" class="btn b1" id="copy-units">複製給家教 TU</button>
+      <aside class="start-panel" id="unit-start-panel" hidden>
+        <h2>開始設定</h2>
+        <p class="start-title" id="unit-start-title"></p>
+        <label class="s3">對答案方式
+          <select id="unit-start-mode"><option value="instant">當場對</option><option value="exam">交卷才對</option></select>
+        </label>
+        <label class="s1"><input type="checkbox" id="unit-start-shuffle" checked> 打亂順序</label>
+        <button type="button" class="btn b1" id="unit-start-go">開始作答</button>
+      </aside>
     </div>`;
+
+    /** @type {null|{bookId:string,unitCode:string,unitName:string,bookTitle:string}} */
+    let pendingUnit = null;
+
+    mount.querySelectorAll('.th-sort').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.sort;
+        let dir = 'asc';
+        if (sortKey === key) dir = sortDir === 'asc' ? 'desc' : 'asc';
+        writeFilters({ unitsSortKey: key, unitsSortDir: dir });
+        renderUnits(mount, ctx);
+      });
+    });
 
     mount.querySelector('#copy-units')?.addEventListener('click', async () => {
       const ta = mount.querySelector('textarea');
@@ -472,27 +551,54 @@ export async function renderUnits(mount, ctx) {
     mount.querySelectorAll('.unit-practice').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const unitCode = btn.dataset.unit;
-        const banks = await fetchBanks(ctx);
-        const book = banks.find((b) => (b.units || []).some((u) => u.unitCode === unitCode));
+        let bookId = btn.dataset.book;
+        let book = banks.find((b) => b.bookId === bookId);
+        if (!book) {
+          book = banks.find((b) => (b.units || []).some((u) => u.unitCode === unitCode));
+          bookId = book?.bookId || '';
+        }
         if (!book) {
           ctx.toast?.('找不到這個單元的題庫');
           return;
         }
-        const pack = await fetchQuestionsForUnit(ctx, book.bookId, unitCode, 10);
-        if (!pack.questions.length) {
-          ctx.toast?.('這個單元還沒有題目');
-          return;
-        }
-        ctx.startScope?.({
-          type: 'unit',
+        pendingUnit = {
           bookId: book.bookId,
           unitCode,
-          mode: 'instant',
-          shuffle: true,
-          questions: pack.questions,
-          groups: pack.groups,
-          title: `${book.title}・${unitCode} 單元練習`,
-        });
+          unitName: btn.dataset.unitName || unitCode,
+          bookTitle: book.title || '',
+        };
+        const panel = mount.querySelector('#unit-start-panel');
+        panel.hidden = false;
+        mount.querySelector('#unit-start-title').textContent =
+          `${book.title}・${unitCode} 單元練習`;
+      });
+    });
+
+    mount.querySelector('#unit-start-go')?.addEventListener('click', async () => {
+      if (!pendingUnit) return;
+      const mode = mount.querySelector('#unit-start-mode').value;
+      const shuffle = mount.querySelector('#unit-start-shuffle').checked;
+      const pack = await fetchQuestionsForUnit(
+        ctx,
+        pendingUnit.bookId,
+        pendingUnit.unitCode,
+        10,
+      );
+      if (!pack.questions.length) {
+        ctx.toast?.('這個單元還沒有題目');
+        return;
+      }
+      ctx.startScope?.({
+        type: 'unit',
+        bookId: pendingUnit.bookId,
+        unitCode: pendingUnit.unitCode,
+        unitName: pendingUnit.unitName,
+        bookTitle: pendingUnit.bookTitle,
+        mode,
+        shuffle,
+        questions: pack.questions,
+        groups: pack.groups,
+        title: `${pendingUnit.bookTitle}・${pendingUnit.unitCode} 單元練習`,
       });
     });
   } catch {

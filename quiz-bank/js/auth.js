@@ -268,7 +268,9 @@ export async function signIn() {
       emit({ status: 'signed-out', user: null, error: null });
       return;
     }
-    // GitHub Pages：popup 被擋或 iOS Safari → redirect 備援
+    // iOS／Safari：一律先 popup；僅 popup-blocked 或環境不支援時才改 redirect。
+    // 風險（Safari 16.1+）：第三方 cookie／儲存分區可能讓 redirect 回來後 session 讀不到；
+    // 正式站用 *.firebaseapp.com authDomain，並請使用者用系統 Safari／Chrome 開啟（非 LINE 內建）。
     if (
       code === 'auth/popup-blocked' ||
       code === 'auth/operation-not-supported-in-this-environment'

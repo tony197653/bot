@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>考題網・測試 harness</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/b.css">
+  <link rel="stylesheet" href="../css/quiz.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/mhchem.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    import { startQuiz, requestLeave, getActiveQuiz } from '../js/quiz.js';
+    import { showResult } from '../js/result.js';
+    import { bindLightboxOnce } from '../js/lightbox.js';
+    import { formatRoundSummary } from '../js/summary.js';
+
+    bindLightboxOnce(document);
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode') || 'instant';
+    const resume = params.get('resume') === '1';
+    const progressKey = 'quizbank:v1:progress:harness';
+    const batch = await (await fetch('../test-data/fake-batch.json')).json();
+    const title = batch.book.title + '・第 1 回';
+
+    let initialAnswers;
+    let initialIndex;
+    if (resume) {
+      try {
+        const prog = JSON.parse(localStorage.getItem(progressKey) || 'null');
+        if (prog?.answers) {
+          initialAnswers = prog.answers;
+          initialIndex = prog.idx;
+        }
+      } catch { /* ignore */ }
+    }
+
+    window.__harness = {
+      progressKey,
+      formatRoundSummary,
+      requestLeave,
+      getActiveQuiz,
+      lastResult: null,
+      lastSummary: null,
+      reports: [],
+      reportFail: false,
+    };
+
+    startQuiz({
+      title,
+      questions: batch.questions,
+      groups: batch.groups,
+      mode,
+      shuffle: false,
+      outMs: 0,
+      mount: document.getElementById('root'),
+      progressKey,
+      scope: {
+        type: 'round',
+        bookId: batch.book.bookId,
+        bookTitle: batch.book.title,
+        unitCode: batch.questions[0].unitCode,
+        unitName: batch.questions[0].unit,
+        round: 1,
+      },
+      initialAnswers,
+      initialIndex,
+      clearProgressOnFinish: false,
+      onReport: async (payload) => {
+        if (window.__harness.reportFail) throw new Error('回報失敗測試');
+        if (window.__harness.reports.includes(payload.qid)) return;
+        window.__harness.reports.push(payload.qid);
+      },
+      onLeave: () => {
+        document.getElementById('root').innerHTML = '<p data-el="left">已離開</p>';
+      },
+      onFinish: (result) => {
+        window.__harness.lastResult = result;
+        const summary = formatRoundSummary({
+          scope: {
+            type: 'round',
+            bookTitle: batch.book.title,
+            unitCode: batch.questions[0].unitCode,
+            unitName: batch.questions[0].unit,
+            round: 1,
+          },
+          result,
+          bookTitle: batch.book.title,
+          unitName: batch.questions[0].unit,
+          round: 1,
+        });
+        window.__harness.lastSummary = summary;
+        // 模擬：存檔成功才清 progress
+        try { localStorage.removeItem(progressKey); } catch { /* ignore */ }
+        showResult({
+          mount: document.getElementById('root'),
+          result: { ...result, title },
+          getSummaryText: () => summary,
+          onReport: async (payload) => {
+            if (window.__harness.reportFail) throw new Error('回報失敗測試');
+            if (window.__harness.reports.includes(payload.qid)) return;
+            window.__harness.reports.push(payload.qid);
+          },
+          onRetryWrong: () => location.reload(),
+          onRestart: () => location.reload(),
+          onHome: () => { location.href = '../'; },
+        });
+      },
+    });
+  </script>
+</body>
+</html>

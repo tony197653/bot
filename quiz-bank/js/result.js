@@ -13,9 +13,12 @@ const RM = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function fmtT(ms) {
-  const s = Math.max(1, Math.round(ms / 1000));
+  const s = Math.max(0, Math.round(ms / 1000));
   const m = Math.floor(s / 60);
-  return m ? `${m} 分 ${s % 60} 秒` : `${s} 秒`;
+  const rem = s % 60;
+  if (m && rem === 0) return `${m} 分`;
+  if (m) return `${m} 分 ${rem} 秒`;
+  return `${Math.max(1, s)} 秒`;
 }
 
 function unitStatus(correct, total) {
@@ -148,7 +151,7 @@ export function showResult(opts) {
                 <p class="rv-a">你選：${a < 0 ? '未作答' : `(${L[a]}) ${escHtml(q.options[a])}`}${
                   ok ? '' : `　正確：(${L[q.answer]}) ${escHtml(q.options[q.answer])}`
                 }</p>
-                ${ok ? '' : `<div class="rv-ex">${escHtml(q.explain)}</div>`}
+                ${ok ? '' : `<div class="rv-ex">${escHtml(q.explain).replace(/\n/g, '<br>')}</div>`}
                 ${reportBtn}
               </li>`;
             })

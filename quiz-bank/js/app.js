@@ -13,7 +13,7 @@ import {
 import { renderHome, renderWrongBook, renderUnits } from './views.js';
 import { renderImport } from './import.js';
 import { startQuiz, getActiveQuiz, isQuizActive, requestLeave } from './quiz.js';
-import { showResult, fmtT } from './result.js';
+import { showResult } from './result.js';
 import { escHtml } from './render.js';
 import {
   saveAttempt,
@@ -23,6 +23,7 @@ import {
   updateQstatManualOut,
 } from './stats.js';
 import { bindLightboxOnce } from './lightbox.js';
+import { formatRoundSummary, taipeiStamp } from './summary.js';
 
 const PRODUCT = '考題網';
 
@@ -80,32 +81,6 @@ function setNav(route, admin) {
   document.querySelectorAll('[data-admin-only]').forEach((el) => {
     el.hidden = !admin;
   });
-}
-
-function taipeiStamp(d = new Date()) {
-  const fmt = new Intl.DateTimeFormat('zh-TW', {
-    timeZone: 'Asia/Taipei',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  const parts = Object.fromEntries(fmt.formatToParts(d).map((p) => [p.type, p.value]));
-  return `${parts.year}/${parts.month}/${parts.day} ${parts.hour}:${parts.minute}`;
-}
-
-/**
- * §5.6 回合摘要（羽蕎考題網專用格式，僅 app 層）
- */
-export function formatRoundSummary({ scope, result, bookTitle, unitName, round }) {
-  const ended = new Date(result.endedAt || Date.now());
-  const header = `羽蕎考題網・第 ${round ?? scope?.round ?? '?'} 回結果（${taipeiStamp(ended)}）`;
-  const modeLabel = result.mode === 'exam' ? '交卷才對' : '當場對';
-  const ms = Math.max(0, (result.endedAt || Date.now()) - (result.startedAt || Date.now()));
-  const line = `${bookTitle || scope?.bookTitle || '—'}｜${unitName || scope?.unitName || '—'}｜${modeLabel}｜${result.score} 分（${result.correct}/${result.total}）｜用時 ${fmtT(ms)}`;
-  return `${header}\n${line}`;
 }
 
 function renderLogin(ev) {
@@ -379,7 +354,7 @@ async function openWrongDetail(qid) {
       return;
     }
     const q = qSnap.data();
-    const statSnap = await fs.getDoc(fs.doc(db, 'qstats', `${user.uid}__${qid}`));
+    const statSnap = await fs.getDoc(fs.doc(db, 'users', user.uid, 'qstats', qid));
     const stat = statSnap.exists() ? statSnap.data() : null;
     const L = 'ABCD';
     const lastA = stat?.lastAnswer;
@@ -407,6 +382,8 @@ async function openWrongDetail(qid) {
         </div>
       </form>`;
     wrongDetailDlg.querySelector('[data-wd-remove]')?.addEventListener('click', async () => {
+      const ok = window.confirm('移出後不會再出現，除非又答錯。確定移出？');
+      if (!ok) return;
       try {
         await updateQstatManualOut(user.uid, qid);
         toast('已移出錯題本');
@@ -549,4 +526,4 @@ async function boot() {
 
 boot();
 
-export { navigate, toast, PRODUCT, startScope, openWrongDetail };
+export { navigate, toast, PRODUCT, startScope, openWrongDetail, formatRoundSummary, taipeiStamp };

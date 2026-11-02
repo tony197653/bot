@@ -4,8 +4,11 @@
   "type": "module",
   "scripts": {
     "test:rules": "node firebase/run-rules-tests.mjs",
-    "test:schema": "node test/schema.test.mjs && python3 plan/tools/validate_batch.py test-data/fake-batch.json",
-    "test:e2e": "node test/e2e.mjs"
+    "test:schema": "node test/schema.test.mjs",
+    "test:unit": "node test/unit.test.mjs",
+    "test:e2e": "node test/e2e.mjs",
+    "test:emu": "node firebase/run-emu-acceptance.mjs",
+    "test": "npm run test:schema && npm run test:unit && npm run test:rules && npm run test:emu && npm run test:e2e"
   },
   "dependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",

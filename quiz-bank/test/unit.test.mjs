@@ -1,0 +1,109 @@
+/**
+ * 單元測試：§5.6 摘要、強弱門檻、錯題本文案、合併尚未練習。
+ */
+import { formatRoundSummary, taipeiStamp } from '../js/summary.js';
+import {
+  computeStrength,
+  mergeKnownUnits,
+  sortStrengthRows,
+} from '../js/stats.js';
+import { wrongPracticeLabel } from '../js/views.js';
+
+let failed = 0;
+function pass(n) {
+  console.log('PASS', n);
+}
+function fail(n, e) {
+  failed++;
+  console.error('FAIL', n, e);
+}
+
+// §5.6 copy
+{
+  const endedAt = Date.parse('2026-11-02T12:15:00+08:00');
+  const startedAt = endedAt - 18 * 60 * 1000;
+  const qs = [
+    { id: 'a-q01', answer: 0, unitCode: 'M9-2', unit: '一元二次方程式', subject: 'math' },
+    { id: 'a-q02', answer: 1, unitCode: 'M9-2', unit: '一元二次方程式', subject: 'math' },
+    { id: 'a-q03', answer: 2, unitCode: 'M9-2', unit: '判別式相關', subject: 'math' },
+    { id: 'a-q04', answer: 0, unitCode: 'M9-2', unit: '判別式相關', subject: 'math' },
+  ];
+  const result = {
+    mode: 'instant',
+    score: 50,
+    correct: 2,
+    total: 4,
+    startedAt,
+    endedAt,
+    answers: [0, 0, 1, 0],
+    questions: qs,
+    byUnit: [
+      { unitCode: 'M9-2', unit: '一元二次方程式', correct: 1, total: 2 },
+      { unitCode: 'M9-2b', unit: '判別式相關', correct: 1, total: 2 },
+    ],
+  };
+  const text = formatRoundSummary({
+    scope: { round: 3, unitCode: 'M9-2', unitName: '一元二次方程式' },
+    result,
+    bookTitle: '翰林數學九上',
+    unitName: '一元二次方程式',
+    round: 3,
+  });
+  const lines = text.split('\n');
+  if (!lines[0].startsWith('羽蕎考題網・第 3 回結果（')) fail('summary header', lines[0]);
+  else if (!lines[0].includes(taipeiStamp(new Date(endedAt)))) fail('summary tz', lines[0]);
+  else pass('§5.6 header Asia/Taipei');
+
+  if (!lines[1].includes('翰林數學九上｜') || !lines[1].includes('｜當場對｜') || !lines[1].includes('用時 18 分')) {
+    fail('summary line', lines[1]);
+  } else pass('§5.6 書｜單元｜模式｜分數｜用時');
+
+  if (!lines[3].startsWith('錯題：第 ') || !lines[3].includes('題（')) fail('summary wrong', lines[3]);
+  else pass('§5.6 錯題 line');
+}
+
+// strength thresholds §9.11
+{
+  const attempts = [
+    {
+      total: 10,
+      correct: 5,
+      byUnit: {
+        A: { unit: 'A', subject: 'math', correct: 5, total: 10 }, // 50% weak
+        B: { unit: 'B', subject: 'math', correct: 6, total: 10 }, // 60% mid
+        C: { unit: 'C', subject: 'math', correct: 9, total: 10 }, // 90% good
+        D: { unit: 'D', subject: 'math', correct: 2, total: 3 }, // low sample
+      },
+    },
+  ];
+  const rows = computeStrength(attempts);
+  const by = Object.fromEntries(rows.map((r) => [r.unitCode, r]));
+  if (by.A.label !== '需加強' || by.B.label !== '部分掌握' || by.C.label !== '掌握') {
+    fail('strength labels', rows);
+  } else pass('§9.11 strength thresholds');
+  if (!by.D.lowSample) fail('lowSample', by.D);
+  else pass('§9.11 題數少 <5');
+
+  const merged = mergeKnownUnits(rows, [
+    { unitCode: 'E', name: '未練單元', subject: 'math', bookId: 'b1' },
+  ]);
+  const e = merged.find((r) => r.unitCode === 'E');
+  if (!e || e.label !== '尚未練習') fail('尚未練習', e);
+  else pass('尚未練習 from known units');
+
+  const sorted = sortStrengthRows(merged, 'rate', 'asc');
+  const last = sorted[sorted.length - 1];
+  if (last.unitCode !== 'E') fail('unpracticed last', sorted.map((s) => s.unitCode));
+  else pass('sort unpracticed last');
+}
+
+// wrong book label §9.19
+{
+  if (wrongPracticeLabel(0) !== '目前沒有錯題') fail('label0');
+  else if (wrongPracticeLabel(7) !== '練這 7 題') fail('label7');
+  else if (wrongPracticeLabel(12) !== '練 10 題（共 12 題）') fail('label12');
+  else pass('§9.19 wrong practice label');
+}
+
+console.log(`\nunit.test ${failed ? 'FAILED' : 'OK'} (${failed} failed)`);
+process.exit(failed ? 1 : 0);

@@ -125,6 +125,14 @@ async function seedBase() {
       lastAnswer: 0,
       lastAt: new Date(),
     });
+    await setDoc(doc(db, 'reports', 'demo-m8-1-r1-q02__other'), {
+      qid: 'demo-m8-1-r1-q02',
+      uid: 'other',
+      reason: 'typo',
+      note: '別人的回報',
+      status: 'open',
+      at: new Date(),
+    });
     await setDoc(doc(db, 'reports', 'demo-m8-1-r1-q02__student1'), {
       qid: 'demo-m8-1-r1-q02',
       uid: 'student1',
@@ -228,7 +236,17 @@ await t('admin 寫自己的 attempts 可以', 'ok', seedBase, async () => {
   await addDoc(collection(d, 'users', 'admin1', 'attempts'), goodAttempt());
 });
 
-await t('學生讀 reports 被拒', 'deny', seedBase, () =>
+await t('學生讀別人的 reports 被拒', 'deny', seedBase, () =>
+  getDoc(
+    doc(
+      authCtx('student1', 'student@test.local').firestore(),
+      'reports',
+      'demo-m8-1-r1-q02__other',
+    ),
+  ),
+);
+
+await t('學生讀自己的 reports 可以', 'ok', seedBase, () =>
   getDoc(
     doc(
       authCtx('student1', 'student@test.local').firestore(),

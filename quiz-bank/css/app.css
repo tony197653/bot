@@ -70,3 +70,9 @@
 .l2.none{color:var(--mute);background:var(--surface-2)}
 .l3{font-size:11px;color:var(--mute);margin-left:6px}
 .i1 textarea,.i1 input[type=text]{width:100%;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;font:inherit;min-height:44px}
+.th-sort{border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:4px 0;min-height:44px}
+.home-unit-entry{margin:0 0 12px}
+body.signed-out .drawer-backdrop,body.signed-out .app-drawer{display:none!important}
+body[data-view=result] .app-main{max-width:808px;margin-left:auto;margin-right:auto}
+body[data-view=result] .result .r-hero .segs,
+body[data-view=result] .result .r-actions{width:100%;max-width:100%;box-sizing:border-box}

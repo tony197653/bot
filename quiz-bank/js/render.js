@@ -16,8 +16,15 @@ export function renderMath(el) {
     window.renderMathInElement(el, {
       delimiters: DELIMS,
       throwOnError: false,
+      errorColor: 'inherit',
       strict: 'ignore',
       trust: false,
+    });
+    // 失敗時 KaTeX 會留下 .katex-error（內容為原始字串）；樣式改繼承、不顯示紅字
+    el.querySelectorAll('.katex-error').forEach((node) => {
+      node.style.color = 'inherit';
+      node.style.background = 'none';
+      node.removeAttribute('title');
     });
   } catch {
     /* 失敗時保留原始字串（已在 DOM） */
