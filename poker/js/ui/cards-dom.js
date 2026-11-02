@@ -72,21 +72,38 @@ export function fmtChips(n) {
 /**
  * Approved #20 raise quick-pick grid markup (3×2).
  * Each button shows label + resulting raise-to amount underneath.
+ * Selection is by preset id (not amount) so duplicate amounts do not multi-highlight.
  * Shared by solo openRaisePanel and MP openMpRaise so MP cannot silently drop presets.
  * @param {{ id: string, label: string, to: number }[]} presets
- * @param {number} selectedTo currently selected raise-to
+ * @param {string|null|undefined} selectedId pressed preset id, or null when slider/± drifted
  * @param {(n: number) => string} [format]
  */
-export function raisePresetsMarkup(presets, selectedTo, format = fmtChips) {
+export function raisePresetsMarkup(presets, selectedId, format = fmtChips) {
   const list = Array.isArray(presets) ? presets : [];
   return list
     .map(
       (p) =>
-        `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.to === selectedTo}">` +
+        `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.id === selectedId}">` +
         `<span class="preset-lbl">${p.label}</span>` +
         `<span class="preset-amt">${format(p.to)}</span></button>`,
     )
     .join('');
+}
+
+/**
+ * Title + confirm copy share the same verb: opening bet → 下注, else 加注到.
+ * @param {boolean} isBet true when currentBet===0 (opening bet / postflop no bet yet)
+ * @param {number} amount raise-to total
+ * @param {(n: number) => string} [format]
+ */
+export function raisePanelCopy(isBet, amount, format = fmtChips) {
+  const n = format(amount);
+  return {
+    isBet: !!isBet,
+    verb: isBet ? '下注' : '加注到',
+    title: isBet ? `下注 ${n}` : `加注到 ${n}`,
+    confirm: isBet ? `確認下注 ${n}` : `確認加注到 ${n}`,
+  };
 }
 
 /**

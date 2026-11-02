@@ -76,7 +76,7 @@ import {
 } from './lobby.js';
 import { renderStats } from './stats.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
-import { cardHtml, cardBackPair, heroBackPair, fmtChips, paintBoardSlots, raisePresetsMarkup } from './cards-dom.js';
+import { cardHtml, cardBackPair, heroBackPair, fmtChips, paintBoardSlots, raisePresetsMarkup, raisePanelCopy } from './cards-dom.js';
 import { mapSeatsClockwise } from './seating.js';
 import { prefersReducedMotion } from './fx.js';
 import { parseCard } from '../engine/cards.js';
@@ -265,6 +265,8 @@ let membersPanelOpen = false;
 let raiseOpen = false;
 /** Current raise-to total while the shared #raisePanel is open (MP). */
 let mpRaiseTo = 0;
+/** @type {string|null} single pressed preset id (amount-dupes must not multi-highlight) */
+let mpRaisePresetId = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let mpRaiseHoldTimer = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
@@ -1888,6 +1890,11 @@ function mpRaisePresets(seat, minRaiseTo, maxRaiseTo) {
   return raisePresets(shim, seat);
 }
 
+function mpRaiseIsBet() {
+  const pub = room?.pub || {};
+  return (pub.currentBet || 0) === 0;
+}
+
 function syncMpRaiseUi(range) {
   const out = $('#raiseOut');
   if (out) out.textContent = fmtChips(mpRaiseTo);
@@ -1897,8 +1904,12 @@ function syncMpRaiseUi(range) {
     const pct = max > min ? ((mpRaiseTo - min) / (max - min)) * 100 : 0;
     range.style.setProperty('--raise-pct', `${clampMpRaise(pct, 0, 100)}%`);
   }
+  if (mpRaisePresetId) {
+    const btn = document.querySelector(`#presets button[data-id="${mpRaisePresetId}"]`);
+    if (btn && +btn.dataset.to !== mpRaiseTo) mpRaisePresetId = null;
+  }
   for (const b of document.querySelectorAll('#presets button')) {
-    b.setAttribute('aria-pressed', String(+b.dataset.to === mpRaiseTo));
+    b.setAttribute('aria-pressed', String(b.dataset.id === mpRaisePresetId));
   }
   const minus = $('#raiseMinus');
   const plus = $('#raisePlus');
@@ -1906,15 +1917,15 @@ function syncMpRaiseUi(range) {
     minus.disabled = mpRaiseTo <= +range.min;
     plus.disabled = mpRaiseTo >= +range.max;
   }
+  const copy = raisePanelCopy(mpRaiseIsBet(), mpRaiseTo);
+  const verbEl = $('#raiseVerb');
+  if (verbEl) verbEl.textContent = copy.verb;
+  const title = $('#raiseTitle');
+  if (title) title.setAttribute('aria-label', copy.title);
+  const panel = $('#raisePanel');
+  if (panel) panel.setAttribute('aria-label', copy.verb);
   const conf = $('#raiseConfirm');
-  if (conf) {
-    const pub = room?.pub || {};
-    const mySeat = room?.seatUids?.indexOf(getUser()?.uid);
-    const myBet = pub.seats?.[mySeat]?.bet || 0;
-    const opening = (pub.currentBet || 0) === 0 || (pub.currentBet || 0) <= myBet;
-    const verb = opening && (pub.currentBet || 0) === 0 ? '確認下注' : '確認加注到';
-    conf.textContent = `${verb} ${fmtChips(mpRaiseTo)}`;
-  }
+  if (conf) conf.textContent = copy.confirm;
 }
 
 function mpRaiseBounds() {
@@ -1976,8 +1987,9 @@ function openMpRaise(minRaiseTo, send) {
   const lo = Math.min(minRaiseTo, maxTo);
   const hi = Math.max(lo, maxTo);
   const presets = mpRaisePresets(mySeat, lo, hi);
-  const preferred = presets.find((p) => p.preferred)?.to ?? lo;
-  mpRaiseTo = clampMpRaise(preferred || lo, lo, hi);
+  const preferred = presets.find((p) => p.preferred);
+  mpRaiseTo = clampMpRaise(preferred?.to ?? lo, lo, hi);
+  mpRaisePresetId = preferred?.id ?? null;
 
   range.min = String(lo);
   range.max = String(hi);
@@ -1990,10 +2002,11 @@ function openMpRaise(minRaiseTo, send) {
 
   const presetsEl = $('#presets');
   if (presetsEl) {
-    presetsEl.innerHTML = raisePresetsMarkup(presets, mpRaiseTo);
+    presetsEl.innerHTML = raisePresetsMarkup(presets, mpRaisePresetId);
     presetsEl.onclick = (e) => {
       const b = e.target.closest('button[data-to]');
       if (!b) return;
+      mpRaisePresetId = b.dataset.id || null;
       mpRaiseTo = clampMpRaise(+b.dataset.to, lo, hi);
       range.value = String(mpRaiseTo);
       syncMpRaiseUi(range);
@@ -2028,6 +2041,7 @@ function openMpRaise(minRaiseTo, send) {
 
   const close = () => {
     clearMpRaiseHold();
+    mpRaisePresetId = null;
     panel.classList.remove('is-on');
     scrim?.classList.remove('is-on');
     panel.hidden = true;
