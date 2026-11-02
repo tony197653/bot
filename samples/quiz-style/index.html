@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>測驗作答風格樣張 A／B／C</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@500&amp;family=Newsreader:opsz,wght@6..72,400&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap">
+<style>
+:root{--bg:#EDEEE9;--surface:#FBFBF8;--ink:#2F312D;--mute:#62655D;--line:#D6D9D0;--accent:#505C4A;--r:12px;--r-sm:8px;--r-xs:6px;--r-lg:20px;
+ --ease:cubic-bezier(.22,1,.36,1);--shadow:0 1px 2px rgba(47,49,45,.05),0 4px 16px rgba(47,49,45,.05);--shadow-up:0 2px 4px rgba(47,49,45,.06),0 14px 32px rgba(47,49,45,.10);
+ --font:"Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+*{box-sizing:border-box}
+html{overflow-x:hidden;overflow-x:clip;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.8;letter-spacing:.02em;-webkit-font-smoothing:antialiased}
+::selection{background:rgba(80,92,74,.22)}
+main{max-width:960px;margin:0 auto;padding:40px max(18px,env(safe-area-inset-right)) 56px max(18px,env(safe-area-inset-left))}
+.eyebrow{font-size:13px;color:var(--mute);letter-spacing:.08em;margin:0}
+h1{font-size:26px;line-height:1.4;margin:6px 0 8px;font-weight:600;text-wrap:balance}
+.lead{margin:0 0 28px;color:var(--mute);max-width:40em}
+.grid{display:grid;gap:16px}
+@media (min-width:768px){.grid{grid-template-columns:repeat(3,1fr)}h1{font-size:30px}main{padding-top:64px}}
+.card{display:flex;flex-direction:column;text-decoration:none;color:inherit;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow);padding:8px;position:relative;transition:transform .14s var(--ease)}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:var(--shadow-up);opacity:0;transition:opacity .3s var(--ease);pointer-events:none}
+@media (hover:hover) and (pointer:fine){.card:hover::after{opacity:1}.card:hover .go{transform:translateX(3px)}}
+.card:active{transform:scale(.97)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.pv{height:150px;border-radius:var(--r);padding:16px;display:flex;flex-direction:column;justify-content:center;gap:8px;overflow:hidden}
+.row{display:flex;align-items:center;gap:10px;height:34px;border-radius:var(--r-sm);padding:0 10px;font-size:14px}
+.k{flex:none;display:grid;place-items:center;font-size:12px;font-weight:600}
+.body{padding:14px 12px 10px;display:flex;flex-direction:column;flex:1}
+.name{display:flex;align-items:center;gap:8px;margin:0;font-size:17px;font-weight:600}
+.code{display:inline-grid;place-items:center;min-width:28px;height:24px;padding:0 6px;border-radius:var(--r-xs);background:var(--ink);color:#fff;font-size:13px}
+.desc{margin:6px 0 12px;font-size:14.5px;color:var(--mute);flex:1}
+.go{display:inline-flex;align-items:center;gap:4px;font-size:14px;font-weight:600;min-height:32px;transition:transform .22s var(--ease)}
+/* A 預覽 */
+.pa{background:#E6E9ED}.pa .sheet{background:#fff;border-radius:var(--r-sm);padding:10px;box-shadow:var(--shadow);display:grid;gap:4px}
+.pa .row{font-family:"Noto Serif TC",serif;color:#22252B}.pa .k{width:18px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #B8352C;color:#B8352C;font-family:"IBM Plex Mono",monospace}
+.pa .on .k{background:#2A2D33;color:#fff;box-shadow:none}.pa .on span:last-child{background:linear-gradient(transparent 18%,#9BE6A2 18%,#9BE6A2 88%,transparent 88%);padding:0 4px;border-radius:3px}
+/* B 預覽 */
+.pb{background:#F5F4F1}.pb .row{background:#fff;box-shadow:0 1px 2px rgba(31,31,29,.05),0 4px 16px rgba(31,31,29,.05);color:#1F1F1D;border-radius:var(--r-sm)}
+.pb .k{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1px #CDCAC2;color:#67655F;font-family:"Newsreader",serif;font-weight:500}
+.pb .on{background:#E7EFE9}.pb .on .k{background:#3B7150;color:#fff;box-shadow:none}
+/* C 預覽 */
+.pc{background:#0D0F13}.pc .row{background:#1D2129;color:#ECEEF3;box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),inset 0 -3px 0 rgba(0,0,0,.35)}
+.pc .k{width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.06);color:#A0A7B4;font-weight:700}
+.pc .on{background:rgba(66,201,160,.13);box-shadow:0 0 0 2px #42C9A0}.pc .on .k{background:#42C9A0;color:#0D0F13}
+.note{margin:28px 0 0;font-size:14px;color:var(--mute)}
+@media (prefers-reduced-motion:reduce){*{transition-duration:1ms!important}}
+</style></head><body><main>
+<p class="eyebrow">參考書轉數位考題網・風格定稿</p>
+<h1>作答畫面的三種風格，請實際點點看</h1>
+<p class="lead">三份樣張用同樣 5 題示範題（數學 2 題、理化 3 題，含公式和附圖），版面和流程都照 JEV 架構，只換視覺和手感。建議用手機打開，從第 1 題做到結算，再按「再練錯的題」。</p>
+<div class="grid">
+<a class="card" href="a/"><div class="pv pa" aria-hidden="true"><div class="sheet"><div class="row"><span class="k">A</span><span>11</span></div><div class="row on"><span class="k">B</span><span>13</span></div><div class="row"><span class="k">C</span><span>25</span></div></div></div>
+<div class="body"><p class="name"><span class="code">A</span>答案卡＋螢光筆</p><p class="desc">像在寫會考答案卡：選了就塗滿劃記框，螢光筆從左刷過選項，對錯用綠／粉紅螢光標出來。</p><span class="go">試做 A<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a>
+<a class="card" href="b/"><div class="pv pb" aria-hidden="true"><div class="row"><span class="k">A</span><span>11</span></div><div class="row on"><span class="k">B</span><span>13</span></div><div class="row"><span class="k">C</span><span>25</span></div></div>
+<div class="body"><p class="name"><span class="code">B</span>安靜高級</p><p class="desc">米灰留白、柔和陰影、襯線數字，換題時輕輕淡入對焦，對錯用低彩度的綠和酒紅安靜揭曉。</p><span class="go">試做 B<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a>
+<a class="card" href="c/"><div class="pv pc" aria-hidden="true"><div class="row"><span class="k">A</span><span>11</span></div><div class="row on"><span class="k">B</span><span>13</span></div><div class="row"><span class="k">C</span><span>25</span></div></div>
+<div class="body"><p class="name"><span class="code">C</span>夜讀專注</p><p class="desc">深色護眼的晚上讀書模式，選項像實體按鍵，答對會彈一下、答錯會輕輕搖頭，分數跳上來。</p><span class="go">試做 C<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div></a>
+</div>
+<p class="note">鍵盤也可以操作：1–4 或 A–D 選答案、Enter 下一題、← → 換題。</p>
+</main></body></html>
