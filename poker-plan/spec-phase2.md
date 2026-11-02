@@ -233,7 +233,7 @@
 | ⑤ | 加注面板 | 沿用第一階段 | 沿用 `raisePresets` | — |
 | 5-c | 亮牌 B2／不亮 B4 | 點 | 送出 SHOW 或 MUCK 意圖；5 秒沒選＝不亮 | — |
 | ⑤ | 選單 | 點 | 側欄 F：牌局資訊、這一手、在場成員、離座、複製房號連結、延長房號 24 小時（只有房主）、收桌（只有房主） | — |
-| ⑤ | 延長房號 24 小時 B5（房主） | 點 | 把 `pokerCodes/{code}.expiresAt` 改成現在＋24 小時，提示「房號延長到明天 22:30」 | 房號剩超過 20 小時時隱藏 |
+| ⑤ | 延長房號 24 小時 B5（房主） | 點 | 把 `pokerCodes/{code}.expiresAt` 改成現在＋24 小時（用 `Timestamp.now()`＋24h 寫入，規則容許前後 10 分鐘），提示「房號延長到明天 22:30」 | 房號剩超過 20 小時時隱藏 |
 | ⑤ | 收桌（房主） | 點，再確認 | 先逐一替在座的人結帳（一人一個 batch，最後才結帳自己），再把房間 status 改成 closed，房號立刻失效，所有人回大廳。中途斷掉：已收桌或房主失聯 10 分鐘後，沒結到帳的人自己結帳（§6.10 自救） | 牌局中要等這手結束 |
 | 6-a | 點暫離的人的座位（房主） | 點 | 抽屜 G | 對方沒有暫離 |
 | 6-a | 請出座位 B1 | 點 | 對方這手蓋牌，結束後由房主替他結帳（桌上剩的回到他的帳戶），空出座位 | — |
@@ -579,7 +579,7 @@ getFirebase();    // { app, auth, db, fs }：給專案自己的資料層用同�
   3. 房主在兩手之間寫房間：`seatUids[i]`、`stacks[i] = 帶入金額`、`chipTotal +=`、`sess[i]`、`lastMoneyEvent`、`pub.seatedAt[i]`；引擎執行 `SEAT {chips: 帶入金額}`。規則讀帳本和帳戶確認金額。
 - **補碼**：房主核准後一個 batch：房間（`stacks[i]`、`chipTotal`、`sess[i].topUps／topUpChips`、`lastMoneyEvent`、pub）＋帳本 `…_topup{n}`。
 - **離座、請出**：房主在兩手之間一個 batch：房間（空位、`stacks[i] = 0`、`chipTotal −=`、`sess[i] = null`、`lastMoneyEvent`、pub）＋帳本 `…_cashout`＋帳戶＋`nights/{nightKey}`。房主自己離座：同一個 batch 再加上交棒（`hostUid`、`hostSince`）。
-- **延長房號**（EGM #8）：房主在選單按「延長房號 24 小時」→ `update pokerCodes/{code}`：只改 `expiresAt = 現在＋24 小時`（規則要求房間還開著）。
+- **延長房號**（EGM #8）：房主在選單按「延長房號 24 小時」→ `update pokerCodes/{code}`：只改 `expiresAt = 現在＋24 小時`（規則要求房間還開著）。建房號時 `expiresAt` 也一樣：客戶端用 `Timestamp.now()`＋24h 寫入，規則容許 ±10 分鐘（FIX-7，2026-11-02 宗良同意）。
 - **收桌**：房主先逐一替其他在座的人結帳（一人一個 batch），再結帳自己；全部成功後把 `status` 設成 `closed`，並把房號的 `expiresAt` 設成現在。中途失敗的人之後自己自救結帳（§6.10.2）。
 
 ### 9.3 監聽（誰聽什麼）
@@ -599,6 +599,7 @@ getFirebase();    // { app, auth, db, fs }：給專案自己的資料層用同�
 - `firestore.rules`：兩段合起來，加上「其他路徑一律拒絕」。
 
 > **2026-11-02 規則修正（宗良已同意）：** PM 用模擬器測過，原本的規則有兩個問題會讓遊戲完全不能玩，這裡照 PM 的 FIX-1～6 修正，修正後 75 項測試全過，測試結果見 `/workspace/poker-p2-rules/report.md`。
+> **FIX-7（2026-11-02 宗良同意）：** 建房號和延長房號時，`expiresAt` 原本要求精確等於 `request.time`＋24h，客戶端寫不出來，會擋住開房。現在改成容許 ±10 分鐘，做法和 FIX-1 一樣。PM 要補 `pokerCodes` 的 create 和延長測試。
 > 1. 入座時 `sess[i].startAt` 改成跟 `request.time` 相差 ±10 分鐘內就接受，因為 SDK 不准把 serverTimestamp 放在陣列裡。
 > 2. 原本的檢查超過 Firestore「每次評估最多 1000 個運算式」的上限，改成精簡寫法（整格比對、切片比對、let 改成用參數傳），檢查的內容不變。唯一的語意變更：有帳務事件的寫入不能同時改其他座位的 hands。
 > 3. 修正後最重的是「第 6 人入座」，大約用掉九成上限。**以後只要改 roomWriteOk 或 buyinSeatOk，都要重跑 `rules.test.mjs`。**
@@ -912,7 +913,8 @@ service cloud.firestore {
           && d.roomId is string && d.roomId.size() <= 40
           && d.hostUid == request.auth.uid
           && d.createdAt == request.time
-          && d.expiresAt == request.time + duration.value(24, 'h')
+          && d.expiresAt >= request.time + duration.value(24, 'h') - duration.value(10, 'm')
+          && d.expiresAt <= request.time + duration.value(24, 'h') + duration.value(10, 'm')
           && getAfter(roomPath(d.roomId)).data.hostUid == request.auth.uid;
       }
       allow get: if signedIn();
@@ -924,7 +926,8 @@ service cloud.firestore {
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['expiresAt'])
               && (request.resource.data.expiresAt == request.time
                   || (roomOf(resource.data.roomId).status == 'open'
-                      && request.resource.data.expiresAt == request.time + duration.value(24, 'h')))));
+                      && request.resource.data.expiresAt >= request.time + duration.value(24, 'h') - duration.value(10, 'm')
+                      && request.resource.data.expiresAt <= request.time + duration.value(24, 'h') + duration.value(10, 'm')))));
       allow delete: if false;
     }
 

@@ -306,7 +306,8 @@ service cloud.firestore {
           && d.roomId is string && d.roomId.size() <= 40
           && d.hostUid == request.auth.uid
           && d.createdAt == request.time
-          && d.expiresAt == request.time + duration.value(24, 'h')
+          && d.expiresAt >= request.time + duration.value(24, 'h') - duration.value(10, 'm')
+          && d.expiresAt <= request.time + duration.value(24, 'h') + duration.value(10, 'm')
           && getAfter(roomPath(d.roomId)).data.hostUid == request.auth.uid;
       }
       allow get: if signedIn();
@@ -318,7 +319,8 @@ service cloud.firestore {
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['expiresAt'])
               && (request.resource.data.expiresAt == request.time
                   || (roomOf(resource.data.roomId).status == 'open'
-                      && request.resource.data.expiresAt == request.time + duration.value(24, 'h')))));
+                      && request.resource.data.expiresAt >= request.time + duration.value(24, 'h') - duration.value(10, 'm')
+                      && request.resource.data.expiresAt <= request.time + duration.value(24, 'h') + duration.value(10, 'm')))));
       allow delete: if false;
     }
 

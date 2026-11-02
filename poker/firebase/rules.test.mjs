@@ -184,7 +184,20 @@ await t('#9', 'A、B 同時用交易接手：只有一人成功、rev 只加 1',
 const broke = (seat) => () => seed({ room: { stacks: seat === 1 ? [10000, 0, 0, 0, 0, 0] : [0, 10000, 0, 0, 0, 0] } });
 await t('#10', '正常：A 輸光，房主核准補碼', 'ok', broke(1), () => topupBatch(1, 'A'));
 await t('#10', '正常：房主自己輸光，自己核准', 'ok', broke(0), () => topupBatch(0, 'H'));
-await t('#10', '正常：第二次補碼（topup2）', 'ok', async () => { await broke(1)(); await topupBatch(1, 'A'); await env.withSecurityRulesDisabled(async (c) => { const r = (await getDoc(doc(c.firestore(), 'pokerRooms', R))).data(); await updateDoc(doc(c.firestore(), 'pokerRooms', R), { stacks: [12000, 0, 0, 0, 0, 0] }); }); }, () => topupBatch(1, 'A'));
+// Avoid mid-setup withSecurityRulesDisabled after authenticated writes (emulator
+// "Firestore has already been started…" flake). Seed post-first-topup state directly.
+await t('#10', '正常：第二次補碼（topup2）', 'ok', async () => {
+  await seed({
+    room: {
+      stacks: [12000, 0, 0, 0, 0, 0],
+      chipTotal: 12000,
+      sess: [sessOf('H', 1, 5000), sessOf('A', 1, 5000, { topUps: 1, topUpChips: 2000 }), null, null, null, null],
+    },
+    extra: (d) => setDoc(doc(d, 'pokerPlayers', 'A', 'ledger', R + '_1_topup1'), {
+      type: 'topup', amount: 2000, roomId: R, sessionNo: 1, seat: 1, topUps: 1, by: 'H', at: ago(MIN),
+    }),
+  });
+}, () => topupBatch(1, 'A'));
 await t('#10', '籌碼不是 0 時補', 'deny', S, () => topupBatch(1, 'A'));
 await t('#10', '金額不是 2000（3000）', 'deny', broke(1), () => topupBatch(1, 'A', { amount: 3000 }));
 await t('#10', '牌局中補（phase=turn）', 'deny', () => seed({ room: { stacks: [10000, 0, 0, 0, 0, 0], pub: { phase: 'turn' } } }), () => topupBatch(1, 'A', { room: { pub: { phase: 'turn' } } }));
@@ -265,6 +278,29 @@ await t('worst', '6 人滿桌：補碼（5 號位 F 輸光）', 'ok', full({ sta
 
 await t('worst', '帳務事件同一筆順便改別格（結帳 F＋C 的 hands+1）', 'deny', full(), async () => { const r = await cur(); const sess = [...r.sess]; sess[5] = null; sess[2] = { ...sess[2], hands: sess[2].hands + 1 }; return hostCashout(5, 'F', { room: { sess } }); });
 await t('worst', '帳務事件同一筆順便清掉別人座位（結帳 F＋清 E）', 'deny', full(), async () => { const r = await cur(); const seatUids = [...r.seatUids]; seatUids[5] = ''; seatUids[4] = ''; return hostCashout(5, 'F', { room: { seatUids } }); });
+
+// FIX-7 pokerCodes expiresAt：request.time+24h ±10 分鐘；收桌 expiresAt==request.time 不變
+const MIN9 = 9 * MIN;
+const MIN11 = 11 * MIN;
+const exp24 = (deltaMs) => Timestamp.fromMillis(Date.now() + 24 * 3600e3 + deltaMs);
+const newCode = (c, expiresAt) => setDoc(doc(db('H'), 'pokerCodes', c), {
+  roomId: R, hostUid: 'H', createdAt: serverTimestamp(), expiresAt,
+});
+await t('#22', '建房號 expiresAt = +24h-9m（窗內）', 'ok', S, () => newCode('111111', exp24(-MIN9)));
+await t('#22', '建房號 expiresAt = +24h+9m（窗內）', 'ok', S, () => newCode('222222', exp24(+MIN9)));
+await t('#22', '建房號 expiresAt = +24h-11m（窗外）', 'deny', S, () => newCode('333333', exp24(-MIN11)));
+await t('#22', '建房號 expiresAt = +24h+11m（窗外）', 'deny', S, () => newCode('444444', exp24(+MIN11)));
+await t('#22', '建房號 expiresAt = +24h（正中）', 'ok', S, () => newCode('555555', exp24(0)));
+await t('#22', '非房主 B 建房號指向 H 的房間', 'deny', S, () => setDoc(doc(db('B'), 'pokerCodes', '666666'), {
+  roomId: R, hostUid: 'B', createdAt: serverTimestamp(), expiresAt: exp24(0),
+}));
+await t('#22', '房主延長 expiresAt = +24h-9m', 'ok', S, () => updateDoc(doc(db('H'), 'pokerCodes', CODE), { expiresAt: exp24(-MIN9) }));
+await t('#22', '房主延長 expiresAt = +24h+9m', 'ok', S, () => updateDoc(doc(db('H'), 'pokerCodes', CODE), { expiresAt: exp24(+MIN9) }));
+await t('#22', '房主延長 expiresAt = +24h-11m（窗外）', 'deny', S, () => updateDoc(doc(db('H'), 'pokerCodes', CODE), { expiresAt: exp24(-MIN11) }));
+await t('#22', '房主延長 expiresAt = +24h+11m（窗外）', 'deny', S, () => updateDoc(doc(db('H'), 'pokerCodes', CODE), { expiresAt: exp24(+MIN11) }));
+await t('#22', '非房主 B 延長房號', 'deny', S, () => updateDoc(doc(db('B'), 'pokerCodes', CODE), { expiresAt: exp24(0) }));
+await t('#22', '房主收桌：expiresAt = request.time（serverTimestamp）', 'ok', S, () => updateDoc(doc(db('H'), 'pokerCodes', CODE), { expiresAt: serverTimestamp() }));
+
 fs.writeFileSync(process.env.OUT || 'results.json', JSON.stringify({ rules: RULES, startAt: process.env.STARTAT || 'serverTimestamp', results, raceInfo, retry, cancelBack }, null, 1));
 for (const r of results) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.group} ${r.name} | 預期 ${r.expect} 實際 ${r.got} ${r.pass ? '' : r.err}`);
 console.log('race:', raceInfo, '\ncancelBack:', cancelBack, '\nretry before/after A bank:', retry.before?.bank, retry.after?.bank);

@@ -48,8 +48,7 @@ export async function createRoom(fb, opts) {
           if (expMs > Date.now()) throw Object.assign(new Error('code taken'), { code: 'taken' });
         }
         const roomRef = fs.doc(db, 'pokerRooms', roomId);
-        // Rules require expiresAt == request.time + 24h (exact). Client clock ≈ server in practice;
-        // see PR risk note if create fails under skew.
+        // FIX-7: expiresAt = now+24h; rules allow ±10 minutes vs request.time+24h.
         tx.set(codeRef, {
           roomId,
           hostUid: opts.uid,
@@ -87,17 +86,6 @@ export async function createRoom(fb, opts) {
           lastMoneyEvent: null,
         });
       });
-      // Re-set code with proper server timestamps — rules check expiresAt == request.time + 24h
-      // The Timestamp.fromMillis(Date.now()+24h) may fail ±skew. Retry with admin-less approach:
-      // Actually @firebase client: there's no FieldValue of request.time+24h.
-      // Rules require exact equality with request.time + 24h. The attached rules.test uses serverTimestamp for createdAt
-      // and for expiresAt uses Timestamp.fromMillis(Date.now() + 24h) in seed, but create uses:
-      // Looking at codeOk: expiresAt == request.time + duration.value(24, 'h')
-      // This is a known Firestore pattern - clients typically CANNOT satisfy this with Timestamp.now()+24h
-      // due to clock skew... Unless the rules evaluator uses the client's timestamp?
-      // Actually request.time is server receive time. Client Timestamp.now() is client clock.
-      // The predeploy tests passed 75/75 - let me check how they create codes.
-
       recordWrite();
       rememberLastRoom(roomId, code);
       return { roomId, code, name, config };
@@ -183,6 +171,7 @@ export function shareUrl(code, roomId) {
 
 export async function extendCode(fb, code, hostUid) {
   const { db, fs } = fb;
+  // FIX-7: same client write as create — Timestamp.now()+24h within rules ±10m window.
   await fs.updateDoc(fs.doc(db, 'pokerCodes', code), {
     expiresAt: fs.Timestamp.fromMillis(Date.now() + 24 * 3600e3),
   });
