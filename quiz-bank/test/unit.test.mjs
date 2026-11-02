@@ -1,7 +1,7 @@
 /**
  * 單元測試：§5.6 摘要、強弱門檻、錯題本文案、合併尚未練習。
  */
-import { formatRoundSummary, taipeiStamp } from '../js/summary.js';
+import { formatRoundSummary, taipeiStamp, shortenWrongIds } from '../js/summary.js';
 import {
   computeStrength,
   mergeKnownUnits,
@@ -20,13 +20,20 @@ function fail(n, e) {
 
 // §5.6 copy
 {
+  if (
+    shortenWrongIds(['hl-m9a-m9-2-r3-q04', 'hl-m9a-m9-2-r3-q09', 'hl-m9a-m9-2-r3-q15']) !==
+    'hl-m9a-m9-2-r3-q04、q09、q15'
+  ) {
+    fail('shortenWrongIds', shortenWrongIds(['hl-m9a-m9-2-r3-q04', 'hl-m9a-m9-2-r3-q09', 'hl-m9a-m9-2-r3-q15']));
+  } else pass('§5.6 shortenWrongIds');
+
   const endedAt = Date.parse('2026-11-02T12:15:00+08:00');
   const startedAt = endedAt - 18 * 60 * 1000;
   const qs = [
-    { id: 'a-q01', answer: 0, unitCode: 'M9-2', unit: '一元二次方程式', subject: 'math' },
-    { id: 'a-q02', answer: 1, unitCode: 'M9-2', unit: '一元二次方程式', subject: 'math' },
-    { id: 'a-q03', answer: 2, unitCode: 'M9-2', unit: '判別式相關', subject: 'math' },
-    { id: 'a-q04', answer: 0, unitCode: 'M9-2', unit: '判別式相關', subject: 'math' },
+    { id: 'hl-m9a-m9-2-r3-q01', answer: 0, unitCode: 'M9-2', unit: '一元二次方程式', subject: 'math' },
+    { id: 'hl-m9a-m9-2-r3-q02', answer: 1, unitCode: 'M9-2', unit: '一元二次方程式', subject: 'math' },
+    { id: 'hl-m9a-m9-2-r3-q04', answer: 2, unitCode: 'M9-2', unit: '一元二次方程式', subject: 'math' },
+    { id: 'hl-m9a-m9-2-r3-q09', answer: 0, unitCode: 'M9-2', unit: '一元二次方程式', subject: 'math' },
   ];
   const result = {
     mode: 'instant',
@@ -35,12 +42,9 @@ function fail(n, e) {
     total: 4,
     startedAt,
     endedAt,
-    answers: [0, 0, 1, 0],
+    answers: [0, 0, 1, 1],
     questions: qs,
-    byUnit: [
-      { unitCode: 'M9-2', unit: '一元二次方程式', correct: 1, total: 2 },
-      { unitCode: 'M9-2b', unit: '判別式相關', correct: 1, total: 2 },
-    ],
+    byUnit: [{ unitCode: 'M9-2', unit: '一元二次方程式', correct: 1, total: 4 }],
   };
   const text = formatRoundSummary({
     scope: { round: 3, unitCode: 'M9-2', unitName: '一元二次方程式' },
@@ -54,12 +58,16 @@ function fail(n, e) {
   else if (!lines[0].includes(taipeiStamp(new Date(endedAt)))) fail('summary tz', lines[0]);
   else pass('§5.6 header Asia/Taipei');
 
-  if (!lines[1].includes('翰林數學九上｜') || !lines[1].includes('｜當場對｜') || !lines[1].includes('用時 18 分')) {
+  if (
+    !lines[1].startsWith('翰林數學九上｜M9-2 一元二次方程式｜當場對｜') ||
+    !lines[1].includes('用時 18 分')
+  ) {
     fail('summary line', lines[1]);
   } else pass('§5.6 書｜單元｜模式｜分數｜用時');
 
-  if (!lines[3].startsWith('錯題：第 ') || !lines[3].includes('題（')) fail('summary wrong', lines[3]);
-  else pass('§5.6 錯題 line');
+  // answers wrong on idx 1,2,3 → 第 2、3、4 題（…q02、q04、q09）
+  if (!lines[3].includes('（hl-m9a-m9-2-r3-q02、q04、q09）')) fail('summary wrong short ids', lines[3]);
+  else pass('§5.6 錯題 short ids');
 }
 
 // strength thresholds §9.11

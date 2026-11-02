@@ -133,8 +133,10 @@ service cloud.firestore {
         && request.resource.data.uid == request.auth.uid
         && r == request.resource.data.qid + "__" + request.auth.uid
         && validReport(request.resource.data);
-      // 本人可讀自己的回報（避免重複送出）；管理者可讀全部
-      allow read: if admin()
+      // get：文件不存在時 resource 為 null（首次回報先 getDoc 檢查）；本人／管理者可讀
+      allow get: if admin()
+        || (allowed() && (resource == null || resource.data.uid == request.auth.uid));
+      allow list: if admin()
         || (allowed() && resource.data.uid == request.auth.uid);
       allow update: if admin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])

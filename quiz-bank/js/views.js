@@ -249,8 +249,9 @@ export async function renderHome(mount, ctx) {
                           const key = `${book.bookId}|${u.unitCode}|${r.round}`;
                           const stat = summary.byRound[key];
                           const meta = stat ? `已做 ${stat.count} 次・最高 ${stat.best}` : '';
-                          return `<button type="button" class="round a1" data-book="${escHtml(book.bookId)}" data-unit="${escHtml(u.unitCode)}" data-round="${r.round}" data-unit-name="${escHtml(u.name)}">
-                            <span>${escHtml(r.label || `第 ${r.round} 回`)}</span>
+                          const roundLabel = r.label || `第 ${r.round} 回`;
+                          return `<button type="button" class="round a1" data-book="${escHtml(book.bookId)}" data-unit="${escHtml(u.unitCode)}" data-round="${r.round}" data-unit-name="${escHtml(u.name)}" data-round-label="${escHtml(roundLabel)}">
+                            <span>${escHtml(roundLabel)}</span>
                             <small>${meta || `${r.count} 題`}</small>
                           </button>`;
                         },
@@ -309,6 +310,7 @@ export async function renderHome(mount, ctx) {
       }
       if (t.classList.contains('round')) {
         const bookTitle = t.closest('.book')?.querySelector('h2')?.textContent || '';
+        const roundLabel = t.dataset.roundLabel || t.querySelector('span')?.textContent?.trim() || '';
         pendingScope = {
           type: 'round',
           bookId: t.dataset.book,
@@ -316,7 +318,7 @@ export async function renderHome(mount, ctx) {
           round: +t.dataset.round,
           unitName: t.dataset.unitName,
           bookTitle,
-          title: `${bookTitle}・${t.dataset.unitName}・${t.textContent.trim()}`,
+          title: `${bookTitle}・${t.dataset.unitName}・${roundLabel}`,
         };
         const panel = mount.querySelector('#start-panel');
         panel.hidden = false;

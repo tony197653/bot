@@ -6,6 +6,7 @@ import {
   renderMath,
   escHtml,
   groupPassageHtml,
+  setAccordionOpen,
   stemHtml,
   optionsHtml,
   feedbackHtml,
@@ -501,8 +502,7 @@ function createSession(opts) {
     if (t.matches('.acc-b')) {
       const item = t.closest('.acc-i');
       const open = !item.classList.contains('open');
-      item.classList.toggle('open', open);
-      t.setAttribute('aria-expanded', open ? 'true' : 'false');
+      setAccordionOpen(item, open);
       const label = t.querySelector('.t');
       if (label && !t.classList.contains('group-toggle')) {
         label.textContent = open ? '收起詳解' : '看詳解';

@@ -3,6 +3,7 @@
  */
 import { validateBatch, figureByteSize } from './schema.js';
 import { escHtml, renderMath, stemHtml, optionsHtml, groupPassageHtml } from './render.js';
+import { askConfirm } from './dialog.js';
 
 const DRAFT_KEY = 'quizbank:v1:importDraft';
 const DRAFT_WARN_BYTES = 4 * 1024 * 1024;
@@ -418,8 +419,13 @@ export async function renderImport(mount, ctx) {
       paint();
     });
 
-    editor.querySelector('[data-act="delete-q"]')?.addEventListener('click', () => {
-      if (!confirm('確定要從這批移除這題？')) return;
+    editor.querySelector('[data-act="delete-q"]')?.addEventListener('click', async () => {
+      const ok = await askConfirm({
+        title: '刪題',
+        message: '確定要從這批移除這題？',
+        okLabel: '刪除',
+      });
+      if (!ok) return;
       state.batch.questions = state.batch.questions.filter((x) => x.id !== state.selectedId);
       state.selectedId = state.batch.questions[0]?.id || null;
       revalidate();

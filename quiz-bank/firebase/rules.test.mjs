@@ -256,6 +256,16 @@ await t('學生讀自己的 reports 可以', 'ok', seedBase, () =>
   ),
 );
 
+await t('學生 get 不存在的 report 可以（首次回報檢查）', 'ok', seedBase, () =>
+  getDoc(
+    doc(
+      authCtx('student1', 'student@test.local').firestore(),
+      'reports',
+      'brand-new-qid__student1',
+    ),
+  ),
+);
+
 await t('admin 讀 reports 可以', 'ok', seedBase, () =>
   getDoc(
     doc(

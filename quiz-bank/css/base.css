@@ -78,6 +78,8 @@ body[data-view=result] .count,body[data-view=result] .prog{visibility:hidden}
 .acc-i.open .chev{transform:rotate(180deg)}
 .acc-p{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease-out)}
 .acc-i.open .acc-p{grid-template-rows:1fr}
+.acc-i:not(.open) .acc-p{visibility:hidden}
+.acc-i.open .acc-p{visibility:visible}
 .acc-p>div{overflow:hidden;min-height:0}
 .acc-tx{padding:2px 4px 14px;font-size:15.5px;line-height:1.85;opacity:0;transform:translateY(-4px);transition:opacity .2s var(--ease-in),transform .25s var(--ease-in)}
 .acc-i.open .acc-tx{opacity:1;transform:none;transition:opacity .35s var(--ease-out) .06s,transform .4s var(--ease-out) .06s}

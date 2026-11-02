@@ -24,6 +24,7 @@ import {
 } from './stats.js';
 import { bindLightboxOnce } from './lightbox.js';
 import { formatRoundSummary, taipeiStamp } from './summary.js';
+import { askConfirm } from './dialog.js';
 
 const PRODUCT = '考題網';
 
@@ -141,16 +142,16 @@ async function fetchQuestionsByQids(qids) {
 async function submitReport(payload) {
   const user = getUser();
   if (!user) return;
-  const { initFirebase } = await import('./fb.js');
-  const { db, fs } = await initFirebase();
-  const id = `${payload.qid}__${user.uid}`;
-  const ref = fs.doc(db, 'reports', id);
-  const existing = await fs.getDoc(ref);
-  if (existing.exists()) {
-    const st = existing.data()?.status;
-    if (st === 'open' || st === 'done') return;
-  }
   try {
+    const { initFirebase } = await import('./fb.js');
+    const { db, fs } = await initFirebase();
+    const id = `${payload.qid}__${user.uid}`;
+    const ref = fs.doc(db, 'reports', id);
+    const existing = await fs.getDoc(ref);
+    if (existing.exists()) {
+      const st = existing.data()?.status;
+      if (st === 'open' || st === 'done') return;
+    }
     await fs.setDoc(ref, {
       qid: payload.qid,
       uid: user.uid,
@@ -159,8 +160,9 @@ async function submitReport(payload) {
       status: 'open',
       at: fs.serverTimestamp(),
     });
-  } catch (e) {
-    throw new Error(e?.message || '回報失敗，請稍後再試');
+  } catch {
+    // 絕不把 Firebase 英文原文（offline／evaluation error…）拋到 toast
+    throw new Error('回報失敗，請稍後再試');
   }
 }
 
@@ -382,7 +384,11 @@ async function openWrongDetail(qid) {
         </div>
       </form>`;
     wrongDetailDlg.querySelector('[data-wd-remove]')?.addEventListener('click', async () => {
-      const ok = window.confirm('移出後不會再出現，除非又答錯。確定移出？');
+      const ok = await askConfirm({
+        title: '移出錯題本',
+        message: '移出後不會再出現，除非又答錯。確定移出？',
+        okLabel: '移出',
+      });
       if (!ok) return;
       try {
         await updateQstatManualOut(user.uid, qid);

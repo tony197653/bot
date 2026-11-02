@@ -181,15 +181,20 @@ try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await page.goto(`http://127.0.0.1:${port}/test/harness.html`, { waitUntil: 'networkidle' });
     await page.waitForSelector('.opt');
-    // 題組（含圖）在第 11 題：點泡泡跳題
+    // 題組（含圖）在第 11 題：點泡泡跳題，等轉場結束再點圖
     await page.locator('.bub[data-n="10"]').click();
-    await page.waitForTimeout(150);
-    await page.locator('.group-toggle').click();
     await page.waitForFunction(
-      () => document.querySelector('.acc-i.open') && document.querySelector('.fig-zoom'),
-      { timeout: 5000 },
+      () => {
+        const count = document.querySelector('[data-el="count"]')?.textContent || '';
+        const leaving = document.querySelector('.qcard.leaving');
+        const entering = document.querySelector('.qcard.entering');
+        return count.includes('11') && !leaving && !entering;
+      },
+      { timeout: 8000 },
     );
-    await page.locator('.fig-zoom').first().click({ force: true });
+    await page.locator('.group-toggle').click();
+    await page.waitForSelector('.acc-i.open .fig-zoom', { state: 'visible', timeout: 5000 });
+    await page.locator('.acc-i.open .fig-zoom').click();
     await page.waitForSelector('.lightbox');
     const n = await page.locator('.lightbox').count();
     if (n !== 1) throw new Error(`lightbox opened ${n} times`);

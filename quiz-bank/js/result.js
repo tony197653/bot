@@ -7,6 +7,7 @@ import {
   ICON,
   stemHtml,
   groupPassageHtml,
+  setAccordionOpen,
 } from './render.js';
 
 const RM = () =>
@@ -258,6 +259,16 @@ ${modeLabel}｜${r.score} 分（${r.correct}/${r.total}）｜用時 ${fmtT(ms)}
   const onClick = async (e) => {
     const t = e.target.closest('button');
     if (!t || !opts.mount.contains(t)) return;
+    if (t.matches('.acc-b')) {
+      const item = t.closest('.acc-i');
+      const open = !item?.classList.contains('open');
+      setAccordionOpen(item, open);
+      const label = t.querySelector('.t');
+      if (label && !t.classList.contains('group-toggle')) {
+        label.textContent = open ? '收起詳解' : '看詳解';
+      }
+      return;
+    }
     if (t.matches('.report[data-report-qid]')) {
       const qid = t.dataset.reportQid;
       if (reportDlg && typeof reportDlg.showModal === 'function') {

@@ -207,6 +207,30 @@ try {
   fail('§9.20 student create report', e.message);
 }
 
+// 真實流程：首次 getDoc（不存在）→ create；再 getDoc → 已存在不重複 create
+await seed();
+try {
+  const d = authCtx('student1', 'student@test.local').firestore();
+  const ref = doc(d, 'reports', 'fresh-q__student1');
+  const first = await getDoc(ref);
+  if (first.exists()) throw new Error('expected missing');
+  await setDoc(ref, {
+    qid: 'fresh-q',
+    uid: 'student1',
+    reason: 'typo',
+    note: 'first',
+    status: 'open',
+    at: serverTimestamp(),
+  });
+  const second = await getDoc(ref);
+  if (!second.exists()) throw new Error('expected created');
+  if (second.data()?.status !== 'open') throw new Error('bad status');
+  // 重複回報：讀到 open 就停止（app 層不 setDoc 第二次）
+  pass('§9.20 首次 getDoc→create 與重複讀取');
+} catch (e) {
+  fail('§9.20 first-time report flow', e.message);
+}
+
 await seed();
 try {
   await updateDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'users', 'student1', 'qstats', 'q1'), {

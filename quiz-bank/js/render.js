@@ -69,6 +69,7 @@ export function figuresHtml(figures, className = 'fig') {
 export function groupPassageHtml(group, opts = {}) {
   if (!group) return '';
   const open = opts.collapsed === false;
+  // 收合時 inert／aria-hidden，避免 .fig-zoom 等可聚焦
   return `<div class="group-pass a1">
     <div class="acc-i${open ? ' open' : ''}">
       <h3 class="acc-h">
@@ -77,7 +78,7 @@ export function groupPassageHtml(group, opts = {}) {
           <svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </h3>
-      <div class="acc-p" role="region"><div>
+      <div class="acc-p" role="region"${open ? '' : ' inert aria-hidden="true"'}><div>
         <div class="acc-tx group-body">
           <div class="passage">${escHtml(group.passage).replace(/\n/g, '<br>')}</div>
           ${figuresHtml(group.figures || [], 'fig group-fig')}
@@ -85,6 +86,24 @@ export function groupPassageHtml(group, opts = {}) {
       </div></div>
     </div>
   </div>`;
+}
+
+/** 同步手風琴開合的 inert／aria-hidden */
+export function setAccordionOpen(item, open) {
+  if (!item) return;
+  item.classList.toggle('open', open);
+  const btn = item.querySelector('.acc-b');
+  btn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const panel = item.querySelector('.acc-p');
+  if (panel) {
+    if (open) {
+      panel.removeAttribute('inert');
+      panel.removeAttribute('aria-hidden');
+    } else {
+      panel.setAttribute('inert', '');
+      panel.setAttribute('aria-hidden', 'true');
+    }
+  }
 }
 
 /**
