@@ -1,8 +1,9 @@
 /**
- * Playwright：390／1280 截圖與 IME／互動檢查。
+ * Playwright：chromium＋webkit；390／1280 截圖與 IME／互動檢查；
+ * 額度列單行：360／375／390／1280 與 360@120% 字級。
  * 前置：mock-worker :8787、靜態服務 :4173（本腳本會自己拉起）。
  */
-import { chromium } from "playwright";
+import { chromium, webkit } from "playwright";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -13,6 +14,96 @@ const ASK_ROOT = path.resolve(__dirname, "..");
 const ART = "/opt/cursor/artifacts/screenshots";
 const PAGE = "http://127.0.0.1:4173/";
 const WORKER = "http://127.0.0.1:8787";
+
+/** 額度列必須單行；清除鈕同列不重疊。 */
+async function assertQuotaSingleLine(page, { width, remaining = 39, rootScale = 1, label }) {
+  if (rootScale !== 1) {
+    // 模擬系統放大字級：root + 頂欄 px 字級一併放大（頁面多為 px）
+    const s = rootScale;
+    await page.addStyleTag({
+      content: `
+        html{font-size:${16 * s}px!important}
+        body{font-size:${16 * s}px!important}
+        .top h1{font-size:${18 * s}px!important}
+        .l5inline,.l5inline b,.quota-reset,.btn.b5{font-size:${16 * s}px!important}
+        .l5inline b{min-width:${22 * s}px;height:${22 * s}px}
+      `,
+    });
+  }
+  await page.evaluate((n) => window.__ASK__.setQuotaDisplay(n), remaining);
+  const info = await page.evaluate(({ width: w }) => {
+    const short = document.querySelector(".quota-short");
+    const full = document.querySelector(".quota-full");
+    const useFull = w >= 768;
+    const el = useFull ? full : short;
+    const b = el?.querySelector("b");
+    const clear = document.getElementById("clear");
+    const top = document.querySelector(".top");
+    const end = document.querySelector(".top-end");
+    if (!el || !b || !clear || !top || !end) {
+      return { ok: false, reason: "missing nodes" };
+    }
+    const r = el.getBoundingClientRect();
+    const br = b.getBoundingClientRect();
+    const cr = clear.getBoundingClientRect();
+    const er = end.getBoundingClientRect();
+    const tr = top.getBoundingClientRect();
+    const text = el.innerText.replace(/\s+/g, " ").trim();
+    const lineH = parseFloat(getComputedStyle(el).lineHeight) || 26;
+    // 單行：高度約一行；badge 與文字垂直中線接近；文字不換行
+    const oneLineH = Math.max(lineH, 22) + 8; // 容許 badge 22px + 少許
+    const mid = (r.top + r.bottom) / 2;
+    const bmid = (br.top + br.bottom) / 2;
+    const sameLine =
+      Math.abs(r.top - br.top) < 6 &&
+      Math.abs(r.bottom - br.bottom) < 10 &&
+      Math.abs(mid - bmid) < 1.5;
+    // 清除鈕與額度不重疊；同在 header 內；清除本身不換行
+    const overlap =
+      !(r.right <= cr.left + 0.5 || cr.right <= r.left + 0.5 || r.bottom <= cr.top + 0.5 || cr.bottom <= r.top + 0.5);
+    const clearWrap = cr.height > 48;
+    const endOverflow = er.right > tr.right + 1 || er.left < tr.left - 1;
+    return {
+      ok: true,
+      text,
+      h: r.height,
+      oneLineH,
+      sameLine,
+      offset: Math.abs(mid - bmid),
+      overlap,
+      clearWrap,
+      endOverflow,
+      clearText: clear.innerText.trim(),
+      endW: er.width,
+      topW: tr.width,
+      useFull,
+    };
+  }, { width });
+
+  const tag = label || `${width}@${rootScale}`;
+  if (!info.ok) throw new Error(`quota layout missing (${tag}): ${info.reason}`);
+  const expectShort = width < 768;
+  const expectText = expectShort
+    ? `剩 ${remaining} 題`
+    : `今天還能問 ${remaining} 題`;
+  // remaining<=5 會多重置文案
+  const expectBase =
+    remaining <= 5 ? `${expectText} 早上 8 點重置` : expectText;
+  if (info.text !== expectBase) {
+    throw new Error(`quota text (${tag}): got "${info.text}" want "${expectBase}"`);
+  }
+  if (!info.sameLine || info.h > info.oneLineH) {
+    throw new Error(`quota not single-line (${tag}): ${JSON.stringify(info)}`);
+  }
+  if (info.offset >= 1.5) {
+    throw new Error(`quota badge offset (${tag}): ${info.offset}`);
+  }
+  if (info.overlap) throw new Error(`quota/clear overlap (${tag})`);
+  if (info.clearWrap) throw new Error(`清除畫面 wrapped (${tag}): h=${info.h}`);
+  if (info.clearText !== "清除畫面") throw new Error(`clear label (${tag})`);
+  if (info.endOverflow) throw new Error(`top-end overflows header (${tag})`);
+  return info;
+}
 
 function run(cmd, args, opts = {}) {
   const p = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"], ...opts });
@@ -140,9 +231,76 @@ async function main() {
     await waitOk("http://127.0.0.1:8787/quota");
     await waitOk("http://127.0.0.1:4173/");
 
-    const browser = await chromium.launch({ headless: true });
     const results = [];
 
+    async function withBrowser(launcher, name, runFn) {
+      const browser = await launcher.launch({ headless: true });
+      try {
+        async function withPage(width, height, fn) {
+          const page = await browser.newPage();
+          await page.setViewportSize({ width, height });
+          await installTurnstileFake(page);
+          await page.addInitScript(({ workerUrl }) => {
+            Object.defineProperty(window, "__ASK_BOOT__", {
+              value: { workerUrl, sitekey: "1x00000000000000000000BB" },
+            });
+          }, { workerUrl: WORKER });
+          await page.goto(PAGE, { waitUntil: "networkidle" });
+          await page.evaluate((workerUrl) => {
+            window.__ASK__.CONFIG.workerUrl = workerUrl;
+            window.turnstile = window.turnstile || {
+              render() {
+                return 1;
+              },
+              reset() {},
+              execute(_i, o) {
+                setTimeout(() => o.callback("tok"), 5);
+              },
+            };
+            return fetch(workerUrl + "/quota")
+              .then((r) => r.json())
+              .then((j) => window.__ASK__.setQuotaDisplay(j.remaining));
+          }, WORKER);
+          await page.evaluate(() => window.__ASK__.__setTurnstileReady?.(true));
+          await fn(page);
+          await page.close();
+        }
+        await runFn({ withPage, name });
+      } finally {
+        await browser.close();
+      }
+    }
+
+    // —— 額度列單行：chromium + webkit × 360/375/390/1280 + 360@120% ——
+    for (const [launcher, eng] of [
+      [chromium, "chromium"],
+      [webkit, "webkit"],
+    ]) {
+      await withBrowser(launcher, eng, async ({ withPage }) => {
+        const cases = [
+          { width: 360, height: 800, rootScale: 1 },
+          { width: 375, height: 812, rootScale: 1 },
+          { width: 390, height: 844, rootScale: 1 },
+          { width: 1280, height: 800, rootScale: 1 },
+          { width: 360, height: 800, rootScale: 1.2 },
+        ];
+        for (const c of cases) {
+          await withPage(c.width, c.height, async (page) => {
+            const label = `${eng}-${c.width}${c.rootScale !== 1 ? `@${c.rootScale}` : ""}`;
+            await assertQuotaSingleLine(page, {
+              width: c.width,
+              remaining: 39,
+              rootScale: c.rootScale,
+              label,
+            });
+            await shot(page, `ask-quota-${label}.png`);
+          });
+        }
+        results.push(`${eng} quota single-line matrix OK`);
+      });
+    }
+
+    const browser = await chromium.launch({ headless: true });
     async function withPage(width, height, fn) {
       const page = await browser.newPage();
       await page.setViewportSize({ width, height });
@@ -150,7 +308,7 @@ async function main() {
       // Patch before load: make turnstile appear ready immediately and point worker
       await page.addInitScript(({ workerUrl }) => {
         Object.defineProperty(window, "__ASK_BOOT__", {
-          value: { workerUrl, sitekey: "1x00000000000000000000AA" },
+          value: { workerUrl, sitekey: "1x00000000000000000000BB" },
         });
       }, { workerUrl: WORKER });
       await page.goto(PAGE, { waitUntil: "networkidle" });
