@@ -204,15 +204,15 @@ td{white-space:nowrap}
 .field label{font-size:13.5px;font-weight:500}
 .field .help{font-size:12.5px;color:var(--mute);min-height:1.5em}
 .field.err .help{color:var(--danger)}
-.in{font:inherit;font-size:15px;color:var(--ink);width:100%;min-height:44px;transition:border-color .2s,box-shadow .2s,background .2s}
+.in{font:inherit;font-size:15px;color:var(--ink);width:100%;min-height:44px;transition:border-color .2s var(--ease),box-shadow .2s var(--ease),background .2s var(--ease)}
 .in::placeholder{color:#9EA198}
 .in:disabled{cursor:not-allowed;opacity:.6}
 
 .i1 .in{padding:0 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
 .i1 .in:hover{border-color:#BFC3B8}
-.i1 .in:focus{outline:none;border-color:var(--slate);box-shadow:0 0 0 3px rgba(95,107,120,.18)}
+.i1 .in:focus{outline:none;border-color:var(--slate);box-shadow:var(--halo)}
 .i1.err .in{border-color:var(--danger)}
-.i1.err .in:focus{box-shadow:0 0 0 3px rgba(164,72,60,.16)}
+.i1.err .in:focus{box-shadow:var(--halo-err)}
 
 .i2{position:relative}
 .i2 .in{padding:0 2px;border:0;border-bottom:1px solid #B9BCB3;border-radius:0;background:transparent}
@@ -224,14 +224,37 @@ td{white-space:nowrap}
 .i2.err .line{background:var(--danger)}
 .i2 label{font-size:12.5px;color:var(--mute);font-weight:500}
 
-.i3 .box{position:relative}
-.i3 .in{padding:20px 12px 4px;min-height:54px;border:1px solid var(--line);border-radius:10px;background:#fff}
-.i3 .box label{position:absolute;left:13px;top:15px;font-size:15px;font-weight:400;color:#8C8F86;pointer-events:none;transform-origin:left top;transition:transform .2s var(--ease),color .2s}
-.i3 .in:focus{outline:none;border-color:var(--sage);box-shadow:0 0 0 1px var(--sage)}
-.i3 .in:focus + label,.i3 .in:not(:placeholder-shown) + label{transform:translateY(-9px) scale(.78);color:var(--sage)}
-.i3 .in::placeholder{color:transparent}
-.i3.err .in{border-color:var(--danger);box-shadow:0 0 0 1px var(--danger)}
-.i3.err .in + label{color:var(--danger)}
+.i3 .box,.i6 .box{position:relative;background:#fff}
+.i3 .in,.i6 .in{position:relative;z-index:1;height:56px;border:0;background:transparent;font-size:16px}
+.i3 .in::placeholder,.i6 .in::placeholder{color:transparent}
+.i3 .in:focus,.i6 .in:focus{outline:none}
+.i3 .box label,.i6 .box label{position:absolute;z-index:3;left:16px;top:0;font-size:16px;line-height:20px;font-weight:400;color:#8C8F86;pointer-events:none;transform-origin:left top;
+  transform:translate(0,18px) scale(1);transition:transform .22s var(--ease),color .22s var(--ease)}
+/* I3 外框浮動標籤：標籤爬上框線，框線在標籤後面讓出缺口（fieldset＋legend） */
+.i3 .box{border-radius:8px}
+.i3 .in{padding:0 16px;border-radius:8px}
+.i3 fieldset{position:absolute;inset:-6px 0 0;margin:0;padding:0 11px;border:1px solid var(--line);border-radius:8px;pointer-events:none;z-index:2;transition:border-color .22s var(--ease)}
+.i3 legend{float:unset;width:auto;height:12px;padding:0;font-size:12px;line-height:12px;visibility:hidden;max-width:.01px;white-space:nowrap;overflow:hidden;transition:max-width .1s var(--ease)}
+.i3 legend span{padding:0 4px;display:inline-block}
+.i3 .box:hover fieldset{border-color:#BFC3B8}
+.i3 .in:focus ~ fieldset{border-width:2px;padding:0 10px;border-color:var(--slate)}
+.i3 .in:focus ~ fieldset legend,.i3 .in:not(:placeholder-shown) ~ fieldset legend{max-width:100%;transition:max-width .16s var(--ease) .04s}
+.i3 .in:focus ~ label,.i3 .in:not(:placeholder-shown) ~ label{transform:translate(0,-7px) scale(.75);color:var(--mute)}
+.i3 .in:focus ~ label{color:var(--slate)}
+.i3.err fieldset,.i3.err .box:hover fieldset,.i3.err .in:focus ~ fieldset{border-color:var(--danger)}
+.i3.err .in ~ label,.i3.err .in:focus ~ label{color:var(--danger)}
+
+/* I6 填色底線標籤：上圓下方、只有底線；標籤在框內上縮，2px 底線從中間長出 */
+.i6 .box{border-radius:8px 8px 0 0}
+.i6 .in{padding:24px 16px 6px;border-radius:8px 8px 0 0}
+.i6 .box::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:#BFC3B8;transition:background .22s var(--ease)}
+.i6 .bar{position:absolute;z-index:2;left:0;right:0;bottom:0;height:2px;background:var(--slate);transform:scaleX(0);transition:transform .22s var(--ease),background .22s var(--ease)}
+.i6 .box:hover::after{background:var(--ink)}
+.i6 .in:focus ~ .bar{transform:scaleX(1)}
+.i6 .in:focus ~ label,.i6 .in:not(:placeholder-shown) ~ label{transform:translate(0,8px) scale(.75);color:var(--mute)}
+.i6 .in:focus ~ label{color:var(--slate)}
+.i6.err .box::after,.i6.err .bar{background:var(--danger)}
+.i6.err .in ~ label,.i6.err .in:focus ~ label{color:var(--danger)}
 
 .i4 .in{padding:0 14px;border:1px solid transparent;border-radius:12px;background:#E6E7E1}
 .i4 .in:hover{background:#E0E1DA}
@@ -245,9 +268,9 @@ td{white-space:nowrap}
 .i5 .grp span:last-child{border-left:1px solid var(--line-soft)}
 .i5 .in{border:0;padding:0 12px;background:transparent;text-align:right;font-variant-numeric:tabular-nums;min-width:0}
 .i5 .in:focus{outline:none}
-.i5 .grp:focus-within{border-color:var(--sand);box-shadow:0 0 0 3px rgba(143,123,94,.18)}
+.i5 .grp:focus-within{border-color:var(--sand);box-shadow:0 0 0 1px rgba(143,123,94,.20),0 0 0 2px rgba(143,123,94,.08),0 0 12px 2px rgba(143,123,94,.20)}
 .i5.err .grp{border-color:var(--danger)}
-.i5.err .grp:focus-within{box-shadow:0 0 0 3px rgba(164,72,60,.15)}
+.i5.err .grp:focus-within{box-shadow:var(--halo-err)}
 
 /* ========== 標籤 ========== */
 .tag{display:inline-flex;align-items:center;gap:6px;font-size:13px;line-height:1;white-space:nowrap}
@@ -314,7 +337,9 @@ footer .wrap{border-top:1px solid var(--line);padding-top:24px;display:flex;flex
 :root{
   --ease-out:cubic-bezier(.22,1,.36,1);--ease-in:cubic-bezier(.4,0,1,1);--ease-move:cubic-bezier(.65,0,.35,1);
   --ease-drawer:cubic-bezier(.32,.72,0,1);
-  --halo:0 0 0 3px rgba(95,107,120,.18);
+  /* 光環：內圈清楚、往外漸淡（三層：1px 實邊＋2px 淡環＋12px 柔邊暈開） */
+  --halo:0 0 0 1px rgba(95,107,120,.20),0 0 0 2px rgba(95,107,120,.08),0 0 12px 2px rgba(95,107,120,.20);
+  --halo-err:0 0 0 1px rgba(164,72,60,.18),0 0 0 2px rgba(164,72,60,.07),0 0 12px 2px rgba(164,72,60,.18);
   --pop-shadow:0 2px 4px rgba(40,42,36,.05),0 16px 40px -8px rgba(40,42,36,.18);
   --sheet-shadow:0 1px 2px rgba(40,42,36,.06),0 24px 64px -12px rgba(40,42,36,.28);
 }
@@ -675,7 +700,7 @@ dialog.dlg:not([open]){display:none}
   <div class="wrap">
     <h1>元件風格庫</h1>
     <p class="lead">每個元件都有編號，滑過、按下、用 Tab 鍵移動都能看到真實效果。挑好後，之後做網頁就能直接說「按鈕用 B1、表格用 T1」。</p>
-    <div class="meta"><span>共 <b>14 類 43 個</b>（第一批 6 類 23 個＋第二批 8 類 20 個）</span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
+    <div class="meta"><span>共 <b>14 類 44 個</b>（第一批 6 類 23 個＋第二批 8 類 20 個＋輸入框 I6）</span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
   </div>
 </header>
 
@@ -772,7 +797,7 @@ dialog.dlg:not([open]){display:none}
 <section class="cat" id="inputs">
   <div class="cat-head"><h2>輸入框</h2><p>上面一個點進去看聚焦樣式，下面一個是錯誤狀態；輸入內容會即時檢查。</p></div>
   <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">I1</span><div><h3>細框聚焦環</h3><p>仿 shadcn：細灰框，聚焦時外圍出現柔和藍灰光環。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">I1</span><div><h3>細框聚焦環</h3><p>仿 shadcn：細灰框，聚焦時外圍出現一圈往外漸淡的藍灰光環。</p></div></div>
       <div class="stage col">
         <div class="field i1"><label for="i1a">收件人姓名</label><input id="i1a" class="in" placeholder="例如：林品妤"><span class="help">寫在包裹上的名字。</span></div>
         <div class="field i1 err js-email"><label for="i1b">電子郵件</label><input id="i1b" class="in" value="pinyu@mail" aria-invalid="true" aria-describedby="i1bh"><span class="help" id="i1bh">格式不完整，少了「.com」之類的結尾。</span></div>
@@ -782,10 +807,10 @@ dialog.dlg:not([open]){display:none}
         <div class="field i2"><label for="i2a">作品名稱</label><div class="ul"><input id="i2a" class="in" placeholder="例如：秋日灰釉盤"><span class="line"></span></div><span class="help">最多 20 個字。</span></div>
         <div class="field i2 err js-len"><label for="i2b">作品名稱</label><div class="ul"><input id="i2b" class="in" value="今年秋天在山上柴窯裡燒出來的第一只灰釉深盤" aria-invalid="true" aria-describedby="i2bh"><span class="line"></span></div><span class="help" id="i2bh">超過 20 個字，請縮短。</span></div>
       </div></article>
-    <article class="spec"><div class="spec-head"><span class="code">I3</span><div><h3>浮動標籤</h3><p>標籤先放在框內當提示，點進去後縮小浮到上方，省空間。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">I3</span><div><h3>外框浮動標籤</h3><p>仿 Material 3 外框式：標籤先坐在框內正中，點進去縮小爬上框線，框線在標籤後面讓出缺口、加粗成 2px。</p></div></div>
       <div class="stage col">
-        <div class="field i3"><div class="box"><input id="i3a" class="in" placeholder=" "><label for="i3a">手機號碼</label></div><span class="help">出貨時會傳簡訊通知。</span></div>
-        <div class="field i3 err js-phone"><div class="box"><input id="i3b" class="in" placeholder=" " value="0912-34" aria-invalid="true" aria-describedby="i3bh"><label for="i3b">手機號碼</label></div><span class="help" id="i3bh">手機號碼是 10 碼，目前只有 6 碼。</span></div>
+        <div class="field i3"><div class="box"><input id="i3a" class="in" inputmode="tel" placeholder=" " aria-describedby="i3ah"><fieldset aria-hidden="true"><legend><span>手機號碼</span></legend></fieldset><label for="i3a">手機號碼</label></div><span class="help" id="i3ah">出貨時會傳簡訊通知。</span></div>
+        <div class="field i3 err js-phone"><div class="box"><input id="i3b" class="in" inputmode="tel" placeholder=" " value="0912-34" aria-invalid="true" aria-describedby="i3bh"><fieldset aria-hidden="true"><legend><span>手機號碼</span></legend></fieldset><label for="i3b">手機號碼</label></div><span class="help" id="i3bh">手機號碼是 10 碼，目前只有 6 碼。</span></div>
       </div></article>
     <article class="spec"><div class="spec-head"><span class="code">I4</span><div><h3>淡灰填色</h3><p>仿 Apple 的灰底無框，聚焦時變白底並浮起；錯誤時整格轉淡紅。</p></div></div>
       <div class="stage col">
@@ -796,6 +821,11 @@ dialog.dlg:not([open]){display:none}
       <div class="stage col">
         <div class="field i5"><label for="i5a">訂製預算</label><div class="grp"><span>NT$</span><input id="i5a" class="in" inputmode="numeric" placeholder="3,000"><span>元</span></div><span class="help">最低 NT$ 3,000 起。</span></div>
         <div class="field i5 err js-min"><label for="i5b">訂製預算</label><div class="grp"><span>NT$</span><input id="i5b" class="in" inputmode="numeric" value="1,200" aria-invalid="true" aria-describedby="i5bh"><span>元</span></div><span class="help" id="i5bh">低於最低金額 NT$ 3,000。</span></div>
+      </div></article>
+    <article class="spec"><div class="spec-head"><span class="code">I6</span><div><h3>填色底線標籤</h3><p>仿 Material 3 填色式：上圓下方、只有一條底線，標籤在框內往上縮，2px 底線從中間往兩邊長出。</p></div></div>
+      <div class="stage col">
+        <div class="field i6"><div class="box"><input id="i6a" class="in" inputmode="numeric" placeholder=" " aria-describedby="i6ah"><span class="bar" aria-hidden="true"></span><label for="i6a">統一編號</label></div><span class="help" id="i6ah">開公司發票才需要填。</span></div>
+        <div class="field i6 err js-vat"><div class="box"><input id="i6b" class="in" inputmode="numeric" placeholder=" " value="2809917" aria-invalid="true" aria-describedby="i6bh"><span class="bar" aria-hidden="true"></span><label for="i6b">統一編號</label></div><span class="help" id="i6bh">統一編號是 8 碼數字，目前只有 7 碼。</span></div>
       </div></article>
   </div>
 </section>
@@ -1132,6 +1162,7 @@ dialog.dlg:not([open]){display:none}
   }
   live('.js-email',function(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);},function(){return '格式不完整，少了「.com」之類的結尾。';},'格式正確。');
   live('.js-len',function(v){return v.length<=20;},function(v){return '超過 20 個字（目前 '+v.length+' 字），請縮短。';},'長度可以。');
+  live('.js-vat',function(v){return /^\d{8}$/.test(v.trim());},function(v){var n=v.replace(/\D/g,'').length;return /[^\d\s]/.test(v)?'統一編號只能填數字。':'統一編號是 8 碼數字，目前'+(n>8?'多了 '+(n-8):'只有 '+n)+' 碼。';},'統一編號格式正確。');
   live('.js-phone',function(v){return v.replace(/\D/g,'').length===10;},function(v){return '手機號碼是 10 碼，目前只有 '+v.replace(/\D/g,'').length+' 碼。';},'號碼格式正確。');
   live('.js-code',function(v){return /^[A-Z0-9]{8}$/.test(v);},function(){return '找不到這組優惠碼，請確認大小寫。';},'優惠碼可使用。');
   live('.js-min',function(v){return +v.replace(/\D/g,'')>=3000;},function(){return '低於最低金額 NT$ 3,000。';},'金額可以。');
