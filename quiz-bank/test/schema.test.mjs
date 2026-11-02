@@ -20,4 +20,28 @@ if (!val.ok) {
   console.error('validateBatch flags:', val.flaggedCount);
   process.exit(1);
 }
-console.log('schema.test OK:', raw.questions.length, 'questions');
+
+// 驗收 3：把 confidence 改成 0.5 → LOW_CONFIDENCE
+const low = structuredClone(raw);
+low.questions[0].extract.confidence = 0.5;
+const lowVal = validateBatch(low);
+const qid0 = low.questions[0].id;
+if (!lowVal.flags[qid0]?.includes('LOW_CONFIDENCE')) {
+  console.error('expected LOW_CONFIDENCE on', qid0, lowVal.flags[qid0]);
+  process.exit(1);
+}
+
+// schema.json 範例一（結構＋無紅標）
+const schema = JSON.parse(fs.readFileSync(path.join(dir, '../plan/schema.json'), 'utf8'));
+const ex1 = schema.examples[0];
+const ex1v = validateBatch(ex1);
+if (ex1v.exitCode === 2) {
+  console.error('example1 schema errors', ex1v.schemaErrors);
+  process.exit(1);
+}
+if (ex1v.exitCode !== 0) {
+  console.error('example1 unexpected flags', ex1v.flags, ex1v.batchFlags);
+  process.exit(1);
+}
+
+console.log('schema.test OK:', raw.questions.length, 'questions; LOW_CONFIDENCE ok; example1 ok');

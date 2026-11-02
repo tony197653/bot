@@ -3,12 +3,22 @@ body[data-view=quiz] .app-shell .app-top,
 body[data-view=quiz] .app-shell .app-main{padding:0}
 body[data-view=quiz] .app-shell .app-main{max-width:none}
 body[data-view=result] .app-shell .app-main{max-width:808px}
-.strip-scroll{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;padding-bottom:4px;max-width:100%}
+/* 超過約 12 題：只有泡泡列橫向捲，頁面本身不橫捲 */
+.strip.strip-scroll,.bub-strip.strip-scroll{
+  flex-wrap:nowrap!important;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+  padding-bottom:4px;
+  max-width:100%;
+  scrollbar-width:thin;
+}
 .strip-scroll .bub{flex:0 0 auto}
-.segs.strip-scroll{display:flex;gap:6px;overflow-x:auto;padding:4px 0;max-width:100%}
+.segs.strip-scroll{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;padding:4px 0;max-width:100%;justify-content:flex-start}
 @media (max-width:520px){
   body[data-view=quiz] .wrap,body[data-view=result] .wrap{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
-  html,body{overflow-x:hidden;max-width:100vw}
+  html,body{overflow-x:hidden;overflow-x:clip;max-width:100vw}
 }
 .group-pass{margin-bottom:12px}
 .fig-zoom{border:0;padding:0;background:none;cursor:pointer;border-radius:var(--r-sm);display:block;max-width:100%}

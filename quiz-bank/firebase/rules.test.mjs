@@ -8,12 +8,10 @@
  * - admin 寫自己的 attempts 可以
  * - 學生讀 reports 被拒
  * - attempt 沒有 byUnit 被拒
+ *
+ * 注意：直接呼叫操作；permission-denied → deny（不要包 assertFails，會跟 harness 打架）。
  */
-import {
-  initializeTestEnvironment,
-  assertSucceeds,
-  assertFails,
-} from '@firebase/rules-unit-testing';
+import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
   doc,
   getDoc,
@@ -53,6 +51,7 @@ async function t(name, expect, setup, fn) {
     await setup();
   } catch (e) {
     results.push({ name, expect, got: 'SETUP-ERR', pass: false, err: e.message });
+    console.log(`FAIL  ${name}  SETUP-ERR  ${e.message}`);
     return;
   }
   try {
@@ -68,14 +67,16 @@ async function t(name, expect, setup, fn) {
   }
   const pass = got === expect;
   results.push({ name, expect, got, pass, err });
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}  (expect ${expect}, got ${got})${pass ? '' : '  ' + err}`);
+  console.log(
+    `${pass ? 'PASS' : 'FAIL'}  ${name}  (expect ${expect}, got ${got})${pass ? '' : '  ' + err}`,
+  );
 }
 
-function authCtx(uid, email, roleClaims = {}) {
+function authCtx(uid, email, claims = {}) {
   return env.authenticatedContext(uid, {
     email,
     email_verified: true,
-    ...roleClaims,
+    ...claims,
   });
 }
 
@@ -90,6 +91,13 @@ async function seedBase() {
     await setDoc(doc(db, 'allow', 'student@test.local'), {
       role: 'student',
       name: '學生',
+    });
+    await setDoc(doc(db, 'banks', 'demo'), {
+      title: '示範',
+      subject: 'math',
+      grade: 9,
+      units: [],
+      updatedAt: new Date(),
     });
     await setDoc(doc(db, 'questions', 'demo-m8-1-r1-q01'), {
       id: 'demo-m8-1-r1-q01',
@@ -164,78 +172,78 @@ function goodStat(extra = {}) {
 }
 
 await t('學生讀 draft 題目被拒', 'deny', seedBase, () =>
-  assertFails(getDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'questions', 'demo-m8-1-r1-q01'))),
+  getDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'questions', 'demo-m8-1-r1-q01')),
 );
 
 await t('學生讀 checked 題目可以', 'ok', seedBase, () =>
-  assertSucceeds(getDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'questions', 'demo-m8-1-r1-q02'))),
+  getDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'questions', 'demo-m8-1-r1-q02')),
 );
 
 await t('刪 qstats 被拒', 'deny', seedBase, () =>
-  assertFails(deleteDoc(doc(authCtx('student1', 'student@test.local').firestore(), 'users', 'student1', 'qstats', 'demo-m8-1-r1-q02'))),
+  deleteDoc(
+    doc(
+      authCtx('student1', 'student@test.local').firestore(),
+      'users',
+      'student1',
+      'qstats',
+      'demo-m8-1-r1-q02',
+    ),
+  ),
 );
 
 await t('tries 跳號被拒', 'deny', seedBase, async () => {
   const d = authCtx('student1', 'student@test.local').firestore();
-  await assertFails(
-    updateDoc(doc(d, 'users', 'student1', 'qstats', 'demo-m8-1-r1-q02'), {
-      unitCode: 'M8-1',
-      subject: 'math',
-      tries: 5,
-      correct: 2,
-      wrong: 3,
-      streak: 0,
-      inWrongBook: true,
-      manualOut: false,
-      lastAnswer: 1,
-      lastAt: serverTimestamp(),
-    }),
-  );
+  await updateDoc(doc(d, 'users', 'student1', 'qstats', 'demo-m8-1-r1-q02'), {
+    unitCode: 'M8-1',
+    subject: 'math',
+    tries: 5,
+    correct: 2,
+    wrong: 3,
+    streak: 0,
+    inWrongBook: true,
+    manualOut: false,
+    lastAnswer: 1,
+    lastAt: serverTimestamp(),
+  });
 });
 
 await t('手動移出可以', 'ok', seedBase, async () => {
   const d = authCtx('student1', 'student@test.local').firestore();
-  await assertSucceeds(
-    updateDoc(doc(d, 'users', 'student1', 'qstats', 'demo-m8-1-r1-q02'), {
-      unitCode: 'M8-1',
-      subject: 'math',
-      tries: 2,
-      correct: 1,
-      wrong: 1,
-      streak: 1,
-      inWrongBook: false,
-      manualOut: true,
-      lastAnswer: 0,
-      lastAt: serverTimestamp(),
-    }),
-  );
+  await updateDoc(doc(d, 'users', 'student1', 'qstats', 'demo-m8-1-r1-q02'), {
+    unitCode: 'M8-1',
+    subject: 'math',
+    tries: 2,
+    correct: 1,
+    wrong: 1,
+    streak: 1,
+    inWrongBook: false,
+    manualOut: true,
+    lastAnswer: 0,
+    lastAt: serverTimestamp(),
+  });
 });
 
 await t('admin 寫自己的 attempts 可以', 'ok', seedBase, async () => {
   const d = authCtx('admin1', 'admin@test.local').firestore();
-  await assertSucceeds(addDoc(collection(d, 'users', 'admin1', 'attempts'), goodAttempt()));
+  await addDoc(collection(d, 'users', 'admin1', 'attempts'), goodAttempt());
 });
 
 await t('學生讀 reports 被拒', 'deny', seedBase, () =>
-  assertFails(
-    getDoc(
-      doc(
-        authCtx('student1', 'student@test.local').firestore(),
-        'reports',
-        'demo-m8-1-r1-q02__student1',
-      ),
+  getDoc(
+    doc(
+      authCtx('student1', 'student@test.local').firestore(),
+      'reports',
+      'demo-m8-1-r1-q02__student1',
     ),
   ),
 );
 
 await t('admin 讀 reports 可以', 'ok', seedBase, () =>
-  assertSucceeds(
-    getDoc(
-      doc(
-        authCtx('admin1', 'admin@test.local').firestore(),
-        'reports',
-        'demo-m8-1-r1-q02__student1',
-      ),
+  getDoc(
+    doc(
+      authCtx('admin1', 'admin@test.local').firestore(),
+      'reports',
+      'demo-m8-1-r1-q02__student1',
     ),
   ),
 );
@@ -244,24 +252,25 @@ await t('attempt 沒有 byUnit 被拒', 'deny', seedBase, async () => {
   const d = authCtx('student1', 'student@test.local').firestore();
   const bad = goodAttempt();
   delete bad.byUnit;
-  await assertFails(addDoc(collection(d, 'users', 'student1', 'attempts'), bad));
+  await addDoc(collection(d, 'users', 'student1', 'attempts'), bad);
 });
 
 await t('學生可建立 qstats tries=1', 'ok', seedBase, async () => {
   const d = authCtx('student1', 'student@test.local').firestore();
-  await assertSucceeds(
-    setDoc(doc(d, 'users', 'student1', 'qstats', 'new-q'), goodStat()),
-  );
+  await setDoc(doc(d, 'users', 'student1', 'qstats', 'new-q'), goodStat());
 });
 
 await t('未驗證 email 被拒讀 banks', 'deny', seedBase, () =>
-  assertFails(
-    getDoc(
-      doc(
-        env.authenticatedContext('x', { email: 'student@test.local', email_verified: false }).firestore(),
-        'banks',
-        'demo',
-      ),
+  getDoc(
+    doc(
+      env
+        .authenticatedContext('x', {
+          email: 'student@test.local',
+          email_verified: false,
+        })
+        .firestore(),
+      'banks',
+      'demo',
     ),
   ),
 );
