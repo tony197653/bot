@@ -538,11 +538,27 @@ async function runHostLobbyContinue(browser, base, viewport, label) {
     const body = document.body.innerText;
     return { chips, seated: /離座|開始第一手|開始下一手|蓋牌/.test(body) };
   });
-  // #mpBtnLeaveLobby must be reachable (soft leave) at 390 and 1280
-  const leaveBtn = host.page.locator('#mpBtnLeaveLobby');
+  // PL: soft leave via top 「‹ 大廳」only (no bottom 回大廳 / menu「大廳」)
+  const leaveBtn = host.page.locator('#btnBackLobby');
   await leaveBtn.waitFor({ state: 'visible', timeout: 15000 });
   const leaveBox = await leaveBtn.boundingBox();
   const vp = host.page.viewportSize();
+  const menuDupes = await host.page.evaluate(() => {
+    const pop = document.getElementById('menuPop');
+    const lobby = document.getElementById('btnLobby');
+    const end = document.getElementById('btnEndMenu');
+    const bottom = document.getElementById('mpBtnLeaveLobby');
+    const hidden = (el) =>
+      !el || el.classList.contains('hidden') || el.hidden || getComputedStyle(el).display === 'none';
+    return {
+      noBottomLeave: !bottom,
+      lobbyHidden: hidden(lobby),
+      endHidden: hidden(end),
+      hasClose: !!document.getElementById('mpBtnCloseRoom'),
+      menuOpenable: !!document.getElementById('btnMenu'),
+      popExists: !!pop,
+    };
+  });
   if (
     !leaveBox ||
     leaveBox.y + leaveBox.height > (vp?.height || 0) + 1 ||
@@ -554,9 +570,20 @@ async function runHostLobbyContinue(browser, base, viewport, label) {
       ok: false,
       roomId,
       before,
-      reason: '#mpBtnLeaveLobby not fully in viewport',
+      reason: '#btnBackLobby not fully in viewport',
       leaveBox,
       vp,
+      menuDupes,
+    };
+  }
+  if (!menuDupes.noBottomLeave || !menuDupes.lobbyHidden || !menuDupes.endHidden || !menuDupes.hasClose) {
+    await host.ctx.close();
+    return {
+      ok: false,
+      roomId,
+      before,
+      reason: 'duplicate exits still visible (bottom 回大廳 / menu 大廳|結束牌局)',
+      menuDupes,
     };
   }
   await leaveBtn.click();

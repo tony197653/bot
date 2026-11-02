@@ -1684,9 +1684,8 @@ function renderActBar() {
   $('#mpSeatPick')?.remove();
 
   if (mySeat < 0) {
-    btns.innerHTML = `<div class="mp-spec">你正在觀戰，點牌桌上的空位就坐下<br><small>坐下時整筆帶入你的帳戶 ${fmtChips(playerDoc?.bank || 0)}</small></div>
-      <button type="button" class="ghost" id="mpBtnLeaveLobby">回大廳</button>`;
-    wireLeaveLobbyBtn();
+    // PL: soft leave via top 「‹ 大廳」only — no bottom 回大廳
+    btns.innerHTML = `<div class="mp-spec">你正在觀戰，點牌桌上的空位就坐下<br><small>坐下時整筆帶入你的帳戶 ${fmtChips(playerDoc?.bank || 0)}</small></div>`;
     return;
   }
 
@@ -1720,9 +1719,7 @@ function renderActBar() {
       $('#mpShow')?.addEventListener('click', () => sendReveal('SHOW'));
       $('#mpMuck')?.addEventListener('click', () => sendReveal('MUCK'));
     } else {
-      btns.innerHTML = `<div class="mp-spec">等待其他人選擇亮牌…</div>
-        <button type="button" class="ghost" id="mpBtnLeaveLobby">回大廳</button>`;
-      wireLeaveLobbyBtn();
+      btns.innerHTML = `<div class="mp-spec">等待其他人選擇亮牌…</div>`;
     }
     return;
   }
@@ -1734,10 +1731,8 @@ function renderActBar() {
     (pub.phase === 'lobby' || !pub.handNo)
   ) {
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始第一手（${seatedCount}人）</button>
-      <button type="button" class="ghost" id="mpBtnLeaveLobby">回大廳</button>
       <button type="button" class="ghost" id="mpLeave">離座</button>`;
     $('#mpStart')?.addEventListener('click', () => hostLoop?.startHand());
-    wireLeaveLobbyBtn();
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
   }
@@ -1747,12 +1742,10 @@ function renderActBar() {
     // Denied player block already includes 離座
     const hasLeaveInTop = /id="mpLeave"/.test(playerTop);
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始下一手（${seatedCount}人）</button>
-      <button type="button" class="ghost" id="mpBtnLeaveLobby">回大廳</button>
       ${hasLeaveInTop ? '' : '<button type="button" class="ghost" id="mpLeave">離座</button>'}
       ${playerTop}
       ${topUpHostHtml(pub)}`;
     $('#mpStart')?.addEventListener('click', () => hostLoop?.startHand());
-    wireLeaveLobbyBtn();
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     wireTopUpActions(btns, pub, mySeat);
     return;
@@ -1764,9 +1757,7 @@ function renderActBar() {
     btns.innerHTML = `
       ${playerTop}
       ${isHost ? topUpHostHtml(pub) : ''}
-      <button type="button" class="ghost" id="mpBtnLeaveLobby">回大廳</button>
       ${hasLeaveInTop ? '' : '<button type="button" class="ghost" id="mpLeave">離座</button>'}`;
-    wireLeaveLobbyBtn();
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     wireTopUpActions(btns, pub, mySeat);
     return;
@@ -2129,15 +2120,10 @@ function openSolo() {
   openSoloFn({ fromMp: true });
 }
 
-function wireLeaveLobbyBtn() {
-  const btn = $('#mpBtnLeaveLobby');
-  if (!btn) return;
-  btn.addEventListener('click', leaveToLobby);
-}
-
 /**
  * Return to lobby without 離座. Spec §6.2 / EGM #7: host loop + presence
  * keep running on any visible screen so the host is never judged「失聯」by self.
+ * PL: entry is top 「‹ 大廳」only (no bottom 回大廳 / menu「大廳」).
  */
 function leaveToLobby() {
   const user = getUser();
@@ -2224,9 +2210,11 @@ function ensureMpMenu() {
   const pop = $('#menuPop');
   if (!pop || pop.dataset.mpMenu === '1') return;
   pop.dataset.mpMenu = '1';
-  // Hide solo-only items in MP
+  // Hide solo-only / duplicate exits in MP (PL: ‹ 大廳 + 收桌 cover 大廳／結束牌局)
+  // 計時／暫停／全螢幕／音效：先維持現況，等 PL 通知再動
   $('#btnTimerCfg')?.classList.add('hidden');
   $('#btnPauseMenu')?.classList.add('hidden');
+  $('#btnLobby')?.classList.add('hidden');
   $('#btnEndMenu')?.classList.add('hidden');
 
   const extras = document.createElement('div');
@@ -2239,17 +2227,7 @@ function ensureMpMenu() {
     <div id="mpMembersPanel" class="mp-members hidden" hidden></div>`;
   pop.appendChild(extras);
 
-  $('#btnLobby')?.addEventListener(
-    'click',
-    (e) => {
-      if (!room) return;
-      e.stopImmediatePropagation();
-      closeMpMenu();
-      leaveToLobby();
-    },
-    true,
-  );
-  // M2: fixed top 「‹ 大廳」(soft leave, keep seat)
+  // M2: fixed top 「‹ 大廳」(soft leave, keep seat) — sole lobby exit on table
   if (!$('#btnBackLobby')?.dataset.mpWired) {
     const back = $('#btnBackLobby');
     if (back) {
@@ -2294,6 +2272,7 @@ function removeMpMenuExtras() {
   const pop = $('#menuPop');
   if (pop) delete pop.dataset.mpMenu;
   $('#btnTimerCfg')?.classList.remove('hidden');
+  $('#btnLobby')?.classList.remove('hidden');
   $('#btnEndMenu')?.classList.remove('hidden');
 }
 
@@ -2348,7 +2327,7 @@ export function mpCloseRoom() {
   if (!fb || !room) return;
   if (!confirm('確定收桌？在座的人會結帳回帳戶。')) return;
   const id = room.id;
-  const btn = document.getElementById('btnEndMenu');
+  const btn = document.getElementById('mpBtnCloseRoom');
   if (btn) {
     btn.disabled = true;
     btn.textContent = '收桌中…';
@@ -2367,7 +2346,7 @@ export function mpCloseRoom() {
       toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
       if (btn) {
         btn.disabled = false;
-        btn.textContent = '結束牌局';
+        btn.textContent = '收桌';
       }
     });
 }

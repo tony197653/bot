@@ -60,6 +60,18 @@ describe('附錄 M — 房號與錯誤契約', () => {
     assert.match(css, /min-width:\s*44px/);
   });
 
+  it('PL: 牌桌無底部回大廳／選單大廳／結束牌局；改由 ‹ 大廳＋收桌', () => {
+    const app = read('js/ui/mp-app.js');
+    assert.doesNotMatch(app, /mpBtnLeaveLobby/);
+    assert.doesNotMatch(app, /wireLeaveLobbyBtn/);
+    // menu duplicates hidden; close via mpBtnCloseRoom
+    assert.match(app, /\$\('#btnLobby'\)\?\.classList\.add\('hidden'\)/);
+    assert.match(app, /\$\('#btnEndMenu'\)\?\.classList\.add\('hidden'\)/);
+    assert.match(app, /mpBtnCloseRoom/);
+    assert.match(app, /btnBackLobby/);
+    assert.match(app, /function leaveToLobby/);
+  });
+
   it('M2 #14: 戰績空狀態有回大廳', () => {
     const src = read('js/ui/stats.js');
     assert.match(src, /還沒有戰績/);
