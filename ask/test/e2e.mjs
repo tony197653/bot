@@ -12,7 +12,10 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ASK_ROOT = path.resolve(__dirname, "..");
-const ART = "/opt/cursor/artifacts/screenshots";
+/** 截圖目錄：可用 ASK_E2E_ARTIFACTS 覆寫；預設為 ask/test-results/screenshots（已 gitignore） */
+const ART = process.env.ASK_E2E_ARTIFACTS
+  ? path.resolve(process.env.ASK_E2E_ARTIFACTS)
+  : path.join(ASK_ROOT, "test-results", "screenshots");
 const PAGE = "http://127.0.0.1:4173/";
 const WORKER = "http://127.0.0.1:8787";
 
@@ -26,7 +29,7 @@ async function assertQuotaSingleLine(page, { width, remaining = 39, rootScale = 
         html{font-size:${16 * s}px!important}
         body{font-size:${16 * s}px!important}
         .top h1{font-size:${18 * s}px!important}
-        .l5inline,.l5inline b,.quota-reset,.btn.b5{font-size:${16 * s}px!important}
+        .l5inline,.l5inline b,.quota-reset,.btn.b2{font-size:${16 * s}px!important}
         .l5inline b{min-width:${22 * s}px;height:${22 * s}px}
       `,
     });
