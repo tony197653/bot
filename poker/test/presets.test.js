@@ -6,9 +6,41 @@ import {
   getLegalActions,
   raisePresets,
   totalPot,
+  publicState,
   mulberry32,
   PHASE,
 } from '../js/engine/index.js';
+
+/**
+ * MP guest path: rebuild raisePresets inputs from publicState only
+ * (same shim openMpRaise uses when host engine is unavailable).
+ */
+function raisePresetsFromPub(pub, seat) {
+  const seats = (pub.seats || []).map((p, i) =>
+    p
+      ? {
+          seat: p.seat ?? i,
+          chips: p.chips || 0,
+          bet: p.bet || 0,
+          contributed: p.contributed || 0,
+          folded: !!p.folded,
+          allIn: !!p.allIn,
+          sittingOut: !!p.sittingOut,
+          hasHole: !!p.hasHole,
+        }
+      : null,
+  );
+  const shim = {
+    actor: seat,
+    phase: pub.phase,
+    currentBet: pub.currentBet || 0,
+    minRaiseTo: pub.minRaiseTo || 0,
+    actedBit: 0,
+    config: { bigBlind: pub.config?.bigBlind || 20 },
+    seats,
+  };
+  return raisePresets(shim, seat);
+}
 
 function seatAll(s, names, chips) {
   let st = s;
@@ -231,5 +263,66 @@ describe('加注快捷鍵：夾限', () => {
     // Still show 全下 label on last, and duplicates of that amount on others
     assert.equal(presets[5].label, '全下');
     assert.ok(presets.some((p) => p.label.includes('大盲') || p.label.includes('倍') || p.label === '最小'));
+  });
+});
+
+describe('加注快捷鍵：MP pub shim matches engine (guest raise panel)', () => {
+  it('preflop unraised / facing raise / postflop labels+amounts match', () => {
+    // Unraised preflop
+    let s = createInitialState({ timerEnabled: false, bigBlind: 20, startingStack: 2000 });
+    s = seatAll(s, ['宗良', '阿哲', '小芸']);
+    s = start(s, 42);
+    {
+      const seat = s.actor;
+      const fromEng = raisePresets(s, seat);
+      const fromPub = raisePresetsFromPub(publicState(s), seat);
+      assert.deepEqual(
+        fromPub.map((p) => ({ id: p.id, label: p.label, to: p.to, preferred: p.preferred })),
+        fromEng.map((p) => ({ id: p.id, label: p.label, to: p.to, preferred: p.preferred })),
+      );
+      assert.deepEqual(
+        fromPub.map((p) => p.label),
+        ['最小', '2.5 大盲', '3 大盲', '4 大盲', '5 大盲', '全下'],
+      );
+    }
+
+    // Facing raise
+    s = act(s, 'BET_RAISE', { amount: 60 });
+    {
+      const seat = s.actor;
+      const fromEng = raisePresets(s, seat);
+      const fromPub = raisePresetsFromPub(publicState(s), seat);
+      assert.deepEqual(
+        fromPub.map((p) => ({ id: p.id, label: p.label, to: p.to })),
+        fromEng.map((p) => ({ id: p.id, label: p.label, to: p.to })),
+      );
+      assert.deepEqual(
+        fromPub.map((p) => p.label),
+        ['最小', '2.5 倍', '3 倍', '4 倍', '一池', '全下'],
+      );
+    }
+
+    // Postflop
+    let guard = 0;
+    while (s.phase === PHASE.PREFLOP && guard++ < 12) {
+      const L = getLegalActions(s, s.actor);
+      if (L.call) s = act(s, 'CALL');
+      else if (L.check) s = act(s, 'CHECK');
+      else break;
+    }
+    assert.equal(s.phase, PHASE.FLOP);
+    {
+      const seat = s.actor;
+      const fromEng = raisePresets(s, seat);
+      const fromPub = raisePresetsFromPub(publicState(s), seat);
+      assert.deepEqual(
+        fromPub.map((p) => ({ id: p.id, label: p.label, to: p.to })),
+        fromEng.map((p) => ({ id: p.id, label: p.label, to: p.to })),
+      );
+      assert.deepEqual(
+        fromPub.map((p) => p.label),
+        ['最小', '1/3 池', '半池', '2/3 池', '一池', '全下'],
+      );
+    }
   });
 });

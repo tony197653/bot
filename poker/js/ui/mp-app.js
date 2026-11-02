@@ -80,6 +80,7 @@ import { cardHtml, cardBackPair, heroBackPair, fmtChips, paintBoardSlots } from 
 import { mapSeatsClockwise } from './seating.js';
 import { prefersReducedMotion } from './fx.js';
 import { parseCard } from '../engine/cards.js';
+import { raisePresets } from '../engine/index.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const esc = (s) =>
@@ -262,6 +263,12 @@ let rescueReason = null;
 let rescueChips = null;
 let membersPanelOpen = false;
 let raiseOpen = false;
+/** Current raise-to total while the shared #raisePanel is open (MP). */
+let mpRaiseTo = 0;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let mpRaiseHoldTimer = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let mpRaiseHoldRepeat = null;
 let autoResumeTried = false;
 /** @type {any[]} */
 let openTables = [];
@@ -1822,28 +1829,197 @@ function renderActBar() {
   });
 }
 
+function clearMpRaiseHold() {
+  if (mpRaiseHoldTimer != null) clearTimeout(mpRaiseHoldTimer);
+  if (mpRaiseHoldRepeat != null) clearTimeout(mpRaiseHoldRepeat);
+  mpRaiseHoldTimer = null;
+  mpRaiseHoldRepeat = null;
+}
+
+function clampMpRaise(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+/**
+ * Approved #20 raise quick-picks: reuse engine raisePresets.
+ * Host prefers live engine; guests (and host fallback) shim from pub —
+ * all inputs are already public (phase / currentBet / pot / seat stacks).
+ */
+function mpRaisePresets(seat, minRaiseTo, maxRaiseTo) {
+  const eng = hostLoop?.getEngine?.();
+  if (eng && Number.isInteger(seat) && seat >= 0) {
+    try {
+      const fromEng = raisePresets(eng, seat);
+      if (fromEng?.length) return fromEng;
+    } catch {
+      /* fall through to pub shim */
+    }
+  }
+  const pub = room?.pub || {};
+  const bb = room?.config?.bb || pub.config?.bigBlind || 20;
+  const seats = (pub.seats || []).map((p, i) =>
+    p
+      ? {
+          seat: p.seat ?? i,
+          chips: p.chips || 0,
+          bet: p.bet || 0,
+          contributed: p.contributed || 0,
+          folded: !!p.folded,
+          allIn: !!p.allIn,
+          sittingOut: !!p.sittingOut,
+          hasHole: !!p.hasHole,
+        }
+      : null,
+  );
+  const shim = {
+    actor: seat,
+    phase: pub.phase,
+    currentBet: pub.currentBet || 0,
+    minRaiseTo: pub.minRaiseTo || minRaiseTo,
+    actedBit: 0,
+    config: { bigBlind: bb },
+    seats,
+  };
+  // Ensure actor seat exists with stack bounds matching the open panel
+  if (seats[seat]) {
+    const stack = seats[seat].chips + seats[seat].bet;
+    if (stack < maxRaiseTo) seats[seat].chips = Math.max(0, maxRaiseTo - seats[seat].bet);
+  }
+  return raisePresets(shim, seat);
+}
+
+function syncMpRaiseUi(range) {
+  const out = $('#raiseOut');
+  if (out) out.textContent = fmtChips(mpRaiseTo);
+  if (range) {
+    const min = +range.min;
+    const max = +range.max;
+    const pct = max > min ? ((mpRaiseTo - min) / (max - min)) * 100 : 0;
+    range.style.setProperty('--raise-pct', `${clampMpRaise(pct, 0, 100)}%`);
+  }
+  for (const b of document.querySelectorAll('#presets button')) {
+    b.setAttribute('aria-pressed', String(+b.dataset.to === mpRaiseTo));
+  }
+  const minus = $('#raiseMinus');
+  const plus = $('#raisePlus');
+  if (range && minus && plus) {
+    minus.disabled = mpRaiseTo <= +range.min;
+    plus.disabled = mpRaiseTo >= +range.max;
+  }
+  const conf = $('#raiseConfirm');
+  if (conf) {
+    const pub = room?.pub || {};
+    const mySeat = room?.seatUids?.indexOf(getUser()?.uid);
+    const myBet = pub.seats?.[mySeat]?.bet || 0;
+    const opening = (pub.currentBet || 0) === 0 || (pub.currentBet || 0) <= myBet;
+    const verb = opening && (pub.currentBet || 0) === 0 ? '確認下注' : '確認加注到';
+    conf.textContent = `${verb} ${fmtChips(mpRaiseTo)}`;
+  }
+}
+
+function mpRaiseBounds() {
+  const range = $('#raiseRange');
+  const bb = room?.config?.bb || room?.pub?.config?.bigBlind || 20;
+  return { lo: +(range?.min || 0), hi: +(range?.max || 0), bb };
+}
+
+/** Step raise-to by ±1 BB; press-and-hold auto-repeats (same as solo #20). */
+function bindMpRaiseStep(btn, dir) {
+  if (!btn || btn.dataset.mpBound === '1') return;
+  btn.dataset.mpBound = '1';
+  btn.onclick = null;
+  const stepOnce = () => {
+    const range = $('#raiseRange');
+    if (!range || !raiseOpen) return;
+    const { lo, hi, bb } = mpRaiseBounds();
+    mpRaiseTo = clampMpRaise(mpRaiseTo + dir * bb, lo, hi);
+    range.value = String(mpRaiseTo);
+    syncMpRaiseUi(range);
+  };
+  const onDown = (e) => {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    clearMpRaiseHold();
+    try {
+      btn.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    stepOnce();
+    let interval = 140;
+    mpRaiseHoldTimer = setTimeout(function tick() {
+      stepOnce();
+      interval = Math.max(36, Math.floor(interval * 0.82));
+      mpRaiseHoldRepeat = setTimeout(tick, interval);
+    }, 400);
+  };
+  const onUp = () => clearMpRaiseHold();
+  btn.addEventListener('pointerdown', onDown);
+  btn.addEventListener('pointerup', onUp);
+  btn.addEventListener('pointercancel', onUp);
+  btn.addEventListener('lostpointercapture', onUp);
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
 function openMpRaise(minRaiseTo, send) {
   const panel = $('#raisePanel');
   const scrim = $('#raiseScrim');
   const range = $('#raiseRange');
-  const out = $('#raiseOut');
   if (!panel || !range || !room) {
     send('BET_RAISE', minRaiseTo);
     return;
   }
   const mySeat = room.seatUids.indexOf(getUser()?.uid);
-  const ps = room.pub?.seats?.[mySeat];
+  const pub = room.pub || {};
+  const ps = pub.seats?.[mySeat];
   const maxTo = (ps?.chips || 0) + (ps?.bet || 0);
-  const minTo = Math.min(minRaiseTo, maxTo);
-  range.min = String(minTo);
-  range.max = String(Math.max(minTo, maxTo));
-  range.value = String(minTo);
-  range.step = String(room.config.bb || 20);
-  if (out) out.textContent = fmtChips(minTo);
-  const sync = () => {
-    if (out) out.textContent = fmtChips(Number(range.value));
+  const lo = Math.min(minRaiseTo, maxTo);
+  const hi = Math.max(lo, maxTo);
+  const presets = mpRaisePresets(mySeat, lo, hi);
+  const preferred = presets.find((p) => p.preferred)?.to ?? lo;
+  mpRaiseTo = clampMpRaise(preferred || lo, lo, hi);
+
+  range.min = String(lo);
+  range.max = String(hi);
+  range.step = '1';
+  range.value = String(mpRaiseTo);
+  range.oninput = () => {
+    mpRaiseTo = +range.value;
+    syncMpRaiseUi(range);
   };
-  range.oninput = sync;
+
+  const presetsEl = $('#presets');
+  if (presetsEl) {
+    presetsEl.innerHTML = presets
+      .map(
+        (p) =>
+          `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.to === mpRaiseTo}">` +
+          `<span class="preset-lbl">${p.label}</span>` +
+          `<span class="preset-amt">${fmtChips(p.to)}</span></button>`,
+      )
+      .join('');
+    presetsEl.onclick = (e) => {
+      const b = e.target.closest('button[data-to]');
+      if (!b) return;
+      mpRaiseTo = clampMpRaise(+b.dataset.to, lo, hi);
+      range.value = String(mpRaiseTo);
+      syncMpRaiseUi(range);
+    };
+  }
+
+  bindMpRaiseStep($('#raiseMinus'), -1);
+  bindMpRaiseStep($('#raisePlus'), 1);
+
+  const callAmt = Math.max(0, (pub.currentBet || 0) - (ps?.bet || 0));
+  const hint = $('#raiseHint');
+  if (hint) {
+    hint.textContent =
+      callAmt <= 0
+        ? `最少加到 ${fmtChips(lo)}`
+        : `跟注 ${fmtChips(callAmt)} · 最少加到 ${fmtChips(lo)}`;
+  }
+  syncMpRaiseUi(range);
+
   panel.hidden = false;
   panel.inert = false;
   panel.removeAttribute('aria-hidden');
@@ -1856,7 +2032,9 @@ function openMpRaise(minRaiseTo, send) {
     scrim?.classList.add('is-on');
   });
   raiseOpen = true;
+
   const close = () => {
+    clearMpRaiseHold();
     panel.classList.remove('is-on');
     scrim?.classList.remove('is-on');
     panel.hidden = true;
@@ -1868,22 +2046,20 @@ function openMpRaise(minRaiseTo, send) {
     }
     raiseOpen = false;
   };
+  if (scrim) {
+    scrim.onclick = () => {
+      close();
+      paintTableChrome();
+    };
+  }
   $('#raiseCancel').onclick = () => {
     close();
     paintTableChrome();
   };
   $('#raiseConfirm').onclick = () => {
-    const amt = Number(range.value);
+    const amt = mpRaiseTo;
     close();
     send('BET_RAISE', amt);
-  };
-  $('#raiseMinus').onclick = () => {
-    range.value = String(Math.max(minTo, Number(range.value) - (room.config.bb || 20)));
-    sync();
-  };
-  $('#raisePlus').onclick = () => {
-    range.value = String(Math.min(maxTo, Number(range.value) + (room.config.bb || 20)));
-    sync();
   };
 }
 
@@ -2157,6 +2333,7 @@ function leaveToLobby() {
     animQ = null;
     myHole = null;
     membersPanelOpen = false;
+    clearMpRaiseHold();
     raiseOpen = false;
     removeMpMenuExtras();
     if (room?.hostUid === uid && !hostLoop) {
@@ -2204,6 +2381,7 @@ function tearDownRoom() {
   prevPub = null;
   myHole = null;
   membersPanelOpen = false;
+  clearMpRaiseHold();
   raiseOpen = false;
   if (topUpDenyTick) {
     clearInterval(topUpDenyTick);
