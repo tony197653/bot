@@ -4,10 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>元件風格庫｜按鈕、表格、卡片、輸入框、標籤、切換鈕</title>
+<title>元件風格庫｜按鈕、表格、卡片、輸入框、標籤、切換鈕、對話框、分頁籤、通知、選單、手風琴、步驟條、空狀態、指令面板</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<!--
+  來源與授權（第二批）
+  只借用「結構與行為」，視覺全部依第一批重新設計，程式碼全部自行改寫，沒有整段貼上。
+  - shadcn/ui（Dialog、Sheet、Tabs、Select、Accordion、Skeleton）MIT © shadcn  https://ui.shadcn.com
+  - Radix Primitives（Select、DropdownMenu、Tabs、Accordion 的鍵盤操作與 ARIA 結構）MIT © WorkOS  https://www.radix-ui.com
+  - Vaul（D3、D5 抽屜的緩動曲線 cubic-bezier(.32,.72,0,1)）MIT © Emil Kowalski  https://github.com/emilkowalski/vaul
+  - Sonner（N1、N3：通知堆疊、滑過展開、滑動關閉、promise 狀態、暫停計時）MIT © Emil Kowalski  https://sonner.emilkowal.ski
+  - cmdk（K1、K2：模糊篩選、群組、方向鍵、Enter、Esc、⌘K／Ctrl+K）MIT © Paco Coursey  https://github.com/dip/cmdk
+  - coss ui（原 Origin UI；G2 底線分頁籤、P3 步驟條）MIT © Cal.com  https://coss.com/ui
+  - HyperUI（A1、A3 手風琴與 E1 空狀態版型）MIT © Mark Mead  https://hyperui.dev
+  - Magic UI（只取收斂的微動畫想法：E3 骨架掃光、淡入模糊）MIT © Magic UI  https://magicui.design
+  - デジタル庁デザインシステム（P4 日系流程條的資訊結構：步驟數字、目前步驟文字）只參考版面，未取用其程式或素材  https://design.digital.go.jp/dads/
+  - 靈感：Component Gallery https://component.gallery （只參考，不照抄）
+-->
 <style>
 :root{
   --bg:#EDEEE9;--surface:#FBFBF8;--ink:#2F312D;--mute:#696C64;--line:#D6D9D0;--line-soft:#E4E6DF;
@@ -292,15 +306,376 @@ footer .wrap{border-top:1px solid var(--line);padding-top:24px;display:flex;flex
   *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
   .btn .spin{animation:spin 1.6s linear infinite!important}
 }
+
+/* ================================================================
+   第二批（20 個）：D3 D5・G1 G2 G4・N1 N3・M1 M3・A1 A3・P2 P3 P4 P5・E1 E2 E3・K1 K2
+   沿用第一批的變數與版面，只新增第二批需要的變數與樣式；第一批樣式完全未改動。
+   ================================================================ */
+:root{
+  --ease-out:cubic-bezier(.22,1,.36,1);--ease-in:cubic-bezier(.4,0,1,1);--ease-move:cubic-bezier(.65,0,.35,1);
+  --ease-drawer:cubic-bezier(.32,.72,0,1);
+  --halo:0 0 0 3px rgba(95,107,120,.18);
+  --pop-shadow:0 2px 4px rgba(40,42,36,.05),0 16px 40px -8px rgba(40,42,36,.18);
+  --sheet-shadow:0 1px 2px rgba(40,42,36,.06),0 24px 64px -12px rgba(40,42,36,.28);
+}
+.stage.mid{flex-direction:column;align-items:center;justify-content:center}
+/* ===== 第二批共用小零件 ===== */
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.ico{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ico.sm{width:15px;height:15px}
+.kbd{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:6px;border:1px solid var(--line);border-bottom-width:2px;background:#fff;color:var(--mute);font:500 11.5px/1 var(--font);white-space:nowrap}
+.out{width:100%;text-align:center;font-size:12.5px;color:var(--mute);min-height:1.65em}
+.out b{color:var(--ink);font-weight:500}
+.btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.xbtn{position:relative;width:36px;height:36px;flex:none;display:grid;place-items:center;border:0;border-radius:999px;background:transparent;color:var(--mute);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .15s,color .15s,transform .12s var(--ease)}
+.xbtn::before{content:"";position:absolute;inset:-4px}
+.xbtn:hover{background:#EDEEE8;color:var(--ink)}
+.xbtn:active{transform:scale(.94)}
+/* ========== D 對話框與抽屜 ========== */
+html.dlg-lock{overflow:hidden}
+.dlg{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;color:var(--ink);background:rgba(31,32,29,.30);padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));display:grid;place-items:center;overflow:hidden;opacity:0;transition:opacity .24s var(--ease-in)}
+dialog.dlg:not([open]){display:none}
+.dlg::backdrop{background:transparent}
+.dlg.is-open{opacity:1;transition:opacity .45s var(--ease-out)}
+.dlg-panel{position:relative;background:var(--surface);border-radius:18px;box-shadow:var(--sheet-shadow);width:min(440px,100%);max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;opacity:0;transform:translateY(8px) scale(.97);transition:opacity .2s var(--ease-in),transform .24s var(--ease-in)}
+.dlg.is-open .dlg-panel{opacity:1;transform:none;transition:opacity .5s var(--ease-out) .04s,transform .55s var(--ease-out) .04s}
+.dlg-h{font-size:18px;font-weight:600;line-height:1.35;margin:0}
+.dlg.side{display:flex;justify-content:flex-end;padding:0}
+.dlg.side.left{justify-content:flex-start}
+.side .dlg-panel{width:min(400px,88vw);height:100%;max-height:none;border-radius:20px 0 0 20px;display:flex;flex-direction:column;overflow:hidden;opacity:1;transform:translateX(100%);transition:transform .28s var(--ease-in)}
+.side.left .dlg-panel{border-radius:0 20px 20px 0;transform:translateX(-100%);width:min(320px,84vw)}
+.side.is-open .dlg-panel{transform:none;transition:transform .5s var(--ease-drawer)}
+.pane-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:max(28px,env(safe-area-inset-top)) 22px 6px 24px}
+.pane-h small{display:block;color:var(--mute);font-size:12.5px;margin-top:2px}
+.pane-b{flex:1;overflow:auto;padding:6px 24px 24px;overscroll-behavior:contain}
+.pane-f{padding:14px 24px max(16px,env(safe-area-inset-bottom));border-top:1px solid var(--line-soft);display:flex;gap:10px;justify-content:flex-end;background:var(--surface)}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:10px 20px;font-size:14px;margin:18px 0 0}
+.dl dt{color:var(--mute)}
+.dl dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.lines{list-style:none;margin:22px 0 0;padding:0;border-top:1px solid var(--line-soft)}
+.lines li{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line-soft);font-size:14px;font-variant-numeric:tabular-nums}
+.lines li span:first-child small{display:block;color:var(--mute);font-size:12.5px}
+.lines li.tot{font-weight:600;border-bottom:0}
+.navl{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:2px}
+.navl a{display:flex;align-items:center;gap:12px;min-height:46px;padding:0 14px;border-radius:10px;color:var(--ink);text-decoration:none;font-size:15px;transition:background .15s,color .15s}
+.navl a .ico{color:var(--mute);transition:color .15s}
+.navl a[aria-current=page]{background:var(--sage-soft);color:#3F4A3A;font-weight:500}
+.navl a[aria-current=page] .ico{color:var(--sage-deep)}
+.navl a:focus-visible{outline-offset:-2px}
+.navl .cnt{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:7px;background:#E8E9E3;color:var(--mute);font-size:12px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.nav-sep{height:1px;background:var(--line-soft);margin:14px 14px}
+.who-b{display:flex;align-items:center;gap:12px;font-size:14px}
+.who-b i{width:36px;height:36px;border-radius:50%;background:var(--sage);color:#fff;display:grid;place-items:center;font-style:normal;font-weight:600;font-size:13px}
+.who-b small{display:block;color:var(--mute);font-size:12px}
+.side.left .pane-f{justify-content:flex-start}
+/* ========== G 分頁籤 ========== */
+.tabs{width:100%;min-width:0}
+.tl{position:relative;display:flex}
+.tab{font:inherit;font-size:14px;border:0;background:none;color:var(--mute);cursor:pointer;min-height:40px;padding:0 16px;white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:color .2s}
+.tab[aria-selected=true]{color:var(--ink);font-weight:500}
+.tab:disabled{color:#B5B8AF;cursor:not-allowed}
+.tab:focus-visible{outline-offset:-2px;border-radius:8px}
+.tab-ind{position:absolute;pointer-events:none}
+.tp{padding-top:18px;font-size:14px;color:var(--mute);min-height:104px}
+.tp h4{margin:0 0 4px;color:var(--ink);font-size:15px;font-weight:600}
+.tp:focus-visible{outline-offset:4px;border-radius:6px}
+.tp-enter{animation:tpIn .3s var(--ease-out)}
+@keyframes tpIn{from{opacity:0;transform:translateY(4px);filter:blur(2px)}}
+.mini{display:flex;gap:22px;margin-top:12px;flex-wrap:wrap}
+.mini div{font-size:12.5px}
+.mini b{display:block;color:var(--ink);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+.g1 .tl{display:inline-flex;max-width:100%;padding:3px;border-radius:10px;background:#E2E3DC;isolation:isolate}
+.g1 .tab{min-height:36px;border-radius:8px;flex:1}
+@media (hover:hover){.g1 .tab:hover{color:var(--ink)}}
+.g1 .tab-ind{z-index:-1;top:3px;bottom:3px;left:0;border-radius:8px;background:#fff;box-shadow:0 1px 3px rgba(40,42,36,.12),0 0 0 .5px rgba(40,42,36,.06);transition:transform .35s var(--ease),width .35s var(--ease)}
+
+.g2 .tl{gap:2px;box-shadow:inset 0 -1px 0 var(--line);overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain}
+.g2 .tl::-webkit-scrollbar{display:none}
+.g2 .tab{flex:none;min-height:46px;padding:0 12px;display:inline-flex;align-items:center;gap:8px}
+@media (hover:hover){.g2 .tab:not(:disabled):hover{color:var(--ink)}}
+.g2 .cnt{min-width:20px;height:20px;padding:0 6px;border-radius:6px;background:#E6E7E1;color:var(--mute);font-size:11.5px;font-weight:500;display:grid;place-items:center;font-variant-numeric:tabular-nums;transition:background .2s,color .2s}
+.g2 .tab[aria-selected=true] .cnt{background:var(--sage-soft);color:#45523F}
+.g2 .tab-ind{left:0;bottom:0;height:2px;border-radius:2px;background:var(--ink);transition:transform .35s var(--ease),width .35s var(--ease)}
+
+.g4{display:grid;grid-template-columns:148px 1fr;gap:24px;align-items:start}
+.g4 .tl{flex-direction:column;box-shadow:inset 1px 0 0 var(--line)}
+.g4 .tab{text-align:left;min-height:42px;padding:0 14px;display:flex;align-items:center;gap:10px}
+.g4 .tab .ico{color:#9A9D94;transition:color .2s}
+.g4 .tab[aria-selected=true] .ico{color:var(--sage)}
+@media (hover:hover){.g4 .tab:hover{color:var(--ink)}}
+.g4 .tab-ind{left:0;top:0;width:2px;border-radius:2px;background:var(--sage);transition:transform .35s var(--ease),height .35s var(--ease)}
+.g4 .tp{padding-top:6px}
+/* ========== N 通知 ========== */
+.tst-region{position:fixed;z-index:60;right:max(24px,env(safe-area-inset-right));bottom:max(24px,env(safe-area-inset-bottom));width:360px;pointer-events:none}
+.tst-list{list-style:none;margin:0;padding:0;position:relative;height:0;transition:height .45s var(--ease-out)}
+.tst-region.has .tst-list{pointer-events:auto}
+.tst{position:absolute;left:0;right:0;bottom:0;overflow:hidden;border-radius:14px;transform-origin:50% 100%;touch-action:none;user-select:none;-webkit-user-select:none;transition:transform .45s var(--ease-out),opacity .45s var(--ease-out),height .45s var(--ease-out)}
+.tst.dragging{transition:none}
+.tst-c{display:flex;gap:12px;align-items:flex-start;padding:14px 46px 14px 16px;transition:opacity .25s}
+.tst.back .tst-c{opacity:0}
+.tst-tx{min-width:0;flex:1}
+.tst-t{font-size:14px;font-weight:500;line-height:1.45}
+.tst-d{font-size:13px;color:var(--mute);margin-top:2px;line-height:1.5}
+.tst .xbtn{position:absolute;top:9px;right:9px;width:30px;height:30px}
+@media (hover:hover){.tst .xbtn{opacity:0;transition:opacity .15s,background .15s,color .15s}.tst:hover .xbtn,.tst:focus-within .xbtn{opacity:1}}
+.n1,.n3{background:#fff;border:1px solid var(--line-soft);box-shadow:0 1px 2px rgba(40,42,36,.05),0 12px 32px -12px rgba(40,42,36,.25)}
+.tst-ic{position:relative;width:20px;height:20px;flex:none;margin-top:1px}
+.tst-ic > *{position:absolute;inset:0;transition:opacity .25s var(--ease-out),transform .3s var(--ease-out),filter .25s}
+.tst-ic .ld{border-radius:50%;border:2px solid #CDD0C7;border-top-color:var(--sage);animation:spin .8s linear infinite;inset:2px}
+.tst-ic .ok{color:#5E8752}.tst-ic .er{color:var(--danger)}
+.tst-ic .ok,.tst-ic .er{opacity:0;transform:scale(.6);filter:blur(2px)}
+.n3[data-state=ok] .ld,.n3[data-state=err] .ld{opacity:0;transform:scale(.6);filter:blur(2px)}
+.n3[data-state=ok] .ok,.n3[data-state=err] .er{opacity:1;transform:none;filter:none}
+.tst-ic .ico{width:20px;height:20px}
+/* ========== M 選單 ========== */
+.pw{position:relative;width:100%;max-width:300px}
+.pw > label,.pw > .lb{display:block;font-size:13.5px;font-weight:500;margin-bottom:6px}
+.trig{font:inherit;font-size:15px;width:100%;min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent;transition:border-color .2s,box-shadow .2s}
+.trig:hover{border-color:#BFC3B8}
+.trig:focus-visible,.trig[aria-expanded=true]{outline:none;border-color:var(--slate);box-shadow:var(--halo)}
+.trig:disabled{cursor:not-allowed;opacity:.6;background:#F6F6F2}
+.trig .val{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.trig .ph{color:#9EA198}
+.trig .chev{color:var(--mute);transition:transform .22s var(--ease-out)}
+.trig[aria-expanded=true] .chev{transform:rotate(180deg)}
+.pop{position:absolute;z-index:15;left:0;right:0;top:calc(100% + 6px);background:#fff;border:1px solid var(--line-soft);border-radius:12px;box-shadow:var(--pop-shadow);padding:5px;transform-origin:top center;opacity:0;transform:translateY(-4px) scale(.97);visibility:hidden;transition:opacity .14s var(--ease-in),transform .14s var(--ease-in),visibility 0s .14s}
+.pop.is-open{opacity:1;transform:none;visibility:visible;transition:opacity .2s var(--ease-out),transform .22s var(--ease-out),visibility 0s}
+.pop .lst{list-style:none;margin:0;padding:0;max-height:228px;overflow:auto;overscroll-behavior:contain}
+.opt{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:8px;font-size:14px;cursor:pointer;user-select:none;color:var(--ink)}
+.opt[data-active=true]{background:#F0F1EC}
+.opt .tick{margin-left:auto;color:var(--sage);opacity:0;transition:opacity .15s}
+.opt[aria-selected=true] .tick{opacity:1}
+.opt[aria-selected=true]{font-weight:500}
+.opt[aria-disabled=true]{color:#B0B3AA;cursor:not-allowed}
+.opt .sw8{width:12px;height:12px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.opt small{color:var(--mute);font-size:12px;margin-left:auto}
+.opt small + .tick{margin-left:10px}
+.sep{height:1px;background:var(--line-soft);margin:5px 4px}
+.menu{left:auto;right:auto;width:236px}
+.menu .mi{font:inherit;width:100%;border:0;background:none;text-align:left;display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:8px;font-size:14px;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.menu .mi .ico{color:var(--mute)}
+.menu .mi:focus{outline:none;background:#F0F1EC}
+.menu .mi:focus-visible{box-shadow:inset 0 0 0 1px #C9CCC3}
+.menu .mi[aria-disabled=true]{color:#B0B3AA;cursor:not-allowed}
+.menu .mi[aria-disabled=true] .ico{color:#C4C6BF}
+.menu .mi.dz{color:var(--danger)}
+.menu .mi.dz .ico{color:var(--danger)}
+.menu .mi.dz:focus{background:var(--danger-soft)}
+.menu .mi small{margin-left:auto;color:#9EA198;font-size:12px}
+.pw.mw{width:auto;max-width:none}
+/* ========== A 手風琴 ========== */
+.acc{width:100%}
+.acc-h{margin:0;font:inherit}
+.acc-b{font:inherit;width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:none;border:0;color:var(--ink);cursor:pointer;min-height:52px;padding:14px 4px;font-size:15px;font-weight:500;-webkit-tap-highlight-color:transparent}
+.acc-b:disabled{color:#AEB0A9;cursor:not-allowed}
+.acc-b .t{flex:1;min-width:0}
+.acc-b .chev{color:var(--mute);transition:transform .3s var(--ease-out)}
+.acc-i.open .acc-b .chev{transform:rotate(180deg)}
+.acc-p{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s var(--ease-out)}
+.acc-i.open .acc-p{grid-template-rows:1fr}
+.acc-p > div{overflow:hidden;min-height:0}
+.acc-tx{padding:0 4px 18px;color:var(--mute);font-size:14px;opacity:0;transform:translateY(-4px);transition:opacity .25s var(--ease-in),transform .3s var(--ease-in)}
+.acc-i.open .acc-tx{opacity:1;transform:none;transition:opacity .35s var(--ease-out) .06s,transform .4s var(--ease-out) .06s}
+.a1 .acc-i{border-bottom:1px solid var(--line)}
+.a1 .acc-i:first-child{border-top:1px solid var(--line)}
+@media (hover:hover){.a1 .acc-b:not(:disabled):hover .t{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:5px}}
+.a1 .acc-b:focus-visible{outline-offset:-2px;border-radius:6px}
+.a3 .acc-i{border-bottom:1px dashed var(--line)}
+.a3 .acc-b{align-items:flex-start;padding:16px 4px}
+.a3 .acc-b .t{padding-top:2px}
+.qa{width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;font:600 13px var(--font);letter-spacing:0}
+.qa.q{background:var(--sage);color:#fff}
+.qa.a{background:var(--rose-soft);color:var(--rose)}
+.a3 .acc-tx{display:flex;gap:12px;padding:0 4px 18px}
+.a3 .acc-b:focus-visible{outline-offset:-2px;border-radius:6px}
+/* ========== P 載入更多與步驟條 ========== */
+.cap{font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums;text-align:center}
+.lm{width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.lm-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:100%}
+.lm-grid i{aspect-ratio:1;border-radius:6px;background:#DDDFD7;animation:tIn .4s var(--ease-out) both}
+.lm-grid i:nth-child(3n){background:#D6D3C9}.lm-grid i:nth-child(4n){background:#D2D9D5}
+@keyframes tIn{from{opacity:0;transform:scale(.92)}}
+.meterx{width:100%;height:4px;border-radius:4px;background:#DADDD4;overflow:hidden}
+.meterx i{display:block;height:100%;background:var(--sage);border-radius:inherit;transform-origin:left;transition:transform .6s var(--ease-out)}
+.stp{width:100%}
+.stp ol{list-style:none;margin:0;padding:0}
+.p3 ol{display:grid;grid-template-columns:repeat(4,1fr)}
+.p3 li{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.p3 li:not(:last-child)::before,.p3 li:not(:last-child)::after{content:"";position:absolute;top:16px;left:calc(50% + 24px);right:calc(-50% + 24px);height:2px;border-radius:2px;background:#D6D9D0}
+.p3 li:not(:last-child)::after{background:var(--sage);transform:scaleX(0);transform-origin:left;transition:transform .5s var(--ease)}
+.p3 li[data-state=done]::after{transform:scaleX(1)}
+.sd{position:relative;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1.5px solid #C9CCC3;background:#fff;color:var(--mute);font:600 13.5px var(--font);padding:0;cursor:default;transition:background .3s,border-color .3s,color .3s,box-shadow .3s;font-variant-numeric:tabular-nums}
+.sd::before{content:"";position:absolute;inset:-5px}
+.sd .ico{position:absolute;width:16px;height:16px;stroke-width:2.2;opacity:0;transform:scale(.6);transition:opacity .2s,transform .3s var(--ease-out)}
+.sd .sn{transition:opacity .2s}
+[data-state=current] > .sd{border-color:var(--sage);color:var(--sage-deep);box-shadow:0 0 0 4px var(--sage-soft)}
+[data-state=done] > .sd{background:var(--sage);border-color:var(--sage);color:#fff;cursor:pointer}
+[data-state=done] > .sd .ico{opacity:1;transform:none}
+[data-state=done] > .sd .sn{opacity:0}
+@media (hover:hover){[data-state=done] > .sd:hover{background:var(--sage-deep)}}
+.p3 .lab{font-size:13px;color:var(--mute);line-height:1.4}
+.p3 [data-state=current] .lab{color:var(--ink);font-weight:500}
+.p3 [data-state=done] .lab{color:var(--ink)}
+.stp-ctl{display:flex;justify-content:center;gap:10px;margin-top:22px}
+.stp-msg{text-align:center;font-size:13px;color:var(--mute);margin-top:14px;min-height:1.65em}
+.p4 .hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;font-size:13px;color:var(--mute)}
+.p4 .hd b{color:var(--ink);font-size:15px;font-weight:600}
+.p4 ol{display:flex}
+.p4 li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;height:46px;padding:0 6px 0 18px;margin-left:-11px;background:#E2E3DC;color:var(--mute);font-size:13.5px;white-space:nowrap;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%,14px 50%);transition:background .35s var(--ease),color .35s}
+.p4 li:first-child{margin-left:0;padding-left:6px;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%);border-radius:10px 0 0 10px}
+.p4 li:last-child{padding-right:6px;clip-path:polygon(0 0,100% 0,100% 100%,0 100%,14px 50%);border-radius:0 10px 10px 0}
+.p4 li .sn{font-weight:600;font-variant-numeric:tabular-nums}
+.p4 li[data-state=done]{background:var(--sage-soft);color:#45523F}
+.p4 li[data-state=current]{background:var(--sage);color:#fff;font-weight:600}
+.p4 li .ico{width:14px;height:14px;stroke-width:2.2;display:none}
+.p4 li[data-state=done] .ico{display:block}
+.p4 li[data-state=done] .sn{display:none}
+.p5 li{display:grid;grid-template-columns:22px 1fr auto;column-gap:14px;position:relative;padding-bottom:20px}
+.p5 li:last-child{padding-bottom:0}
+.p5 li:not(:last-child)::before,.p5 li:not(:last-child)::after{content:"";position:absolute;left:10px;top:26px;bottom:4px;width:2px;border-radius:2px;background:#D6D9D0}
+.p5 li:not(:last-child)::after{background:var(--sage);transform:scaleY(0);transform-origin:top;transition:transform .5s var(--ease)}
+.p5 li[data-state=done]::after{transform:scaleY(1)}
+.pt{width:22px;height:22px;border-radius:50%;border:1.5px solid #C9CCC3;background:#fff;display:grid;place-items:center;margin-top:1px;transition:background .3s,border-color .3s}
+.pt .ico{width:12px;height:12px;stroke:#fff;stroke-width:2.6;opacity:0;transition:opacity .2s}
+.pt i{width:8px;height:8px;border-radius:50%;background:var(--sage);display:none}
+.p5 [data-state=done] .pt{background:var(--sage);border-color:var(--sage)}
+.p5 [data-state=done] .pt .ico{opacity:1}
+.p5 [data-state=current] .pt{border-color:var(--sage)}
+.p5 [data-state=current] .pt i{display:block;animation:pulse 2s infinite}
+.p5 .tt{font-size:14.5px;font-weight:500;color:#9A9D94;transition:color .3s}
+.p5 [data-state=done] .tt,.p5 [data-state=current] .tt{color:var(--ink)}
+.p5 .ds{grid-column:2;font-size:13px;color:var(--mute);margin-top:2px}
+.p5 [data-state=todo] .ds{color:#A9ACA3}
+.p5 time{font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;padding-top:2px}
+.p5 [data-state=todo] time{visibility:hidden}
+/* ========== E 空狀態與骨架屏 ========== */
+.emp{width:100%;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:8px 0}
+.emp svg.art{width:132px;height:96px;margin-bottom:10px}
+.emp h4{margin:0;font-size:16px;font-weight:600}
+.emp p{font-size:13.5px;color:var(--mute);max-width:24em}
+.emp .btns{margin-top:14px}
+.emp.compact svg.art{width:56px;height:56px;margin-bottom:4px}
+.got{width:100%;max-width:320px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.mini-card{width:100%;display:flex;align-items:center;gap:14px;padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:14px;text-align:left;animation:tpIn .4s var(--ease-out)}
+.mini-card .th{width:44px;height:44px;border-radius:10px;background:linear-gradient(160deg,#E7E1D6,#D4CDBF);flex:none;display:grid;place-items:center;color:var(--sand)}
+.mini-card b{display:block;font-weight:600;font-size:14.5px}
+.mini-card small{color:var(--mute);font-size:12.5px}
+.srch-box{position:relative;width:100%}
+.srch-box .ico{position:absolute;left:12px;top:13px;color:var(--mute);pointer-events:none}
+.srch-box .in{padding-left:38px}
+.res{list-style:none;margin:0;padding:0;width:100%}
+.res li{display:flex;justify-content:space-between;gap:10px;padding:11px 4px;border-bottom:1px solid var(--line-soft);font-size:14px;animation:tpIn .3s var(--ease-out) both}
+.res li:last-child{border-bottom:0}
+.res li span:last-child{color:var(--mute);font-variant-numeric:tabular-nums}
+.res mark{background:var(--sage-soft);color:inherit;border-radius:3px;padding:0 1px}
+.sugg{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:10px}
+.sugg button{font:inherit;cursor:pointer;min-height:36px;padding:0 14px;transition:border-color .15s,background .15s,transform .12s var(--ease)}
+@media (hover:hover){.sugg button:hover{border-color:#BFC3B8;background:#FDFDFB}}
+.sugg button:active{transform:scale(.97)}
+.sk{position:relative;overflow:hidden;background:#E3E5DE;border-radius:6px}
+.sk::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.5),rgba(255,255,255,0));transform:translateX(-100%);animation:shimmer 1.9s var(--ease-move) infinite}
+@keyframes shimmer{to{transform:translateX(100%)}}
+.skc{width:100%;max-width:300px;background:#fff;border:1px solid var(--line-soft);border-radius:14px;padding:14px;display:grid;gap:10px}
+.skc .ph{aspect-ratio:16/10;border-radius:10px}
+.skc .ln1{height:14px;width:70%}
+.skc .ln2{height:11px;width:92%}
+.skc .ln3{height:11px;width:55%}
+.skc .ft{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.skc .ft .sk{height:12px;width:30%}
+.skc .ft .sk.pill{height:22px;width:22%;border-radius:999px}
+.real{animation:tpIn .45s var(--ease-out)}
+.skc .art2{aspect-ratio:16/10;border-radius:10px;background:linear-gradient(160deg,#ECE6DA 0%,#DCD3C3 100%);display:grid;place-items:center;color:#A39276}
+.skc .art2 svg{width:64px;height:64px}
+.skc h5{margin:0;font-size:15px;font-weight:600}
+.skc p{font-size:13px;color:var(--mute)}
+.skc .ft b{font-size:14px;font-variant-numeric:tabular-nums}
+/* ========== K 指令面板 ========== */
+.dlg.top{place-items:start center;padding-top:max(14vh,24px)}
+.cmd{display:flex;flex-direction:column;background:var(--surface);overflow:hidden}
+.dlg .cmd{width:min(580px,100%);padding:0;max-height:min(480px,calc(100dvh - 28vh))}
+.cmd-in-w{display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--line-soft);flex:none}
+.cmd-in-w .ico{color:var(--mute)}
+.cmd-in{flex:1;min-width:0;font:inherit;font-size:16px;border:0;outline:0;background:none;min-height:56px;color:var(--ink)}
+.cmd-in::placeholder{color:#9EA198}
+.cmd-list{flex:1;overflow:auto;padding:6px;overscroll-behavior:contain;scroll-padding:6px}
+.cmd-gh{font-size:12px;color:var(--mute);padding:10px 10px 4px}
+.cmd-it{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 10px;border-radius:9px;cursor:pointer;font-size:14.5px;color:var(--ink);user-select:none}
+.cmd-it .ico{color:var(--mute)}
+.cmd-it[aria-selected=true]{background:#EEEFEA}
+.cmd-it[aria-selected=true] .ico{color:var(--ink)}
+.cmd-it mark{background:none;color:var(--sage-deep);font-weight:600}
+.cmd-it .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmd-it .kh{display:flex;gap:4px}
+.cmd-empty{padding:34px 10px;text-align:center;color:var(--mute);font-size:14px}
+.cmd-foot{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:flex-end;align-items:center;padding:10px 14px;border-top:1px solid var(--line-soft);font-size:12px;color:var(--mute);flex:none}
+.cmd-foot span{display:inline-flex;align-items:center;gap:6px}
+.k2 .cmd{width:100%;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);transition:border-color .2s,box-shadow .2s}
+.k2 .cmd:focus-within{border-color:var(--slate);box-shadow:var(--halo),var(--shadow)}
+.k2 .cmd-in{min-height:50px;font-size:15px}
+.k2 .cmd-list{flex:none;height:248px}
+.cmd-trig{font:inherit;font-size:14.5px;display:flex;align-items:center;gap:10px;width:100%;max-width:300px;min-height:44px;padding:0 8px 0 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#8C8F86;cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.cmd-trig:hover{border-color:#BFC3B8}
+.cmd-trig:focus-visible{outline:none;border-color:var(--slate);box-shadow:var(--halo)}
+.cmd-trig .kh{margin-left:auto;display:flex;gap:4px}
+/* ===== 第二批小補充 ===== */
+.lm-grid{grid-template-columns:repeat(8,1fr)}
+.menu{left:50%;margin-left:-118px}
+@media (max-width:620px){
+  .g4{grid-template-columns:104px 1fr;gap:14px}
+  .g4 .tab{padding:0 10px;font-size:13.5px}
+  .g4 .tab .ico{display:none}
+  .tst-region{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));width:auto}
+  .p4 li{font-size:12.5px;padding-left:16px;gap:4px}
+  .p4 li .lt{display:none}
+  .dlg.top{padding-top:max(10px,env(safe-area-inset-top))}
+  .dlg .cmd{max-height:calc(100dvh - 20px)}
+  .cmd-foot .opt-k{display:none}
+}
+@media (min-width:621px){.p4 li .ls{display:none}}
+@media (prefers-reduced-motion:reduce){
+  .tst-ic .ld{animation:spin 1.6s linear infinite!important}
+  .sk::after{display:none}
+}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 4v11M8 8l4-4 4 4M6 13v5a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-5"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M5 19h4L19 9l-4-4L5 15v4ZM13 7l4 4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h2"/></symbol>
+  <symbol id="i-move" viewBox="0 0 24 24"><path d="M4 7h7l2 2h7v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7Z"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7M6 10v9h12v-9"/></symbol>
+  <symbol id="i-vase" viewBox="0 0 24 24"><path d="M9 3h6M10 3v3c0 1-3 2.5-3 7a5 5 0 0 0 10 0c0-4.5-3-6-3-7V3"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8ZM4 8l8 4 8-4M12 12v8"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 19V9M12 19V5M19 19v-7"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 6.5a2.8 2.8 0 0 1 0 5.4M17.5 14.5A5 5 0 0 1 20.5 19"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z"/><path d="M10 20a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5Z"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 5H6v14h8M10 12h10M17 9l3 3-3 3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></symbol>
+  <symbol id="i-okc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.2 2.4 2.4 4.6-4.8"/></symbol>
+  <symbol id="i-errc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v5M12 16h.01"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></symbol>
+  <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 9 5.5 4h13L20 9M4 9h16v1.5a2.5 2.5 0 0 1-5 0 2.5 2.5 0 0 1-5 0 2.5 2.5 0 0 1-5 0V9ZM5 12.5V20h14v-7.5M10 20v-4h4v4"/></symbol>
+  <symbol id="i-truck" viewBox="0 0 24 24"><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></symbol>
+  <symbol id="i-ret" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+</svg>
 
 <header class="top">
   <div class="wrap">
     <h1>元件風格庫</h1>
     <p class="lead">每個元件都有編號，滑過、按下、用 Tab 鍵移動都能看到真實效果。挑好後，之後做網頁就能直接說「按鈕用 B1、表格用 T1」。</p>
-    <div class="meta"><span>第一批：<b>6 類 23 個</b></span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式</span></div>
+    <div class="meta"><span>共 <b>14 類 43 個</b>（第一批 6 類 23 個＋第二批 8 類 20 個）</span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
   </div>
 </header>
 
@@ -312,6 +687,14 @@ footer .wrap{border-top:1px solid var(--line);padding-top:24px;display:flex;flex
     <a href="#inputs"><span>I</span>輸入框</a>
     <a href="#labels"><span>L</span>標籤</a>
     <a href="#switches"><span>S</span>切換鈕</a>
+    <a href="#dialogs"><span>D</span>對話框與抽屜</a>
+    <a href="#tabs"><span>G</span>分頁籤</a>
+    <a href="#toasts"><span>N</span>通知</a>
+    <a href="#menus"><span>M</span>選單</a>
+    <a href="#accordions"><span>A</span>手風琴</a>
+    <a href="#paging"><span>P</span>載入更多與步驟條</a>
+    <a href="#empty"><span>E</span>空狀態與骨架屏</a>
+    <a href="#command"><span>K</span>指令面板</a>
   </div>
 </nav>
 
@@ -447,11 +830,257 @@ footer .wrap{border-top:1px solid var(--line);padding-top:24px;display:flex;flex
   </div>
 </section>
 
+<!-- ======================== 第二批 ======================== -->
+
+<!-- ================= D 對話框與抽屜 ================= -->
+<section class="cat" id="dialogs">
+  <div class="cat-head"><h2>對話框與抽屜</h2><p>背景慢慢淡入；按 Esc、點外側或關閉鈕都能關，關掉後焦點回到原本的按鈕。</p></div>
+  <div class="grid">
+    <article class="spec"><div class="spec-head"><span class="code">D3</span><div><h3>右側明細抽屜</h3><p>從右邊滑入，看明細時不離開清單頁；適合訂單、客戶資料這類「看完就關」。</p></div></div>
+      <div class="stage"><button class="btn b4" data-open="#dlg-d3">查看訂單 #1046</button></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">D5</span><div><h3>左側導覽抽屜</h3><p>手機版的主選單，從左邊滑出，目前所在頁面用淡綠底標出。</p></div></div>
+      <div class="stage"><button class="btn b2" data-open="#dlg-d5"><svg class="ico"><use href="#i-menu"/></svg>開啟選單</button></div></article>
+  </div>
+</section>
+
+<!-- ================= G 分頁籤 ================= -->
+<section class="cat" id="tabs">
+  <div class="cat-head"><h2>分頁籤</h2><p>點選或用方向鍵切換，Home、End 跳到頭尾；指示條會平滑滑到新的分頁。</p></div>
+  <div class="grid wide">
+    <article class="spec"><div class="spec-head"><span class="code">G1</span><div><h3>滑塊膠囊</h3><p>跟 S3 分段滑塊同一個語感，白色滑塊滑到選中的頁；適合 2–4 個同層級的檢視。</p></div></div>
+      <div class="stage col"><div class="tabs g1">
+        <div class="tl" role="tablist" aria-label="營收期間"><span class="tab-ind"></span>
+          <button class="tab" role="tab" id="g1-t1" aria-controls="g1-pane1" aria-selected="true">本週</button>
+          <button class="tab" role="tab" id="g1-t2" aria-controls="g1-pane2" aria-selected="false">本月</button>
+          <button class="tab" role="tab" id="g1-t3" aria-controls="g1-pane3" aria-selected="false">今年</button>
+        </div>
+        <div class="tp" role="tabpanel" id="g1-pane1" aria-labelledby="g1-t1" tabindex="0"><div class="mini"><div><b>NT$ 38,420</b>營收</div><div><b>46</b>筆訂單</div><div><b>3</b>堂體驗課</div></div></div>
+        <div class="tp" role="tabpanel" id="g1-pane2" aria-labelledby="g1-t2" tabindex="0" hidden><div class="mini"><div><b>NT$ 154,322</b>營收</div><div><b>187</b>筆訂單</div><div><b>12</b>堂體驗課</div></div></div>
+        <div class="tp" role="tabpanel" id="g1-pane3" aria-labelledby="g1-t3" tabindex="0" hidden><div class="mini"><div><b>NT$ 1,602,880</b>營收</div><div><b>1,935</b>筆訂單</div><div><b>131</b>堂體驗課</div></div></div>
+      </div></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">G2</span><div><h3>滑動底線＋計數</h3><p>仿 coss ui 的底線分頁，深色細線滑到選中頁，後面帶淡色數量；頁數多時可左右捲動。</p></div></div>
+      <div class="stage col"><div class="tabs g2">
+        <div class="tl" role="tablist" aria-label="訂單狀態"><span class="tab-ind"></span>
+          <button class="tab" role="tab" id="g2-t1" aria-controls="g2-pane1" aria-selected="true">待出貨<span class="cnt">4</span></button>
+          <button class="tab" role="tab" id="g2-t2" aria-controls="g2-pane2" aria-selected="false">運送中<span class="cnt">12</span></button>
+          <button class="tab" role="tab" id="g2-t3" aria-controls="g2-pane3" aria-selected="false">已完成<span class="cnt">168</span></button>
+          <button class="tab" role="tab" id="g2-t4" aria-controls="g2-pane4" aria-selected="false" disabled>已封存<span class="cnt">0</span></button>
+        </div>
+        <div class="tp" role="tabpanel" id="g2-pane1" aria-labelledby="g2-t1" tabindex="0"><h4>4 筆待出貨</h4><p>最早的一筆是 11 月 2 日下單的 #1043，記得週一前寄出。</p></div>
+        <div class="tp" role="tabpanel" id="g2-pane2" aria-labelledby="g2-t2" tabindex="0" hidden><h4>12 筆運送中</h4><p>其中 2 筆是海外件，預計 7 到 10 天送達。</p></div>
+        <div class="tp" role="tabpanel" id="g2-pane3" aria-labelledby="g2-t3" tabindex="0" hidden><h4>168 筆已完成</h4><p>本月好評率 98%，有 3 則評論還沒回覆。</p></div>
+        <div class="tp" role="tabpanel" id="g2-pane4" aria-labelledby="g2-t4" tabindex="0" hidden><h4>沒有封存的訂單</h4></div>
+      </div></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">G4</span><div><h3>直式側欄</h3><p>分頁排成一直列，左邊細線標出目前位置；適合設定頁這種選項多、內容長的地方。</p></div></div>
+      <div class="stage col"><div class="tabs g4">
+        <div class="tl" role="tablist" aria-label="商店設定" aria-orientation="vertical"><span class="tab-ind"></span>
+          <button class="tab" role="tab" id="g4-t1" aria-controls="g4-pane1" aria-selected="true"><svg class="ico"><use href="#i-store"/></svg>基本資料</button>
+          <button class="tab" role="tab" id="g4-t2" aria-controls="g4-pane2" aria-selected="false"><svg class="ico"><use href="#i-truck"/></svg>運送</button>
+          <button class="tab" role="tab" id="g4-t3" aria-controls="g4-pane3" aria-selected="false"><svg class="ico"><use href="#i-bell"/></svg>通知</button>
+          <button class="tab" role="tab" id="g4-t4" aria-controls="g4-pane4" aria-selected="false"><svg class="ico"><use href="#i-ret"/></svg>退換貨</button>
+        </div>
+        <div>
+        <div class="tp" role="tabpanel" id="g4-pane1" aria-labelledby="g4-t1" tabindex="0"><h4>基本資料</h4><p>店名、營業時間和聯絡方式，會顯示在每一封訂單通知裡。</p></div>
+        <div class="tp" role="tabpanel" id="g4-pane2" aria-labelledby="g4-t2" tabindex="0" hidden><h4>運送</h4><p>宅配 NT$ 120，滿 NT$ 2,000 免運；易碎品一律加泡泡紙兩層。</p></div>
+        <div class="tp" role="tabpanel" id="g4-pane3" aria-labelledby="g4-t3" tabindex="0" hidden><h4>通知</h4><p>新訂單、評論和庫存不足時，會寄信到店主信箱。</p></div>
+        <div class="tp" role="tabpanel" id="g4-pane4" aria-labelledby="g4-t4" tabindex="0" hidden><h4>退換貨</h4><p>收到後 7 天內可退；手作品的釉色差異不算瑕疵。</p></div>
+        </div>
+      </div></div></article>
+
+  </div>
+</section>
+
+<!-- ================= N 通知 ================= -->
+<section class="cat" id="toasts">
+  <div class="cat-head"><h2>通知</h2><p>多按幾次看堆疊；滑鼠移上去會展開並暫停計時，往右或往下滑可以關掉。</p></div>
+  <div class="grid wide">
+    <article class="spec"><div class="spec-head"><span class="code">N1</span><div><h3>極簡白卡</h3><p>仿 Sonner 的預設樣式，白卡細框、標題加一行說明；一般「已儲存」「已送出」都用它。</p></div></div>
+      <div class="stage"><button class="btn b2 js-n1">儲存作品資料</button></div></article>
+    <article class="spec"><div class="spec-head"><span class="code">N3</span><div><h3>處理中轉完成</h3><p>同一則通知從「上傳中」轉成「完成」或「失敗」，圖示柔和地淡入替換，不會跳出第二則。</p></div></div>
+      <div class="stage"><button class="btn b4 js-n3" data-ok="1">上傳作品照片</button><button class="btn b2 js-n3" data-ok="0">模擬上傳失敗</button></div></article>
+  </div>
+</section>
+
+<!-- ================= M 選單 ================= -->
+<section class="cat" id="menus">
+  <div class="cat-head"><h2>選單</h2><p>外框沿用 I1 的光環聚焦；上下鍵移動、Enter 選取、Esc 關閉，點外面也會收起。</p></div>
+  <div class="grid">
+    <article class="spec"><div class="spec-head"><span class="code">M1</span><div><h3>單選下拉</h3><p>仿 Radix Select，選項前有色票、選中的打勾；選項在 10 個以內時用它。</p></div></div>
+      <div class="stage col" style="align-items:center"><div class="pw js-listbox">
+        <span class="lb" id="m1-lb">釉色</span>
+        <button type="button" class="trig" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="m1-list" aria-labelledby="m1-lb m1-val"><span class="val" id="m1-val"><span class="ph">請選擇釉色</span></span><svg class="ico chev"><use href="#i-chev"/></svg></button>
+        <div class="pop"><ul class="lst" role="listbox" id="m1-list" aria-labelledby="m1-lb" tabindex="-1">
+          <li class="opt" role="option" id="m1-o1" aria-selected="false" data-label="灰釉"><span class="sw8" style="background:#A7ABA0"></span>灰釉<svg class="ico sm tick"><use href="#i-check"/></svg></li>
+          <li class="opt" role="option" id="m1-o2" aria-selected="false" data-label="青瓷"><span class="sw8" style="background:#A9C0B6"></span>青瓷<svg class="ico sm tick"><use href="#i-check"/></svg></li>
+          <li class="opt" role="option" id="m1-o3" aria-selected="false" data-label="粉引"><span class="sw8" style="background:#EEEAE1"></span>粉引<svg class="ico sm tick"><use href="#i-check"/></svg></li>
+          <li class="opt" role="option" id="m1-o4" aria-selected="false" data-label="天目"><span class="sw8" style="background:#4A3F36"></span>天目<svg class="ico sm tick"><use href="#i-check"/></svg></li>
+          <li class="opt" role="option" id="m1-o5" aria-selected="false" aria-disabled="true" data-label="琉璃"><span class="sw8" style="background:#6E8FA3"></span>琉璃<small>缺貨</small><svg class="ico sm tick"><use href="#i-check"/></svg></li>
+        </ul></div>
+      </div>
+      <div class="pw"><span class="lb" style="color:var(--mute)">窯別（本週不開放）</span><button type="button" class="trig" disabled><span class="val"><span class="ph">第 12 窯</span></span><svg class="ico chev"><use href="#i-chev"/></svg></button></div>
+      </div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">M3</span><div><h3>動作選單</h3><p>仿 Radix DropdownMenu，「更多」按鈕收起次要動作；危險動作排最後並用紅字。</p></div></div>
+      <div class="stage mid"><div class="pw mw js-menu">
+        <button type="button" class="btn b2" aria-haspopup="menu" aria-expanded="false" aria-controls="m3-menu"><svg class="ico"><use href="#i-dots"/></svg>更多動作</button>
+        <div class="pop menu" role="menu" id="m3-menu" aria-label="作品動作">
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-edit"/></svg>編輯作品</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-copy"/></svg>複製一份</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-share"/></svg>分享連結</button>
+          <button class="mi" role="menuitem" tabindex="-1" aria-disabled="true"><svg class="ico"><use href="#i-move"/></svg>移到其他系列<small>無權限</small></button>
+          <div class="sep" role="separator"></div>
+          <button class="mi dz" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-trash"/></svg>刪除作品</button>
+        </div>
+      </div><p class="out" id="m3-out"></p></div></article>
+
+  </div>
+</section>
+
+<!-- ================= A 手風琴 ================= -->
+<section class="cat" id="accordions">
+  <div class="cat-head"><h2>手風琴</h2><p>高度平滑展開；上下鍵在標題間移動，Enter 或空白鍵開合。</p></div>
+  <div class="grid wide">
+    <article class="spec"><div class="spec-head"><span class="code">A1</span><div><h3>細線單開</h3><p>仿 shadcn Accordion，只用上下細線分隔，一次只開一題；最常用的常見問題樣式。</p></div></div>
+      <div class="stage col"><div class="acc a1">
+        <div class="acc-i open"><h3 class="acc-h"><button class="acc-b" aria-expanded="true"><span class="t">多久可以收到作品？</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region"><div><p class="acc-tx">現貨 3 個工作天內寄出；訂製品因為要等窯燒，大約 4 到 6 週。</p></div></div></div>
+        <div class="acc-i"><h3 class="acc-h"><button class="acc-b" aria-expanded="false"><span class="t">可以用洗碗機和微波爐嗎？</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region" inert><div><p class="acc-tx">灰釉和青瓷都可以；金彩裝飾的作品請手洗，也不要微波。</p></div></div></div>
+        <div class="acc-i"><h3 class="acc-h"><button class="acc-b" aria-expanded="false"><span class="t">收到破損怎麼辦？</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region" inert><div><p class="acc-tx">開箱拍照後 48 小時內私訊我們，會免費補寄一件新的。</p></div></div></div>
+        <div class="acc-i"><h3 class="acc-h"><button class="acc-b" aria-expanded="false" disabled><span class="t">海外寄送（暫停受理）</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region" inert><div><p class="acc-tx">暫停中。</p></div></div></div>
+      </div></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">A3</span><div><h3>日系問答</h3><p>Q、A 圓章搭配虛線分隔，像日本店家的「よくある質問」；適合偏溫柔的品牌頁。</p></div></div>
+      <div class="stage col"><div class="acc a3" data-multi>
+        <div class="acc-i"><h3 class="acc-h"><button class="acc-b" aria-expanded="false"><span class="qa q" aria-hidden="true">Q</span><span class="t">每一件的顏色都一樣嗎？</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region" inert><div><div class="acc-tx"><span class="qa a" aria-hidden="true">A</span><p>不會完全一樣。釉藥在窯裡流動，每件都有自己的表情，這正是手作的樂趣。</p></div></div></div></div>
+        <div class="acc-i"><h3 class="acc-h"><button class="acc-b" aria-expanded="false"><span class="qa q" aria-hidden="true">Q</span><span class="t">可以刻字或訂製尺寸嗎？</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region" inert><div><div class="acc-tx"><span class="qa a" aria-hidden="true">A</span><p>可以，刻字每件加 NT$ 150；尺寸訂製請先來信討論。</p></div></div></div></div>
+        <div class="acc-i"><h3 class="acc-h"><button class="acc-b" aria-expanded="false"><span class="qa q" aria-hidden="true">Q</span><span class="t">有實體店面嗎？</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region" inert><div><div class="acc-tx"><span class="qa a" aria-hidden="true">A</span><p>工作室在台中西區，週四到週日 13:00–18:00 開放參觀。</p></div></div></div></div>
+      </div></div></article>
+
+  </div>
+</section>
+
+<!-- ================= P 載入更多與步驟條 ================= -->
+<section class="cat" id="paging">
+  <div class="cat-head"><h2>載入更多與步驟條</h2><p>載入更多用來接著看資料，步驟條用來走流程；按下面的按鈕實際操作。</p></div>
+  <div class="grid wide">
+
+    <article class="spec"><div class="spec-head"><span class="code">P2</span><div><h3>載入更多</h3><p>不翻頁，往下接著載；附「已看幾件、共幾件」和進度細線。手機瀏覽作品牆最順。</p></div></div>
+      <div class="stage mid"><div class="lm js-more" data-total="40" data-step="12">
+        <div class="lm-grid" aria-hidden="true"></div>
+        <div class="meterx"><i></i></div>
+        <p class="cap" aria-live="polite"></p>
+        <div class="btns"><button class="btn b2 js-more-btn"><span class="spin"></span><span class="lbl-idle">載入更多</span><span class="lbl-load">載入中</span></button><button class="btn b5 js-more-reset" hidden>回到開頭</button></div>
+      </div></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">P3</span><div><h3>圓點步驟條</h3><p>仿 coss ui Stepper，完成的步驟變綠並打勾、連線往前推；點已完成的圓點可以回去改。</p></div></div>
+      <div class="stage col"><div class="stp p3 js-steps" data-labels="選課程,填資料,付款,完成">
+        <ol aria-label="報名步驟">
+          <li><button class="sd" aria-label="第 1 步：選課程"><span class="sn">1</span><svg class="ico"><use href="#i-check"/></svg></button><span class="lab">選課程</span></li>
+          <li><button class="sd" aria-label="第 2 步：填資料"><span class="sn">2</span><svg class="ico"><use href="#i-check"/></svg></button><span class="lab">填資料</span></li>
+          <li><button class="sd" aria-label="第 3 步：付款"><span class="sn">3</span><svg class="ico"><use href="#i-check"/></svg></button><span class="lab">付款</span></li>
+          <li><button class="sd" aria-label="第 4 步：完成"><span class="sn">4</span><svg class="ico"><use href="#i-check"/></svg></button><span class="lab">完成</span></li>
+        </ol>
+        <div class="stp-ctl"><button class="btn b2" data-step="prev">上一步</button><button class="btn b1" data-step="next">下一步</button></div>
+        <p class="stp-msg" aria-live="polite"></p>
+      </div></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">P4</span><div><h3>日系流程條</h3><p>參考デジタル庁設計系統：上方寫明「步驟 2／4」與目前步驟名，箭頭色帶標出進度；適合申請表單。</p></div></div>
+      <div class="stage col"><div class="stp p4 js-steps" data-labels="填寫資料,確認內容,送出申請,完成">
+        <div class="hd"><span>步驟 <b class="js-n">1</b>／4</span><b class="js-name">填寫資料</b></div>
+        <ol aria-label="申請流程">
+          <li><span class="sn">1</span><svg class="ico"><use href="#i-check"/></svg><span class="lt">填寫資料</span><span class="ls">填寫</span></li>
+          <li><span class="sn">2</span><svg class="ico"><use href="#i-check"/></svg><span class="lt">確認內容</span><span class="ls">確認</span></li>
+          <li><span class="sn">3</span><svg class="ico"><use href="#i-check"/></svg><span class="lt">送出申請</span><span class="ls">送出</span></li>
+          <li><span class="sn">4</span><svg class="ico"><use href="#i-check"/></svg><span class="lt">完成</span><span class="ls">完成</span></li>
+        </ol>
+        <div class="stp-ctl"><button class="btn b2" data-step="prev">上一步</button><button class="btn b1" data-step="next">下一步</button></div>
+        <p class="stp-msg" aria-live="polite"></p>
+      </div></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">P5</span><div><h3>直式進度軸</h3><p>由上往下的時間軸，目前這一步的點會輕輕呼吸，附時間與說明；適合訂單、窯燒進度追蹤。</p></div></div>
+      <div class="stage col"><div class="stp p5 js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達">
+        <ol aria-label="訂單 #1046 進度">
+          <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">已下單</span><time>11/02 14:20</time><span class="ds">已收到付款。</span></li>
+          <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">製作中</span><time>11/04 10:05</time><span class="ds">森田葵正在拉坯、修坯。</span></li>
+          <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">窯燒中</span><time>11/18 09:30</time><span class="ds">第 12 窯，約需 36 小時。</span></li>
+          <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">已出貨</span><time>11/22 16:40</time><span class="ds">黑貓宅急便，單號會簡訊通知。</span></li>
+          <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">已送達</span><time>11/24 11:15</time><span class="ds">簽收後 7 天內可退換。</span></li>
+        </ol>
+        <div class="stp-ctl"><button class="btn b5" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
+      </div></div></article>
+  </div>
+</section>
+
+<!-- ================= E 空狀態與骨架屏 ================= -->
+<section class="cat" id="empty">
+  <div class="cat-head"><h2>空狀態與骨架屏</h2><p>沒有資料時告訴對方下一步做什麼；資料還在路上時，先用骨架撐住版面不跳動。</p></div>
+  <div class="grid wide">
+    <article class="spec"><div class="spec-head"><span class="code">E1</span><div><h3>線稿插圖空狀態</h3><p>仿 HyperUI Empty Content，一張細線插圖、一句說明、一個主要按鈕；用在第一次使用的空清單。</p></div></div>
+      <div class="stage mid js-e1">
+        <div class="emp e1-empty">
+          <svg class="art" viewBox="0 0 132 96" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <ellipse cx="66" cy="84" rx="44" ry="5" fill="#E2E4DC"/>
+            <path d="M52 22h28M55 22v8c0 3-9 7-9 22a20 20 0 0 0 40 0c0-15-9-19-9-22v-8" stroke="#8A8E83" stroke-width="1.6" fill="#F7F7F3"/>
+            <path d="M47 54c8 4 30 4 38 0" stroke="#B9BDB2" stroke-width="1.4"/>
+            <path d="M24 70c6-10 14-14 22-12M110 66c-4-8-10-11-17-10" stroke="#C9CCC3" stroke-width="1.4"/>
+            <circle cx="98" cy="26" r="3" stroke="#9C7C74" stroke-width="1.4"/><path d="M30 34v6M27 37h6" stroke="#66745F" stroke-width="1.4"/>
+          </svg>
+          <h4>還沒有任何作品</h4>
+          <p>新增第一件作品，客人就能在你的店裡看到它。</p>
+          <div class="btns"><button class="btn b1 js-e1-add"><svg class="ico"><use href="#i-plus"/></svg>新增第一件作品</button></div>
+        </div>
+        <div class="got e1-full" hidden>
+          <div class="mini-card"><span class="th"><svg class="ico"><use href="#i-vase"/></svg></span><span><b>秋日灰釉盤</b><small>剛剛新增・草稿</small></span></div>
+          <button class="btn b5 js-e1-clear">清空，回到空狀態</button>
+        </div>
+      </div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">E2</span><div><h3>搜尋無結果</h3><p>說清楚找不到什麼，附上建議關鍵字和「清除搜尋」，讓人一步就能回到有結果的狀態。</p></div></div>
+      <div class="stage col js-e2" style="align-items:center">
+        <div class="field i1" style="max-width:340px"><label for="e2-q" class="sr">搜尋作品</label><div class="srch-box"><svg class="ico"><use href="#i-search"/></svg><input id="e2-q" class="in" type="search" value="青花" placeholder="搜尋作品名稱" autocomplete="off"></div></div>
+        <ul class="res" style="max-width:340px" aria-live="polite"></ul>
+        <div class="emp compact" hidden>
+          <svg class="art" viewBox="0 0 56 56" fill="none" stroke-linecap="round" aria-hidden="true"><circle cx="25" cy="25" r="13" stroke="#8A8E83" stroke-width="1.6" fill="#F7F7F3"/><path d="m35 35 9 9" stroke="#8A8E83" stroke-width="1.8"/><path d="M20 25h10" stroke="#B9BDB2" stroke-width="1.6"/></svg>
+          <h4>找不到「<span class="js-term"></span>」</h4>
+          <p>試試看其他系列名稱：</p>
+          <div class="sugg"><button class="tag l2" data-q="青瓷">青瓷</button><button class="tag l2" data-q="灰釉">灰釉</button><button class="tag l2" data-q="柴燒">柴燒</button></div>
+          <div class="btns" style="margin-top:6px"><button class="btn b5 js-e2-clear">清除搜尋</button></div>
+        </div>
+      </div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">E3</span><div><h3>卡片骨架屏</h3><p>仿 shadcn Skeleton，灰塊照真實卡片的位置排好，一道很淡的光慢慢掃過；載入完再淡入內容。</p></div></div>
+      <div class="stage col js-skel" style="align-items:center" data-ms="1600">
+        <div class="skc sk-on" aria-busy="true"><span class="sr">作品載入中</span><div class="sk ph"></div><div class="sk ln1"></div><div class="sk ln2"></div><div class="sk ln3"></div><div class="ft"><div class="sk"></div><div class="sk pill"></div></div></div>
+        <div class="skc real sk-off" hidden><div class="art2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><use href="#i-vase"/></svg></div><h5>霧白長頸瓶</h5><p>粉引系列，高 24 公分，適合插一兩枝乾燥花。</p><div class="ft"><b>NT$ 1,190</b><span class="tag l2"><i style="background:#6E9A5F"></i>現貨</span></div></div>
+        <div class="btns"><button class="btn b2 js-skel-btn">顯示載入完成</button></div>
+      </div></article>
+
+  </div>
+</section>
+
+<!-- ================= K 指令面板 ================= -->
+<section class="cat" id="command">
+  <div class="cat-head"><h2>指令面板</h2><p>打字模糊篩選、上下鍵選、Enter 執行、Esc 關閉。<span class="kbd-hint">在頁面任何地方按 <span class="js-mod">Ctrl</span>+K 會打開 K1。</span></p></div>
+  <div class="grid wide">
+    <article class="spec"><div class="spec-head"><span class="code">K1</span><div><h3>經典指令面板</h3><p>仿 cmdk，置中偏上的搜尋框加分組清單，打幾個字就找到功能；適合後台、工具型網頁。</p></div></div>
+      <div class="stage mid"><button class="cmd-trig" data-open="#dlg-k1"><svg class="ico"><use href="#i-search"/></svg>搜尋功能或頁面<span class="kh kbd-hint"><span class="kbd js-mod">Ctrl</span><span class="kbd">K</span></span></button></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">K2</span><div><h3>內嵌指令清單</h3><p>不開視窗，直接嵌在頁面裡，清單一直看得到；適合「快速動作」區塊或手機首頁。</p></div></div>
+      <div class="stage col k2"><div class="cmd js-cmd" data-set="basic" data-inline>
+        <div class="cmd-in-w"><svg class="ico"><use href="#i-search"/></svg><input class="cmd-in" type="text" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-label="搜尋快速動作" placeholder="輸入動作，例如：新增"></div>
+        <div class="cmd-list" role="listbox" aria-label="快速動作"></div>
+      </div><p class="out" id="k2-out"></p></div></article>
+
+  </div>
+</section>
+
 </main>
 
 <footer><div class="wrap">
-  <span>元件風格庫・第一批（按鈕、表格、卡片、輸入框、標籤、切換鈕）</span>
+  <span>元件風格庫・第一批（按鈕、表格、卡片、輸入框、標籤、切換鈕）＋第二批（對話框與抽屜、分頁籤、通知、選單、手風琴、載入更多與步驟條、空狀態與骨架屏、指令面板）</span>
   <span>做法參考 shadcn/ui、Radix、Linear、Vercel Geist、Stripe、Apple HIG、Tailwind UI 的公開設計，程式碼全部自行撰寫。照片來自 Unsplash。</span>
+  <span>第二批的行為與結構參考 shadcn/ui、Radix、Vaul、Sonner、cmdk、coss ui、HyperUI、Magic UI（皆 MIT 授權）與デジタル庁デザインシステム，程式碼與視覺全部自行改寫。</span>
 </div></footer>
 
 <script>
@@ -526,6 +1155,463 @@ footer .wrap{border-top:1px solid var(--line);padding-top:24px;display:flex;flex
     var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(l){l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id);});}});},{rootMargin:'-40% 0px -55% 0px'});
     document.querySelectorAll('section.cat').forEach(function(s){io.observe(s);});
   }
+})();
+</script>
+
+<!-- ================= 對話框本體（D3、D5、K1） ================= -->
+<dialog class="dlg side" id="dlg-d3" aria-labelledby="d3-h">
+  <div class="dlg-panel" role="document">
+    <div class="pane-h"><div><h2 class="dlg-h" id="d3-h">訂單 #1046</h2><small>11 月 2 日 14:20・林品妤</small></div><button class="xbtn" data-close aria-label="關閉"><svg class="ico"><use href="#i-x"/></svg></button></div>
+    <div class="pane-b">
+      <span class="tag l2" style="margin-top:12px"><i style="background:#C9A24A"></i>窯燒中</span>
+      <ul class="lines">
+        <li><span>灰釉深盤<small>直徑 24 公分 × 1</small></span><span>NT$ 1,480</span></li>
+        <li><span>米黃小茶杯<small>一組兩只 × 1</small></span><span>NT$ 780</span></li>
+        <li><span>運費<small>宅配到府</small></span><span>NT$ 120</span></li>
+        <li class="tot"><span>合計</span><span>NT$ 2,380</span></li>
+      </ul>
+      <dl class="dl"><dt>付款方式</dt><dd>信用卡・末四碼 4021</dd><dt>收件地址</dt><dd>台中市西區民生路 88 號</dd><dt>預計出貨</dt><dd>11 月 22 日</dd></dl>
+    </div>
+    <div class="pane-f"><button class="btn b2" data-close>關閉</button><button class="btn b1 js-d3-print" data-close>列印出貨單</button></div>
+  </div>
+</dialog>
+
+<dialog class="dlg side left" id="dlg-d5" aria-labelledby="d5-h">
+  <div class="dlg-panel" role="document">
+    <div class="pane-h"><div><h2 class="dlg-h" id="d5-h">小森陶房</h2><small>店主後台</small></div><button class="xbtn" data-close aria-label="關閉選單"><svg class="ico"><use href="#i-x"/></svg></button></div>
+    <nav class="pane-b" aria-label="主選單"><ul class="navl">
+      <li><a href="#dialogs" data-nav><svg class="ico"><use href="#i-home"/></svg>總覽</a></li>
+      <li><a href="#dialogs" data-nav aria-current="page"><svg class="ico"><use href="#i-box"/></svg>訂單<span class="cnt">4</span></a></li>
+      <li><a href="#dialogs" data-nav><svg class="ico"><use href="#i-vase"/></svg>作品</a></li>
+      <li><a href="#dialogs" data-nav><svg class="ico"><use href="#i-cal"/></svg>體驗課</a></li>
+      <li><a href="#dialogs" data-nav><svg class="ico"><use href="#i-users"/></svg>客人</a></li>
+      <li><a href="#dialogs" data-nav><svg class="ico"><use href="#i-chart"/></svg>報表</a></li>
+    </ul><div class="nav-sep"></div><ul class="navl">
+      <li><a href="#dialogs" data-nav><svg class="ico"><use href="#i-gear"/></svg>設定</a></li>
+    </ul></nav>
+    <div class="pane-f"><div class="who-b"><i>宗</i><span>謝宗良<small>店主</small></span></div></div>
+  </div>
+</dialog>
+
+<dialog class="dlg top" id="dlg-k1" aria-label="指令面板">
+  <div class="dlg-panel cmd js-cmd" data-set="basic" role="document">
+    <div class="cmd-in-w"><svg class="ico"><use href="#i-search"/></svg><input class="cmd-in" type="text" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-label="搜尋功能或頁面" placeholder="想做什麼？例如：新增作品、訂單"></div>
+    <div class="cmd-list" role="listbox" aria-label="結果"></div>
+    <div class="cmd-foot"><span><span class="kbd">↑</span><span class="kbd">↓</span>選擇</span><span><span class="kbd">Enter</span>執行</span><span class="opt-k"><span class="kbd">Esc</span>關閉</span></div>
+  </div>
+</dialog>
+
+<section class="tst-region" id="toaster" aria-label="通知" tabindex="-1"><ol class="tst-list" aria-live="polite" aria-relevant="additions"></ol></section>
+<script>
+/* 元件風格庫・第二批 — 互動腳本（原生 JS，無外部套件）
+   行為參考（MIT，皆為自行改寫）：Radix UI / shadcn/ui（Dialog、Sheet、Tabs、Select、DropdownMenu、Accordion）、
+   Vaul（抽屜緩動曲線）、Sonner（通知堆疊、滑動關閉、promise 狀態）、cmdk（指令面板）、coss ui（步驟條）。 */
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const RM=matchMedia('(prefers-reduced-motion: reduce)');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let uidN=0; const uid=p=>(p||'u')+(++uidN);
+const isMac=/Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent);
+if(isMac) $$('.js-mod').forEach(e=>e.textContent='⌘');
+
+/* 點外側關閉：所有浮層共用 */
+const outside=[];
+document.addEventListener('pointerdown',e=>outside.forEach(fn=>fn(e)),true);
+/* ================= N 通知（參考 Sonner 的堆疊與滑動行為，MIT，自行改寫） ================= */
+const toaster=(function(){
+  const region=$('#toaster'), list=$('.tst-list',region);
+  const GAP=12, PEEK=14, MAX=3;
+  let toasts=[], expanded=false;
+  const paused=()=>expanded||document.hidden;
+  function measure(t){const p=t.el.style.height;t.el.style.height='auto';t.h=t.el.offsetHeight;t.el.style.height=p}
+  function layout(){
+    const n=toasts.length; region.classList.toggle('has',n>0);
+    if(!n){list.style.height='0px';return}
+    const front=toasts[0].h; let acc=0;
+    toasts.forEach((t,i)=>{
+      const el=t.el, vis=i<MAX; let y,s,h;
+      if(expanded){y=-acc;s=1;h=t.h;if(vis)acc+=t.h+GAP;el.classList.remove('back')}
+      else{y=-PEEK*Math.min(i,MAX-1);s=1-.05*Math.min(i,MAX);h=front;el.classList.toggle('back',i>0)}
+      t.base=`translateY(${y}px) scale(${s})`;
+      el.style.transform=t.base; el.style.height=h+'px'; el.style.opacity=vis?1:0;
+      el.style.zIndex=n-i; el.style.pointerEvents=vis?'':'none'; el.inert=!vis;
+    });
+    list.style.height=(expanded?acc-GAP:front+PEEK*Math.min(n-1,MAX-1))+'px';
+  }
+  function startTimer(t){if(paused()||t.tid||!isFinite(t.remaining)||t.gone)return;t.start=Date.now();t.tid=setTimeout(()=>dismiss(t,null,'timeout'),t.remaining)}
+  function pauseAll(){region.classList.add('paused');toasts.forEach(t=>{if(t.tid){clearTimeout(t.tid);t.tid=null;t.remaining-=Date.now()-t.start}})}
+  function resumeAll(){region.classList.remove('paused');toasts.forEach(startTimer)}
+  function setExp(v){if(expanded===v)return;expanded=v;layout();paused()?pauseAll():resumeAll()}
+  function dismiss(t,dir,reason){
+    if(t.gone)return; t.gone=true; clearTimeout(t.tid); t.tid=null;
+    const had=t.el.contains(document.activeElement);
+    toasts.splice(toasts.indexOf(t),1);
+    const el=t.el; el.style.pointerEvents='none'; el.classList.remove('dragging');
+    el.style.opacity=0;
+    el.style.transform=dir==='x'?'translateX(110%)':dir==='y'?'translateY(120%)':t.base+' translateY(8px) scale(.96)';
+    setTimeout(()=>el.remove(),RM.matches?0:460);
+    if(!toasts.length)expanded=false;
+    layout(); if(!paused())resumeAll();
+    if(had){const nx=toasts[0];nx?$('.xbtn',nx.el).focus():region.focus()}
+    t.onDismiss&&t.onDismiss(reason||'close');
+  }
+  function contentHTML(o){
+    const tx=`<div class="tst-tx"><div class="tst-t">${esc(o.title)}</div>${o.desc?`<div class="tst-d">${esc(o.desc)}</div>`:''}</div>`;
+    if(o.variant==='n3')return `<span class="tst-ic" aria-hidden="true"><span class="ld"></span><svg class="ico ok"><use href="#i-okc"/></svg><svg class="ico er"><use href="#i-errc"/></svg></span>${tx}`;
+    return tx;
+  }
+  function toast(o){
+    o=Object.assign({variant:'n1',dur:4000},o);
+    const el=document.createElement('li');
+    el.className='tst '+o.variant;
+    if(o.type)el.dataset.type=o.type;
+    if(o.state)el.dataset.state=o.state;
+    el.innerHTML=`<div class="tst-c">${contentHTML(o)}</div><button class="xbtn" aria-label="關閉通知"><svg class="ico sm"><use href="#i-x"/></svg></button>`;
+    const t={el,dur:o.dur,remaining:o.dur,onDismiss:o.onDismiss};
+    list.prepend(el); measure(t);
+    el.style.height=t.h+'px'; el.style.transform='translateY(100%)'; el.style.opacity=0;
+    el.offsetHeight; // reflow 讓進場動畫生效
+    toasts.unshift(t); layout(); startTimer(t);
+    $('.xbtn',el).addEventListener('click',()=>dismiss(t,null,'close'));
+    swipe(t);
+    t.update=u=>{if(t.gone)return;if(u.state)el.dataset.state=u.state;
+      if(u.title!=null)$('.tst-t',el).textContent=u.title;
+      if(u.desc!=null){let d=$('.tst-d',el);if(d)d.textContent=u.desc}
+      measure(t);layout();
+      if(u.dur!=null){clearTimeout(t.tid);t.tid=null;t.remaining=u.dur;startTimer(t)}};
+    return t;
+  }
+  function swipe(t){
+    const el=t.el; let d=null;
+    el.addEventListener('pointerdown',e=>{
+      if(e.button!==0||e.target.closest('button'))return;
+      d={x0:e.clientX,y0:e.clientY,t0:performance.now(),axis:null,type:e.pointerType};
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove',e=>{
+      if(!d)return; const dx=e.clientX-d.x0, dy=e.clientY-d.y0;
+      if(!d.axis){if(Math.abs(dx)<6&&Math.abs(dy)<6)return;d.axis=Math.abs(dx)>Math.abs(dy)?'x':'y';el.classList.add('dragging')}
+      let v=d.axis==='x'?dx:dy; if(v<0)v=-Math.pow(-v,.6); // 反方向加阻尼
+      el.style.transform=t.base+(d.axis==='x'?` translateX(${v}px)`:` translateY(${v}px)`);
+      d.v=d.axis==='x'?dx:dy;
+    });
+    const end=e=>{
+      if(!d)return; const dd=d; d=null; el.classList.remove('dragging');
+      if(!dd.axis){if(e.type==='pointerup'&&dd.type!=='mouse')setExp(!expanded);return}
+      const dist=dd.v||0, vel=dist/(performance.now()-dd.t0);
+      if(e.type==='pointerup'&&((dd.axis==='x'&&dist>70)||(dd.axis==='y'&&dist>40)||(dist>10&&vel>.45)))dismiss(t,dd.axis,'swipe');
+      else el.style.transform=t.base;
+    };
+    el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
+  }
+  list.addEventListener('mouseenter',()=>setExp(true));
+  list.addEventListener('mouseleave',()=>{if(!region.contains(document.activeElement))setExp(false)});
+  region.addEventListener('focusin',()=>setExp(true));
+  region.addEventListener('focusout',e=>{if(!region.contains(e.relatedTarget)&&!list.matches(':hover'))setExp(false)});
+  outside.push(e=>{if(expanded&&!region.contains(e.target))setExp(false)});
+  document.addEventListener('visibilitychange',()=>paused()?pauseAll():resumeAll());
+  return {toast,dismiss,get count(){return toasts.length}};
+})();
+const toast=toaster.toast;
+
+/* ================= D 對話框與抽屜（原生 <dialog>；結構參考 Radix Dialog、shadcn Sheet，MIT，自行改寫） ================= */
+const dlgHooks={};
+function openDlg(d,trigger){
+  if(!d||d.open)return;
+  d._trigger=trigger||document.activeElement;
+  d.showModal(); document.documentElement.classList.add('dlg-lock');
+  d.offsetHeight; d.classList.add('is-open');
+  dlgHooks[d.id]&&dlgHooks[d.id].open&&dlgHooks[d.id].open(d);
+}
+function closeDlg(d){
+  if(!d||!d.open||d._closing)return;
+  d._closing=true; d.classList.remove('is-open');
+  setTimeout(()=>{if(d.open)d.close()},RM.matches?0:320);
+}
+$$('dialog.dlg').forEach(d=>{
+  d.addEventListener('cancel',e=>{e.preventDefault();closeDlg(d)});
+  d.addEventListener('close',()=>{
+    d._closing=false; d.classList.remove('is-open');
+    const p=$('.dlg-panel',d); p.style.transform=''; p.classList.remove('dragging'); d.style.opacity=''; d.style.transition='';
+    if(!$$('dialog.dlg[open]').length)document.documentElement.classList.remove('dlg-lock');
+    const t=d._trigger; d._trigger=null; if(t&&t.isConnected&&t.focus)t.focus({preventScroll:true});
+    dlgHooks[d.id]&&dlgHooks[d.id].close&&dlgHooks[d.id].close(d);
+  });
+  let downSelf=false;
+  d.addEventListener('pointerdown',e=>{downSelf=e.target===d});
+  d.addEventListener('click',e=>{if(e.target===d&&downSelf)closeDlg(d);downSelf=false});
+  d.addEventListener('click',e=>{if(e.target.closest('[data-close]'))closeDlg(d)});
+});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-open]');if(b)openDlg($(b.dataset.open),b)});
+/* D3 */
+$('.js-d3-print').addEventListener('click',()=>toast({title:'出貨單已送到印表機',desc:'訂單 #1046・1 頁'}));
+/* D5 */
+$$('#dlg-d5 [data-nav]').forEach(a=>a.addEventListener('click',e=>{
+  e.preventDefault(); $$('#dlg-d5 [data-nav]').forEach(x=>x.removeAttribute('aria-current')); a.setAttribute('aria-current','page'); closeDlg($('#dlg-d5'));
+}));
+
+/* N 觸發按鈕 */
+let n1c=0;
+$('.js-n1').addEventListener('click',()=>{n1c++;toast({title:'作品資料已儲存',desc:n1c>1?`這是第 ${n1c} 次儲存・剛剛`:'最後更新：剛剛'})});
+$$('.js-n3').forEach(b=>b.addEventListener('click',()=>{
+  const ok=b.dataset.ok==='1';
+  const t=toast({variant:'n3',state:'load',title:'正在上傳 3 張照片',desc:'請稍候，不要關閉頁面',dur:Infinity});
+  setTimeout(()=>t.update(ok?{state:'ok',title:'照片上傳完成',desc:'3 張照片已加到「秋日灰釉盤」。',dur:4000}:{state:'err',title:'上傳失敗',desc:'網路不太穩定，請再試一次。',dur:5000}),1800);
+}));
+
+/* ================= G 分頁籤（ARIA Tabs 自動啟用模式，行為參考 Radix Tabs，MIT，自行改寫） ================= */
+$$('.tabs').forEach(root=>{
+  const tl=$('[role=tablist]',root), tabs=$$('[role=tab]',tl), ind=$('.tab-ind',tl);
+  const vert=tl.getAttribute('aria-orientation')==='vertical';
+  function place(anim){
+    if(!ind)return; const t=tabs.find(x=>x.getAttribute('aria-selected')==='true'); if(!t)return;
+    if(!anim)ind.style.transition='none';
+    if(vert){ind.style.height=t.offsetHeight+'px';ind.style.transform=`translateY(${t.offsetTop}px)`}
+    else{ind.style.width=t.offsetWidth+'px';ind.style.transform=`translateX(${t.offsetLeft}px)`}
+    if(!anim){ind.offsetHeight;ind.style.transition=''}
+  }
+  function select(t,how){
+    tabs.forEach(x=>{const on=x===t;x.setAttribute('aria-selected',on);x.tabIndex=on?0:-1;
+      const p=document.getElementById(x.getAttribute('aria-controls'));p.hidden=!on;
+      if(on&&how==='pointer'){p.classList.remove('tp-enter');p.offsetHeight;p.classList.add('tp-enter')}
+      if(on&&how==='key')p.classList.remove('tp-enter');});
+    place(true);
+    if(tl.scrollWidth>tl.clientWidth){ // 可捲動的分頁列：把選中的頁捲進畫面
+      const l=t.offsetLeft, r=l+t.offsetWidth;
+      if(l<tl.scrollLeft)tl.scrollTo({left:l-12,behavior:RM.matches?'auto':'smooth'});
+      else if(r>tl.scrollLeft+tl.clientWidth)tl.scrollTo({left:r-tl.clientWidth+12,behavior:RM.matches?'auto':'smooth'});
+    }
+  }
+  tabs.forEach(t=>{t.tabIndex=t.getAttribute('aria-selected')==='true'?0:-1;
+    t.addEventListener('click',()=>{if(t.getAttribute('aria-selected')!=='true')select(t,'pointer')})});
+  tl.addEventListener('keydown',e=>{
+    const en=tabs.filter(t=>!t.disabled), i=en.indexOf(document.activeElement); if(i<0)return;
+    const nextK=vert?'ArrowDown':'ArrowRight', prevK=vert?'ArrowUp':'ArrowLeft'; let j=null;
+    if(e.key===nextK)j=(i+1)%en.length; else if(e.key===prevK)j=(i-1+en.length)%en.length;
+    else if(e.key==='Home')j=0; else if(e.key==='End')j=en.length-1;
+    if(j===null)return; e.preventDefault(); en[j].focus(); select(en[j],'key');
+  });
+  place(false);
+  new ResizeObserver(()=>place(false)).observe(tl);
+  document.fonts&&document.fonts.ready.then(()=>place(false));
+});
+
+/* ================= M1 單選下拉（role=combobox + listbox，行為參考 Radix Select，MIT，自行改寫） ================= */
+$$('.js-listbox').forEach(root=>{
+  const trig=$('.trig',root), pop=$('.pop',root), opts=$$('.opt',root), val=$('.val',root);
+  let open=false, act=-1, sel=-1;
+  const ok=i=>i>=0&&i<opts.length&&opts[i].getAttribute('aria-disabled')!=='true';
+  const firstOk=()=>opts.findIndex((o,i)=>ok(i));
+  const lastOk=()=>{for(let i=opts.length-1;i>=0;i--)if(ok(i))return i;return -1};
+  function setAct(i){act=i;opts.forEach((o,j)=>o.dataset.active=j===i);
+    if(i>=0){trig.setAttribute('aria-activedescendant',opts[i].id);opts[i].scrollIntoView({block:'nearest'})}else trig.removeAttribute('aria-activedescendant')}
+  function show(i){open=true;pop.classList.add('is-open');trig.setAttribute('aria-expanded','true');setAct(i!=null?i:(sel>=0?sel:firstOk()))}
+  function hide(){open=false;pop.classList.remove('is-open');trig.setAttribute('aria-expanded','false');setAct(-1)}
+  function choose(i){if(!ok(i))return;sel=i;opts.forEach((o,j)=>o.setAttribute('aria-selected',j===i));
+    val.innerHTML=opts[i].querySelector('.sw8').outerHTML+esc(opts[i].dataset.label);hide();trig.focus()}
+  function move(dir){let i=act;for(let k=0;k<opts.length;k++){i+=dir;if(i<0||i>=opts.length)return;if(ok(i)){setAct(i);return}}}
+  trig.addEventListener('click',()=>open?hide():show());
+  trig.addEventListener('keydown',e=>{
+    const k=e.key;
+    if(!open){if(['ArrowDown','ArrowUp','Enter',' '].includes(k)){e.preventDefault();show(k==='ArrowUp'?lastOk():null)}return}
+    if(k==='ArrowDown'){e.preventDefault();move(1)}else if(k==='ArrowUp'){e.preventDefault();move(-1)}
+    else if(k==='Home'){e.preventDefault();setAct(firstOk())}else if(k==='End'){e.preventDefault();setAct(lastOk())}
+    else if(k==='Enter'||k===' '){e.preventDefault();choose(act)}
+    else if(k==='Escape'){e.preventDefault();e.stopPropagation();hide()}
+    else if(k==='Tab')hide();
+  });
+  opts.forEach((o,i)=>{o.addEventListener('pointerdown',e=>e.preventDefault());
+    o.addEventListener('pointermove',()=>{if(ok(i)&&act!==i)setAct(i)});
+    o.addEventListener('click',()=>choose(i))});
+  outside.push(e=>{if(open&&!root.contains(e.target))hide()});
+});
+
+/* ================= M3 動作選單（role=menu + 方向鍵移動焦點，行為參考 Radix DropdownMenu，MIT，自行改寫） ================= */
+$$('.js-menu').forEach(root=>{
+  const btn=$('button[aria-haspopup]',root), menu=$('[role=menu]',root), items=$$('[role=menuitem]',menu), out=$('#m3-out');
+  let open=false; menu.tabIndex=-1;
+  const en=()=>items.filter(i=>i.getAttribute('aria-disabled')!=='true');
+  function show(focusIdx){open=true;menu.classList.add('is-open');btn.setAttribute('aria-expanded','true');
+    const e=en(); (focusIdx==null?menu:(focusIdx<0?e[e.length-1]:e[focusIdx])).focus()}
+  function hide(f){open=false;menu.classList.remove('is-open');btn.setAttribute('aria-expanded','false');if(f)btn.focus()}
+  btn.addEventListener('click',e=>open?hide():show(e.detail===0?0:null));
+  btn.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();show(0)}else if(e.key==='ArrowUp'){e.preventDefault();show(-1)}});
+  menu.addEventListener('keydown',e=>{
+    const e2=en(), i=e2.indexOf(document.activeElement); let j=null;
+    if(e.key==='ArrowDown')j=i<0?0:(i+1)%e2.length; else if(e.key==='ArrowUp')j=i<0?e2.length-1:(i-1+e2.length)%e2.length;
+    else if(e.key==='Home')j=0; else if(e.key==='End')j=e2.length-1;
+    else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();hide(true);return}
+    else if(e.key==='Tab'){e.preventDefault();hide(true);return}
+    if(j!==null){e.preventDefault();e2[j].focus()}
+  });
+  items.forEach(it=>{
+    it.addEventListener('pointermove',()=>{if(it.getAttribute('aria-disabled')!=='true'&&document.activeElement!==it)it.focus()});
+    it.addEventListener('click',()=>{
+      if(it.getAttribute('aria-disabled')==='true')return;
+      const label=it.textContent.trim(); hide(true);
+      out.innerHTML=it.classList.contains('dz')?`已選擇：<b>${esc(label)}</b>（危險動作，實際使用時要再確認一次）`:`已選擇：<b>${esc(label)}</b>`;
+    });
+  });
+  outside.push(e=>{if(open&&!root.contains(e.target))hide()});
+});
+
+/* ================= A 手風琴（grid-template-rows 0fr→1fr 平滑展開；結構參考 Radix Accordion，MIT，自行改寫） ================= */
+$$('.acc').forEach(acc=>{
+  const multi=acc.hasAttribute('data-multi'), its=$$('.acc-i',acc);
+  its.forEach(it=>{const b=$('.acc-b',it), p=$('.acc-p',it), id=uid('acc');
+    b.id=id+'b'; p.id=id+'p'; b.setAttribute('aria-controls',p.id); p.setAttribute('aria-labelledby',b.id);
+    b.addEventListener('click',()=>{const o=!it.classList.contains('open');
+      if(o&&!multi)its.forEach(x=>{if(x!==it)set(x,false)}); set(it,o)})});
+  function set(it,o){it.classList.toggle('open',o);$('.acc-b',it).setAttribute('aria-expanded',o);$('.acc-p',it).inert=!o}
+  acc.addEventListener('keydown',e=>{
+    if(!e.target.classList.contains('acc-b'))return;
+    const bs=$$('.acc-b',acc).filter(b=>!b.disabled), i=bs.indexOf(e.target); let j=null;
+    if(e.key==='ArrowDown')j=(i+1)%bs.length; else if(e.key==='ArrowUp')j=(i-1+bs.length)%bs.length;
+    else if(e.key==='Home')j=0; else if(e.key==='End')j=bs.length-1;
+    if(j!==null){e.preventDefault();bs[j].focus()}
+  });
+});
+
+/* ================= P2 載入更多 ================= */
+$$('.js-more').forEach(root=>{
+  const total=+root.dataset.total, step=+root.dataset.step, grid=$('.lm-grid',root), bar=$('.meterx i',root), cap=$('.cap',root), btn=$('.js-more-btn',root), reset=$('.js-more-reset',root);
+  let n=0;
+  function add(k){const f=document.createDocumentFragment();for(let i=0;i<k;i++){const t=document.createElement('i');t.style.animationDelay=(i*18)+'ms';f.appendChild(t)}grid.appendChild(f)}
+  function sync(){bar.style.transform=`scaleX(${n/total})`;cap.textContent=`已顯示 ${n}／${total} 件`;
+    const done=n>=total; btn.disabled=done; $('.lbl-idle',btn).textContent=done?'全部都看完了':'載入更多'; reset.hidden=!done}
+  btn.addEventListener('click',()=>{btn.classList.add('loading');
+    setTimeout(()=>{btn.classList.remove('loading');const k=Math.min(step,total-n);add(k);n+=k;sync();if(n>=total)reset.focus()},650)});
+  reset.addEventListener('click',()=>{grid.innerHTML='';n=step;add(step);sync();btn.focus()});
+  n=step;add(step);sync();
+});
+
+/* ================= P3–P5 步驟條（P3 參考 coss ui Stepper；P4 版面參考デジタル庁デザインシステム的進度表示，僅參考版面） ================= */
+$$('.js-steps').forEach(root=>{
+  const lis=$$('ol > li',root), labels=root.dataset.labels.split(','), N=lis.length, msg=$('.stp-msg',root);
+  const isP3=root.classList.contains('p3'), isP4=root.classList.contains('p4'), isP5=root.classList.contains('p5');
+  let cur=isP5?2:1;
+  function render(){
+    lis.forEach((li,i)=>{
+      const st=i<cur||(cur===N-1&&i===N-1&&root._finished)?'done':i===cur?'current':'todo';
+      li.dataset.state=st; st==='current'?li.setAttribute('aria-current','step'):li.removeAttribute('aria-current');
+      const sd=$('.sd',li); if(sd){sd.setAttribute('aria-disabled',st==='done'?'false':'true');
+        sd.setAttribute('aria-label',`第 ${i+1} 步：${labels[i]}（${st==='done'?'已完成，可返回修改':st==='current'?'目前步驟':'尚未開始'}）`)}
+    });
+    const finished=root._finished;
+    if(isP4){$('.js-n',root).textContent=cur+1;$('.js-name',root).textContent=finished?'申請完成':labels[cur]}
+    const pv=$('[data-step=prev]',root), nx=$('[data-step=next]',root);
+    if(pv)pv.disabled=cur===0;
+    if(nx){nx.disabled=finished; if(!isP5)nx.textContent=cur===N-2?'送出':cur===N-1?'完成':'下一步'}
+    if(msg)msg.textContent=finished?'全部步驟都完成了':`目前在第 ${cur+1} 步：${labels[cur]}`;
+  }
+  root.addEventListener('click',e=>{
+    const b=e.target.closest('[data-step]'), sd=e.target.closest('.sd');
+    if(sd){const i=lis.indexOf(sd.closest('li'));if(lis[i].dataset.state==='done'){root._finished=false;cur=i;render()}return}
+    if(!b)return; const a=b.dataset.step;
+    if(a==='next'){if(cur<N-1)cur++;else root._finished=true}
+    else if(a==='prev'){if(root._finished)root._finished=false;else if(cur>0)cur--}
+    else if(a==='reset'){cur=0;root._finished=false}
+    if(isP5&&cur===N-1)root._finished=true;
+    render(); if(b.disabled){const o=$('[data-step]:not(:disabled)',root);o&&o.focus()}
+  });
+  render();
+});
+
+/* ================= E1 空狀態（版面參考 HyperUI Empty Content，MIT，自行改寫） ================= */
+$$('.js-e1').forEach(root=>{
+  const em=$('.e1-empty',root), full=$('.e1-full',root);
+  $('.js-e1-add',root).addEventListener('click',()=>{em.hidden=true;full.hidden=false;$('.js-e1-clear',root).focus()});
+  $('.js-e1-clear',root).addEventListener('click',()=>{full.hidden=true;em.hidden=false;$('.js-e1-add',root).focus()});
+});
+/* E2 搜尋無結果 */
+$$('.js-e2').forEach(root=>{
+  const data=[['灰釉深盤','NT$ 1,480'],['灰釉小碟','NT$ 420'],['青瓷茶杯','NT$ 560'],['青瓷花器','NT$ 1,980'],['柴燒酒器','NT$ 1,260'],['柴燒大缽','NT$ 2,400'],['粉引飯碗','NT$ 680']];
+  const inp=$('input',root), res=$('.res',root), em=$('.emp',root), term=$('.js-term',root);
+  function hl(s,q){const i=q?s.indexOf(q):-1;return i<0?esc(s):esc(s.slice(0,i))+'<mark>'+esc(q)+'</mark>'+esc(s.slice(i+q.length))}
+  function render(){const q=inp.value.trim(); const r=(q?data.filter(d=>d[0].includes(q)):data.slice(0,3));
+    res.innerHTML=r.map(d=>`<li><span>${hl(d[0],q)}</span><span>${d[1]}</span></li>`).join('');
+    res.hidden=!r.length; em.hidden=!!r.length; term.textContent=q}
+  inp.addEventListener('input',render);
+  $$('[data-q]',root).forEach(b=>b.addEventListener('click',()=>{inp.value=b.dataset.q;render();inp.focus()}));
+  $('.js-e2-clear',root).addEventListener('click',()=>{inp.value='';render();inp.focus()});
+  render();
+});
+/* E3 骨架屏（shadcn Skeleton 的概念，閃光改為很淡的 transform 掃光，MIT，自行改寫） */
+$$('.js-skel').forEach(root=>{
+  const on=$('.sk-on',root), off=$('.sk-off',root), btn=$('.js-skel-btn',root); let t=null;
+  function done(){clearTimeout(t);on.hidden=true;off.hidden=false;btn.textContent='重新載入'}
+  btn.addEventListener('click',()=>{
+    if(on.hidden){off.hidden=true;on.hidden=false;btn.textContent='顯示載入完成';t=setTimeout(done,+root.dataset.ms)}else done();
+  });
+});
+
+/* ================= K 指令面板（模糊比對、分組、方向鍵、Enter、Esc；行為參考 cmdk，MIT，自行改寫） ================= */
+function fuzzy(q,s){
+  q=q.toLowerCase().replace(/\s+/g,''); const sl=s.toLowerCase(); let from=0,last=-2,score=0; const idx=[];
+  for(const ch of q){const j=sl.indexOf(ch,from); if(j<0)return null; idx.push(j);
+    score+=1+(j===last+1?2:0)+(j===0?3:0)-Math.min((j-from)*.05,.5); last=j; from=j+1}
+  return {score,idx};
+}
+function hlIdx(s,idx){if(!idx.length)return esc(s);let o='',open=false;
+  for(let i=0;i<s.length;i++){const m=idx.includes(i);if(m&&!open){o+='<mark>';open=true}if(!m&&open){o+='</mark>';open=false}o+=esc(s[i])}
+  return o+(open?'</mark>':'')}
+const kb=k=>`<span class="kh">${k.map(x=>`<span class="kbd">${x}</span>`).join('')}</span>`;
+const CMDSETS={
+  basic:[
+    {name:'建議',items:[{label:'新增作品',icon:'i-plus',kw:'add new 上架',keys:['N']},{label:'查看今天的訂單',icon:'i-box',kw:'order 出貨'},{label:'預約體驗課',icon:'i-cal',kw:'課程 booking'}]},
+    {name:'前往',items:[{label:'總覽',icon:'i-home',kw:'home dashboard 首頁'},{label:'作品',icon:'i-vase',kw:'products'},{label:'客人',icon:'i-users',kw:'customers 會員'},{label:'報表',icon:'i-chart',kw:'report 營收'}]},
+    {name:'設定',items:[{label:'切換深色模式',icon:'i-moon',kw:'dark theme 主題'},{label:'通知設定',icon:'i-bell',kw:'notification'},{label:'登出',icon:'i-out',kw:'logout sign out'}]},
+  ],
+};
+$$('.js-cmd').forEach(root=>{
+  const groups=CMDSETS[root.dataset.set], inp=$('.cmd-in',root), list=$('.cmd-list',root);
+  const dlg=root.closest('dialog'), inline=root.hasAttribute('data-inline'), id=uid('cmd');
+  list.id=id+'l'; inp.setAttribute('aria-controls',list.id);
+  let flat=[], act=-1;
+  function render(){
+    const q=inp.value.trim(); flat=[]; let html='';
+    groups.forEach((g,gi)=>{
+      let rows=g.items.map(it=>{let m=q?fuzzy(q,it.label):{score:0,idx:[]};
+        if(!m&&it.kw&&it.kw.toLowerCase().includes(q.toLowerCase()))m={score:.1,idx:[]};return m?{it,m}:null}).filter(Boolean);
+      if(q)rows.sort((a,b)=>b.m.score-a.m.score);
+      if(!rows.length)return;
+      const gid=`${id}g${gi}`;
+      html+=`<div role="group" aria-labelledby="${gid}"><div class="cmd-gh" id="${gid}">${esc(g.name)}</div>`+rows.map(r=>{const n=flat.push(r.it)-1;
+        return `<div class="cmd-it" role="option" id="${id}o${n}" data-n="${n}" aria-selected="false"><svg class="ico"><use href="#${r.it.icon}"/></svg><span class="lb">${hlIdx(r.it.label,r.m.idx)}</span>${r.it.keys?kb(r.it.keys):''}</div>`}).join('')+'</div>';
+    });
+    list.innerHTML=html||`<div class="cmd-empty">找不到「${esc(q)}」相關的結果</div>`;
+    setAct(flat.length?0:-1);
+  }
+  function setAct(n){act=n;$$('.cmd-it',list).forEach(el=>el.setAttribute('aria-selected',+el.dataset.n===n));
+    const el=n>=0?$(`[data-n="${n}"]`,list):null;
+    if(el){inp.setAttribute('aria-activedescendant',el.id);el.scrollIntoView({block:'nearest'})}else inp.removeAttribute('aria-activedescendant')}
+  function run(it){
+    if(!it)return;
+    if(dlg)closeDlg(dlg); else {const o=$('#k2-out');if(o)o.innerHTML=`已執行：<b>${esc(it.label)}</b>`}
+    toast({title:`已執行「${it.label}」`,desc:'這是示範，不會真的變更資料。'});
+  }
+  inp.addEventListener('input',render);
+  inp.addEventListener('keydown',e=>{
+    const n=flat.length;
+    if(e.key==='ArrowDown'){e.preventDefault();if(n)setAct((act+1)%n)}
+    else if(e.key==='ArrowUp'){e.preventDefault();if(n)setAct((act-1+n)%n)}
+    else if(e.key==='Enter'&&!e.isComposing){e.preventDefault();run(flat[act])}
+    else if(e.key==='Escape'&&inline&&inp.value){e.preventDefault();inp.value='';render()}
+  });
+  list.addEventListener('pointermove',e=>{const el=e.target.closest('.cmd-it');if(el&&+el.dataset.n!==act)setAct(+el.dataset.n)});
+  list.addEventListener('pointerdown',e=>{if(e.target.closest('.cmd-it'))e.preventDefault()});
+  list.addEventListener('click',e=>{const el=e.target.closest('.cmd-it');if(el)run(flat[+el.dataset.n])});
+  if(dlg)dlgHooks[dlg.id]={open(){inp.value='';render();inp.focus()}};
+  else render();
+});
+/* 全域 Ctrl／⌘ + K 開關 K1 */
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&!e.altKey&&e.key.toLowerCase()==='k'){
+    e.preventDefault(); const k1=$('#dlg-k1');
+    if(k1.open)closeDlg(k1); else if(!$$('dialog.dlg[open]').length)openDlg(k1,document.activeElement);
+  }
+});
 })();
 </script>
 </body>
