@@ -175,8 +175,17 @@ function renderLogin(ev) {
   });
 }
 
+function dismissToast() {
+  const el = toastEl();
+  if (!el) return;
+  el.classList.remove('on');
+  clearTimeout(el._t);
+}
+
 function showSessionExpiredBanner() {
   sessionExpired = true;
+  // 同時只留這一則：收掉 toast，避免蓋住「重新登入」
+  dismissToast();
   let bar = document.getElementById('session-expired-banner');
   if (!bar) {
     bar = document.createElement('div');
@@ -354,7 +363,6 @@ function paintResultView({ result, scope, summaryText, cloudStatus }) {
         const code = errCode(last);
         if (code === 'permission-denied' || /permission-denied/i.test(String(last?.message || ''))) {
           showSessionExpiredBanner();
-          toast(ERR.sessionExpiredResult);
         } else {
           toast(zhFromError(last, 'network'), { onRetry: retryAgain });
         }
@@ -590,6 +598,7 @@ function toggleDrawer(open) {
   const drawer = document.getElementById('app-drawer');
   const backdrop = document.querySelector('.drawer-backdrop');
   const btn = document.querySelector('[data-drawer-toggle]');
+  const main = document.getElementById('app-main');
   drawer?.setAttribute('aria-hidden', open ? 'false' : 'true');
   if (drawer) {
     if (open) drawer.removeAttribute('inert');
@@ -600,25 +609,30 @@ function toggleDrawer(open) {
     if (open) backdrop.removeAttribute('inert');
     else backdrop.setAttribute('inert', '');
   }
+  // 打開時主內容 inert；頂部列保留 M6 可關。Tab 由 keydown 鎖在抽屜內。
+  if (main) {
+    if (open) main.setAttribute('inert', '');
+    else main.removeAttribute('inert');
+  }
   if (btn) {
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     btn.setAttribute('aria-label', open ? '關閉選單' : '開啟選單');
   }
 }
 
-/** M6：方向鍵／Home／End／Esc 操作抽屜（對齊 components M6） */
+/** M6：方向鍵／Home／End／Esc；Tab 鎖在抽屜內，Esc 關閉後回觸發鈕 */
 function bindM6Drawer() {
   const btn = document.querySelector('[data-drawer-toggle]');
   const drawer = document.getElementById('app-drawer');
   if (!btn || !drawer) return;
 
   const isOpen = () => document.body.classList.contains('drawer-open');
-  const show = (focusIdx) => {
+  const show = (focusIdx = 0) => {
     toggleDrawer(true);
     const items = drawerItems();
     if (!items.length) return;
-    const i = focusIdx == null ? -1 : focusIdx < 0 ? items.length - 1 : focusIdx;
-    if (i >= 0) items[i].focus({ preventScroll: true });
+    const i = focusIdx < 0 ? items.length - 1 : Math.min(focusIdx, items.length - 1);
+    items[i].focus({ preventScroll: true });
   };
   const hide = (restore) => {
     if (!isOpen()) return;
@@ -626,9 +640,9 @@ function bindM6Drawer() {
     if (restore) btn.focus({ preventScroll: true });
   };
 
-  btn.addEventListener('click', (e) => {
+  btn.addEventListener('click', () => {
     if (isOpen()) hide(true);
-    else show(e.detail === 0 ? 0 : null);
+    else show(0);
   });
   btn.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown') {
@@ -657,8 +671,8 @@ function bindM6Drawer() {
     else if (e.key === 'End') j = items.length - 1;
     else if (e.key === 'Tab') {
       e.preventDefault();
-      hide(true);
-      return;
+      if (e.shiftKey) j = i <= 0 ? items.length - 1 : i - 1;
+      else j = i < 0 || i >= items.length - 1 ? 0 : i + 1;
     }
     if (j !== null) {
       e.preventDefault();

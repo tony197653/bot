@@ -1409,7 +1409,7 @@ try {
     await page.close();
   }
 
-  // --- Header：M6＋M8 blink（360／390／1280）---
+  // --- Header：M6＋M8 blink（360／390／1280）；桌機 A-1 站名完整＋導覽不重疊 ---
   {
     for (const w of [360, 390, 1280]) {
       const page = await browser.newPage({
@@ -1431,7 +1431,7 @@ try {
       const h = await page.evaluate(() => {
         const m6 = document.querySelector('.mbtn.m6[data-drawer-toggle]');
         const brand = document.querySelector('a.blink');
-        const title = document.querySelector('.hdr-title.m8bar');
+        const m8 = document.querySelector('.hdr-title .m8bar');
         const avatar = document.querySelector('.nav-avatar');
         const name = brand?.querySelector('.bname');
         const mark = brand?.querySelector('.bmark');
@@ -1440,7 +1440,7 @@ try {
         );
         const mr = m6?.getBoundingClientRect();
         const br = brand?.getBoundingClientRect();
-        const tr = title?.getBoundingClientRect();
+        const tr = m8?.getBoundingClientRect();
         const ar = avatar?.getBoundingClientRect();
         const nameCs = name ? getComputedStyle(name) : null;
         const clipped =
@@ -1474,16 +1474,17 @@ try {
           })(),
           titleW: tr ? Math.round(tr.width) : 0,
           nameHidden: clipped,
+          nameText: (name?.textContent || '').trim(),
           m6Visible: m6 ? getComputedStyle(m6).display !== 'none' : false,
           hasUnderlay: !!underlay && underlay.content !== 'none',
-          cq: !!title && getComputedStyle(title).containerType.includes('inline-size'),
+          cq: !!m8 && getComputedStyle(m8).containerType.includes('inline-size'),
         };
       });
       if (!h.hasM6) throw new Error(`M6 missing @${w}`);
       if (h.hasB5Menu) throw new Error(`old 選單 b5 still present @${w}`);
-      if (!h.cq) throw new Error(`hdr-title missing container-type @${w}`);
       if (!h.hasUnderlay) throw new Error(`M8 blink missing ::before underlay @${w}`);
       if (w < 900) {
+        if (!h.cq) throw new Error(`m8bar missing container-type @${w}`);
         if (!h.m6Visible) throw new Error(`M6 hidden @${w}`);
         if (h.m6Size.w !== 44 || h.m6Size.h !== 44) {
           throw new Error(`M6 not 44×44 @${w}: ${JSON.stringify(h.m6Size)}`);
@@ -1491,6 +1492,15 @@ try {
         if (h.gap == null || h.gap < 3 || h.gap > 6) {
           throw new Error(`M6–M8 gap not ~4px @${w}: ${h.gap}`);
         }
+        // container <200 → 只留字母；一般 360／390 標題區 >200，站名應可見
+        if (h.titleW >= 200 && h.nameHidden) {
+          throw new Error(`bname hidden while titleW=${h.titleW} @${w}`);
+        }
+        if (h.titleW < 200 && !h.nameHidden) {
+          throw new Error(`bname should hide when titleW=${h.titleW} @${w}`);
+        }
+      } else if (h.nameHidden || h.nameText !== '考題網') {
+        throw new Error(`desktop A-1 brand must show 考題網 @${w}: ${JSON.stringify(h)}`);
       }
       if (h.brandHref !== '#/' || h.brandAria !== '考題網 首頁') {
         throw new Error(`M8 blink bad @${w}: ${JSON.stringify(h)}`);
@@ -1498,13 +1508,6 @@ try {
       if (h.brandH !== 44) throw new Error(`blink height not 44 @${w}: ${h.brandH}`);
       if (!h.markSize || h.markSize.w !== 24 || h.markSize.h !== 24) {
         throw new Error(`bmark not 24 @${w}: ${JSON.stringify(h.markSize)}`);
-      }
-      // container <200 → 只留字母；一般 360／390 標題區 >200，站名應可見
-      if (h.titleW >= 200 && h.nameHidden) {
-        throw new Error(`bname hidden while titleW=${h.titleW} @${w}`);
-      }
-      if (h.titleW < 200 && !h.nameHidden) {
-        throw new Error(`bname should hide when titleW=${h.titleW} @${w}`);
       }
       // avatar 在標頭最右（margin-left:auto）；登出態可能隱藏，僅在可見時檢查位置
       if (h.avatarVisible && !h.avatarAfterBrand) {
@@ -1517,10 +1520,10 @@ try {
         path: path.join(outDir, `header-${w}.png`),
         clip: { x: 0, y: 0, width: w, height: 64 },
       });
-      // 強制擠壓標題區驗證 container query
+      // 強制擠壓 m8bar 驗證 container query（手機）
       if (w === 360) {
         await page.evaluate(() => {
-          const t = document.querySelector('.hdr-title');
+          const t = document.querySelector('.hdr-title .m8bar');
           if (t) {
             t.style.flex = '0 0 160px';
             t.style.width = '160px';
@@ -1529,7 +1532,7 @@ try {
         });
         await page.waitForTimeout(80);
         const squeezed = await page.evaluate(() => {
-          const title = document.querySelector('.hdr-title');
+          const title = document.querySelector('.hdr-title .m8bar');
           const name = document.querySelector('.blink .bname');
           if (!name) return { ok: true };
           const cs = getComputedStyle(name);
@@ -1553,7 +1556,151 @@ try {
       }
       await page.close();
     }
+    // A-1：1024／1280／1440 站名完整、導覽在旁、不重疊
+    for (const w of [1024, 1280, 1440]) {
+      const page = await browser.newPage({ viewport: { width: w, height: 800 } });
+      await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+      await page.evaluate(() => {
+        document.body.classList.remove('signed-out');
+        document.body.classList.add('signed-in', 'is-admin');
+        document.querySelectorAll('[data-admin-only]').forEach((el) => {
+          el.hidden = false;
+        });
+        const nav = document.querySelector('[data-desk-nav]');
+        if (nav) {
+          nav.hidden = false;
+          nav.removeAttribute('aria-hidden');
+        }
+      });
+      await page.waitForTimeout(60);
+      const layout = await page.evaluate(() => {
+        const brand = document.querySelector('a.blink');
+        const name = brand?.querySelector('.bname');
+        const nav = document.querySelector('.hdr-title .app-nav');
+        const home = nav?.querySelector('[data-route="home"]');
+        const br = brand?.getBoundingClientRect();
+        const nr = home?.getBoundingClientRect();
+        const nameCs = name ? getComputedStyle(name) : null;
+        const nameHidden =
+          !!name &&
+          !!nameCs &&
+          (name.getClientRects().length === 0 ||
+            (parseFloat(nameCs.width) <= 1 && parseFloat(nameCs.height) <= 1) ||
+            (nameCs.clipPath && nameCs.clipPath.includes('inset(50%)')));
+        const overlap = !!(br && nr && br.right > nr.left + 1 && br.left < nr.right - 1);
+        return {
+          nameText: (name?.textContent || '').trim(),
+          nameHidden,
+          brandRight: br ? Math.round(br.right) : null,
+          navLeft: nr ? Math.round(nr.left) : null,
+          gap: br && nr ? Math.round(nr.left - br.right) : null,
+          overlap,
+          navDisplay: nav ? getComputedStyle(nav).display : null,
+        };
+      });
+      if (layout.nameHidden || layout.nameText !== '考題網') {
+        throw new Error(`A-1 brand hidden @${w}: ${JSON.stringify(layout)}`);
+      }
+      if (layout.navDisplay === 'none' || layout.navLeft == null) {
+        throw new Error(`A-1 nav missing @${w}: ${JSON.stringify(layout)}`);
+      }
+      if (layout.overlap || (layout.gap != null && layout.gap < 4)) {
+        throw new Error(`A-1 brand/nav overlap @${w}: ${JSON.stringify(layout)}`);
+      }
+      await page.screenshot({
+        path: path.join(outDir, `header-a1-${w}.png`),
+        clip: { x: 0, y: 0, width: Math.min(w, 1120), height: 72 },
+      });
+      await page.close();
+    }
     pass('header M6 + M8 blink 360/390/1280');
+  }
+
+  // --- 抽屜：Tab 焦點鎖在抽屜內；Esc 關閉後回 M6 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+    await page.evaluate(() => {
+      document.body.classList.remove('signed-out');
+      document.body.classList.add('signed-in');
+    });
+    await page.locator('[data-drawer-toggle]').click();
+    await page.waitForTimeout(80);
+    const opened = await page.evaluate(() => document.body.classList.contains('drawer-open'));
+    if (!opened) throw new Error('drawer did not open');
+    const firstIn = await page.evaluate(() => {
+      const drawer = document.getElementById('app-drawer');
+      const items = [...drawer.querySelectorAll('a[href],button:not([disabled])')].filter(
+        (el) => getComputedStyle(el).display !== 'none',
+      );
+      return items[0] === document.activeElement;
+    });
+    if (!firstIn) throw new Error('drawer open should focus first item');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    const trapped = await page.evaluate(() => {
+      const drawer = document.getElementById('app-drawer');
+      return !!(drawer && drawer.contains(document.activeElement));
+    });
+    if (!trapped) throw new Error('Tab focus escaped drawer');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(60);
+    const afterEsc = await page.evaluate(() => {
+      const btn = document.querySelector('[data-drawer-toggle]');
+      return {
+        open: document.body.classList.contains('drawer-open'),
+        focusOnBtn: document.activeElement === btn,
+      };
+    });
+    if (afterEsc.open) throw new Error('Esc should close drawer');
+    if (!afterEsc.focusOnBtn) throw new Error('Esc should restore focus to M6');
+    pass('drawer Tab focus trap + Esc restores M6');
+    await page.close();
+  }
+
+  // --- 登入過期：banner z 高於 toast；同時只留一則時按鈕可見 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+    const check = await page.evaluate(() => {
+      const toast = document.getElementById('app-toast');
+      if (toast) {
+        toast.textContent = '登入已經過期';
+        toast.classList.add('on');
+      }
+      let bar = document.getElementById('session-expired-banner');
+      if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'session-expired-banner';
+        bar.className = 'session-expired-banner';
+        bar.setAttribute('role', 'alert');
+        bar.innerHTML =
+          '<p>登入已經過期，結果先留在這台裝置。請按『重新登入』，登入後會自動補存</p><button type="button" class="btn b1" id="btn-relogin">重新登入</button>';
+        document.body.appendChild(bar);
+      }
+      // app showSessionExpiredBanner 會 dismissToast
+      toast?.classList.remove('on');
+      const btn = document.getElementById('btn-relogin');
+      const br = btn?.getBoundingClientRect();
+      const zBanner = parseInt(getComputedStyle(bar).zIndex || '0', 10);
+      const zToast = toast ? parseInt(getComputedStyle(toast).zIndex || '0', 10) : 0;
+      return {
+        toastOn: !!toast?.classList.contains('on'),
+        hasBtn: !!btn,
+        btnVisible: !!(br && br.width > 0 && br.height > 0),
+        zBanner,
+        zToast,
+        bannerAbove: zBanner > zToast,
+      };
+    });
+    if (check.toastOn) throw new Error('toast still on with session banner');
+    if (!check.hasBtn || !check.btnVisible) throw new Error('re-login button missing');
+    if (!check.bannerAbove) throw new Error(`banner z ${check.zBanner} not above toast ${check.zToast}`);
+    pass('session-expired banner alone above toast');
+    await page.close();
   }
 
   // --- UI/UX 紅線：M6 抽屜有核心導覽、M8 可點、正文 16/1.5、觸控 44、模考已答樣式（無 app-subnav）---

@@ -14,11 +14,19 @@
 .btn.b2:hover,.btn.b2:focus{
   text-decoration:none!important
 }
-/* 標題區：M6＋M8＋桌機導覽；container-type 需由外層 flex 給寬（不可依內容撐開，否則寬度為 0） */
-.hdr-title.m8bar{display:flex;align-items:center;gap:4px;min-width:0;flex:1 1 auto;container-type:inline-size}
+/* 標題區：手機 M6＋站名；桌機站名＋橫向導覽（A-1）。CQ 只包 m8bar，避免導覽擠掉站名 */
+.hdr-title{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 auto}
+.hdr-title .m8bar{display:flex;align-items:center;gap:4px;min-width:0;flex:1 1 auto;container-type:inline-size}
 @media (min-width:900px){
-  /* R5-5／線框 A-1：站名旁橫向導覽，右上讓給 M1 */
-  .hdr-title.m8bar{flex:0 1 auto;max-width:calc(100% - 140px)}
+  /* R5-5／線框 A-1：站名完整顯示、導覽在旁、不重疊；右上讓給 M1。
+     桌機關掉 container-type，避免 inline-size containment 把 m8bar 寬度算成 0。 */
+  .hdr-title{flex:0 0 auto;max-width:calc(100% - 140px);gap:12px}
+  .hdr-title .m8bar{flex:0 0 auto;min-width:auto;container-type:normal}
+  .hdr-title .blink{flex:none;min-width:auto}
+  .hdr-title .blink .bname{
+    position:relative!important;width:auto!important;height:auto!important;
+    overflow:visible!important;clip-path:none!important;clip:auto!important
+  }
 }
 /* M6 三線變叉（components/ 原樣） */
 .mbtn{position:relative;width:44px;height:44px;flex:none;display:grid;place-items:center;padding:0;border:0;border-radius:var(--r-sm);background:transparent;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -214,8 +222,9 @@
 .opt-tag{display:inline-block;margin-left:8px;font-size:13px;font-weight:600}
 .opt-tag.ok-t{color:var(--ok-ink)}.opt-tag.bad-t{color:var(--bad-ink)}
 .char-count{font-size:13px;color:var(--mute);margin:0 0 8px}
+/* 高於 #app-toast(80)，避免「重新登入」被另一則提示蓋住 */
 .session-expired-banner{
-  position:fixed;left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:60;
+  position:fixed;left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:90;
   background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r);padding:12px 14px;
   box-shadow:var(--pop-shadow);display:grid;gap:10px
 }
