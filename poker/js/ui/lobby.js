@@ -39,6 +39,9 @@ export function renderMpLobby(root, vm) {
   const total = player?.total ?? bank + inPlay;
   const needRescue = !!(player?.tableRoomId && vm.rescueAvailable);
   const settleAmt = rescueChips != null ? rescueChips : inPlay;
+  // While waiting to cash out, header「牌桌中」should show settled stack not buy-in
+  const shownInPlay = needRescue ? settleAmt : inPlay;
+  const shownTotal = needRescue ? bank + settleAmt : total;
   const rescueTitle =
     rescueReason === 'closed' ? '房主收桌：結帳離開' : '房主失聯：結帳離開';
   const rescueLead =
@@ -79,14 +82,14 @@ export function renderMpLobby(root, vm) {
   root.innerHTML = `
     <div class="mp-shell mp-lobby">
       <header class="mp-top">
-        <button type="button" class="mp-avatar" data-act="avatar" aria-label="${esc(name)} 的帳號">
+        <button type="button" class="mp-avatar" data-act="avatar">
           <span aria-hidden="true">${avatarHtml(user)}</span>
-          <span>${esc(name)}</span>
+          <span>${esc(name)}</span><span class="sr-only">的帳號</span>
         </button>
         <div class="mp-bal">
           <span>帳戶 ${fmtChips(bank)}</span>
-          <span>牌桌中 ${fmtChips(inPlay)}</span>
-          <strong>總計 ${fmtChips(total)}</strong>
+          <span>牌桌中 ${fmtChips(shownInPlay)}</span>
+          <strong>總計 ${fmtChips(shownTotal)}</strong>
         </div>
       </header>
       ${offline ? '<p class="mp-offline">離線資料</p>' : ''}

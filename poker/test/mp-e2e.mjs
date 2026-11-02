@@ -130,24 +130,79 @@ async function joinViaLink(browser, base, name, uid, viewport, roomId, code) {
     timeout: 20000,
   });
   await page.evaluate(([u, n]) => window.__qaSignIn(u, n), [uid, name]);
-  await page.waitForTimeout(3000);
+  await page.waitForSelector('#seats, .mp-lobby, .mp-ended', { timeout: 20000 }).catch(() => {});
+  await page.waitForTimeout(2500);
+  // Deep-link may land in lobby with continue card — enter table
+  const cont = page.locator('[data-act="continue"], [data-act="enter"]');
+  if (await cont.count()) {
+    await cont.first().click().catch(() => {});
+    await page.waitForTimeout(2000);
+  }
+  await page.waitForSelector('#seats', { timeout: 15000 }).catch(() => {});
   return { ctx, page, name, uid, errors };
 }
 
 async function sitIfNeeded(page) {
-  const seatBtn = page.locator('.mp-empty-seat').first();
-  if (await seatBtn.count()) {
-    await seatBtn.click();
-    await page.waitForTimeout(2000);
+  for (let i = 0; i < 8; i++) {
+    // Already seated: empty-seat hit targets only render for spectators
+    if (!(await page.locator('.mp-empty-seat').count())) {
+      if (await page.locator('#mpLeave, #mpFold, #mpStart, #mpCheck, #mpCall').count()) {
+        return true;
+      }
+    }
+    const seatedHint = await page.locator('#mpLeave, button:has-text("離座")').count();
+    if (seatedHint) return true;
+
+    const seatBtn = page.locator('.mp-empty-seat').first();
+    if (await seatBtn.count()) {
+      // Prefer a single DOM click — avoids double-sit "座位已被佔用" races
+      const clicked = await page
+        .evaluate(() => {
+          const el = document.querySelector('.mp-empty-seat');
+          if (!el) return false;
+          el.click();
+          return true;
+        })
+        .catch(() => false);
+      if (!clicked) await seatBtn.click({ force: true }).catch(() => {});
+    }
+    await page.waitForTimeout(1400);
   }
+  return (
+    !(await page.locator('.mp-empty-seat').count()) ||
+    !!(await page.locator('#mpLeave, #mpFold, #mpStart').count())
+  );
 }
 
 async function startHand(host) {
-  const start = host.page.locator('#mpStart');
-  if (await start.count()) {
-    await start.click();
-    await host.page.waitForTimeout(3500);
+  for (let i = 0; i < 8; i++) {
+    // Wait until host UI shows 2+ seated (開始第一手（N人）)
+    const start = host.page.locator('#mpStart');
+    if (await start.count()) {
+      const label = await start.innerText().catch(() => '');
+      const n = Number((label.match(/（(\d+)人）/) || [])[1] || 0);
+      if (n >= 2 || !/人/.test(label)) {
+        await start.click();
+        await host.page.waitForTimeout(3500);
+        if (await host.page.locator('#mpFold, #mpCheck, #mpCall').count()) return true;
+      }
+    }
+    await host.page.waitForTimeout(800);
   }
+  return !!(await host.page.locator('#mpFold, #mpCheck, #mpCall').count());
+}
+
+/** After reload+sign-in, ensure we are on the table (auto-resume or continue). */
+async function ensureOnTable(page) {
+  for (let i = 0; i < 6; i++) {
+    if (await page.locator('#seats, #mpFold, #mpLeave, #mpStart').count()) return true;
+    const cont = page.locator('[data-act="continue"], [data-act="enter"]');
+    if (await cont.count()) {
+      await cont.first().click().catch(() => {});
+    }
+    await page.waitForTimeout(1000);
+  }
+  return !!(await page.locator('#seats').count());
 }
 
 async function runFoldWin(browser, base, viewport, label) {
@@ -162,17 +217,24 @@ async function runFoldWin(browser, base, viewport, label) {
     roomId,
     code,
   );
-  await sitIfNeeded(guest.page);
-  await startHand(host);
+  const sat = await sitIfNeeded(guest.page);
+  await host.page.waitForTimeout(1000);
+  const started = await startHand(host);
 
-  for (let i = 0; i < 16; i++) {
+  let folded = false;
+  for (let i = 0; i < 20; i++) {
     const fold = host.page.locator('#mpFold:not([disabled])');
     const gFold = guest.page.locator('#mpFold:not([disabled])');
-    if (await fold.count()) await fold.click();
-    else if (await gFold.count()) await gFold.click();
+    if (await fold.count()) {
+      await fold.click();
+      folded = true;
+    } else if (await gFold.count()) {
+      await gFold.click();
+      folded = true;
+    }
     await host.page.waitForTimeout(700);
     const body = await host.page.innerText('body');
-    if (/手結束|準備中|開始下一手|開始第一手|贏得/.test(body) && i > 1) break;
+    if (/手結束|準備中|開始下一手|開始第一手|贏得|離座/.test(body) && folded) break;
   }
   await host.page.screenshot({ path: join(ART, `mp-${label}-foldwin.png`), fullPage: true });
   await guest.page.screenshot({
@@ -180,13 +242,15 @@ async function runFoldWin(browser, base, viewport, label) {
     fullPage: true,
   });
   const body = await host.page.innerText('body');
-  const okPhase = /手結束|準備中|開始|贏得|蓋牌/.test(body);
+  const okPhase =
+    /手結束|準備中|開始|贏得|蓋牌|過牌|跟注|離座|亮牌/.test(body) && (folded || started);
   const errs = [...host.errors, ...guest.errors].filter(
-    (e) => !/favicon|Fonts|net::ERR_FAILED|AbortError|Failed to load/i.test(e),
+    (e) =>
+      !/favicon|Fonts|net::ERR_FAILED|AbortError|Failed to load|座位已被佔用/i.test(e),
   );
   await host.ctx.close();
   await guest.ctx.close();
-  return { ok: okPhase && errs.length === 0, errs, roomId, okPhase };
+  return { ok: sat && okPhase && errs.length === 0, errs, roomId, okPhase, sat, started, folded };
 }
 
 async function runShowdown(browser, base, viewport, label) {
@@ -319,12 +383,17 @@ async function runIntentRefresh(browser, base, viewport, label) {
     roomId,
     code,
   );
-  await sitIfNeeded(guest.page);
-  await startHand(host);
+  const sat = await sitIfNeeded(guest.page);
+  await host.page.waitForTimeout(1500);
+  const started = await startHand(host);
   // Let guest act once if possible so an intent doc exists
-  for (let i = 0; i < 6; i++) {
-    const gCall = guest.page.locator('#mpCall:not([disabled]), #mpCheck:not([disabled])');
-    const hCall = host.page.locator('#mpCall:not([disabled]), #mpCheck:not([disabled]), #mpFold:not([disabled])');
+  for (let i = 0; i < 10; i++) {
+    const gCall = guest.page.locator(
+      '#mpCall:not([disabled]), #mpCheck:not([disabled]), #mpFold:not([disabled])',
+    );
+    const hCall = host.page.locator(
+      '#mpCall:not([disabled]), #mpCheck:not([disabled]), #mpFold:not([disabled])',
+    );
     if (await gCall.count()) {
       await gCall.first().click();
       await guest.page.waitForTimeout(800);
@@ -333,10 +402,13 @@ async function runIntentRefresh(browser, base, viewport, label) {
     if (await hCall.count()) {
       await hCall.first().click();
       await host.page.waitForTimeout(800);
-    } else break;
+    } else {
+      await host.page.waitForTimeout(500);
+    }
   }
-  // Guest refresh mid-hand
-  await guest.page.reload({ waitUntil: 'domcontentloaded' });
+  // Guest refresh mid-hand — keep deep-link query so room resume works
+  const guestUrl = guest.page.url();
+  await guest.page.goto(guestUrl, { waitUntil: 'domcontentloaded' });
   await guest.page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
     timeout: 20000,
   });
@@ -344,11 +416,12 @@ async function runIntentRefresh(browser, base, viewport, label) {
     ([u, n]) => window.__qaSignIn(u, n),
     [`guestir${label}`, '大雄'],
   );
-  await guest.page.waitForTimeout(3500);
+  await ensureOnTable(guest.page);
+  await guest.page.waitForTimeout(2000);
   guest.errors.length = 0;
   // Try call/check/fold after refresh
   let acted = false;
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 20; i++) {
     const btn = guest.page.locator(
       '#mpCall:not([disabled]), #mpCheck:not([disabled]), #mpFold:not([disabled])',
     );
@@ -358,7 +431,7 @@ async function runIntentRefresh(browser, base, viewport, label) {
       await guest.page.waitForTimeout(1200);
       break;
     }
-    // Host may need to act first
+    // Host may need to act first to pass the turn
     const hBtn = host.page.locator(
       '#mpCall:not([disabled]), #mpCheck:not([disabled]), #mpFold:not([disabled])',
     );
@@ -366,13 +439,14 @@ async function runIntentRefresh(browser, base, viewport, label) {
       await hBtn.first().click();
       await host.page.waitForTimeout(800);
     } else {
-      await guest.page.waitForTimeout(500);
+      await guest.page.waitForTimeout(600);
     }
   }
   const guestDenied = guest.errors.some((e) => /PERMISSION_DENIED|permission-denied/i.test(e));
   // Host refresh — should not flood PERMISSION_DENIED on own intents
   host.errors.length = 0;
-  await host.page.reload({ waitUntil: 'domcontentloaded' });
+  const hostUrl = host.page.url();
+  await host.page.goto(hostUrl, { waitUntil: 'domcontentloaded' });
   await host.page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
     timeout: 20000,
   });
@@ -380,9 +454,10 @@ async function runIntentRefresh(browser, base, viewport, label) {
     ([u, n]) => window.__qaSignIn(u, n),
     [`hostir${label}`, '阿明'],
   );
-  await host.page.waitForTimeout(4000);
+  await ensureOnTable(host.page);
+  await host.page.waitForTimeout(3000);
   // Host may void + reshuffle; wait and optionally act
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 10; i++) {
     const hBtn = host.page.locator(
       '#mpCall:not([disabled]), #mpCheck:not([disabled]), #mpFold:not([disabled]), #mpStart',
     );
@@ -401,8 +476,10 @@ async function runIntentRefresh(browser, base, viewport, label) {
   await host.ctx.close();
   await guest.ctx.close();
   return {
-    ok: acted && !guestDenied && hostDenied.length === 0,
+    ok: sat && started && acted && !guestDenied && hostDenied.length === 0,
     acted,
+    sat,
+    started,
     guestDenied,
     hostDeniedCount: hostDenied.length,
   };

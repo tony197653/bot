@@ -722,11 +722,21 @@ body:has(#pauseScreen.is-on) #toast{
   min-height:100%;min-height:100dvh;box-sizing:border-box;
 }
 .mp-shell.mp-auth .mp-brand{margin:4px 0 0;font-size:clamp(28px,4vw,36px)}
-.mp-shell.mp-auth .mp-auth-card{
-  flex:0 1 auto;min-height:0;max-height:min(200px,28vh);
-  margin:8px 0 12px;width:min(420px,100%);align-self:center;
+/* Shared width: felt aspect × max-height so CTA matches visible card (~350px at 1280×800) */
+.mp-shell.mp-auth .mp-auth-card,
+.mp-shell.mp-auth .mp-b1{
+  width:min(420px,100%,calc(min(200px,28vh) * 560 / 320));
+  max-width:100%;
+  align-self:center;
+  box-sizing:border-box;
 }
-.mp-shell.mp-auth .mp-auth-img{min-height:0;max-height:min(200px,28vh);height:auto;aspect-ratio:560/320;object-fit:contain}
+.mp-shell.mp-auth .mp-auth-card{
+  flex:0 0 auto;min-height:0;height:auto;aspect-ratio:560/320;
+  max-height:min(200px,28vh);margin:8px 0 12px;
+}
+.mp-shell.mp-auth .mp-auth-img{
+  width:100%;height:100%;min-height:0;max-height:none;object-fit:cover;display:block;
+}
 .mp-shell.mp-auth .mp-b1{margin:4px 0 0;flex:none}
 .mp-b1,.mp-b2,.mp-b4{display:block;width:100%;min-height:48px;border-radius:var(--radius-md);font-weight:700;font-size:16px;margin:8px 0}
 .mp-b1{background:var(--ink-solid);color:var(--paper)}
