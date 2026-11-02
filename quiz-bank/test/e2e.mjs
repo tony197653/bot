@@ -435,7 +435,7 @@ try {
     await page.close();
   }
 
-  // --- 底列 B2 略過：單列、寬度固定、禁用仍有邊框（390／1280）---
+  // --- 底列：等寬等高、略過保位、禁用仍有邊框（390／1280）---
   async function assertBarStable(viewport) {
     const page = await browser.newPage({ viewport });
     await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
@@ -451,23 +451,39 @@ try {
         const sb = skip.getBoundingClientRect();
         const pb = prev.getBoundingClientRect();
         const cs = getComputedStyle(skip);
+        const ncs = getComputedStyle(next);
         const sameRow =
           Math.abs(pb.top - sb.top) < 2 &&
           Math.abs(sb.top - nb.top) < 2 &&
           pb.bottom > pb.top;
+        const is112x44 = (r) => Math.abs(r.width - 112) <= 1 && Math.abs(r.height - 44) <= 1;
         return {
           nextW: Math.round(nb.width * 100) / 100,
           skipW: Math.round(sb.width * 100) / 100,
           prevW: Math.round(pb.width * 100) / 100,
+          nextH: Math.round(nb.height * 100) / 100,
+          skipH: Math.round(sb.height * 100) / 100,
+          prevH: Math.round(pb.height * 100) / 100,
+          fixed112:
+            is112x44(pb) && is112x44(sb) && is112x44(nb),
           nextLabel: next.querySelector('.nx-t')?.textContent,
           skipVisible: cs.display !== 'none' && cs.visibility !== 'hidden' && sb.width > 0,
           skipDisabled: !!skip?.disabled,
+          prevDisabled: !!prev?.disabled,
+          prevOpacity: getComputedStyle(prev).opacity,
           skipText: skip?.textContent?.trim(),
           skipIsB2: skip.classList.contains('b2') && !skip.classList.contains('b5'),
+          nextIsB1: next.classList.contains('b1'),
           skipBorder: cs.borderTopWidth,
-          skipBorderColor: cs.borderTopColor,
+          nextRadius: ncs.borderTopLeftRadius,
+          nextTransition: ncs.transitionProperty || ncs.transition,
           sameRow,
           barWrap: document.querySelector('.bar-in').scrollHeight > pb.height + 8,
+          boxes: {
+            prev: { l: Math.round(pb.left), t: Math.round(pb.top), w: Math.round(pb.width), h: Math.round(pb.height) },
+            skip: { l: Math.round(sb.left), t: Math.round(sb.top), w: Math.round(sb.width), h: Math.round(sb.height) },
+            next: { l: Math.round(nb.left), t: Math.round(nb.top), w: Math.round(nb.width), h: Math.round(nb.height) },
+          },
         };
       });
 
@@ -476,12 +492,20 @@ try {
       throw new Error(`skip not visible on q1: ${JSON.stringify(q1Unanswered)}`);
     }
     if (!q1Unanswered.skipIsB2) throw new Error('skip must use b2');
+    if (!q1Unanswered.nextIsB1) throw new Error('next must use b1');
     if (q1Unanswered.skipDisabled) throw new Error('skip should be enabled when unanswered');
+    if (!q1Unanswered.prevDisabled) throw new Error('prev must be disabled on q1');
+    if (Math.abs(parseFloat(q1Unanswered.prevOpacity) - 0.4) > 0.05) {
+      throw new Error(`prev disabled opacity not ~.4: ${q1Unanswered.prevOpacity}`);
+    }
     if (!q1Unanswered.sameRow || q1Unanswered.barWrap) {
       throw new Error(`bar not single row @${viewport.width}: ${JSON.stringify(q1Unanswered)}`);
     }
-    if (Math.abs(q1Unanswered.prevW - q1Unanswered.skipW) > 1) {
-      throw new Error(`prev/skip widths unequal: ${q1Unanswered.prevW} vs ${q1Unanswered.skipW}`);
+    if (!q1Unanswered.fixed112) {
+      throw new Error(`step buttons not 112×44 @${viewport.width}: ${JSON.stringify(q1Unanswered)}`);
+    }
+    if (parseFloat(q1Unanswered.nextRadius) !== 8) {
+      throw new Error(`next radius not 8px: ${q1Unanswered.nextRadius}`);
     }
 
     await page.locator(`.opt[data-k="${batch.questions[0].answer}"]`).click();
@@ -496,20 +520,27 @@ try {
     if (q1Answered.skipW !== q1Unanswered.skipW) {
       throw new Error(`skip width changed after answer @${viewport.width}: ${q1Unanswered.skipW}→${q1Answered.skipW}`);
     }
-    // 禁用仍保留 b2 邊框
     const borderPx = parseFloat(q1Answered.skipBorder);
     if (!(borderPx >= 1)) {
       throw new Error(`disabled skip missing border: ${JSON.stringify(q1Answered)}`);
     }
     if (!q1Answered.sameRow) throw new Error(`bar wrapped after answer @${viewport.width}`);
+    if (!q1Answered.fixed112) throw new Error(`size drifted after answer @${viewport.width}`);
 
     await page.locator('[data-act="next"]').click();
     await page.waitForFunction(
       () => (document.querySelector('[data-el="count"]')?.textContent || '').includes('2'),
     );
     const q2 = await measure();
-    if (q2.nextW !== q1Unanswered.nextW || q2.skipW !== q1Unanswered.skipW) {
-      throw new Error(`widths drifted on q2 @${viewport.width}`);
+    if (!q2.fixed112) throw new Error(`not 112×44 on q2 @${viewport.width}`);
+    if (q2.prevDisabled) throw new Error('prev should be enabled on q2');
+    // 第 1→2 題：三鈕座標與尺寸不變
+    for (const k of ['prev', 'skip', 'next']) {
+      const a = q1Unanswered.boxes[k];
+      const b = q2.boxes[k];
+      if (a.l !== b.l || a.t !== b.t || a.w !== b.w || a.h !== b.h) {
+        throw new Error(`bar box drifted q1→q2 ${k} @${viewport.width}: ${JSON.stringify({ a, b })}`);
+      }
     }
 
     const lastN = batch.questions.length;
@@ -534,16 +565,19 @@ try {
       clip: { x: 0, y: viewport.height - 100, width: viewport.width, height: 100 },
     });
     await page.close();
-    return { nextW: q1Unanswered.nextW, skipW: q1Unanswered.skipW };
+    return { nextW: q1Unanswered.nextW, skipW: q1Unanswered.skipW, fixed112: q1Unanswered.fixed112 };
   }
 
   {
     const m390 = await assertBarStable({ width: 390, height: 844 });
     const m1280 = await assertBarStable({ width: 1280, height: 800 });
-    if (m390.nextW !== 152 || m1280.nextW !== 152) {
-      throw new Error(`next should be 152px, got 390=${m390.nextW} 1280=${m1280.nextW}`);
+    if (!m390.fixed112 || !m1280.fixed112) {
+      throw new Error(`fixed112 failed: 390=${m390.fixed112} 1280=${m1280.fixed112}`);
     }
-    pass(`bar B2 skip + fixed next (390 next=${m390.nextW} skip=${m390.skipW}; 1280 next=${m1280.nextW} skip=${m1280.skipW})`);
+    if (m390.nextW !== 112 || m1280.nextW !== 112) {
+      throw new Error(`expected 112px, got 390=${m390.nextW} 1280=${m1280.nextW}`);
+    }
+    pass(`bar P3/P4 112×44 (390/1280)`);
   }
 
   // --- exam 模式底列三鈕仍在，下一題寬度不變 ---
@@ -684,7 +718,7 @@ try {
     await page.close();
   }
 
-  // exam：空白鍵選完後空白鍵下一題，底列仍 B2／152
+  // exam：空白鍵選完後空白鍵下一題，底列寬度不變
   {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=exam`, {
@@ -703,8 +737,8 @@ try {
     );
     const nextW2 = await page.locator('[data-act="next"]').evaluate((el) => el.getBoundingClientRect().width);
     const skipB2 = await page.locator('[data-act="skip"]').evaluate((el) => el.classList.contains('b2'));
-    if (Math.round(nextW) !== 152 || Math.round(nextW2) !== 152) {
-      throw new Error(`exam next width not 152: ${nextW}→${nextW2}`);
+    if (Math.abs(nextW - nextW2) > 1) {
+      throw new Error(`exam next width drifted: ${nextW}→${nextW2}`);
     }
     if (!skipB2) throw new Error('skip must stay b2');
     pass('exam keyboard Space pick/advance + bar unchanged');
@@ -970,8 +1004,9 @@ try {
     await page.close();
   }
 
-  // --- QA r2 N-1：360 prev/skip 80、下一題右緣留白；390／1280 亦有右距 ---
+  // --- P3/P4 最終：112×44、q1=q2 座標、q1 prev disabled opacity.4、按下不縮放（360/390/1280）---
   {
+    const layouts = [];
     for (const w of [360, 390, 1280]) {
       const page = await browser.newPage({
         viewport: { width: w, height: w === 1280 ? 800 : 844 },
@@ -979,37 +1014,113 @@ try {
       await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
         waitUntil: 'networkidle',
       });
-      await page.waitForSelector('.bar .next');
-      const m = await page.evaluate(() => {
-        const prev = document.querySelector('.bar .prev');
-        const skip = document.querySelector('.bar .skip');
-        const next = document.querySelector('.bar .next');
-        const pb = prev.getBoundingClientRect();
-        const sb = skip.getBoundingClientRect();
-        const nb = next.getBoundingClientRect();
-        return {
-          prevW: Math.round(pb.width),
-          skipW: Math.round(sb.width),
-          nextW: Math.round(nb.width),
-          nextRight: nb.right,
-          vw: window.innerWidth,
-          marginR: window.innerWidth - nb.right,
-        };
+      await page.waitForSelector('.bar .prev');
+      const snap = async () =>
+        page.evaluate(() => {
+          const ids = ['prev', 'skip', 'next'];
+          const out = { barPad: getComputedStyle(document.querySelector('.bar')).paddingLeft };
+          for (const id of ids) {
+            const el = document.querySelector(`[data-act="${id}"]`);
+            const r = el.getBoundingClientRect();
+            const cs = getComputedStyle(el);
+            out[id] = {
+              l: Math.round(r.left),
+              t: Math.round(r.top),
+              w: Math.round(r.width),
+              h: Math.round(r.height),
+              disabled: !!el.disabled,
+              hidden: el.hidden || cs.display === 'none',
+              cls: el.className,
+              transform: cs.transform,
+              radius: cs.borderTopLeftRadius,
+              opacity: cs.opacity,
+              transition: cs.transitionProperty || cs.transition,
+            };
+          }
+          const next = document.querySelector('[data-act="next"]');
+          next.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+          out.nextActiveTransform = getComputedStyle(next).transform;
+          next.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+          const barIn = document.querySelector('.bar-in');
+          out.overflow =
+            barIn.scrollWidth > barIn.clientWidth + 1 ||
+            out.next.l + out.next.w > window.innerWidth + 1;
+          out.needed = 112 * 3 + 10 * 2;
+          out.innerW = window.innerWidth;
+          return out;
+        });
+      const q1 = await snap();
+      layouts.push({
+        w,
+        overflow: q1.overflow,
+        needed: q1.needed,
+        innerW: q1.innerW,
+        pad: q1.barPad,
       });
-      if (m.nextW !== 152) throw new Error(`next not 152 @${w}: ${JSON.stringify(m)}`);
-      if (m.marginR < 8) {
-        throw new Error(`next touches right edge @${w}: marginR=${m.marginR} ${JSON.stringify(m)}`);
+      if (q1.prev.hidden || q1.skip.hidden || q1.next.hidden) {
+        throw new Error(`step btn hidden on q1 @${w}: ${JSON.stringify(q1)}`);
       }
-      if (w <= 375) {
-        if (m.prevW !== 80 || m.skipW !== 80) {
-          throw new Error(`≤375 prev/skip should be 80 @${w}: ${JSON.stringify(m)}`);
+      if (!q1.prev.disabled) throw new Error(`q1 prev not disabled @${w}`);
+      if (Math.abs(parseFloat(q1.prev.opacity) - 0.4) > 0.05) {
+        throw new Error(`q1 prev opacity not .4 @${w}: ${q1.prev.opacity}`);
+      }
+      if (!(q1.skip.cls.includes('b2') && q1.prev.cls.includes('b2') && q1.next.cls.includes('b1'))) {
+        throw new Error(`step btn variants @${w}: ${JSON.stringify(q1)}`);
+      }
+      for (const id of ['prev', 'skip', 'next']) {
+        if (q1[id].w !== 112 || q1[id].h !== 44) {
+          throw new Error(`${id} not 112×44 @${w}: ${JSON.stringify(q1[id])}`);
         }
-      } else if (Math.abs(m.prevW - m.skipW) > 1) {
-        throw new Error(`prev/skip unequal @${w}: ${JSON.stringify(m)}`);
+        if (parseFloat(q1[id].radius) !== 8) {
+          throw new Error(`${id} radius not 8 @${w}: ${q1[id].radius}`);
+        }
       }
+      const at = q1.nextActiveTransform;
+      if (at && at !== 'none') {
+        const m = at.match(/matrix\(([^)]+)\)/);
+        if (m) {
+          const p = m[1].split(',').map(Number);
+          if (Math.abs(p[0] - 1) > 0.01 || Math.abs(p[3] - 1) > 0.01) {
+            throw new Error(`next scales on press @${w}: ${at}`);
+          }
+        }
+      }
+      await page.locator(`.opt[data-k="${batch.questions[0].answer}"]`).click();
+      await page.locator('[data-act="next"]').click();
+      await page.waitForFunction(
+        () => (document.querySelector('[data-el="count"]')?.textContent || '').includes('2'),
+      );
+      const q2 = await snap();
+      if (q2.prev.disabled) throw new Error(`q2 prev still disabled @${w}`);
+      for (const id of ['prev', 'skip', 'next']) {
+        const a = q1[id];
+        const b = q2[id];
+        // 尺寸必同；座標在無 overflow 時必同（overflow 時可能被 focus 捲動）
+        if (a.w !== b.w || a.h !== b.h || a.t !== b.t) {
+          throw new Error(`size/top q1≠q2 ${id} @${w}: ${JSON.stringify({ a, b })}`);
+        }
+        if (!q1.overflow && (a.l !== b.l)) {
+          throw new Error(`left drifted without overflow ${id} @${w}: ${JSON.stringify({ a, b })}`);
+        }
+      }
+      // 相對間距（縫）應固定 10px
+      const gap1 = q1.skip.l - (q1.prev.l + q1.prev.w);
+      const gap2 = q2.skip.l - (q2.prev.l + q2.prev.w);
+      if (Math.abs(gap1 - 10) > 1 || Math.abs(gap2 - 10) > 1) {
+        throw new Error(`step gap not 10 @${w}: ${gap1}/${gap2}`);
+      }
+      await page.screenshot({
+        path: path.join(outDir, `p3p4-bar-${w}.png`),
+        clip: { x: 0, y: (w === 1280 ? 800 : 844) - 90, width: w, height: 90 },
+      });
       await page.close();
     }
-    pass('N-1 bar right margin 360/390/1280 + 80px ≤375');
+    // 寫入 360 排法備註供回報
+    fs.writeFileSync(
+      path.join(outDir, 'p3p4-360-layout.json'),
+      JSON.stringify(layouts, null, 2),
+    );
+    pass('P3/P4 step buttons 112×44 fixed 360/390/1280');
   }
 
   // --- 回首頁改 B2（B5 底線鈕已禁用）---

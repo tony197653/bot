@@ -289,7 +289,7 @@ export async function renderHome(mount, ctx) {
 
     const quickNav = `<nav class="home-quick" aria-label="快速入口">
       <a class="btn b2" href="#/wrong">錯題本</a>
-      <a class="btn b2" href="#/units">單元練習</a>
+      <a class="btn b2" href="#/units">單元強弱表</a>
       ${ctx.isAdmin ? '<a class="btn b2" href="#/import" data-admin-only>匯入校對</a>' : ''}
     </nav>`;
 

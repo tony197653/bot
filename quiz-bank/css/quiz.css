@@ -16,7 +16,7 @@ body[data-view=result] .app-shell .app-main{max-width:808px}
   max-width:100%;
   scrollbar-width:thin;
 }
-.strip-scroll .bub{flex:0 0 auto}
+.strip-scroll .bub{flex:0 0 44px;width:44px;height:44px}
 .segs.strip-scroll{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;padding:4px 0;max-width:100%;justify-content:flex-start}
 @media (max-width:520px){
   body[data-view=quiz] .wrap,body[data-view=result] .wrap{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}

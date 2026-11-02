@@ -156,8 +156,14 @@ body.signed-in:not([data-view=quiz]):not([data-view=result]) .app-subnav{display
 .i1 textarea,.i1 input[type=text]{width:100%;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;font:inherit;min-height:44px}
 .th-sort{border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:4px 8px;min-height:44px;min-width:44px}
 .home-unit-entry{margin:0 0 12px}
-.home-quick{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
-.home-quick a{flex:1 1 7rem;min-height:44px}
+/* 附錄 v1.1：快速入口兩顆 B2，等高 44、等寬兩欄、間距 8、按下不縮放 */
+.home-quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
+.home-quick a{
+  width:100%;min-height:44px;height:44px;border-radius:var(--r-sm);
+  transform:none;transition:background-color .22s var(--ease),opacity .22s var(--ease),border-color .22s var(--ease)
+}
+.home-quick a:active{transform:none}
+.home-quick a[data-admin-only]{grid-column:1/-1}
 .empty-next{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
 body.signed-out .drawer-backdrop,body.signed-out .app-drawer{display:none!important}
 body[data-view=result] .app-main{max-width:808px;margin-left:auto;margin-right:auto}

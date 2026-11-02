@@ -194,8 +194,8 @@ export function optionsHtml(q, answer, opts = {}) {
 }
 
 export const ICON = {
-  ok: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-  bad: '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  ok: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  bad: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
   chev: '<svg class="chev" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
 
@@ -215,8 +215,8 @@ export function feedbackHtml(q, a, opts = {}) {
           opts.reported ? '已回報' : '回報題目有誤'
         }</button>`;
   return `<div class="fb ${ok ? 'is-ok' : 'is-bad'}">
-    <p class="verdict"><span class="vi">${ok ? ICON.ok : ICON.bad}</span>
-      <span class="vt">${ok ? '答對了' : `答錯了，正確答案是 ${L[q.answer]}`}</span></p>
+    <p class="verdict"><span class="vi" aria-hidden="true">${ok ? ICON.ok : ICON.bad}</span>
+      <span class="vt">${ok ? '✓ 正確答案' : `✗ 你的答案 ${L[a]} · 正確答案 ${L[q.answer]}`}</span></p>
     <div class="acc a1"><div class="acc-i">
       <h3 class="acc-h"><button type="button" class="acc-b" aria-expanded="false" aria-controls="acc-p">
         <span class="t">看詳解</span>${ICON.chev}</button></h3>

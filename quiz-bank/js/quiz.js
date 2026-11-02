@@ -231,8 +231,7 @@ function createSession(opts) {
   }
 
   function strip() {
-    const many = qs.length > 12;
-    stripEl.classList.toggle('strip-scroll', many);
+    stripEl.classList.add('strip-scroll');
     stripEl.innerHTML = qs
       .map((q, n) => {
         const a = answers[n];
@@ -254,7 +253,7 @@ function createSession(opts) {
     progEl?.style.setProperty('--p', String(done / qs.length));
     countEl.innerHTML = `<b>${i + 1}</b><span> / ${qs.length}</span>`;
     const now = stripEl.querySelector('.bub.now');
-    if (now && many) {
+    if (now) {
       now.scrollIntoView({ inline: 'center', block: 'nearest', behavior: RM() ? 'auto' : 'smooth' });
     }
   }
@@ -267,20 +266,20 @@ function createSession(opts) {
     const next = root.querySelector('[data-act="next"]');
     const skip = root.querySelector('[data-act="skip"]');
     const submit = root.querySelector('[data-act="submit"]');
+    // 只改屬性／文案，不重建鈕 DOM，避免連按閃爍
     prev.disabled = i === 0;
+    prev.hidden = false;
     const needAnswer = mode === 'instant' && a < 0;
     next.disabled = needAnswer;
-    next.querySelector('.nx-t').textContent = last
-      ? confirming
-        ? '確定交卷'
-        : '看結果'
-      : '下一題';
-    // 略過永遠可見、標籤固定；不可用時 disabled 保寬
+    const nextLabel = last ? (confirming ? '確定交卷' : '看結果') : '下一題';
+    const nx = next.querySelector('.nx-t');
+    if (nx && nx.textContent !== nextLabel) nx.textContent = nextLabel;
+    // 略過永遠在場；不可用時 disabled 保寬保位
     skip.hidden = false;
-    skip.textContent = '略過';
+    if (skip.textContent !== '略過') skip.textContent = '略過';
     skip.disabled = !(mode === 'instant' && a < 0);
-    // 確認交卷時只讓下一題顯示「確定交卷」，交卷鈕維持「交卷」避免雙重同文
-    submit.querySelector('span').textContent = '交卷';
+    const subSpan = submit.querySelector('span');
+    if (subSpan && subSpan.textContent !== '交卷') subSpan.textContent = '交卷';
     submit.disabled = confirming;
     if (confirming && unanswered) {
       warnEl.textContent = `還有 ${unanswered} 題沒寫。確定要交卷嗎？沒寫的題目會算錯。`;
