@@ -68,3 +68,63 @@ export function cardFaceInner(card) {
 export function fmtChips(n) {
   return Number(n).toLocaleString('zh-TW');
 }
+
+/**
+ * Markup for five fixed community-card slots (flop 1–3, turn 4, river 5).
+ * Empty slots are invisible placeholders that reserve the river row width.
+ * @param {{r:number,s:number}[]} cards
+ * @param {{ anim?: boolean }} [opts]
+ */
+export function boardSlotsMarkup(cards, opts = {}) {
+  const list = Array.isArray(cards) ? cards : [];
+  let html = '';
+  for (let i = 0; i < 5; i++) {
+    const c = list[i];
+    if (c) {
+      html += `<div class="slot is-filled">${cardHtml(c, { anim: !!opts.anim })}</div>`;
+    } else {
+      html += `<div class="slot" aria-hidden="true"></div>`;
+    }
+  }
+  return html;
+}
+
+/**
+ * Paint #board with five fixed slots so dealt cards never recenter.
+ * @param {HTMLElement|null} boardEl
+ * @param {{r:number,s:number}[]} cards
+ * @param {{ anim?: boolean, active?: boolean }} [opts]
+ *   active=false clears the board (lobby / pre-first-hand).
+ */
+export function paintBoardSlots(boardEl, cards, opts = {}) {
+  if (!boardEl) return;
+  const list = Array.isArray(cards) ? cards : [];
+  const active = opts.active === true || (opts.active !== false && list.length > 0);
+  if (!active) {
+    boardEl.innerHTML = '';
+    return;
+  }
+  const needRebuild =
+    boardEl.children.length !== 5 ||
+    ![...boardEl.children].every((el) => el.classList?.contains('slot'));
+  if (needRebuild) {
+    boardEl.innerHTML = boardSlotsMarkup(list, opts);
+    return;
+  }
+  for (let i = 0; i < 5; i++) {
+    const slot = boardEl.children[i];
+    const c = list[i];
+    if (c) {
+      if (!slot.classList.contains('is-filled')) {
+        slot.classList.add('is-filled');
+        slot.removeAttribute('aria-hidden');
+        slot.innerHTML = cardHtml(c, { anim: !!opts.anim });
+      }
+      // Already filled: leave DOM alone so prior streets never remount/shift
+    } else if (slot.classList.contains('is-filled')) {
+      slot.classList.remove('is-filled');
+      slot.setAttribute('aria-hidden', 'true');
+      slot.innerHTML = '';
+    }
+  }
+}

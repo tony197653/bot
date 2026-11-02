@@ -143,14 +143,21 @@ input:focus-visible,.mp-float input:focus-visible,.mp-digit:focus-visible,.mp-af
   background:rgba(0,0,0,.35);color:#ffe9a8;line-height:1.2;
 }
 
-/* Board — no dashed empty slots */
+/* Board — five fixed slots (invisible placeholders reserve river width) */
 .board{
   position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);
   display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;
   gap:6px;width:max-content;z-index:2;pointer-events:none;
 }
 .board:empty{display:none}
-.slot{display:none!important}
+.board .slot{
+  flex:0 0 var(--cw);width:var(--cw);min-width:var(--cw);height:var(--ch);
+  position:relative;
+}
+/* Empty: no dashed look — only size reservation so flop/turn don't recenter */
+.board .slot:not(.is-filled){visibility:hidden}
+.board .slot.is-filled{visibility:visible}
+.board .slot > .card{margin:0}
 
 /* Cards */
 .card{

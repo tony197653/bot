@@ -76,7 +76,7 @@ import {
 } from './lobby.js';
 import { renderStats } from './stats.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
-import { cardHtml, cardBackPair, heroBackPair, fmtChips } from './cards-dom.js';
+import { cardHtml, cardBackPair, heroBackPair, fmtChips, paintBoardSlots } from './cards-dom.js';
 import { mapSeatsClockwise } from './seating.js';
 import { prefersReducedMotion } from './fx.js';
 import { parseCard } from '../engine/cards.js';
@@ -1381,12 +1381,13 @@ function renderSeatOverlays() {
   const mySeat = room.seatUids.indexOf(user?.uid);
   const between = pub.phase === 'lobby' || pub.phase === 'hand_over' || !pub.phase;
 
-  // Board + pot
-  if (boardEl) {
-    boardEl.innerHTML = (pub.board || [])
-      .map((c) => cardHtml(c, { anim: false }))
-      .join('');
-  }
+  // Board + pot — five fixed slots from hand start (no recenter on turn/river)
+  const boardCards = pub.board || [];
+  const boardActive =
+    boardCards.length > 0 ||
+    (!between && (Number(pub.handNo) || 0) > 0) ||
+    pub.phase === 'showdown';
+  paintBoardSlots(boardEl, boardCards, { anim: false, active: boardActive });
   if (potAmt) potAmt.textContent = fmtChips(pub.potTotal || 0);
 
   // Timer / turn hint

@@ -15,7 +15,7 @@ import {
   HOLD_MS_SHOWDOWN,
   HOLD_MS_FOLD_WIN,
 } from '../engine/index.js';
-import { cardHtml, cardBackPair, heroBackPair, fmtChips, cardFaceInner } from './cards-dom.js';
+import { cardHtml, cardBackPair, heroBackPair, fmtChips, cardFaceInner, paintBoardSlots } from './cards-dom.js';
 import { onTick } from './ticker.js';
 import { mapSeatsClockwise, seatVisualPos } from './seating.js';
 import {
@@ -892,13 +892,19 @@ function renderTable(v) {
   const dealingSetup = dealPresenting || awaitingDealThenPass;
   const atShowdown = v.isShowdown || v.isHandOver;
   const boardEl = $('#board');
-  // Felt shows ONLY dealt community cards — no dashed placeholders.
+  // Five fixed slots from hand start; empty slots invisible but reserve river width.
   // Freeze board DOM during showdown/hand-over so dealIn never replays on re-render.
   const boardKey = (v.board || []).map((c) => `${c.r}${c.s}`).join('-') + `:${v.handNumber}`;
   if (!atShowdown || boardFrozenKey !== boardKey) {
-    boardEl.innerHTML = (v.board || [])
-      .map((c) => cardHtml(c, { anim: !atShowdown }))
-      .join('');
+    const boardCards = v.board || [];
+    const boardActive =
+      boardCards.length > 0 ||
+      (!!v.handNumber && !v.isHandOver && (v.phase || '') !== 'lobby') ||
+      v.isShowdown;
+    paintBoardSlots(boardEl, boardCards, {
+      anim: !atShowdown,
+      active: boardActive,
+    });
     if (atShowdown) boardFrozenKey = boardKey;
     else boardFrozenKey = '';
   }
