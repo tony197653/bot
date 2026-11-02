@@ -181,16 +181,11 @@ try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
     await page.goto(`http://127.0.0.1:${port}/test/harness.html`, { waitUntil: 'networkidle' });
     await page.waitForSelector('.opt');
-    // 題組（含圖）在第 11 題：點泡泡跳題，等轉場結束再點圖
+    // 題組（含圖）在第 11 題：點泡泡跳題（無進出場過渡，立刻就緒）
     await page.locator('.bub[data-n="10"]').click();
     await page.waitForFunction(
-      () => {
-        const count = document.querySelector('[data-el="count"]')?.textContent || '';
-        const leaving = document.querySelector('.qcard.leaving');
-        const entering = document.querySelector('.qcard.entering');
-        return count.includes('11') && !leaving && !entering;
-      },
-      { timeout: 8000 },
+      () => (document.querySelector('[data-el="count"]')?.textContent || '').includes('11'),
+      { timeout: 5000 },
     );
     await page.locator('.group-toggle').click();
     await page.waitForSelector('.acc-i.open .fig-zoom', { state: 'visible', timeout: 5000 });
@@ -412,6 +407,129 @@ try {
       throw new Error(`aria-label weak: ${lab}`);
     }
     pass('P2.14 option aria-label letter+text');
+    await page.close();
+  }
+
+  // --- 換題無進出場過渡；選項無交錯淡入 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('.opt');
+    await page.locator('.opt[data-k="0"]').click();
+    await page.locator('[data-act="next"]').click();
+    await page.waitForFunction(
+      () => (document.querySelector('[data-el="count"]')?.textContent || '').includes('2'),
+    );
+    const classes = await page.locator('[data-el="card"]').evaluate((el) => el.className);
+    if (/\b(leaving|entering|in)\b/.test(classes)) {
+      throw new Error(`qcard still has transition class: ${classes}`);
+    }
+    const anim = await page.locator('.opt').first().evaluate((el) => getComputedStyle(el).animationName);
+    if (anim && anim !== 'none') throw new Error(`opt still animating: ${anim}`);
+    pass('no qcard enter/leave or opt stagger animation');
+    await page.close();
+  }
+
+  // --- 底列：略過永遠可見；下一題寬度固定（390／1280）---
+  async function assertBarStable(viewport) {
+    const page = await browser.newPage({ viewport });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=instant`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    const measure = async () =>
+      page.evaluate(() => {
+        const next = document.querySelector('[data-act="next"]');
+        const skip = document.querySelector('[data-act="skip"]');
+        const nb = next.getBoundingClientRect();
+        return {
+          nextW: Math.round(nb.width * 100) / 100,
+          nextLabel: next.querySelector('.nx-t')?.textContent,
+          skipVisible: !!(
+            skip &&
+            getComputedStyle(skip).display !== 'none' &&
+            getComputedStyle(skip).visibility !== 'hidden' &&
+            skip.getBoundingClientRect().width > 0
+          ),
+          skipDisabled: !!skip?.disabled,
+          skipText: skip?.textContent?.trim(),
+        };
+      });
+
+    const q1Unanswered = await measure();
+    if (!q1Unanswered.skipVisible || q1Unanswered.skipText !== '略過') {
+      throw new Error(`skip not visible on q1: ${JSON.stringify(q1Unanswered)}`);
+    }
+    if (q1Unanswered.skipDisabled) throw new Error('skip should be enabled when unanswered');
+
+    await page.locator(`.opt[data-k="${batch.questions[0].answer}"]`).click();
+    await page.waitForTimeout(80);
+    const q1Answered = await measure();
+    if (!q1Answered.skipVisible || !q1Answered.skipDisabled) {
+      throw new Error(`skip should stay visible+disabled after answer: ${JSON.stringify(q1Answered)}`);
+    }
+    if (q1Answered.nextW !== q1Unanswered.nextW) {
+      throw new Error(`next width changed after answer @${viewport.width}: ${q1Unanswered.nextW}→${q1Answered.nextW}`);
+    }
+
+    await page.locator('[data-act="next"]').click();
+    await page.waitForFunction(
+      () => (document.querySelector('[data-el="count"]')?.textContent || '').includes('2'),
+    );
+    const q2 = await measure();
+    if (q2.nextW !== q1Unanswered.nextW) {
+      throw new Error(`next width changed on q2 @${viewport.width}: ${q1Unanswered.nextW}→${q2.nextW}`);
+    }
+
+    // 最後一題：標籤變「看結果」，寬度仍相同
+    const lastN = batch.questions.length;
+    await page.locator(`.bub[data-n="${lastN - 1}"]`).click();
+    await page.waitForSelector(`[data-el="count"] >> text=/${lastN}/`, { timeout: 5000 });
+    const lastUnanswered = await measure();
+    if (lastUnanswered.nextLabel !== '看結果') {
+      throw new Error(`expected 看結果, got ${lastUnanswered.nextLabel}`);
+    }
+    if (lastUnanswered.nextW !== q1Unanswered.nextW) {
+      throw new Error(
+        `next width changed on last @${viewport.width}: ${q1Unanswered.nextW}→${lastUnanswered.nextW}`,
+      );
+    }
+    if (!lastUnanswered.skipVisible || lastUnanswered.skipText !== '略過') {
+      throw new Error(`skip label must stay 略過: ${JSON.stringify(lastUnanswered)}`);
+    }
+
+    await page.screenshot({
+      path: path.join(outDir, `bar-stable-${viewport.width}.png`),
+      fullPage: false,
+      clip: { x: 0, y: viewport.height - 100, width: viewport.width, height: 100 },
+    });
+    await page.close();
+    return q1Unanswered.nextW;
+  }
+
+  {
+    const w390 = await assertBarStable({ width: 390, height: 844 });
+    const w1280 = await assertBarStable({ width: 1280, height: 800 });
+    pass(`bar skip always visible + next fixed width (390=${w390}, 1280=${w1280})`);
+  }
+
+  // --- exam 模式底列三鈕仍在，下一題寬度不變 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/test/harness.html?mode=exam`, {
+      waitUntil: 'networkidle',
+    });
+    await page.waitForSelector('.opt');
+    const before = await page.locator('[data-act="next"]').boundingBox();
+    const skip = page.locator('[data-act="skip"]');
+    if (!(await skip.isVisible())) throw new Error('skip hidden in exam');
+    if (!(await skip.isDisabled())) throw new Error('skip should be disabled in exam');
+    await page.locator('.opt[data-k="0"]').click();
+    const after = await page.locator('[data-act="next"]').boundingBox();
+    if (Math.abs(before.width - after.width) > 0.5) {
+      throw new Error(`exam next width drifted: ${before.width}→${after.width}`);
+    }
+    pass('exam bar: skip visible+disabled, next width stable');
     await page.close();
   }
 

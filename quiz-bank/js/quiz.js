@@ -33,7 +33,6 @@ let session = null;
  *  onReport?: (payload: {qid:string, reason:string, note:string}) => Promise<void>|void,
  *  progressKey?: string|null,
  *  scope?: object|null,
- *  outMs?: number,
  *  initialAnswers?: number[],
  *  initialIndex?: number,
  *  reportedIds?: string[],
@@ -119,7 +118,6 @@ function createSession(opts) {
   let confirming = false;
   let startedAt = Date.now();
   let destroyed = false;
-  const outMs = opts.outMs ?? 200;
   const mount = opts.mount;
   const clearOnFinish = opts.clearProgressOnFinish === true;
 
@@ -143,7 +141,7 @@ function createSession(opts) {
       <p class="warn" data-el="warn" role="status"></p>
       <div class="bar-in">
         <button type="button" class="btn b2 prev" data-act="prev"><span>上一題</span></button>
-        <button type="button" class="btn b5 skip" data-act="skip" hidden>略過</button>
+        <button type="button" class="btn b5 skip" data-act="skip">略過</button>
         <button type="button" class="btn b2 submit" data-act="submit"><span>交卷</span></button>
         <button type="button" class="btn b1 next" data-act="next"><span class="nx-t">下一題</span></button>
       </div>
@@ -273,8 +271,10 @@ function createSession(opts) {
         ? '確定交卷'
         : '看結果'
       : '下一題';
-    skip.hidden = !(mode === 'instant' && a < 0);
-    skip.textContent = last ? '略過，看結果' : '略過';
+    // 略過永遠可見、標籤固定；不可用時 disabled 保寬
+    skip.hidden = false;
+    skip.textContent = '略過';
+    skip.disabled = !(mode === 'instant' && a < 0);
     submit.querySelector('span').textContent = confirming ? '確定交卷' : '交卷';
     if (confirming && unanswered) {
       warnEl.textContent = `還有 ${unanswered} 題沒寫。確定要交卷嗎？沒寫的題目會算錯。`;
@@ -303,46 +303,22 @@ function createSession(opts) {
     </article>`;
   }
 
-  function paint(enter, dir = 1) {
+  function paint() {
     stageEl.innerHTML = cardHtml(i);
     strip();
     bar();
     const card = stageEl.querySelector('[data-el="card"]');
     renderMath(card);
-    if (enter && !RM() && card) {
-      card.style.setProperty('--dir', String(dir));
-      card.classList.add('entering', 'in');
-      void card.offsetWidth;
-      requestAnimationFrame(() => {
-        card.classList.remove('entering');
-        setTimeout(() => card.classList.remove('in'), 900);
-      });
-    }
     saveProgress();
   }
 
   function go(n, focusStem) {
     if (n < 0 || n >= qs.length || n === i || busy) return;
     confirming = false;
-    const dir = n > i ? 1 : -1;
-    const done = () => {
-      i = n;
-      paint(true, dir);
-      window.scrollTo({ top: 0, behavior: RM() ? 'auto' : 'smooth' });
-      if (focusStem) stageEl.querySelector('.stem')?.focus({ preventScroll: true });
-    };
-    const card = stageEl.querySelector('[data-el="card"]');
-    if (RM() || !card) {
-      done();
-      return;
-    }
-    busy = true;
-    card.style.setProperty('--dir', String(dir));
-    card.classList.add('leaving');
-    setTimeout(() => {
-      busy = false;
-      done();
-    }, outMs);
+    i = n;
+    paint();
+    window.scrollTo({ top: 0, behavior: RM() ? 'auto' : 'smooth' });
+    if (focusStem) stageEl.querySelector('.stem')?.focus({ preventScroll: true });
   }
 
   function pick(k) {
@@ -352,7 +328,7 @@ function createSession(opts) {
     answers[i] = k;
     confirming = false;
     if (mode === 'exam') {
-      paint(false);
+      paint();
       return;
     }
     const card = stageEl.querySelector('[data-el="card"]');
@@ -516,8 +492,9 @@ function createSession(opts) {
     const act = t.dataset.act;
     if (act === 'prev') go(i - 1);
     else if (act === 'next') next();
-    else if (act === 'skip') skip();
-    else if (act === 'submit') submit();
+    else if (act === 'skip') {
+      if (!t.disabled) skip();
+    } else if (act === 'submit') submit();
     else if (act === 'leave') showLeaveDialog();
   }
 
@@ -572,7 +549,7 @@ function createSession(opts) {
       }
     }
     document.body.dataset.view = 'quiz';
-    paint(true, 1);
+    paint();
   }
 
   function destroy(clearSession = true) {

@@ -20,10 +20,8 @@ body{letter-spacing:.03em}
 .bub-m{width:14px;height:14px;right:-4px;top:-4px;color:#fff;box-shadow:0 0 0 2px var(--bg)}
 .bub-m svg{width:9px;height:9px}
 .bub.ok .bub-m{background:var(--ok)}.bub.bad .bub-m{background:var(--bad)}
-/* 題目：沒有卡框，只有留白 */
-.qcard{padding:20px 4px 8px;--blur:6px}
-.qcard.leaving{opacity:0;transform:translateY(-8px);filter:blur(4px)}
-.qcard.entering{opacity:0;transform:translateY(12px);filter:blur(6px)}
+/* 題目：沒有卡框，只有留白；換題無進／出場過渡 */
+.qcard{padding:20px 4px 8px}
 .qno{letter-spacing:.08em;font-size:13px}.qno b{font-family:var(--font-num);font-size:17px;font-weight:500;margin:0 1px}
 .tag{color:var(--mute);font-weight:500;box-shadow:inset 0 0 0 1px var(--line-strong);border-radius:999px;padding:2px 10px}
 .stem{font-size:19px;line-height:1.9;font-weight:400;letter-spacing:.03em}
@@ -47,8 +45,6 @@ body{letter-spacing:.03em}
 .opt.ok .mk svg,.opt.bad .mk svg{opacity:1}
 .revealed.fresh .opt.ok .mk svg,.revealed.fresh .opt.bad .mk svg{animation:mkB .45s var(--ease-out) .2s both}
 @keyframes mkB{from{opacity:0}to{opacity:1}}
-.qcard.in .opt{animation:optB .6s var(--ease-out) both;animation-delay:calc(var(--i)*60ms + 120ms)}
-@keyframes optB{from{opacity:0}to{opacity:1}}
 .fb{margin-top:22px;padding:4px 2px 0}
 .revealed.fresh .fb{animation:fbB .6s var(--ease-out) .3s both}
 @keyframes fbB{from{opacity:0;transform:translateY(6px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
