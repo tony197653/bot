@@ -34,6 +34,8 @@ export const ERR = {
   importStudentOnly: '這一頁只有管理者能用',
   homeEmptyStudent: '題目還在準備中，可以先去錯題本複習',
   homeEmptyAdmin: '題目準備中。管理者可至匯入頁存入題目。',
+  /** 線框 E1 空庫文案（純文字、無按鈕；優先於 §4.4 帶 CTA 的變體） */
+  homeEmptyWire: '請家教TU 把照片轉成題目',
   wrongEmpty: '目前沒有錯題，去做新的一回',
   wrongFilteredEmpty: '這個科目沒有錯題',
   unitsEmpty: '最近 30 天做完一回就會出現',

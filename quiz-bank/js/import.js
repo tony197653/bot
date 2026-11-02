@@ -582,7 +582,6 @@ export async function renderImport(mount, ctx) {
       ? '<p class="mute save-hint">還有紅標題未處理，存入已停用</p>'
       : '';
     mount.innerHTML = `<div class="page import">
-      <h1 class="page-title">匯入校對</h1>
       <ol class="p3 steps"><li class="${step >= 1 ? 'on' : ''}">① 選檔</li><li class="${step >= 2 ? 'on' : ''}">② 紅標</li><li class="${step >= 3 ? 'on' : ''}">③ 預覽</li></ol>
       <div class="tabs g2">
         <button type="button" class="tab${state.tab === 'all' ? ' on' : ''}" data-tab="all">全部</button>

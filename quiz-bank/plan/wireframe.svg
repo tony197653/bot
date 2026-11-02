@@ -1,0 +1,686 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2390" height="6800" viewBox="0 0 2390 6800" font-family="'Noto Sans CJK TC','Noto Serif CJK TC','Noto Sans Mono CJK TC',sans-serif">
+<rect width="2390" height="6800" fill="#f4f4f4"/>
+<text x="40" y="44" font-size="24" font-weight="700" fill="#111">參考書轉數位考題網 灰階線框 v1（2026-11-02，PL）｜虛線＝內容 實線＝固定框 深色＝主按鈕 白底黑框＝次按鈕 灰底＝停用｜字母＝規格書分區，黑圓＝說明編號</text>
+<text x="40" y="98" font-size="16" fill="#111" font-weight="700" text-anchor="start">1 登入｜桌機 1280</text>
+<rect x="40" y="110" width="1280" height="800" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="480" y="290" width="400" height="120" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="680.0" y="345.20000000000005" font-size="16" fill="#444" font-weight="400" text-anchor="middle">考題網</text>
+<text x="680.0" y="366.00000000000006" font-size="16" fill="#444" font-weight="400" text-anchor="middle">參考書轉數位考題・只有家人能用</text>
+<rect x="484" y="294" width="22" height="18" rx="3" fill="#777"/>
+<text x="495" y="308" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="480" y="440" width="400" height="52" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="680.0" y="471.25" font-size="15" fill="#fff" font-weight="600" text-anchor="middle">用 Google 帳號登入（B1）</text>
+<circle cx="470" cy="466" r="13" fill="#111"/>
+<text x="470" y="471" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<rect x="480" y="520" width="400" height="110" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="680.0" y="563.6" font-size="12" fill="#444" font-weight="400" text-anchor="middle">錯誤區（平常不顯示）</text>
+<text x="680.0" y="579.2" font-size="12" fill="#444" font-weight="400" text-anchor="middle">・這個帳號不在名單內：顯示 email＋「請請爸爸加入」</text>
+<text x="680.0" y="594.8000000000001" font-size="12" fill="#444" font-weight="400" text-anchor="middle">・LINE／IG 內建瀏覽器：請改用 Safari／Chrome 開啟＋複製網址</text>
+<rect x="484" y="524" width="22" height="18" rx="3" fill="#777"/>
+<text x="495" y="538" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<circle cx="470" cy="530" r="13" fill="#111"/>
+<text x="470" y="535" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<text x="1360" y="98" font-size="16" fill="#111" font-weight="700" text-anchor="start">1 登入｜手機 390</text>
+<rect x="1360" y="110" width="390" height="844" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="1384" y="330" width="342" height="120" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="385.20000000000005" font-size="16" fill="#444" font-weight="400" text-anchor="middle">考題網</text>
+<text x="1555.0" y="406.00000000000006" font-size="16" fill="#444" font-weight="400" text-anchor="middle">只有家人能用</text>
+<rect x="1388" y="334" width="22" height="18" rx="3" fill="#777"/>
+<text x="1399" y="348" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="1384" y="490" width="342" height="120" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="554.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">錯誤區 C（同桌機）</text>
+<rect x="1388" y="494" width="22" height="18" rx="3" fill="#777"/>
+<text x="1399" y="508" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<rect x="1384" y="854" width="342" height="56" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="1555.0" y="887.25" font-size="15" fill="#fff" font-weight="600" text-anchor="middle">用 Google 帳號登入（B1）</text>
+<circle cx="1376" cy="882" r="13" fill="#111"/>
+<text x="1376" y="887" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<text x="1790" y="130" font-size="18" fill="#111" font-weight="700" text-anchor="start">1 登入</text>
+<circle cx="1804" cy="161" r="13" fill="#111"/>
+<text x="1804" y="166" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<text x="1828" y="166" font-size="14" fill="#333" font-weight="400" text-anchor="start">按下開 Google 登入視窗（signInWithPopup）。</text>
+<text x="1828" y="188" font-size="14" fill="#333" font-weight="400" text-anchor="start">處理中按鈕變 N3 轉圈、不能再按。</text>
+<text x="1828" y="210" font-size="14" fill="#333" font-weight="400" text-anchor="start">成功→查 allow/{email}，有就進首頁。</text>
+<circle cx="1804" cy="241" r="13" fill="#111"/>
+<text x="1804" y="246" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<text x="1828" y="246" font-size="14" fill="#333" font-weight="400" text-anchor="start">不在名單：登出＋顯示該 email 與說明。</text>
+<text x="1828" y="268" font-size="14" fill="#333" font-weight="400" text-anchor="start">內建瀏覽器（UA 含 Line/FBAN/Instagram）：</text>
+<text x="1828" y="290" font-size="14" fill="#333" font-weight="400" text-anchor="start">不顯示登入鈕，只顯示「複製網址」(B2)。</text>
+<text x="1828" y="312" font-size="14" fill="#333" font-weight="400" text-anchor="start">彈窗被擋：改用 signInWithRedirect。</text>
+<text x="40" y="1058" font-size="16" fill="#111" font-weight="700" text-anchor="start">2 首頁／題庫｜桌機 1280</text>
+<rect x="40" y="1070" width="1280" height="800" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="40" y="1070" width="1280" height="64" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="44" y="1074" width="22" height="18" rx="3" fill="#777"/>
+<text x="55" y="1088" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<text x="80" y="1110" font-size="18" fill="#222" font-weight="700" text-anchor="start">考題網</text>
+<text x="280" y="1110" font-size="15" fill="#333" font-weight="400" text-anchor="start">首頁</text>
+<text x="400" y="1110" font-size="15" fill="#333" font-weight="400" text-anchor="start">錯題本</text>
+<text x="520" y="1110" font-size="15" fill="#333" font-weight="400" text-anchor="start">單元強弱</text>
+<text x="640" y="1110" font-size="15" fill="#333" font-weight="400" text-anchor="start">匯入（管理者）</text>
+<rect x="1120" y="1082" width="160" height="40" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1200.0" y="1106.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">宗良 ↓（M1）</text>
+<rect x="80" y="1158" width="1200" height="90" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="680.0" y="1207.9" font-size="14" fill="#444" font-weight="400" text-anchor="middle">今日建議：繼續第 3 回（7/20）｜錯題本 12 題（L5）｜最弱：M9-2 一元二次方程式</text>
+<rect x="84" y="1162" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="1176" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<circle cx="70" cy="1164" r="13" fill="#111"/>
+<text x="70" y="1169" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<rect x="80" y="1270" width="360" height="44" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="260.0" y="1296.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">科目：全部｜數學｜理化（S3）</text>
+<rect x="84" y="1274" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="1288" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<rect x="460" y="1270" width="300" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="610.0" y="1296.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">書：全部 ↓（M1）</text>
+<circle cx="70" cy="1274" r="13" fill="#111"/>
+<text x="70" y="1279" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<rect x="80" y="1338" width="270" height="230" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="215.0" y="1432.2" font-size="13" fill="#444" font-weight="400" text-anchor="middle">書卡（C1）</text>
+<text x="215.0" y="1449.1000000000001" font-size="13" fill="#444" font-weight="400" text-anchor="middle">翰林數學九上</text>
+<text x="215.0" y="1466.0" font-size="13" fill="#444" font-weight="400" text-anchor="middle">單元 → 回清單</text>
+<text x="215.0" y="1482.9" font-size="13" fill="#444" font-weight="400" text-anchor="middle">第1回 已做 85%</text>
+<rect x="84" y="1342" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="1356" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<rect x="370" y="1338" width="270" height="230" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="505.0" y="1432.2" font-size="13" fill="#444" font-weight="400" text-anchor="middle">書卡（C1）</text>
+<text x="505.0" y="1449.1000000000001" font-size="13" fill="#444" font-weight="400" text-anchor="middle">翰林數學九上</text>
+<text x="505.0" y="1466.0" font-size="13" fill="#444" font-weight="400" text-anchor="middle">單元 → 回清單</text>
+<text x="505.0" y="1482.9" font-size="13" fill="#444" font-weight="400" text-anchor="middle">第2回 已做 85%</text>
+<rect x="660" y="1338" width="270" height="230" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="795.0" y="1432.2" font-size="13" fill="#444" font-weight="400" text-anchor="middle">書卡（C1）</text>
+<text x="795.0" y="1449.1000000000001" font-size="13" fill="#444" font-weight="400" text-anchor="middle">翰林數學九上</text>
+<text x="795.0" y="1466.0" font-size="13" fill="#444" font-weight="400" text-anchor="middle">單元 → 回清單</text>
+<text x="795.0" y="1482.9" font-size="13" fill="#444" font-weight="400" text-anchor="middle">第3回 已做 85%</text>
+<circle cx="70" cy="1344" r="13" fill="#111"/>
+<text x="70" y="1349" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<rect x="960" y="1338" width="320" height="480" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="1120.0" y="1531.85" font-size="13" fill="#444" font-weight="400" text-anchor="middle">開始設定（選了某回才出現）</text>
+<text x="1120.0" y="1548.75" font-size="13" fill="#444" font-weight="400" text-anchor="middle"></text>
+<text x="1120.0" y="1565.6499999999999" font-size="13" fill="#444" font-weight="400" text-anchor="middle">範圍：第 3 回・20 題</text>
+<text x="1120.0" y="1582.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">對答案：當場對｜交卷才對（S3）</text>
+<text x="1120.0" y="1599.4499999999998" font-size="13" fill="#444" font-weight="400" text-anchor="middle">打亂順序（S1）</text>
+<text x="1120.0" y="1616.35" font-size="13" fill="#444" font-weight="400" text-anchor="middle"></text>
+<text x="1120.0" y="1633.25" font-size="13" fill="#444" font-weight="400" text-anchor="middle"></text>
+<rect x="964" y="1342" width="22" height="18" rx="3" fill="#777"/>
+<text x="975" y="1356" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">E</text>
+<circle cx="950" cy="1344" r="13" fill="#111"/>
+<text x="950" y="1349" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<rect x="980" y="1744" width="280" height="52" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="1120.0" y="1775.25" font-size="15" fill="#fff" font-weight="600" text-anchor="middle">開始作答（B1）</text>
+<rect x="80" y="1594" width="850" height="200" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="505.0" y="1690.1" font-size="13" fill="#444" font-weight="400" text-anchor="middle">空狀態（E1）：還沒有題目→「請家教TU 把照片轉成題目」</text>
+<text x="505.0" y="1707.0" font-size="13" fill="#444" font-weight="400" text-anchor="middle">載入中（E3 骨架）</text>
+<text x="1360" y="1058" font-size="16" fill="#111" font-weight="700" text-anchor="start">2 首頁｜手機 390</text>
+<rect x="1360" y="1070" width="390" height="844" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="1360" y="1070" width="390" height="56" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="1364" y="1074" width="22" height="18" rx="3" fill="#777"/>
+<text x="1375" y="1088" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<rect x="1372" y="1076" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1394.0" y="1102.2" font-size="12" fill="#444" font-weight="600" text-anchor="middle">選單</text>
+<text x="1430" y="1105" font-size="16" fill="#222" font-weight="700" text-anchor="start">考題網</text>
+<rect x="1694" y="1076" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1716.0" y="1101.85" font-size="11" fill="#444" font-weight="600" text-anchor="middle">頭像</text>
+<rect x="1376" y="1142" width="358" height="100" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="1187.8000000000002" font-size="14" fill="#444" font-weight="400" text-anchor="middle">今日建議 B</text>
+<text x="1555.0" y="1206.0000000000002" font-size="14" fill="#444" font-weight="400" text-anchor="middle">繼續第 3 回｜錯題 12</text>
+<rect x="1380" y="1146" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="1160" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="1376" y="1258" width="358" height="44" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="1555.0" y="1284.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">全部｜數學｜理化（S3）</text>
+<rect x="1380" y="1262" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="1276" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<rect x="1376" y="1318" width="358" height="134" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="1389.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">書卡 C1（點開→單元→回）</text>
+<rect x="1380" y="1322" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="1336" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<rect x="1376" y="1468" width="358" height="134" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="1539.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">書卡 C1（點開→單元→回）</text>
+<rect x="1376" y="1618" width="358" height="134" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="1689.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">書卡 C1（點開→單元→回）</text>
+<rect x="1360" y="1614" width="390" height="300" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="1555.0" y="1760.1" font-size="13" fill="#444" font-weight="400" text-anchor="middle">開始設定 E（手機：固定在底部的區塊，不是抽屜）</text>
+<text x="1555.0" y="1777.0" font-size="13" fill="#444" font-weight="400" text-anchor="middle">對答案方式 S3／打亂 S1</text>
+<rect x="1364" y="1618" width="22" height="18" rx="3" fill="#777"/>
+<text x="1375" y="1632" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">E</text>
+<circle cx="1374" cy="1624" r="13" fill="#111"/>
+<text x="1374" y="1629" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<rect x="1376" y="1838" width="358" height="56" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="1555.0" y="1871.25" font-size="15" fill="#fff" font-weight="600" text-anchor="middle">開始作答（B1）</text>
+<text x="1790" y="1090" font-size="18" fill="#111" font-weight="700" text-anchor="start">2 首頁／題庫列表</text>
+<circle cx="1804" cy="1121" r="13" fill="#111"/>
+<text x="1804" y="1126" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<text x="1828" y="1126" font-size="14" fill="#333" font-weight="400" text-anchor="start">今日建議：上次沒做完的（localStorage）、</text>
+<text x="1828" y="1148" font-size="14" fill="#333" font-weight="400" text-anchor="start">錯題本數量、最弱 1 單元，點了直接開始。</text>
+<text x="1828" y="1170" font-size="14" fill="#333" font-weight="400" text-anchor="start">單元練習一次隨機抽 10 題（不到 10 題全出）。</text>
+<circle cx="1804" cy="1201" r="13" fill="#111"/>
+<text x="1804" y="1206" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<text x="1828" y="1206" font-size="14" fill="#333" font-weight="400" text-anchor="start">科目 S3 和書 M1 會篩選 D 區；選擇記在 localStorage。</text>
+<circle cx="1804" cy="1237" r="13" fill="#111"/>
+<text x="1804" y="1242" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<text x="1828" y="1242" font-size="14" fill="#333" font-weight="400" text-anchor="start">書卡展開：單元 → 回。每回顯示已做／最高分。</text>
+<text x="1828" y="1264" font-size="14" fill="#333" font-weight="400" text-anchor="start">只列出 status=checked 的題目數。</text>
+<circle cx="1804" cy="1295" r="13" fill="#111"/>
+<text x="1804" y="1300" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<text x="1828" y="1300" font-size="14" fill="#333" font-weight="400" text-anchor="start">選一回（或單元／錯題本）後出現開始設定。</text>
+<text x="1828" y="1322" font-size="14" fill="#333" font-weight="400" text-anchor="start">對答案預設「當場對」；模考＝交卷才對。</text>
+<text x="1828" y="1344" font-size="14" fill="#333" font-weight="400" text-anchor="start">手機固定在底部區塊，主按鈕在最下面。</text>
+<text x="40" y="2018" font-size="16" fill="#111" font-weight="700" text-anchor="start">3 作答（一題一頁，沿用 JEV 骨架，宗良已確認；作答和結算是可重複套用的模板）｜桌機 1280</text>
+<rect x="40" y="2030" width="1280" height="800" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="40" y="2030" width="1280" height="64" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="44" y="2034" width="22" height="18" rx="3" fill="#777"/>
+<text x="55" y="2048" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<text x="80" y="2070" font-size="18" fill="#222" font-weight="700" text-anchor="start">第 3 回・7/20</text>
+<text x="280" y="2070" font-size="15" fill="#333" font-weight="400" text-anchor="start">首頁</text>
+<text x="400" y="2070" font-size="15" fill="#333" font-weight="400" text-anchor="start">錯題本</text>
+<text x="520" y="2070" font-size="15" fill="#333" font-weight="400" text-anchor="start">單元強弱</text>
+<text x="640" y="2070" font-size="15" fill="#333" font-weight="400" text-anchor="start">匯入（管理者）</text>
+<rect x="1120" y="2042" width="160" height="40" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1200.0" y="2066.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">宗良 ↓（M1）</text>
+<rect x="80" y="2110" width="1200" height="44" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="680.0" y="2136.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">對錯泡泡列 1～20：已對（實心）／已錯（叉）／目前（粗框）／未答（空心）（可點跳題）</text>
+<rect x="84" y="2114" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="2128" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<circle cx="70" cy="2114" r="13" fill="#111"/>
+<text x="70" y="2119" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<rect x="80" y="2170" width="560" height="520" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="360.0" y="2417.65" font-size="13" fill="#444" font-weight="400" text-anchor="middle">題組共用題幹＋圖 C</text>
+<text x="360.0" y="2434.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">（沒有題組就不顯示，</text>
+<text x="360.0" y="2451.4500000000003" font-size="13" fill="#444" font-weight="400" text-anchor="middle">題目區改成置中 760 寬）</text>
+<rect x="84" y="2174" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="2188" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<circle cx="70" cy="2174" r="13" fill="#111"/>
+<text x="70" y="2179" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<rect x="660" y="2170" width="620" height="150" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="970.0" y="2241.1000000000004" font-size="13" fill="#444" font-weight="400" text-anchor="middle">題幹 D（KaTeX）＋單元/難易 L3 標籤</text>
+<text x="970.0" y="2258.0000000000005" font-size="13" fill="#444" font-weight="400" text-anchor="middle">［圖：點一下放大］</text>
+<rect x="664" y="2174" width="22" height="18" rx="3" fill="#777"/>
+<text x="675" y="2188" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<rect x="660" y="2336" width="620" height="52" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="970.0" y="2366.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">(A) 選項文字（鍵盤 1 或 A）</text>
+<rect x="664" y="2340" width="22" height="18" rx="3" fill="#777"/>
+<text x="675" y="2354" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">E</text>
+<rect x="660" y="2400" width="620" height="52" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="970.0" y="2430.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">(B) 選項文字（鍵盤 2 或 B）</text>
+<rect x="660" y="2464" width="620" height="52" rx="8" fill="#dcdcdc" stroke="#3a3a3a" stroke-width="2"/>
+<text x="970.0" y="2494.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">(C) 選項文字（鍵盤 3 或 C）</text>
+<rect x="660" y="2528" width="620" height="52" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="970.0" y="2558.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">(D) 選項文字（鍵盤 4 或 D）</text>
+<circle cx="650" cy="2344" r="13" fill="#111"/>
+<text x="650" y="2349" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<rect x="660" y="2596" width="620" height="94" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="970.0" y="2639.1000000000004" font-size="13" fill="#444" font-weight="400" text-anchor="middle">回饋 F：答對了／答錯，正解是 (C)</text>
+<text x="970.0" y="2656.0000000000005" font-size="13" fill="#444" font-weight="400" text-anchor="middle">詳解（A1 展開，預設收合）｜回報題目有誤（B5）</text>
+<rect x="664" y="2600" width="22" height="18" rx="3" fill="#777"/>
+<text x="675" y="2614" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">F</text>
+<circle cx="650" cy="2604" r="13" fill="#111"/>
+<text x="650" y="2609" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<rect x="40" y="2758" width="1280" height="72" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="44" y="2762" width="22" height="18" rx="3" fill="#777"/>
+<text x="55" y="2776" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">G</text>
+<rect x="80" y="2770" width="160" height="48" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="160.0" y="2798.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">← 上一題（B2）</text>
+<rect x="1080" y="2770" width="200" height="48" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="1180.0" y="2798.55" font-size="13" fill="#fff" font-weight="600" text-anchor="middle">下一題 →（B1／Enter）</text>
+<rect x="600" y="2770" width="160" height="48" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="680.0" y="2798.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">交卷（B2）</text>
+<circle cx="590" cy="2794" r="13" fill="#111"/>
+<text x="590" y="2799" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">5</text>
+<text x="1360" y="2018" font-size="16" fill="#111" font-weight="700" text-anchor="start">3 作答｜手機 390</text>
+<rect x="1360" y="2030" width="390" height="844" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="1360" y="2030" width="390" height="56" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="1364" y="2034" width="22" height="18" rx="3" fill="#777"/>
+<text x="1375" y="2048" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<rect x="1372" y="2036" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1394.0" y="2062.2" font-size="12" fill="#444" font-weight="600" text-anchor="middle">選單</text>
+<text x="1430" y="2065" font-size="16" fill="#222" font-weight="700" text-anchor="start">第 3 回 7/20</text>
+<rect x="1694" y="2036" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1716.0" y="2061.85" font-size="11" fill="#444" font-weight="600" text-anchor="middle">頭像</text>
+<rect x="1376" y="2094" width="358" height="72" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="1555.0" y="2134.2" font-size="12" fill="#444" font-weight="400" text-anchor="middle">泡泡 B：2 列×10，約 28px，數字 ≥12px</text>
+<rect x="1380" y="2098" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="2112" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="1376" y="2178" width="358" height="64" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="2214.2" font-size="12" fill="#444" font-weight="400" text-anchor="middle">題組題幹 C（收合，點開看全文）</text>
+<rect x="1380" y="2182" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="2196" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<rect x="1376" y="2254" width="358" height="130" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="2323.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">題幹 D＋圖</text>
+<rect x="1380" y="2258" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="2272" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<rect x="1376" y="2396" width="358" height="52" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1555.0" y="2426.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">(A) 選項</text>
+<rect x="1380" y="2400" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="2414" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">E</text>
+<rect x="1376" y="2456" width="358" height="52" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1555.0" y="2486.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">(B) 選項</text>
+<rect x="1376" y="2516" width="358" height="52" rx="8" fill="#dcdcdc" stroke="#3a3a3a" stroke-width="2"/>
+<text x="1555.0" y="2546.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">(C) 選項</text>
+<rect x="1376" y="2576" width="358" height="52" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1555.0" y="2606.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">(D) 選項</text>
+<rect x="1376" y="2642" width="358" height="80" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="2678.1000000000004" font-size="13" fill="#444" font-weight="400" text-anchor="middle">回饋 F＋詳解 A1</text>
+<text x="1555.0" y="2695.0000000000005" font-size="13" fill="#444" font-weight="400" text-anchor="middle">回報題目有誤（B5）</text>
+<rect x="1380" y="2646" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="2660" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">F</text>
+<rect x="1360" y="2794" width="390" height="80" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="1364" y="2798" width="22" height="18" rx="3" fill="#777"/>
+<text x="1375" y="2812" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">G</text>
+<rect x="1376" y="2806" width="100" height="56" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1426.0" y="2838.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">上一題</text>
+<rect x="1490" y="2806" width="244" height="56" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="1612.0" y="2838.9" font-size="14" fill="#fff" font-weight="600" text-anchor="middle">下一題（B1）</text>
+<text x="1790" y="2050" font-size="18" fill="#111" font-weight="700" text-anchor="start">3 作答</text>
+<circle cx="1804" cy="2081" r="13" fill="#111"/>
+<text x="1804" y="2086" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<text x="1828" y="2086" font-size="14" fill="#333" font-weight="400" text-anchor="start">泡泡列沿用 JEV：點泡泡跳題；顏色＋符號雙重標示</text>
+<text x="1828" y="2108" font-size="14" fill="#333" font-weight="400" text-anchor="start">（不只靠顏色）。模考模式只顯示已答／未答。</text>
+<circle cx="1804" cy="2139" r="13" fill="#111"/>
+<text x="1804" y="2144" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<text x="1828" y="2144" font-size="14" fill="#333" font-weight="400" text-anchor="start">題組：共用題幹固定在左（桌機）或收合條（手機），</text>
+<text x="1828" y="2166" font-size="14" fill="#333" font-weight="400" text-anchor="start">換到同題組下一小題時不重捲。</text>
+<circle cx="1804" cy="2197" r="13" fill="#111"/>
+<text x="1804" y="2202" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<text x="1828" y="2202" font-size="14" fill="#333" font-weight="400" text-anchor="start">選項最小 44px 高。當場對：點了立刻鎖定並揭曉；</text>
+<text x="1828" y="2224" font-size="14" fill="#333" font-weight="400" text-anchor="start">模考：可改選，直到交卷。鍵盤 1-4／A-D 選，Enter 下一題。</text>
+<circle cx="1804" cy="2255" r="13" fill="#111"/>
+<text x="1804" y="2260" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<text x="1828" y="2260" font-size="14" fill="#333" font-weight="400" text-anchor="start">回饋只在當場對模式出現。揭曉的動效由 BD 在風格定稿時重做。</text>
+<text x="1828" y="2282" font-size="14" fill="#333" font-weight="400" text-anchor="start">換題後焦點移到題幹（讀屏可讀）。</text>
+<text x="1828" y="2304" font-size="14" fill="#333" font-weight="400" text-anchor="start">「回報題目有誤」（D8）：選原因＋一句說明，同一題只能報一次。</text>
+<circle cx="1804" cy="2335" r="13" fill="#111"/>
+<text x="1804" y="2340" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">5</text>
+<text x="1828" y="2340" font-size="14" fill="#333" font-weight="400" text-anchor="start">交卷：有未答題→確認框「還有 N 題沒寫，沒寫的算錯」</text>
+<text x="1828" y="2362" font-size="14" fill="#333" font-weight="400" text-anchor="start">按「確定交卷」才結算。離開（選單或返回）也要確認。</text>
+<text x="40" y="2978" font-size="16" fill="#111" font-weight="700" text-anchor="start">4 結算｜桌機 1280</text>
+<rect x="40" y="2990" width="1280" height="800" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="40" y="2990" width="1280" height="64" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="44" y="2994" width="22" height="18" rx="3" fill="#777"/>
+<text x="55" y="3008" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<text x="80" y="3030" font-size="18" fill="#222" font-weight="700" text-anchor="start">考題網</text>
+<text x="280" y="3030" font-size="15" fill="#333" font-weight="400" text-anchor="start">首頁</text>
+<text x="400" y="3030" font-size="15" fill="#333" font-weight="400" text-anchor="start">錯題本</text>
+<text x="520" y="3030" font-size="15" fill="#333" font-weight="400" text-anchor="start">單元強弱</text>
+<text x="640" y="3030" font-size="15" fill="#333" font-weight="400" text-anchor="start">匯入（管理者）</text>
+<rect x="1120" y="3002" width="160" height="40" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1200.0" y="3026.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">宗良 ↓（M1）</text>
+<rect x="80" y="3078" width="240" height="110" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="200.0" y="3139.3" font-size="18" fill="#444" font-weight="400" text-anchor="middle">分數 85</text>
+<rect x="84" y="3082" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="3096" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="340" y="3078" width="240" height="110" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="460.0" y="3139.3" font-size="18" fill="#444" font-weight="400" text-anchor="middle">答對 17/20</text>
+<rect x="600" y="3078" width="240" height="110" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="720.0" y="3139.3" font-size="18" fill="#444" font-weight="400" text-anchor="middle">用時 18 分</text>
+<circle cx="70" cy="3084" r="13" fill="#111"/>
+<text x="70" y="3089" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<rect x="860" y="3078" width="420" height="110" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1070.0" y="3137.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">錯題本變化：+3 加入、−2 移出</text>
+<rect x="80" y="3210" width="760" height="300" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="460.0" y="3356.1000000000004" font-size="13" fill="#444" font-weight="400" text-anchor="middle">本回單元表 C（T1）</text>
+<text x="460.0" y="3373.0000000000005" font-size="13" fill="#444" font-weight="400" text-anchor="middle">單元｜答對｜狀態（L2：掌握／部分掌握／需加強）</text>
+<rect x="84" y="3214" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="3228" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<circle cx="70" cy="3214" r="13" fill="#111"/>
+<text x="70" y="3219" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<rect x="860" y="3210" width="420" height="300" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1070.0" y="3347.65" font-size="13" fill="#444" font-weight="400" text-anchor="middle">錯題清單 D</text>
+<text x="1070.0" y="3364.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">第 4 題 你選 B／正解 C（點開看詳解 A1）</text>
+<text x="1070.0" y="3381.4500000000003" font-size="13" fill="#444" font-weight="400" text-anchor="middle">篩選：全部｜只看錯題（G1）</text>
+<rect x="864" y="3214" width="22" height="18" rx="3" fill="#777"/>
+<text x="875" y="3228" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<circle cx="850" cy="3214" r="13" fill="#111"/>
+<text x="850" y="3219" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<rect x="80" y="3534" width="300" height="56" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="230.0" y="3567.25" font-size="15" fill="#fff" font-weight="600" text-anchor="middle">再練錯的 3 題（B1）</text>
+<circle cx="70" cy="3544" r="13" fill="#111"/>
+<text x="70" y="3549" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<rect x="400" y="3534" width="200" height="56" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="500.0" y="3566.9" font-size="14" fill="#444" font-weight="600" text-anchor="middle">從頭再做（B2）</text>
+<rect x="620" y="3534" width="220" height="56" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="730.0" y="3566.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">複製摘要給家教TU（B2）</text>
+<text x="880" y="3569" font-size="14" fill="#333" font-weight="400" text-anchor="start">回首頁（B5）</text>
+<text x="1360" y="2978" font-size="16" fill="#111" font-weight="700" text-anchor="start">4 結算｜手機 390</text>
+<rect x="1360" y="2990" width="390" height="844" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="1360" y="2990" width="390" height="56" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="1364" y="2994" width="22" height="18" rx="3" fill="#777"/>
+<text x="1375" y="3008" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<rect x="1372" y="2996" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1394.0" y="3022.2" font-size="12" fill="#444" font-weight="600" text-anchor="middle">選單</text>
+<text x="1430" y="3025" font-size="16" fill="#222" font-weight="700" text-anchor="start">考題網</text>
+<rect x="1694" y="2996" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1716.0" y="3021.85" font-size="11" fill="#444" font-weight="600" text-anchor="middle">頭像</text>
+<rect x="1376" y="3062" width="358" height="110" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="3122.25" font-size="15" fill="#444" font-weight="400" text-anchor="middle">分數 85｜17/20｜18 分 B</text>
+<rect x="1380" y="3066" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="3080" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="1376" y="3188" width="358" height="230" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="3307.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">單元表 C（T1，窄版兩欄）</text>
+<rect x="1380" y="3192" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="3206" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<rect x="1376" y="3434" width="358" height="210" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="3543.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">錯題清單 D</text>
+<rect x="1380" y="3438" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="3452" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<rect x="1376" y="3686" width="358" height="56" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="1555.0" y="3719.25" font-size="15" fill="#fff" font-weight="600" text-anchor="middle">再練錯的 3 題（B1）</text>
+<rect x="1376" y="3754" width="170" height="56" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1461.0" y="3786.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">從頭再做</text>
+<rect x="1562" y="3754" width="172" height="56" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1648.0" y="3786.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">複製摘要</text>
+<text x="1790" y="3010" font-size="18" fill="#111" font-weight="700" text-anchor="start">4 結算（資訊結構參考 TU Canvas）</text>
+<circle cx="1804" cy="3041" r="13" fill="#111"/>
+<text x="1804" y="3046" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<text x="1828" y="3046" font-size="14" fill="#333" font-weight="400" text-anchor="start">分數＝答對／總題數×100，四捨五入到整數。</text>
+<text x="1828" y="3068" font-size="14" fill="#333" font-weight="400" text-anchor="start">沒寫的算錯。</text>
+<circle cx="1804" cy="3099" r="13" fill="#111"/>
+<text x="1804" y="3104" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<text x="1828" y="3104" font-size="14" fill="#333" font-weight="400" text-anchor="start">本回各單元答對數與狀態；規則同單元強弱表（§5.3）。</text>
+<text x="1828" y="3126" font-size="14" fill="#333" font-weight="400" text-anchor="start">本回只有 1-2 題的單元加「題數少」標。</text>
+<circle cx="1804" cy="3157" r="13" fill="#111"/>
+<text x="1804" y="3162" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<text x="1828" y="3162" font-size="14" fill="#333" font-weight="400" text-anchor="start">錯題點開＝紅「你的答案」、綠「正解」、詳解。</text>
+<circle cx="1804" cy="3193" r="13" fill="#111"/>
+<text x="1804" y="3198" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<text x="1828" y="3198" font-size="14" fill="#333" font-weight="400" text-anchor="start">「再練錯的 N 題」沿用 JEV：只出這回錯的題。</text>
+<text x="1828" y="3220" font-size="14" fill="#333" font-weight="400" text-anchor="start">全對時改成「再做一回」。結算時才寫入 attempts（含 byUnit）和 qstats，</text>
+<text x="1828" y="3242" font-size="14" fill="#333" font-weight="400" text-anchor="start">寫入中 N3，失敗顯示重試（資料先留在本機）。</text>
+<text x="40" y="3938" font-size="16" fill="#111" font-weight="700" text-anchor="start">5 錯題本｜桌機 1280</text>
+<rect x="40" y="3950" width="1280" height="800" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="40" y="3950" width="1280" height="64" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="44" y="3954" width="22" height="18" rx="3" fill="#777"/>
+<text x="55" y="3968" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<text x="80" y="3990" font-size="18" fill="#222" font-weight="700" text-anchor="start">考題網</text>
+<text x="280" y="3990" font-size="15" fill="#333" font-weight="400" text-anchor="start">首頁</text>
+<text x="400" y="3990" font-size="15" fill="#333" font-weight="400" text-anchor="start">錯題本</text>
+<text x="520" y="3990" font-size="15" fill="#333" font-weight="400" text-anchor="start">單元強弱</text>
+<text x="640" y="3990" font-size="15" fill="#333" font-weight="400" text-anchor="start">匯入（管理者）</text>
+<rect x="1120" y="3962" width="160" height="40" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1200.0" y="3986.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">宗良 ↓（M1）</text>
+<rect x="80" y="4038" width="520" height="48" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="340.0" y="4066.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">全部 12｜數學 8｜理化 4（G2 含數量）</text>
+<rect x="84" y="4042" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="4056" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="620" y="4038" width="260" height="48" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="750.0" y="4066.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">單元：全部 ↓（M1）</text>
+<circle cx="70" cy="4044" r="13" fill="#111"/>
+<text x="70" y="4049" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<rect x="80" y="4106" width="800" height="100" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<rect x="84" y="4110" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="4124" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<text x="120" y="4136" font-size="14" fill="#333" font-weight="400" text-anchor="start">M9-2 一元二次方程式・第 3 回第 4 題（L3）</text>
+<text x="120" y="4162" font-size="13" fill="#666" font-weight="400" text-anchor="start">題幹摘要前 40 字……</text>
+<text x="120" y="4188" font-size="13" fill="#444" font-weight="400" text-anchor="start">錯 2 次｜連對 1/2（再對 1 次就移出）</text>
+<rect x="820" y="4116" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="842.0" y="4141.85" font-size="11" fill="#444" font-weight="600" text-anchor="middle">更多</text>
+<rect x="80" y="4218" width="800" height="100" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="120" y="4248" font-size="14" fill="#333" font-weight="400" text-anchor="start">M9-2 一元二次方程式・第 3 回第 5 題（L3）</text>
+<text x="120" y="4274" font-size="13" fill="#666" font-weight="400" text-anchor="start">題幹摘要前 40 字……</text>
+<text x="120" y="4300" font-size="13" fill="#444" font-weight="400" text-anchor="start">錯 2 次｜連對 1/2（再對 1 次就移出）</text>
+<rect x="820" y="4228" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="842.0" y="4253.85" font-size="11" fill="#444" font-weight="600" text-anchor="middle">更多</text>
+<rect x="80" y="4330" width="800" height="100" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="120" y="4360" font-size="14" fill="#333" font-weight="400" text-anchor="start">M9-2 一元二次方程式・第 3 回第 6 題（L3）</text>
+<text x="120" y="4386" font-size="13" fill="#666" font-weight="400" text-anchor="start">題幹摘要前 40 字……</text>
+<text x="120" y="4412" font-size="13" fill="#444" font-weight="400" text-anchor="start">錯 2 次｜連對 1/2（再對 1 次就移出）</text>
+<rect x="820" y="4340" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="842.0" y="4365.85" font-size="11" fill="#444" font-weight="600" text-anchor="middle">更多</text>
+<rect x="80" y="4442" width="800" height="100" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="120" y="4472" font-size="14" fill="#333" font-weight="400" text-anchor="start">M9-2 一元二次方程式・第 3 回第 7 題（L3）</text>
+<text x="120" y="4498" font-size="13" fill="#666" font-weight="400" text-anchor="start">題幹摘要前 40 字……</text>
+<text x="120" y="4524" font-size="13" fill="#444" font-weight="400" text-anchor="start">錯 2 次｜連對 1/2（再對 1 次就移出）</text>
+<rect x="820" y="4452" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="842.0" y="4477.85" font-size="11" fill="#444" font-weight="600" text-anchor="middle">更多</text>
+<circle cx="70" cy="4110" r="13" fill="#111"/>
+<text x="70" y="4115" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<circle cx="810" cy="4114" r="13" fill="#111"/>
+<text x="810" y="4119" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<rect x="920" y="4106" width="360" height="280" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="1100.0" y="4242.1" font-size="13" fill="#444" font-weight="400" text-anchor="middle">詳情抽屜（D3，點卡片開）</text>
+<text x="1100.0" y="4259.0" font-size="13" fill="#444" font-weight="400" text-anchor="middle">題目＋你上次的答案＋詳解</text>
+<rect x="924" y="4110" width="22" height="18" rx="3" fill="#777"/>
+<text x="935" y="4124" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<rect x="80" y="4678" width="1200" height="56" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="680.0" y="4711.25" font-size="15" fill="#fff" font-weight="600" text-anchor="middle">練 10 題（共 12 題）（B1）</text>
+<rect x="84" y="4682" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="4696" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">E</text>
+<circle cx="70" cy="4690" r="13" fill="#111"/>
+<text x="70" y="4695" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<text x="1360" y="3938" font-size="16" fill="#111" font-weight="700" text-anchor="start">5 錯題本｜手機 390</text>
+<rect x="1360" y="3950" width="390" height="844" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="1360" y="3950" width="390" height="56" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="1364" y="3954" width="22" height="18" rx="3" fill="#777"/>
+<text x="1375" y="3968" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<rect x="1372" y="3956" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1394.0" y="3982.2" font-size="12" fill="#444" font-weight="600" text-anchor="middle">選單</text>
+<text x="1430" y="3985" font-size="16" fill="#222" font-weight="700" text-anchor="start">考題網</text>
+<rect x="1694" y="3956" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1716.0" y="3981.85" font-size="11" fill="#444" font-weight="600" text-anchor="middle">頭像</text>
+<rect x="1376" y="4018" width="358" height="48" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="1555.0" y="4046.2" font-size="12" fill="#444" font-weight="400" text-anchor="middle">全部 12｜數學 8｜理化 4（G2）</text>
+<rect x="1380" y="4022" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="4036" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="1376" y="4082" width="358" height="108" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="4132.4" font-size="12" fill="#444" font-weight="400" text-anchor="middle">錯題卡 C：單元・回・題號</text>
+<text x="1555.0" y="4148.0" font-size="12" fill="#444" font-weight="400" text-anchor="middle">錯 2 次｜連對 1/2　更多</text>
+<rect x="1380" y="4086" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="4100" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<rect x="1376" y="4202" width="358" height="108" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="4252.4" font-size="12" fill="#444" font-weight="400" text-anchor="middle">錯題卡 C：單元・回・題號</text>
+<text x="1555.0" y="4268.0" font-size="12" fill="#444" font-weight="400" text-anchor="middle">錯 2 次｜連對 1/2　更多</text>
+<rect x="1376" y="4322" width="358" height="108" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="4372.4" font-size="12" fill="#444" font-weight="400" text-anchor="middle">錯題卡 C：單元・回・題號</text>
+<text x="1555.0" y="4388.0" font-size="12" fill="#444" font-weight="400" text-anchor="middle">錯 2 次｜連對 1/2　更多</text>
+<rect x="1376" y="4442" width="358" height="108" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="4492.4" font-size="12" fill="#444" font-weight="400" text-anchor="middle">錯題卡 C：單元・回・題號</text>
+<text x="1555.0" y="4508.0" font-size="12" fill="#444" font-weight="400" text-anchor="middle">錯 2 次｜連對 1/2　更多</text>
+<rect x="1376" y="4718" width="358" height="56" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="1555.0" y="4751.25" font-size="15" fill="#fff" font-weight="600" text-anchor="middle">練 10 題（共 12 題）（B1）</text>
+<rect x="1380" y="4722" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="4736" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">E</text>
+<text x="1790" y="3970" font-size="18" fill="#111" font-weight="700" text-anchor="start">5 錯題本</text>
+<circle cx="1804" cy="4001" r="13" fill="#111"/>
+<text x="1804" y="4006" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<text x="1828" y="4006" font-size="14" fill="#333" font-weight="400" text-anchor="start">篩選科目（G2 顯示數量）、單元（M1）。</text>
+<circle cx="1804" cy="4037" r="13" fill="#111"/>
+<text x="1804" y="4042" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<text x="1828" y="4042" font-size="14" fill="#333" font-weight="400" text-anchor="start">答錯就加入；同一題連續答對 2 次自動移出。</text>
+<text x="1828" y="4064" font-size="14" fill="#333" font-weight="400" text-anchor="start">「連對 1/2」顯示連對進度。答錯時連對歸零。</text>
+<circle cx="1804" cy="4095" r="13" fill="#111"/>
+<text x="1804" y="4100" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<text x="1828" y="4100" font-size="14" fill="#333" font-weight="400" text-anchor="start">「更多」選單（M3）：「移出錯題本」要二次確認，</text>
+<text x="1828" y="4122" font-size="14" fill="#333" font-weight="400" text-anchor="start">寫入 manualOut=true；之後再答錯會重新加入。</text>
+<circle cx="1804" cy="4153" r="13" fill="#111"/>
+<text x="1804" y="4158" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<text x="1828" y="4158" font-size="14" fill="#333" font-weight="400" text-anchor="start">依目前篩選出題，一次最多 10 題，最久沒練的先出；</text>
+<text x="1828" y="4180" font-size="14" fill="#333" font-weight="400" text-anchor="start">一律當場對模式、打亂順序。</text>
+<text x="1828" y="4202" font-size="14" fill="#333" font-weight="400" text-anchor="start">空狀態（E1）：「目前沒有錯題，去做新的一回」。</text>
+<text x="40" y="4898" font-size="16" fill="#111" font-weight="700" text-anchor="start">6 單元強弱表｜桌機 1280</text>
+<rect x="40" y="4910" width="1280" height="800" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="40" y="4910" width="1280" height="64" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="44" y="4914" width="22" height="18" rx="3" fill="#777"/>
+<text x="55" y="4928" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<text x="80" y="4950" font-size="18" fill="#222" font-weight="700" text-anchor="start">考題網</text>
+<text x="280" y="4950" font-size="15" fill="#333" font-weight="400" text-anchor="start">首頁</text>
+<text x="400" y="4950" font-size="15" fill="#333" font-weight="400" text-anchor="start">錯題本</text>
+<text x="520" y="4950" font-size="15" fill="#333" font-weight="400" text-anchor="start">單元強弱</text>
+<text x="640" y="4950" font-size="15" fill="#333" font-weight="400" text-anchor="start">匯入（管理者）</text>
+<rect x="1120" y="4922" width="160" height="40" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1200.0" y="4946.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">宗良 ↓（M1）</text>
+<rect x="80" y="4998" width="280" height="80" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="220.0" y="5043.25" font-size="15" fill="#444" font-weight="400" text-anchor="middle">掌握 5 單元</text>
+<rect x="84" y="5002" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="5016" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="380" y="4998" width="280" height="80" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="520.0" y="5043.25" font-size="15" fill="#444" font-weight="400" text-anchor="middle">部分掌握 3</text>
+<rect x="680" y="4998" width="280" height="80" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="820.0" y="5043.25" font-size="15" fill="#444" font-weight="400" text-anchor="middle">需加強 2</text>
+<rect x="980" y="4998" width="280" height="80" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1120.0" y="5043.25" font-size="15" fill="#444" font-weight="400" text-anchor="middle">未練 4</text>
+<circle cx="70" cy="5004" r="13" fill="#111"/>
+<text x="70" y="5009" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<rect x="80" y="5098" width="300" height="44" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="230.0" y="5124.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">數學｜理化（S3）</text>
+<rect x="80" y="5158" width="1200" height="340" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="680.0" y="5323.799999999999" font-size="14" fill="#444" font-weight="400" text-anchor="middle">表 C（T1，可點欄頭排序，預設最弱在上）</text>
+<text x="680.0" y="5341.999999999999" font-size="14" fill="#444" font-weight="400" text-anchor="middle">單元代碼｜單元｜30 天作答數｜正確率｜狀態 L2｜最後練習｜［練這單元 B5］</text>
+<rect x="84" y="5162" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="5176" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<circle cx="70" cy="5164" r="13" fill="#111"/>
+<text x="70" y="5169" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<rect x="80" y="5518" width="860" height="150" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="510.0" y="5589.1" font-size="13" fill="#444" font-weight="400" text-anchor="middle">匯出預覽 D（唯讀文字框）</text>
+<text x="510.0" y="5606.0" font-size="13" fill="#444" font-weight="400" text-anchor="middle">羽蕎考題網學習摘要（11/2）數學 弱：M9-2 58%…</text>
+<rect x="84" y="5522" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="5536" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<circle cx="70" cy="5524" r="13" fill="#111"/>
+<text x="70" y="5529" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<rect x="960" y="5564" width="320" height="56" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="1120.0" y="5597.25" font-size="15" fill="#fff" font-weight="600" text-anchor="middle">複製給家教TU（B1）</text>
+<text x="1360" y="4898" font-size="16" fill="#111" font-weight="700" text-anchor="start">6 單元強弱表｜手機 390</text>
+<rect x="1360" y="4910" width="390" height="844" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="1360" y="4910" width="390" height="56" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="1364" y="4914" width="22" height="18" rx="3" fill="#777"/>
+<text x="1375" y="4928" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<rect x="1372" y="4916" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1394.0" y="4942.2" font-size="12" fill="#444" font-weight="600" text-anchor="middle">選單</text>
+<text x="1430" y="4945" font-size="16" fill="#222" font-weight="700" text-anchor="start">考題網</text>
+<rect x="1694" y="4916" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1716.0" y="4941.85" font-size="11" fill="#444" font-weight="600" text-anchor="middle">頭像</text>
+<rect x="1376" y="4978" width="358" height="80" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="5022.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">四格統計 B（2×2）</text>
+<rect x="1380" y="4982" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="4996" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="1376" y="5070" width="358" height="44" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="1555.0" y="5096.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">數學｜理化（S3）</text>
+<rect x="1376" y="5126" width="358" height="420" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="5323.650000000001" font-size="13" fill="#444" font-weight="400" text-anchor="middle">單元清單 C（窄版：每列＝</text>
+<text x="1555.0" y="5340.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">單元名＋正確率＋L2 狀態，</text>
+<text x="1555.0" y="5357.450000000001" font-size="13" fill="#444" font-weight="400" text-anchor="middle">點列展開看題數與「練這單元」）</text>
+<rect x="1380" y="5130" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="5144" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<rect x="1376" y="5678" width="358" height="56" rx="8" fill="#3a3a3a" stroke="#3a3a3a"/>
+<text x="1555.0" y="5711.25" font-size="15" fill="#fff" font-weight="600" text-anchor="middle">複製給家教TU（B1）</text>
+<rect x="1380" y="5682" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="5696" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<text x="1790" y="4930" font-size="18" fill="#111" font-weight="700" text-anchor="start">6 單元強弱表</text>
+<circle cx="1804" cy="4961" r="13" fill="#111"/>
+<text x="1804" y="4966" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<text x="1828" y="4966" font-size="14" fill="#333" font-weight="400" text-anchor="start">只算最近 30 天：讀 at≥30 天前的 attempts，</text>
+<text x="1828" y="4988" font-size="14" fill="#333" font-weight="400" text-anchor="start">把每筆的 byUnit 加總，在前端計算，不另存。</text>
+<text x="1828" y="5010" font-size="14" fill="#333" font-weight="400" text-anchor="start">錯題本不受 30 天限制。</text>
+<circle cx="1804" cy="5041" r="13" fill="#111"/>
+<text x="1804" y="5046" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<text x="1828" y="5046" font-size="14" fill="#333" font-weight="400" text-anchor="start">正確率＝該單元 30 天內答對的比例（每題每次作答都算）。</text>
+<text x="1828" y="5068" font-size="14" fill="#333" font-weight="400" text-anchor="start">需加強 &lt;60%｜部分掌握 60–84%｜掌握 ≥85%｜未練＝灰。</text>
+<text x="1828" y="5090" font-size="14" fill="#333" font-weight="400" text-anchor="start">30 天內作答少於 5 次加「題數少」標；30 天內沒做＝未練。</text>
+<circle cx="1804" cy="5121" r="13" fill="#111"/>
+<text x="1804" y="5126" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<text x="1828" y="5126" font-size="14" fill="#333" font-weight="400" text-anchor="start">複製成功 N1「已複製，可以貼給家教TU」。</text>
+<text x="1828" y="5148" font-size="14" fill="#333" font-weight="400" text-anchor="start">剪貼簿不能用時，改成全選文字框讓她手動複製。</text>
+<text x="40" y="5858" font-size="16" fill="#111" font-weight="700" text-anchor="start">7 匯入校對（只有管理者）｜桌機 1280</text>
+<rect x="40" y="5870" width="1280" height="800" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="40" y="5870" width="1280" height="64" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="44" y="5874" width="22" height="18" rx="3" fill="#777"/>
+<text x="55" y="5888" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<text x="80" y="5910" font-size="18" fill="#222" font-weight="700" text-anchor="start">匯入</text>
+<text x="280" y="5910" font-size="15" fill="#333" font-weight="400" text-anchor="start">首頁</text>
+<text x="400" y="5910" font-size="15" fill="#333" font-weight="400" text-anchor="start">錯題本</text>
+<text x="520" y="5910" font-size="15" fill="#333" font-weight="400" text-anchor="start">單元強弱</text>
+<text x="640" y="5910" font-size="15" fill="#333" font-weight="400" text-anchor="start">匯入（管理者）</text>
+<rect x="1120" y="5882" width="160" height="40" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1200.0" y="5906.55" font-size="13" fill="#444" font-weight="600" text-anchor="middle">宗良 ↓（M1）</text>
+<rect x="80" y="5950" width="1200" height="48" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="680.0" y="5978.9" font-size="14" fill="#444" font-weight="400" text-anchor="middle">① 選檔 → ② 校對 → ③ 存入（P3 步驟條）</text>
+<rect x="84" y="5954" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="5968" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<circle cx="70" cy="5954" r="13" fill="#111"/>
+<text x="70" y="5959" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<rect x="80" y="6014" width="1200" height="56" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="680.0" y="6046.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">批次 C：翰林數學九上｜M9-2｜第 3 回｜照片 20 題／JSON 20 題｜整批紅標橫幅</text>
+<rect x="84" y="6018" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="6032" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<circle cx="70" cy="6018" r="13" fill="#111"/>
+<text x="70" y="6023" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<rect x="80" y="6086" width="520" height="44" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="340.0" y="6112.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">全部 20｜紅標 3｜已確認 12（G2）</text>
+<rect x="84" y="6090" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="6104" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<rect x="80" y="6140" width="520" height="400" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="340.0" y="6327.650000000001" font-size="13" fill="#444" font-weight="400" text-anchor="middle">題目清單 E（T3 可勾選）</text>
+<text x="340.0" y="6344.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">☐ 題號｜題幹摘要｜紅標 L3｜狀態 L2</text>
+<text x="340.0" y="6361.450000000001" font-size="13" fill="#444" font-weight="400" text-anchor="middle">點列→右邊顯示這題</text>
+<rect x="84" y="6144" width="22" height="18" rx="3" fill="#777"/>
+<text x="95" y="6158" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">E</text>
+<circle cx="70" cy="6144" r="13" fill="#111"/>
+<text x="70" y="6149" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<rect x="620" y="6086" width="660" height="454" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="950.0" y="6283.75" font-size="13" fill="#444" font-weight="400" text-anchor="middle">預覽＋編輯 F</text>
+<text x="950.0" y="6300.65" font-size="13" fill="#444" font-weight="400" text-anchor="middle">上：學生看到的樣子（KaTeX、圖）</text>
+<text x="950.0" y="6317.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">下：欄位 I1（題幹、選項×4、答案、詳解、單元、難易）</text>
+<text x="950.0" y="6334.45" font-size="13" fill="#444" font-weight="400" text-anchor="middle">TU 標的不確定處黃底列出</text>
+<text x="950.0" y="6351.35" font-size="13" fill="#444" font-weight="400" text-anchor="middle">［這題確認（B2）］［換圖（上傳）］［刪題（M3）］</text>
+<rect x="624" y="6090" width="22" height="18" rx="3" fill="#777"/>
+<text x="635" y="6104" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">F</text>
+<circle cx="610" cy="6094" r="13" fill="#111"/>
+<text x="610" y="6099" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<rect x="40" y="6598" width="1280" height="72" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="44" y="6602" width="22" height="18" rx="3" fill="#777"/>
+<text x="55" y="6616" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">G</text>
+<rect x="80" y="6610" width="220" height="48" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="190.0" y="6638.2" font-size="12" fill="#444" font-weight="600" text-anchor="middle">全部未紅標設為已確認（B2）</text>
+<rect x="1000" y="6610" width="280" height="48" rx="8" fill="#d6d6d6" stroke="#b0b0b0"/>
+<text x="1140.0" y="6638.2" font-size="12" fill="#444" font-weight="400" text-anchor="middle">存入 12 題（B1；有未處理紅標→停用）</text>
+<circle cx="990" cy="6634" r="13" fill="#111"/>
+<text x="990" y="6639" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">5</text>
+<text x="1360" y="5858" font-size="16" fill="#111" font-weight="700" text-anchor="start">7 匯入校對｜手機 390（可用，桌機為主）</text>
+<rect x="1360" y="5870" width="390" height="844" fill="#fff" stroke="#222" stroke-width="2"/>
+<rect x="1360" y="5870" width="390" height="56" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<rect x="1364" y="5874" width="22" height="18" rx="3" fill="#777"/>
+<text x="1375" y="5888" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">A</text>
+<rect x="1372" y="5876" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1394.0" y="5902.2" font-size="12" fill="#444" font-weight="600" text-anchor="middle">選單</text>
+<text x="1430" y="5905" font-size="16" fill="#222" font-weight="700" text-anchor="start">匯入</text>
+<rect x="1694" y="5876" width="44" height="44" rx="8" fill="#ffffff" stroke="#3a3a3a" stroke-width="1.5"/>
+<text x="1716.0" y="5901.85" font-size="11" fill="#444" font-weight="600" text-anchor="middle">頭像</text>
+<rect x="1376" y="5936" width="358" height="44" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="1555.0" y="5962.2" font-size="12" fill="#444" font-weight="400" text-anchor="middle">①選檔 ②校對 ③存入（P3）</text>
+<rect x="1380" y="5940" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="5954" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">B</text>
+<rect x="1376" y="5990" width="358" height="60" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="6024.2" font-size="12" fill="#444" font-weight="400" text-anchor="middle">批次 C＋紅標橫幅</text>
+<rect x="1380" y="5994" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="6008" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">C</text>
+<rect x="1376" y="6060" width="358" height="44" rx="4" fill="#ececec" stroke="#6a6a6a"/>
+<text x="1555.0" y="6086.2" font-size="12" fill="#444" font-weight="400" text-anchor="middle">全部｜紅標｜已確認（G2）</text>
+<rect x="1380" y="6064" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="6078" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">D</text>
+<rect x="1376" y="6114" width="358" height="440" rx="4" fill="#fafafa" stroke="#9a9a9a" stroke-dasharray="6 4"/>
+<text x="1555.0" y="6321.650000000001" font-size="13" fill="#444" font-weight="400" text-anchor="middle">題目清單 E（每列 ≥56px）</text>
+<text x="1555.0" y="6338.55" font-size="13" fill="#444" font-weight="400" text-anchor="middle">點列→全螢幕 D3 抽屜</text>
+<text x="1555.0" y="6355.450000000001" font-size="13" fill="#444" font-weight="400" text-anchor="middle">＝預覽＋編輯 F</text>
+<rect x="1380" y="6118" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="6132" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">E</text>
+<rect x="1376" y="6638" width="358" height="56" rx="8" fill="#d6d6d6" stroke="#b0b0b0"/>
+<text x="1555.0" y="6670.9" font-size="14" fill="#444" font-weight="400" text-anchor="middle">存入 12 題（B1）</text>
+<rect x="1380" y="6642" width="22" height="18" rx="3" fill="#777"/>
+<text x="1391" y="6656" font-size="12" fill="#fff" font-weight="700" text-anchor="middle">G</text>
+<text x="1790" y="5890" font-size="18" fill="#111" font-weight="700" text-anchor="start">7 匯入校對</text>
+<circle cx="1804" cy="5921" r="13" fill="#111"/>
+<text x="1804" y="5926" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">1</text>
+<text x="1828" y="5926" font-size="14" fill="#333" font-weight="400" text-anchor="start">① 選 TU 傳來的 .json（或貼上文字）→ schema 檢查；</text>
+<text x="1828" y="5948" font-size="14" fill="#333" font-weight="400" text-anchor="start">格式錯就停在 ①，列出錯誤位置。</text>
+<circle cx="1804" cy="5979" r="13" fill="#111"/>
+<text x="1804" y="5984" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">2</text>
+<text x="1828" y="5984" font-size="14" fill="#333" font-weight="400" text-anchor="start">題數不符等整批問題用橫幅顯示，可以按「我知道了」。</text>
+<circle cx="1804" cy="6015" r="13" fill="#111"/>
+<text x="1804" y="6020" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">3</text>
+<text x="1828" y="6020" font-size="14" fill="#333" font-weight="400" text-anchor="start">紅標規則見 §4.5。已存在題庫的 id 標「將覆蓋」。</text>
+<circle cx="1804" cy="6051" r="13" fill="#111"/>
+<text x="1804" y="6056" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">4</text>
+<text x="1828" y="6056" font-size="14" fill="#333" font-weight="400" text-anchor="start">改了任一欄位就清掉該題自動紅標並重新檢查。</text>
+<text x="1828" y="6078" font-size="14" fill="#333" font-weight="400" text-anchor="start">「這題確認」→ L2 變已確認。</text>
+<circle cx="1804" cy="6109" r="13" fill="#111"/>
+<text x="1804" y="6114" font-size="13" fill="#fff" font-weight="700" text-anchor="middle">5</text>
+<text x="1828" y="6114" font-size="14" fill="#333" font-weight="400" text-anchor="start">存入只存已確認的題（status=checked），批次寫入，</text>
+<text x="1828" y="6136" font-size="14" fill="#333" font-weight="400" text-anchor="start">N3 處理中→完成「已存入 12 題，3 題留在草稿」。</text>
+<text x="1828" y="6158" font-size="14" fill="#333" font-weight="400" text-anchor="start">離開頁面前有未存的變更要確認（資料暫存在本機）。</text>
+</svg>

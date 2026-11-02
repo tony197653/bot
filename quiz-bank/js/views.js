@@ -2,6 +2,7 @@
  * 首頁、錯題本、單元強弱表（Traditional Chinese UI）。
  */
 import { escHtml, renderMath } from './render.js';
+import { ERR } from './errors.js';
 import {
   loadAttempts30d,
   loadQstatsWrong,
@@ -214,24 +215,50 @@ export async function renderHome(mount, ctx) {
   mount.innerHTML = `<div class="page home"><div class="e3 skel" aria-busy="true">載入中…</div></div>`;
   const uid = ctx.user.uid;
   try {
-    const [banks, summary, attempts30] = await Promise.all([
+    const [banks, summary, attempts30, wrongRows] = await Promise.all([
       fetchBanks(ctx),
       loadAttemptSummary(uid),
       loadAttempts30d(uid),
+      loadQstatsWrong(uid),
     ]);
     const filters = readFilters();
     const subject = filters.subject || '';
-    const filtered = subject ? banks.filter((b) => b.subject === subject) : banks;
+    const bookId = filters.bookId || '';
+    let filtered = subject ? banks.filter((b) => b.subject === subject) : banks.slice();
+    if (bookId) filtered = filtered.filter((b) => b.bookId === bookId);
 
+    const wrongN = wrongRows.length;
+    const knownUnits = [];
+    for (const book of banks) {
+      for (const u of book.units || []) {
+        knownUnits.push({
+          unitCode: u.unitCode,
+          name: u.name,
+          subject: book.subject,
+          bookId: book.bookId,
+        });
+      }
+    }
+    const strength = sortStrengthRows(mergeKnownUnits(computeStrength(attempts30), knownUnits));
+    const weakest =
+      strength.find((r) => r.status === 'weak') ||
+      strength.find((r) => r.status === 'mid') ||
+      null;
+
+    // §3 2-B／線框：今日建議（續練／首回）＋錯題數＋最弱單元；點卡直接開始
     let suggestHtml = '';
+    let suggestAct = '';
     const progRaw = localStorage.getItem(progressKey(uid));
     if (progRaw) {
       try {
         const prog = JSON.parse(progRaw);
-        suggestHtml = `<button type="button" class="card suggest" data-act="continue">
-          <p class="eyebrow">今日建議</p>
-          <p class="suggest-t">繼續未交卷的練習（第 ${(prog.idx || 0) + 1}／${prog.qids?.length || '?'} 題）</p>
-        </button>`;
+        const cur = (prog.idx || 0) + 1;
+        const total = prog.qids?.length || '?';
+        const bits = [`繼續第 ${cur} 回（${cur}/${total}）`];
+        if (wrongN) bits.push(`錯題本 ${wrongN} 題`);
+        if (weakest) bits.push(`最弱：${weakest.unitCode || ''} ${weakest.unit || ''}`.trim());
+        suggestHtml = bits.join('｜');
+        suggestAct = 'continue';
       } catch {
         /* ignore */
       }
@@ -241,28 +268,20 @@ export async function renderHome(mount, ctx) {
       const unit = book.units?.[0];
       const round = unit?.rounds?.[0];
       if (unit && round) {
-        suggestHtml = `<button type="button" class="card suggest" data-act="suggest-first">
-          <p class="eyebrow">今日建議</p>
-          <p class="suggest-t">從「${escHtml(book.title)}」${escHtml(unit.name)} ${escHtml(round.label || `第 ${round.round} 回`)} 開始</p>
-        </button>`;
+        const bits = [
+          `從「${book.title}」${unit.name} ${round.label || `第 ${round.round} 回`} 開始`,
+        ];
+        if (wrongN) bits.push(`錯題本 ${wrongN} 題`);
+        if (weakest) bits.push(`最弱：${weakest.unitCode || ''} ${weakest.unit || ''}`.trim());
+        suggestHtml = bits.join('｜');
+        suggestAct = 'suggest-first';
       }
     }
 
+    // 空狀態：線框 E1 純文字、無按鈕（宗良：去掉「去匯入」；§4.4 按鈕亦不放）
     const bookCards =
       filtered.length === 0
-        ? `<div class="empty-next">
-            <p class="e1">${
-              ctx.isAdmin
-                ? '題目準備中。管理者可至匯入頁存入題目。'
-                : '題目還在準備中，可以先去錯題本複習'
-            }</p>
-            ${
-              ctx.isAdmin
-                ? '<a class="btn b1" href="#/import">去匯入</a>'
-                : `<a class="btn b2" href="#/wrong">錯題本</a>
-                   <button type="button" class="btn b2" data-retry>重新整理</button>`
-            }
-          </div>`
+        ? `<p class="e1 home-empty" data-el="home-empty">${ERR.homeEmptyWire}</p>`
         : filtered
             .map((book) => {
               const units = book.units || [];
@@ -272,18 +291,16 @@ export async function renderHome(mount, ctx) {
                   .map((u) => {
                     const rounds = (u.rounds || [])
                       .filter((r) => r.count > 0)
-                      .map(
-                        (r) => {
-                          const key = `${book.bookId}|${u.unitCode}|${r.round}`;
-                          const stat = summary.byRound[key];
-                          const meta = stat ? `已做 ${stat.count} 次・最高 ${stat.best}` : '';
-                          const roundLabel = r.label || `第 ${r.round} 回`;
-                          return `<button type="button" class="round a1" data-book="${escHtml(book.bookId)}" data-unit="${escHtml(u.unitCode)}" data-round="${r.round}" data-unit-name="${escHtml(u.name)}" data-round-label="${escHtml(roundLabel)}">
+                      .map((r) => {
+                        const key = `${book.bookId}|${u.unitCode}|${r.round}`;
+                        const stat = summary.byRound[key];
+                        const meta = stat ? `已做 ${stat.count} 次・最高 ${stat.best}` : '';
+                        const roundLabel = r.label || `第 ${r.round} 回`;
+                        return `<button type="button" class="round a1" data-book="${escHtml(book.bookId)}" data-unit="${escHtml(u.unitCode)}" data-round="${r.round}" data-unit-name="${escHtml(u.name)}" data-round-label="${escHtml(roundLabel)}">
                             <span>${escHtml(roundLabel)}</span>
                             <small>${meta || `${r.count} 題`}</small>
                           </button>`;
-                        },
-                      )
+                      })
                       .join('');
                     return `<div class="unit-block"><p class="unit-name">${escHtml(u.unitCode)} ${escHtml(u.name)}</p>${rounds || '<p class="mute">尚無題目</p>'}</div>`;
                   })
@@ -292,23 +309,43 @@ export async function renderHome(mount, ctx) {
             })
             .join('');
 
+    // §3 2-F／style-spec：手機快速入口兩顆 B2（錯題本 N、單元強弱表）；桌機靠頂部導覽，不顯示；無「匯入校對」
     const quickNav = `<nav class="home-quick" aria-label="快速入口">
-      <a class="btn b2" href="#/wrong">錯題本</a>
+      <a class="btn b2" href="#/wrong">錯題本${wrongN ? ` <span class="l5">${wrongN}</span>` : ''}</a>
       <a class="btn b2" href="#/units">單元強弱表</a>
-      ${ctx.isAdmin ? '<a class="btn b2" href="#/import" data-admin-only>匯入校對</a>' : ''}
     </nav>`;
 
+    const bookOptions = banks
+      .filter((b) => !subject || b.subject === subject)
+      .map(
+        (b) =>
+          `<option value="${escHtml(b.bookId)}"${bookId === b.bookId ? ' selected' : ''}>${escHtml(b.title)}</option>`,
+      )
+      .join('');
+
     mount.innerHTML = `<div class="page home">
-      <h1 class="page-title">首頁</h1>
+      ${
+        suggestHtml
+          ? `<button type="button" class="card suggest" data-act="${suggestAct}">
+        <p class="eyebrow">今日建議</p>
+        <p class="suggest-t">${escHtml(suggestHtml)}</p>
+      </button>`
+          : ''
+      }
       ${quickNav}
-      ${suggestHtml}
-      <div class="filters s3">
+      <div class="filters s3 home-filters">
         <label class="field">科目
           <select id="home-subject" class="ctrl-select">
             <option value="">全部</option>
             ${Object.entries(SUBJECT_LABELS)
               .map(([k, v]) => `<option value="${k}"${subject === k ? ' selected' : ''}>${v}</option>`)
               .join('')}
+          </select>
+        </label>
+        <label class="field home-book-filter">書
+          <select id="home-book" class="ctrl-select">
+            <option value="">全部</option>
+            ${bookOptions}
           </select>
         </label>
       </div>
@@ -320,6 +357,7 @@ export async function renderHome(mount, ctx) {
           <button type="button" class="btn b2 start-close" id="start-close" aria-label="關閉">關閉</button>
         </div>
         <p class="start-title" id="start-title"></p>
+        <p class="start-scope mute" id="start-scope" hidden></p>
         <label class="field s3">對答案方式
           <select id="start-mode" class="ctrl-select"><option value="instant">當場對</option><option value="exam">交卷才對</option></select>
         </label>
@@ -328,39 +366,55 @@ export async function renderHome(mount, ctx) {
       </aside>
     </div>`;
 
-    /** @type {null|{type:string,bookId:string,unitCode:string,round?:number,unitName?:string,title?:string,bookTitle?:string}} */
+    /** @type {null|{type:string,bookId:string,unitCode:string,round?:number,unitName?:string,title?:string,bookTitle?:string,count?:number}} */
     let pendingScope = null;
 
+    const openStart = (scope) => {
+      pendingScope = scope;
+      const panel = mount.querySelector('#start-panel');
+      const scrim = mount.querySelector('#start-scrim');
+      panel.hidden = false;
+      if (scrim) scrim.hidden = false;
+      mount.querySelector('#start-title').textContent = scope.title || '';
+      const sc = mount.querySelector('#start-scope');
+      if (sc) {
+        if (scope.count != null) {
+          sc.hidden = false;
+          sc.textContent = `範圍：${scope.roundLabel || ''}・${scope.count} 題`;
+        } else {
+          sc.hidden = true;
+          sc.textContent = '';
+        }
+      }
+    };
+
     mount.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-act],[data-book].round');
-      if (!t) return;
-      if (t.dataset.act === 'continue') {
+      const act = e.target.closest('[data-act]');
+      if (act?.dataset.act === 'continue') {
         ctx.resumeProgress?.();
         return;
       }
-      if (t.dataset.act === 'suggest-first') {
-        const btn = mount.querySelector('.round');
-        btn?.click();
+      if (act?.dataset.act === 'suggest-first') {
+        mount.querySelector('.round')?.click();
         return;
       }
-      if (t.classList.contains('round')) {
-        const bookTitle = t.closest('.book')?.querySelector('h2')?.textContent || '';
-        const roundLabel = t.dataset.roundLabel || t.querySelector('span')?.textContent?.trim() || '';
-        pendingScope = {
-          type: 'round',
-          bookId: t.dataset.book,
-          unitCode: t.dataset.unit,
-          round: +t.dataset.round,
-          unitName: t.dataset.unitName,
-          bookTitle,
-          title: `${bookTitle}・${t.dataset.unitName}・${roundLabel}`,
-        };
-        const panel = mount.querySelector('#start-panel');
-        const scrim = mount.querySelector('#start-scrim');
-        panel.hidden = false;
-        if (scrim) scrim.hidden = false;
-        mount.querySelector('#start-title').textContent = pendingScope.title || '';
-      }
+      const t = e.target.closest('[data-book].round');
+      if (!t || !t.classList.contains('round')) return;
+      const bookTitle = t.closest('.book')?.querySelector('h2')?.textContent || '';
+      const roundLabel = t.dataset.roundLabel || t.querySelector('span')?.textContent?.trim() || '';
+      const countTxt = t.querySelector('small')?.textContent || '';
+      const m = countTxt.match(/(\d+)\s*題/);
+      openStart({
+        type: 'round',
+        bookId: t.dataset.book,
+        unitCode: t.dataset.unit,
+        round: +t.dataset.round,
+        unitName: t.dataset.unitName,
+        bookTitle,
+        roundLabel,
+        count: m ? +m[1] : undefined,
+        title: `${bookTitle}・${t.dataset.unitName}・${roundLabel}`,
+      });
     });
 
     const closeStart = () => {
@@ -373,10 +427,13 @@ export async function renderHome(mount, ctx) {
     mount.querySelector('#start-scrim')?.addEventListener('click', closeStart);
 
     mount.querySelector('#home-subject')?.addEventListener('change', (e) => {
-      writeFilters({ subject: e.target.value });
+      writeFilters({ subject: e.target.value, bookId: '' });
       renderHome(mount, ctx);
     });
-    mount.querySelector('[data-retry]')?.addEventListener('click', () => renderHome(mount, ctx));
+    mount.querySelector('#home-book')?.addEventListener('change', (e) => {
+      writeFilters({ bookId: e.target.value });
+      renderHome(mount, ctx);
+    });
 
     mount.querySelector('#start-go')?.addEventListener('click', async () => {
       if (!pendingScope) return;
@@ -397,7 +454,7 @@ export async function renderHome(mount, ctx) {
           pendingScope.round,
         );
         if (!questions.length) {
-          ctx.toast?.('這個範圍還沒有題目');
+          ctx.toast?.(ERR.rangeEmpty);
           return;
         }
         closeStart();
@@ -418,7 +475,7 @@ export async function renderHome(mount, ctx) {
       }
     });
   } catch {
-    mount.innerHTML = `<div class="page home"><p class="e2">題目沒載入成功，可能是網路斷了。請檢查網路後按重試</p>
+    mount.innerHTML = `<div class="page home"><p class="e2">${ERR.loadQuestions}</p>
       <div class="empty-next"><button type="button" class="btn b1" data-retry>重試</button>
       <a class="btn b2" href="#/">回首頁</a></div></div>`;
     mount.querySelector('[data-retry]')?.addEventListener('click', () => renderHome(mount, ctx));
@@ -439,7 +496,6 @@ export async function renderWrongBook(mount, ctx) {
     const count = stats.length;
     const label = wrongPracticeLabel(count);
     mount.innerHTML = `<div class="page wrong">
-      <h1 class="page-title">錯題本</h1>
       <div class="tabs g2">${Object.entries(SUBJECT_LABELS)
         .map(
           ([k, v]) =>
@@ -591,20 +647,20 @@ export async function renderUnits(mount, ctx) {
       topWrong,
     });
 
-    const totalAttempts = attempts.reduce((n, a) => n + (a.total || 0), 0);
-    const totalCorrect = attempts.reduce((n, a) => n + (a.correct || 0), 0);
-    const rate = totalAttempts ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
+    // 線框 6-B：掌握／部分掌握／需加強／未練
+    const nGood = strength.filter((u) => u.status === 'good').length;
+    const nMid = strength.filter((u) => u.status === 'mid').length;
+    const nWeak = strength.filter((u) => u.status === 'weak').length;
+    const nNone = strength.filter((u) => u.status === 'none' || !u.total).length;
 
     const sortMark = (k) => (sortKey === k ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '');
 
     mount.innerHTML = `<div class="page units-page">
-      <h1 class="page-title">單元強弱表</h1>
-      <p class="note">最近 30 天</p>
       <div class="stat-grid">${[
-        ['作答題數', totalAttempts],
-        ['正確率', `${rate}%`],
-        ['錯題本', wrongStats.length],
-        ['完成回合', attempts.length],
+        ['掌握', `${nGood} 單元`],
+        ['部分掌握', nMid],
+        ['需加強', nWeak],
+        ['未練', nNone],
       ]
         .map(([k, v]) => `<div class="stat-box"><span>${k}</span><b>${v}</b></div>`)
         .join('')}</div>

@@ -104,7 +104,7 @@ function renderLogin(ev) {
   const denied = ev?.status === 'denied';
   main.innerHTML = `<div class="page login">
     <h1>${PRODUCT}</h1>
-    <p class="lead">參考書題目練習與錯題整理</p>
+    <p class="lead">參考書轉數位考題・只有家人能用</p>
     ${ev?.error ? `<p class="err" role="alert">${errMsg}</p>` : ''}
     ${
       ev?.status === 'in-app-browser'

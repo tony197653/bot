@@ -1537,13 +1537,13 @@ try {
     pass('header M6 + M8 blink 360/390/1280');
   }
 
-  // --- UI/UX 紅線：核心導覽可見、M8 可點、正文 16/1.5、觸控 44、模考已答樣式 ---
+  // --- UI/UX 紅線：M6 抽屜有核心導覽、M8 可點、正文 16/1.5、觸控 44、模考已答樣式（無 app-subnav）---
   {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
     await page.evaluate(() => {
       document.body.classList.remove('signed-out');
-      document.body.classList.add('signed-in');
+      document.body.classList.add('signed-in', 'drawer-open');
       document.body.dataset.view = '';
       new MutationObserver(() => {
         document.body.classList.remove('signed-out');
@@ -1554,9 +1554,9 @@ try {
     const ux = await page.evaluate(() => {
       const body = getComputedStyle(document.body);
       const sub = document.querySelector('.app-subnav');
-      const links = [...(sub?.querySelectorAll('a') || [])].map((a) => ({
-        t: a.textContent.trim(),
-        href: a.getAttribute('href'),
+      const drawerLinks = [...document.querySelectorAll('#app-drawer a[data-route]')].map((a) => ({
+        t: (a.textContent || '').trim(),
+        route: a.dataset.route,
         h: Math.round(a.getBoundingClientRect().height),
         vis: getComputedStyle(a).display !== 'none' && a.getClientRects().length > 0,
       }));
@@ -1565,8 +1565,8 @@ try {
       return {
         fontSize: parseFloat(body.fontSize),
         lineHeight: parseFloat(body.lineHeight) / parseFloat(body.fontSize),
-        subDisp: sub ? getComputedStyle(sub).display : 'missing',
-        links,
+        hasSubnav: !!sub,
+        drawerLinks,
         blinkHref: blink?.getAttribute('href'),
         m6h: m6 ? Math.round(m6.getBoundingClientRect().height) : 0,
         avatarH: Math.round(document.querySelector('.nav-avatar')?.getBoundingClientRect().height || 0),
@@ -1574,32 +1574,17 @@ try {
     });
     if (ux.fontSize < 16) throw new Error(`body font-size <16: ${ux.fontSize}`);
     if (ux.lineHeight < 1.5) throw new Error(`body line-height <1.5: ${ux.lineHeight}`);
-    if (ux.subDisp === 'none' || ux.subDisp === 'missing') {
-      throw new Error('app-subnav hidden on phone — core nav drawer-only');
-    }
-    for (const need of ['練習', '錯題本', '單元表']) {
-      const hit = ux.links.find((l) => l.t === need && l.vis);
-      if (!hit) throw new Error(`subnav missing visible ${need}`);
-      if (hit.h < 44) throw new Error(`subnav ${need} touch <44: ${hit.h}`);
+    if (ux.hasSubnav) throw new Error('app-subnav must be removed (not in wireframe; F+drawer cover red-line 2)');
+    for (const need of [
+      { route: 'wrong', t: '錯題本' },
+      { route: 'units', t: '單元強弱表' },
+    ]) {
+      const hit = ux.drawerLinks.find((l) => l.route === need.route && l.t.includes(need.t.replace('表', '')) && l.vis);
+      if (!hit) throw new Error(`M6 drawer missing ${need.t}: ${JSON.stringify(ux.drawerLinks)}`);
+      if (hit.h < 44) throw new Error(`drawer ${need.t} touch <44: ${hit.h}`);
     }
     if (ux.blinkHref !== '#/') throw new Error('M8 blink not home');
     if (ux.m6h !== 44 || ux.avatarH !== 44) throw new Error('header touch targets not 44');
-    // 模考 .bub.done 樣式存在（非只靠顏色的 class）
-    const hasDone = await page.evaluate(() => {
-      const s = [...document.styleSheets];
-      try {
-        return s.some((sheet) => {
-          try {
-            return [...(sheet.cssRules || [])].some((r) => String(r.cssText || '').includes('.bub.done'));
-          } catch {
-            return false;
-          }
-        });
-      } catch {
-        return !!document.querySelector('link[href*="b.css"]');
-      }
-    });
-    // 直接讀 computed via temp node
     const doneStyle = await page.evaluate(() => {
       const b = document.createElement('button');
       b.className = 'bub done';
@@ -1610,11 +1595,11 @@ try {
       return bg;
     });
     if (!doneStyle || doneStyle === 'rgba(0, 0, 0, 0)' || doneStyle === 'transparent') {
-      throw new Error(`.bub.done not styled: ${doneStyle} (sheet=${hasDone})`);
+      throw new Error(`.bub.done not styled: ${doneStyle}`);
     }
-    await page.screenshot({ path: path.join(outDir, 'ux-subnav-390.png') });
+    await page.screenshot({ path: path.join(outDir, 'ux-drawer-390.png') });
     await page.close();
-    pass('UI/UX red lines phone subnav + type + touch + bub.done');
+    pass('UI/UX red lines phone M6 drawer + type + touch + bub.done');
   }
 
   // --- data-admin-only：[hidden] 不可被 display:flex 蓋過 ---
@@ -1639,10 +1624,8 @@ try {
           return r.width > 0 && r.height > 0 && el.getClientRects().length > 0;
         };
         const pick = (sel) => [...document.querySelectorAll(sel)];
-        const sub = pick('.app-subnav a[data-admin-only], .app-subnav a[data-route=import]');
         const top = pick('.app-nav a[data-admin-only], .app-nav a[data-route=import]');
         const drawer = pick('.app-drawer a[data-admin-only], .app-drawer a[data-route=import]');
-        // 打開抽屜以便量測（drawer 關閉時 transform 可能影響；仍用 display/hidden）
         document.body.classList.add('drawer-open');
         const drawerOpen = document.getElementById('app-drawer');
         if (drawerOpen) {
@@ -1650,7 +1633,6 @@ try {
           drawerOpen.removeAttribute('inert');
         }
         return {
-          subShown: sub.some(isShown),
           topShown: top.some(isShown),
           drawerShown: drawer.some(isShown),
           anyHiddenAttr: [...document.querySelectorAll('[data-admin-only]')].map((el) => ({
@@ -1668,34 +1650,24 @@ try {
         viewport: { width: w, height: w === 1280 ? 800 : 844 },
       });
       await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
-      await page.waitForSelector('.app-subnav a, .app-nav a', { state: 'attached' });
+      await page.waitForSelector('.app-nav a, .app-drawer a', { state: 'attached' });
 
       const nonAdmin = await adminVisibility(page, false);
-      if (nonAdmin.subShown || nonAdmin.topShown || nonAdmin.drawerShown) {
-        throw new Error(
-          `non-admin still sees import @${w}: ${JSON.stringify(nonAdmin)}`,
-        );
+      if (nonAdmin.topShown || nonAdmin.drawerShown) {
+        throw new Error(`non-admin still sees import @${w}: ${JSON.stringify(nonAdmin)}`);
       }
-      // 每個 data-admin-only 在非管理員時 display 必須是 none（[hidden] !important）
       for (const row of nonAdmin.anyHiddenAttr) {
         if (!row.hidden || row.display !== 'none') {
           throw new Error(`[hidden] overridden @${w}: ${JSON.stringify(row)}`);
         }
-        // 非 fixed 情境：offsetParent 應為 null；drawer 內可能因 fixed 祖先為 null，仍以 display 為準
         if (row.offsetParent && row.display !== 'none') {
           throw new Error(`admin-only still laid out @${w}: ${JSON.stringify(row)}`);
         }
       }
 
       const admin = await adminVisibility(page, true);
-      // 360：subnav＋drawer；1280：top nav（subnav 隱藏）＋drawer
-      if (w < 900) {
-        if (!admin.subShown) throw new Error(`admin subnav import missing @${w}`);
-        if (!admin.drawerShown) throw new Error(`admin drawer import missing @${w}`);
-      } else {
-        if (!admin.topShown) throw new Error(`admin top nav import missing @${w}`);
-        if (!admin.drawerShown) throw new Error(`admin drawer import missing @${w}`);
-      }
+      if (!admin.drawerShown) throw new Error(`admin drawer import missing @${w}`);
+      if (w >= 900 && !admin.topShown) throw new Error(`admin top nav import missing @${w}`);
       await page.close();
     }
     pass('admin-only import hidden for non-admin @360/1280');
@@ -1812,7 +1784,7 @@ try {
       blink.focus();
       const fcs = getComputedStyle(blink);
       return {
-        links: [...check('.app-subnav a'), ...check('.app-drawer a'), ...check('.app-nav a')],
+        links: [...check('.app-drawer a'), ...check('.app-nav a'), ...check('.home-quick a')],
         blink: {
           deco: bcs.textDecorationLine || bcs.textDecoration,
           under: /underline/.test(bcs.textDecorationLine || bcs.textDecoration || ''),
@@ -1868,6 +1840,169 @@ try {
     await page2.screenshot({ path: path.join(outDir, 'qa27-nav-390.png') });
     await page2.close();
     pass('QA#27 no underline nav/home + M8 press/focus');
+  }
+
+  // --- 線框 §3 2 首頁：B 今日建議＋F 手機快速入口＋C 科目（桌機＋書）＋D 書卡；無「首頁」標題／匯入校對／去匯入 ---
+  {
+    async function paintHome(page, { empty = false } = {}) {
+      await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+      await page.evaluate(({ empty, emptyWire }) => {
+        document.body.classList.remove('signed-out');
+        document.body.classList.add('signed-in');
+        document.body.dataset.view = '';
+        new MutationObserver(() => {
+          document.body.classList.remove('signed-out');
+          document.body.classList.add('signed-in');
+        }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        const main = document.getElementById('app-main');
+        const emptyHtml = `<p class="e1 home-empty" data-el="home-empty">${emptyWire}</p>`;
+        const booksHtml = empty
+          ? emptyHtml
+          : `<article class="card c1 book" data-book="demo">
+                <header><h2>示範數學練習冊</h2><span class="l3">數學</span></header>
+                <div class="unit-list">
+                  <div class="unit-block">
+                    <p class="unit-name">M9-1 整數與有理數</p>
+                    <button type="button" class="round a1" data-book="demo" data-unit="M9-1" data-round="1">
+                      <span>第 1 回</span><small>13 題</small>
+                    </button>
+                  </div>
+                </div>
+              </article>`;
+        main.innerHTML = `<div class="page home">
+            <button type="button" class="card suggest" data-act="suggest-first">
+              <p class="eyebrow">今日建議</p>
+              <p class="suggest-t">從「示範數學練習冊」開始｜錯題本 0 題</p>
+            </button>
+            <nav class="home-quick" aria-label="快速入口">
+              <a class="btn b2" href="#/wrong">錯題本</a>
+              <a class="btn b2" href="#/units">單元強弱表</a>
+            </nav>
+            <div class="filters s3 home-filters">
+              <label class="field">科目
+                <select id="home-subject" class="ctrl-select">
+                  <option value="">全部</option>
+                  <option value="math">數學</option>
+                </select>
+              </label>
+              <label class="field home-book-filter">書
+                <select id="home-book" class="ctrl-select"><option value="">全部</option></select>
+              </label>
+            </div>
+            <div class="book-grid">${booksHtml}</div>
+          </div>`;
+      }, { empty, emptyWire: '請家教TU 把照片轉成題目' });
+    }
+
+    for (const w of [320, 360, 390, 1280]) {
+      const page = await browser.newPage({
+        viewport: { width: w, height: w >= 1280 ? 800 : 844 },
+        hasTouch: w < 1280,
+        isMobile: w < 1280,
+      });
+      await paintHome(page, { empty: false });
+      const layout = await page.evaluate((width) => {
+        const home = document.querySelector('.page.home');
+        const title = [...home.querySelectorAll('h1')].find((h) => (h.textContent || '').trim() === '首頁');
+        const quick = home.querySelector('.home-quick');
+        const quickCs = quick ? getComputedStyle(quick) : null;
+        const importQuick = [...(quick?.querySelectorAll('a') || [])].find((a) =>
+          /匯入/.test(a.textContent || ''),
+        );
+        const goImport = [...home.querySelectorAll('a,button')].find((el) =>
+          (el.textContent || '').includes('去匯入'),
+        );
+        const bookFilter = home.querySelector('.home-book-filter');
+        const bookFilterDisp = bookFilter ? getComputedStyle(bookFilter).display : 'missing';
+        return {
+          hasHomeH1: !!title,
+          hasSuggest: !!home.querySelector('.suggest'),
+          hasQuick: !!quick,
+          quickDisplay: quickCs?.display,
+          hasImportInQuick: !!importQuick,
+          hasGoImport: !!goImport,
+          hasSubject: !!home.querySelector('#home-subject'),
+          hasBook: !!home.querySelector('.book'),
+          bookFilterDisp,
+          narrow: width < 900,
+        };
+      }, w);
+      if (layout.hasHomeH1) throw new Error(`home still has 首頁 h1 @${w}`);
+      if (!layout.hasSuggest) throw new Error(`今日建議 missing @${w}`);
+      if (!layout.hasQuick) throw new Error(`home-quick (2-F) missing in DOM @${w}`);
+      if (layout.hasImportInQuick) throw new Error(`匯入校對 still in home-quick @${w}`);
+      if (layout.hasGoImport) throw new Error(`去匯入 still on home @${w}`);
+      if (!layout.hasSubject) throw new Error(`科目 select missing @${w}`);
+      if (!layout.hasBook) throw new Error(`book list missing @${w}`);
+      if (layout.narrow) {
+        if (layout.quickDisplay === 'none') throw new Error(`F quick hidden on phone @${w}`);
+        if (layout.bookFilterDisp !== 'none') throw new Error(`書 M1 should hide on phone @${w}`);
+      } else if (layout.quickDisplay !== 'none') {
+        throw new Error(`F quick should hide on desktop @${w}`);
+      }
+      await page.screenshot({ path: path.join(outDir, `home-${w}.png`) });
+      await page.close();
+    }
+
+    {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+      await paintHome(page, { empty: true });
+      const empty = await page.evaluate(() => {
+        const home = document.querySelector('.page.home');
+        const p = home.querySelector('[data-el=home-empty]');
+        const ctas = [...home.querySelectorAll('a.btn,button.btn')].filter((b) => {
+          const t = (b.textContent || '').trim();
+          return /去匯入|重新整理|錯題本|匯入校對/.test(t) && b.closest('.book-grid, .home-empty, .empty-next');
+        });
+        return {
+          text: (p?.textContent || '').trim(),
+          ctaTexts: ctas.map((b) => (b.textContent || '').trim()),
+          hasSubject: !!home.querySelector('#home-subject'),
+          hasQuick: !!home.querySelector('.home-quick'),
+        };
+      });
+      if (!empty.hasSubject) throw new Error('empty home missing 科目');
+      if (!empty.hasQuick) throw new Error('empty home should keep F quick entry');
+      if (empty.ctaTexts.length) throw new Error(`empty home still has CTAs: ${JSON.stringify(empty)}`);
+      if (!empty.text.includes('請家教TU')) throw new Error(`empty text wrong: ${empty.text}`);
+      await page.screenshot({ path: path.join(outDir, 'home-empty-390.png') });
+      await page.close();
+    }
+
+    {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+      await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+      await page.evaluate(() => {
+        document.body.classList.remove('signed-out');
+        document.body.classList.add('signed-in', 'drawer-open');
+        document.body.dataset.view = '';
+        document.querySelectorAll('[data-admin-only]').forEach((el) => {
+          el.hidden = false;
+        });
+      });
+      await page.waitForTimeout(80);
+      const drawer = await page.evaluate(() => {
+        const links = [...document.querySelectorAll('#app-drawer a[data-route]')].map((a) => ({
+          route: a.dataset.route,
+          text: (a.textContent || '').trim(),
+          hidden: !!a.hidden,
+          display: getComputedStyle(a).display,
+        }));
+        return {
+          hasWrong: links.some((l) => l.route === 'wrong' && /錯題本/.test(l.text) && !l.hidden),
+          hasUnits: links.some((l) => l.route === 'units' && /單元強弱表/.test(l.text) && !l.hidden),
+          hasImport: links.some(
+            (l) => l.route === 'import' && /匯入/.test(l.text) && !l.hidden && l.display !== 'none',
+          ),
+          links,
+        };
+      });
+      if (!drawer.hasWrong || !drawer.hasUnits || !drawer.hasImport) {
+        throw new Error(`M6 routes incomplete: ${JSON.stringify(drawer)}`);
+      }
+      pass('home wireframe §3-2 + empty text + M6 routes 320/360/390/1280');
+      await page.close();
+    }
   }
 
   await browser.close();

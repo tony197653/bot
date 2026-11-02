@@ -3,16 +3,16 @@
 .app-top{position:sticky;top:0;z-index:40;background:var(--top-bg);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line)}
 .app-top-in{max-width:1120px;margin:0 auto;height:56px;display:flex;align-items:center;gap:8px;padding:0 max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left))}
 /* QA#27：文字鈕／導覽／選單連結不加底線（內文連結、I2、I6、G2 除外） */
-.app-top a,.app-nav a,.app-subnav a,.app-drawer a,
-.r-actions a,.r-actions .btn,.btn.b1,.btn.b2,.btn.leave,.home-quick a{
+.app-top a,.app-nav a,.app-drawer a,.home-quick a,
+.r-actions a,.r-actions .btn,.btn.b1,.btn.b2,.btn.leave{
   text-decoration:none!important
 }
 .app-top a:hover,.app-top a:focus,.app-top a:focus-visible,
 .app-nav a:hover,.app-nav a:focus,.app-nav a:focus-visible,
-.app-subnav a:hover,.app-subnav a:focus,.app-subnav a:focus-visible,
+.home-quick a:hover,.home-quick a:focus,.home-quick a:focus-visible,
 .app-drawer a:hover,.app-drawer a:focus,.app-drawer a:focus-visible,
 .r-actions a:hover,.r-actions a:focus,.r-actions .btn:hover,.r-actions .btn:focus,
-.btn.b2:hover,.btn.b2:focus,.home-quick a:hover,.home-quick a:focus{
+.btn.b2:hover,.btn.b2:focus{
   text-decoration:none!important
 }
 /* 標題區：M6＋M8；container-type 需由外層 flex 給寬（不可依內容撐開，否則寬度為 0） */
@@ -45,13 +45,6 @@
 .app-nav a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;border-radius:var(--r-sm);text-decoration:none;color:var(--mute);font-size:14px}
 .app-nav a.on{color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-strong)}
 @media (hover:hover) and (pointer:fine){.app-nav a:hover:not(.on){background:var(--surface)}}
-/* 手機核心導覽：練習／錯題本／單元表／匯入不進抽屜才看得到 */
-.app-subnav{display:none;max-width:1120px;width:100%;margin:0 auto;padding:0 max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left));gap:2px;border-bottom:1px solid var(--line);background:var(--top-bg)}
-body.signed-in:not([data-view=quiz]):not([data-view=result]) .app-subnav{display:flex}
-@media (min-width:900px){body.signed-in .app-subnav{display:none!important}}
-.app-subnav a{flex:1;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 6px;border-radius:var(--r-sm);text-decoration:none;color:var(--mute);font-size:14px;font-weight:500;text-align:center}
-.app-subnav a.on{color:var(--ink);background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-strong)}
-@media (hover:hover) and (pointer:fine){.app-subnav a:hover:not(.on){background:var(--surface)}}
 .app-main{flex:1;max-width:1120px;width:100%;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 .page-title{font-size:22px;font-weight:600;margin:0 0 12px;letter-spacing:.04em}
 .page.login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100dvh - 120px);text-align:center;gap:12px;padding-bottom:24px}
@@ -156,14 +149,24 @@ body.signed-in:not([data-view=quiz]):not([data-view=result]) .app-subnav{display
 .i1 textarea,.i1 input[type=text]{width:100%;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;font:inherit;min-height:44px}
 .th-sort{border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:4px 8px;min-height:44px;min-width:44px}
 .home-unit-entry{margin:0 0 12px}
-/* 附錄 v1.1：快速入口兩顆 B2，等高 44、等寬兩欄、間距 8、按下不縮放 */
+/* §3 2 首頁：B 今日建議 → F 快速入口（僅手機）→ C 篩選 → D 書卡；無頁面「首頁」標題、無匯入校對／去匯入 */
+.page.home{margin:0;padding:0}
+.page.home .home-filters{margin:0 0 16px}
+.page.home .home-empty{margin:0;font-size:16px;line-height:1.6}
 .home-quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 16px}
 .home-quick a{
   width:100%;min-height:44px;height:44px;border-radius:var(--r-sm);
   transform:none;transition:background-color .22s var(--ease),opacity .22s var(--ease),border-color .22s var(--ease)
 }
 .home-quick a:active{transform:none}
-.home-quick a[data-admin-only]{grid-column:1/-1}
+.home-quick .l5{font-size:13px;color:var(--mute);font-weight:500;margin-left:2px}
+/* 桌機：頂部橫向導覽已有，F 不顯示；書 M1 顯示 */
+@media (min-width:900px){
+ .home-quick{display:none!important}
+ .page.home .home-book-filter{display:flex}
+}
+.page.home .home-book-filter{display:none}
+@media (min-width:900px){.page.home .home-book-filter{display:flex;flex-direction:column}}
 .flag-code{font-size:11px;color:var(--mute);margin-left:4px;font-weight:500}
 .opt-tag{display:inline-block;margin-left:8px;font-size:13px;font-weight:600}
 .opt-tag.ok-t{color:var(--ok-ink)}.opt-tag.bad-t{color:var(--bad-ink)}
