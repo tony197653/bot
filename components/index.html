@@ -593,6 +593,17 @@ dialog.dlg:not([open]){display:none}
 @keyframes p5-breathe{0%,100%{transform:scale(.78);opacity:.72}50%{transform:scale(1.08);opacity:1}}
 @keyframes p5-halo{0%,45%{transform:scale(1);opacity:0}50%{transform:scale(1);opacity:.28}100%{transform:scale(2.1);opacity:0}}
 @keyframes p5-breathe-rm{0%,100%{opacity:.55}50%{opacity:1}}
+/* P5 兩種：A 置中呼吸、B 底弧滾動（轉臂繞圓心，小點在圈內底部左右各擺 50°，兩端自然減速；只動 transform） */
+.p5-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,204px),1fr));gap:24px 28px}
+.p5-v{min-width:0}
+.p5-lab{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:13.5px;font-weight:600;color:var(--ink)}
+.p5-lab .sc{display:inline-grid;place-items:center;height:22px;padding:0 7px;border-radius:var(--r-xs);background:var(--sage-soft);color:#45523F;font-size:12px;font-weight:600;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.p5b .pt .arm{display:none;position:absolute;inset:0;border-radius:50%;transform-origin:50% 50%}
+.p5b [data-state=current] .pt .arm{display:block;animation:p5-swing 1s cubic-bezier(.37,0,.63,1) infinite alternate}
+.p5.p5b .pt i{position:absolute;left:50%;bottom:1.5px;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;background:var(--sage-deep);display:block}
+.p5.p5b [data-state=current] .pt i{animation:none}
+.p5.p5b .pt i::after{display:none}
+@keyframes p5-swing{from{transform:rotate(-50deg)}to{transform:rotate(50deg)}}
 .p5 .tt{font-size:14.5px;font-weight:500;color:var(--mute);transition:color .3s var(--ease)}
 .p5 [data-state=done] .tt,.p5 [data-state=current] .tt{color:var(--ink)}
 .p5 .ds{grid-column:2;font-size:13px;color:var(--mute);margin-top:2px}
@@ -688,6 +699,8 @@ dialog.dlg:not([open]){display:none}
   .sk::after{display:none}
   .p5 [data-state=current] .pt i{animation:p5-breathe-rm 3.6s ease-in-out infinite!important}
   .p5 [data-state=current] .pt i::after{animation:none!important}
+  .p5b [data-state=current] .pt .arm{animation:none!important} /* B 減少動態：停在圈內正中，只剩淡入淡出 */
+  .p5.p5b .pt i{bottom:50%;margin-bottom:-3.5px}
   [data-state=current] > .sd .glow i{animation:none!important} /* 減少動態：四層光圈直接靜態顯示 */
 }
 [hidden]{display:none!important}
@@ -1056,8 +1069,9 @@ dialog.dlg:not([open]){display:none}
         <p class="stp-msg" aria-live="polite"></p>
       </div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">P5</span><div><h3>直式進度軸</h3><p>由上往下的時間軸，目前這一步的點會輕輕呼吸，附時間與說明；適合訂單、窯燒進度追蹤。</p></div></div>
-      <div class="stage col"><div class="stp p5 js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達">
+    <article class="spec"><div class="spec-head"><span class="code">P5</span><div><h3>直式進度軸</h3><p>由上往下的時間軸，附時間與說明；適合訂單、窯燒進度追蹤。目前這一步的點有兩種動法：A 在正中輕輕呼吸，B 沿著圈內底弧左右滾動。</p></div></div>
+      <div class="stage col"><div class="p5-pair">
+        <div class="p5-v"><p class="p5-lab"><span class="sc">P5-A</span>置中呼吸</p><div class="stp p5 p5a js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達">
         <ol aria-label="訂單 #1046 進度">
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">已下單</span><time>11/02 14:20</time><span class="ds">已收到付款。</span></li>
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">製作中</span><time>11/04 10:05</time><span class="ds">森田葵正在拉坯、修坯。</span></li>
@@ -1066,6 +1080,17 @@ dialog.dlg:not([open]){display:none}
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">已送達</span><time>11/24 11:15</time><span class="ds">簽收後 7 天內可退換。</span></li>
         </ol>
         <div class="stp-ctl"><button class="btn b5" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
+      </div></div>
+        <div class="p5-v"><p class="p5-lab"><span class="sc">P5-B</span>底弧滾動</p><div class="stp p5 p5b js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達">
+        <ol aria-label="訂單 #1046 進度（B 底弧滾動）">
+          <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">已下單</span><time>11/02 14:20</time><span class="ds">已收到付款。</span></li>
+          <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">製作中</span><time>11/04 10:05</time><span class="ds">森田葵正在拉坯、修坯。</span></li>
+          <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">窯燒中</span><time>11/18 09:30</time><span class="ds">第 12 窯，約需 36 小時。</span></li>
+          <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">已出貨</span><time>11/22 16:40</time><span class="ds">黑貓宅急便，單號會簡訊通知。</span></li>
+          <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">已送達</span><time>11/24 11:15</time><span class="ds">簽收後 7 天內可退換。</span></li>
+        </ol>
+        <div class="stp-ctl"><button class="btn b5" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
+      </div></div>
       </div></div></article>
   </div>
 </section>
