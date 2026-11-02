@@ -6,6 +6,8 @@
  --spring:linear(0,.006,.025 2.8%,.101 6.1%,.539 18.9%,.721 25.3%,.849 31.5%,.937 38.1%,.968 41.8%,.991 45.7%,1.006 50.1%,1.015 55%,1.017 63.9%,1.001 85.9%,1);
  --spring-soft:linear(0,.009,.037 2.7%,.142 5.8%,.564 17.6%,.751 24.2%,.876 31.2%,.954 39.1%,.991 47.7%,1.005 56.9%,1.003 76.1%,1)}}
 *{box-sizing:border-box}
+/* 覆寫元件 display:flex／inline-flex，避免 hidden 屬性失效（如 data-admin-only） */
+[hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow-x:hidden;overflow-x:clip;scrollbar-gutter:stable}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.8;letter-spacing:.02em;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden;overflow-x:clip;min-height:100dvh}
 ::selection{background:var(--sel);color:var(--ink)}
@@ -121,7 +123,7 @@ body[data-view=result] .bar{transform:translateY(110%);opacity:0;pointer-events:
 .t1 td.num,.t1 td.r{white-space:nowrap;width:1%}
 .t1 td:last-child{width:1%;white-space:nowrap}
 .t1 .l3{display:block;width:max-content;margin-top:4px}
-.t1 .uname{display:block;line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.t1 .uname{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;text-overflow:ellipsis;white-space:normal;line-height:1.45;max-width:100%}
 .strength{table-layout:fixed;width:100%}
 .strength td:first-child{width:34%;min-width:0}
 .strength td:first-child .ucode{margin-right:0;margin-bottom:2px}
@@ -139,7 +141,7 @@ body[data-view=result] .bar{transform:translateY(110%);opacity:0;pointer-events:
 .t1 tr:last-child td{border-bottom:0}
 .t1 .r{text-align:right}.t1 .num{font-variant-numeric:tabular-nums}
 .ucode{display:block;font-family:var(--font-num);font-size:12px;line-height:1.4;color:var(--mute);letter-spacing:.04em}
-.uname{display:block;line-height:1.45}
+.uname{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;line-height:1.45}
 .l2{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
 .l2 i{width:7px;height:7px;border-radius:50%}
 .l2.good i{background:var(--ok)}.l2.mid i{background:var(--warn)}.l2.weak i{background:var(--bad)}
@@ -163,7 +165,9 @@ body[data-view=result] .bar{transform:translateY(110%);opacity:0;pointer-events:
 .rv-ex{font-size:14px;margin-top:6px;padding:8px 12px;border-radius:var(--r-sm);background:var(--surface-2);line-height:1.8}
 .rv-ex .katex-display{margin:.3em 0}
 .r-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px;align-items:center;justify-content:center;width:100%;max-width:100%;box-sizing:border-box}
-.r-actions .btn{white-space:nowrap}
+.r-actions .btn{white-space:nowrap;min-height:44px;text-decoration:none}
+.r-actions [data-act=home]{min-height:44px;text-decoration:none}
+.r-actions [data-act=home]::after,.r-actions [data-act=home]::before{content:none!important;display:none!important}
 @media (max-width:767px){
  /* 不透明底：WebKit 無 backdrop-filter 時也不透出回顧文字 */
  .r-actions{position:sticky;bottom:0;z-index:40;margin:20px 0 0;padding:10px 0 calc(10px + env(safe-area-inset-bottom));background:var(--surface);box-shadow:0 -1px 0 var(--line);display:grid;grid-template-columns:1fr 1fr;gap:8px}

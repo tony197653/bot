@@ -2,9 +2,19 @@
 .app-shell{min-height:100dvh;display:flex;flex-direction:column}
 .app-top{position:sticky;top:0;z-index:40;background:var(--top-bg);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line)}
 .app-top-in{max-width:1120px;margin:0 auto;height:56px;display:flex;align-items:center;gap:8px;padding:0 max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left))}
-/* 標頭連結不加底線（內文 a 除外） */
-.app-top a{text-decoration:none}
-.app-top a:hover{text-decoration:none}
+/* QA#27：文字鈕／導覽／選單連結不加底線（內文連結、I2、I6、G2 除外） */
+.app-top a,.app-nav a,.app-subnav a,.app-drawer a,
+.r-actions a,.r-actions .btn,.btn.b1,.btn.b2,.btn.leave,.home-quick a{
+  text-decoration:none!important
+}
+.app-top a:hover,.app-top a:focus,.app-top a:focus-visible,
+.app-nav a:hover,.app-nav a:focus,.app-nav a:focus-visible,
+.app-subnav a:hover,.app-subnav a:focus,.app-subnav a:focus-visible,
+.app-drawer a:hover,.app-drawer a:focus,.app-drawer a:focus-visible,
+.r-actions a:hover,.r-actions a:focus,.r-actions .btn:hover,.r-actions .btn:focus,
+.btn.b2:hover,.btn.b2:focus,.home-quick a:hover,.home-quick a:focus{
+  text-decoration:none!important
+}
 /* 標題區：M6＋M8；container-type 需由外層 flex 給寬（不可依內容撐開，否則寬度為 0） */
 .hdr-title.m8bar{display:flex;align-items:center;gap:4px;min-width:0;flex:1 1 auto;container-type:inline-size}
 /* M6 三線變叉（components/ 原樣） */
@@ -40,7 +50,7 @@
 body.signed-in:not([data-view=quiz]):not([data-view=result]) .app-subnav{display:flex}
 @media (min-width:900px){body.signed-in .app-subnav{display:none!important}}
 .app-subnav a{flex:1;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 6px;border-radius:var(--r-sm);text-decoration:none;color:var(--mute);font-size:14px;font-weight:500;text-align:center}
-.app-subnav a.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+.app-subnav a.on{color:var(--ink);background:var(--surface);box-shadow:inset 0 0 0 1px var(--line-strong)}
 @media (hover:hover) and (pointer:fine){.app-subnav a:hover:not(.on){background:var(--surface)}}
 .app-main{flex:1;max-width:1120px;width:100%;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 .page-title{font-size:22px;font-weight:600;margin:0 0 12px;letter-spacing:.04em}
