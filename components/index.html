@@ -558,6 +558,22 @@ dialog.dlg:not([open]){display:none}
 .p3 [data-state=done] .lab{color:var(--ink)}
 .stp-ctl{display:flex;justify-content:center;gap:10px;margin-top:22px}
 .stp-msg{text-align:center;font-size:13px;color:var(--mute);margin-top:14px;min-height:1.65em}
+/* P3／P4 上一步・下一步：兩顆同為圓角矩形、同寬同高、位置固定；按下只變底色、不縮放；只過渡底色和透明度，不閃 */
+.stp-nav{display:grid;grid-template-columns:repeat(2,112px);justify-content:center;gap:10px;-webkit-user-select:none;user-select:none}
+.stp-nav .btn{width:112px;height:44px;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:var(--r-sm);transform:none;transition:background-color .22s var(--ease),opacity .22s var(--ease)}
+.stp-nav .btn:active{transform:none}
+.stp-nav .b1{background:var(--black);color:#fff}
+.stp-nav .b2{background:transparent;color:var(--ink);border-color:var(--line)}
+@media (hover:hover) and (pointer:fine){.stp-nav .b1:not(:disabled):hover{background:#3A3C37}.stp-nav .b2:not(:disabled):hover{background:#fff;border-color:var(--line)}}
+.stp-nav .b1:not(:disabled):active{background:#4A4C47}
+.stp-nav .b2:not(:disabled):active{background:var(--sage-soft)}
+.stp-nav .btn:disabled{opacity:.4;cursor:not-allowed}
+.stp-nav .b1:disabled{background:var(--black);color:#fff}
+.stp-nav .b2:disabled{background:transparent;color:var(--ink);border-color:var(--line)}
+.stp-nav .btn:focus:not(:focus-visible){outline:none}
+.stp-nav .b1:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+.stp-nav .b2:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.p4 .hd{min-height:24px;font-variant-numeric:tabular-nums}
 .p4 .hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;font-size:13px;color:var(--mute)}
 .p4 .hd b{color:var(--ink);font-size:15px;font-weight:600}
 .p4 ol{display:flex}
@@ -1118,7 +1134,7 @@ dialog.dlg:not([open]){display:none}
           <li><button class="sd" aria-label="第 3 步：付款"><span class="sn">3</span><svg class="ico"><use href="#i-check"/></svg></button><span class="lab">付款</span></li>
           <li><button class="sd" aria-label="第 4 步：完成"><span class="sn">4</span><svg class="ico"><use href="#i-check"/></svg></button><span class="lab">完成</span></li>
         </ol>
-        <div class="stp-ctl"><button class="btn b2" data-step="prev">上一步</button><button class="btn b1" data-step="next">下一步</button></div>
+        <div class="stp-ctl stp-nav"><button class="btn b2" data-step="prev">上一步</button><button class="btn b1" data-step="next">下一步</button></div>
         <p class="stp-msg" aria-live="polite"></p>
       </div></div></article>
 
@@ -1131,7 +1147,7 @@ dialog.dlg:not([open]){display:none}
           <li><span class="sn">3</span><svg class="ico"><use href="#i-check"/></svg><span class="lt">送出申請</span><span class="ls">送出</span></li>
           <li><span class="sn">4</span><svg class="ico"><use href="#i-check"/></svg><span class="lt">完成</span><span class="ls">完成</span></li>
         </ol>
-        <div class="stp-ctl"><button class="btn b2" data-step="prev">上一步</button><button class="btn b1" data-step="next">下一步</button></div>
+        <div class="stp-ctl stp-nav"><button class="btn b2" data-step="prev">上一步</button><button class="btn b1" data-step="next">下一步</button></div>
         <p class="stp-msg" aria-live="polite"></p>
       </div></div></article>
 
