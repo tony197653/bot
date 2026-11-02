@@ -533,15 +533,24 @@ dialog.dlg:not([open]){display:none}
 .stp{width:100%}
 .stp ol{list-style:none;margin:0;padding:0}
 .p3 ol{display:grid;grid-template-columns:repeat(4,1fr)}
-.p3 li{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.p3 li{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
 .p3 li:not(:last-child)::before,.p3 li:not(:last-child)::after{content:"";position:absolute;top:16px;left:calc(50% + 24px);right:calc(-50% + 24px);height:2px;border-radius:999px;background:#D6D9D0}
 .p3 li:not(:last-child)::after{background:var(--sage);transform:scaleX(0);transform-origin:left;transition:transform .4s var(--ease)}
 .p3 li[data-state=done]::after{transform:scaleX(1)}
-.sd{position:relative;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1.5px solid #C9CCC3;background:#fff;color:var(--mute);font:600 13.5px var(--font);padding:0;cursor:default;transition:background .3s var(--ease),border-color .3s var(--ease),color .3s var(--ease),box-shadow .3s var(--ease);font-variant-numeric:tabular-nums}
+.sd{position:relative;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1.5px solid #C9CCC3;background:#fff;color:var(--mute);font:600 13.5px var(--font);padding:0;cursor:default;transition:background .3s var(--ease),border-color .3s var(--ease),color .3s var(--ease);font-variant-numeric:tabular-nums}
 .sd::before{content:"";position:absolute;inset:-5px}
 .sd .ico{position:absolute;width:16px;height:16px;stroke-width:2.2;opacity:0;transform:scale(.6);transition:opacity .2s var(--ease),transform .3s var(--ease-out)}
 .sd .sn{transition:opacity .2s var(--ease)}
-[data-state=current] > .sd{border-color:var(--sage);color:var(--sage-deep);box-shadow:0 0 0 4px var(--sage-soft)}
+[data-state=current] > .sd{border-color:var(--sage);color:var(--sage-deep)}
+/* 目前步驟的光：四層細光圈由內往外依序淡入、微微擴開（每層錯開 .16s，全程約 1.2s），越外層越淡，取代原本一次出現的 4px box-shadow 光圈；只動 transform、opacity */
+.sd .glow{position:absolute;inset:0;pointer-events:none}
+.sd .glow i{position:absolute;border-radius:50%;z-index:-1;opacity:0;transition:opacity .25s var(--ease)}
+.sd .glow i:nth-child(1){inset:-16px;background:radial-gradient(closest-side,color-mix(in srgb,var(--sage) 6%,transparent) 72%,transparent);--d:.48s}
+.sd .glow i:nth-child(2){inset:-11px;background:radial-gradient(closest-side,color-mix(in srgb,var(--sage) 10%,transparent) 78%,transparent);--d:.32s}
+.sd .glow i:nth-child(3){inset:-7px;background:radial-gradient(closest-side,color-mix(in srgb,var(--sage) 16%,transparent) 84%,transparent);--d:.16s}
+.sd .glow i:nth-child(4){inset:-4px;background:var(--sage-soft);--d:0s}
+[data-state=current] > .sd .glow i{opacity:1;animation:p3-glow .72s var(--ease-out) var(--d) both}
+@keyframes p3-glow{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
 [data-state=done] > .sd{background:var(--sage);border-color:var(--sage);color:#fff;cursor:pointer}
 [data-state=done] > .sd .ico{opacity:1;transform:none}
 [data-state=done] > .sd .sn{opacity:0}
@@ -676,6 +685,7 @@ dialog.dlg:not([open]){display:none}
   .sk::after{display:none}
   .p5 [data-state=current] .pt i{animation:p5-breathe-rm 3.6s ease-in-out infinite!important}
   .p5 [data-state=current] .pt i::after{animation:none!important}
+  [data-state=current] > .sd .glow i{animation:none!important} /* 減少動態：四層光圈直接靜態顯示 */
 }
 [hidden]{display:none!important}
 </style>
@@ -1537,6 +1547,7 @@ $$('.js-steps').forEach(root=>{
   const lis=$$('ol > li',root), labels=root.dataset.labels.split(','), N=lis.length, msg=$('.stp-msg',root);
   const isP3=root.classList.contains('p3'), isP4=root.classList.contains('p4'), isP5=root.classList.contains('p5');
   let cur=isP5?2:1;
+  if(isP3)lis.forEach(li=>{const sd=$('.sd',li);sd&&sd.insertAdjacentHTML('afterbegin','<span class="glow" aria-hidden="true"><i></i><i></i><i></i><i></i></span>')});
   function render(){
     lis.forEach((li,i)=>{
       const st=i<cur||(cur===N-1&&i===N-1&&root._finished)?'done':i===cur?'current':'todo';
