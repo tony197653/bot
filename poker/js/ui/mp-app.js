@@ -117,6 +117,36 @@ let creating = false;
 let joining = false;
 let joinError = '';
 let joinEnded = false;
+/** Persist create-form draft across re-renders (UI/UX #11). */
+let createDraft = { name: '週五牌局', sb: 10, chips: 2000 };
+let sittingBusy = false;
+let openJoinBusy = false;
+
+/** Map low-level errors to plain 發生什麼 + 怎麼做 (UI/UX #13). */
+function friendlyError(err, fallback) {
+  const raw = String(err?.message || err?.code || err || '');
+  const code = String(err?.code || '');
+  if (/timeout|逾時|Deadline|network|unavailable|Failed to fetch/i.test(raw + code)) {
+    return '連線逾時，請檢查網路後再試一次';
+  }
+  if (/permission-denied|PERMISSION_DENIED|insufficient/i.test(raw + code)) {
+    return '目前無法完成這項操作，請重新整理後再試；若仍不行，請請房主協助';
+  }
+  if (/not-found|NOT_FOUND|找不到|不存在/i.test(raw + code)) {
+    return '找不到這桌，請確認房號後再試';
+  }
+  if (/too-many|牌桌太多/i.test(raw + code)) {
+    return '現在牌桌太多，請稍後再試';
+  }
+  if (/未滿\s*10|10\s*分鐘/i.test(raw)) {
+    return '還不能結帳：房主失聯未滿 10 分鐘，請再等一下或請房主回來';
+  }
+  // Strip Firebase-looking codes from otherwise OK Chinese messages
+  if (/[\u4e00-\u9fff]/.test(raw) && !/permission-|firebase|INTERNAL|FAILED_PRECONDITION/i.test(raw)) {
+    return raw.replace(/\s*\([^)]*\)\s*$/, '').trim() || fallback;
+  }
+  return fallback;
+}
 let statsMode = 'total';
 let statsRows = [];
 let statsNight = nightKeyOf();
@@ -525,8 +555,9 @@ function paint() {
       onSolo: () => openSolo(),
       onSignOut: () => signOut(),
       onRescue: () => doRescue(),
-      onAvatar: () => {},
-      onSettings: () => toast('設定稍後開放'),
+      onAvatar: () => openStats(),
+      onSettings: () =>
+        toast('設定還在製作中，請先用⋯選單的「戰績」或「同一支手機輪流玩」'),
       lobbyStatus: awayLobbyStatus,
     });
     return;
@@ -535,9 +566,12 @@ function paint() {
   if (screen === 'create') {
     root.hidden = false;
     renderCreateRoom(root, {
-      defaults: { name: '週五牌局', sb: 10, chips: 2000 },
+      defaults: createDraft,
       creating,
       error: createError,
+      onDraft: (d) => {
+        createDraft = { ...createDraft, ...d };
+      },
       onCancel: () => {
         screen = 'lobby';
         paint();
@@ -568,6 +602,10 @@ function paint() {
         toast('已複製');
       },
       onEnter: () => enterRoom(shareInfo.roomId, { asHostSit: true }),
+      onLobby: () => {
+        screen = 'lobby';
+        paint();
+      },
     });
     return;
   }
@@ -658,16 +696,36 @@ function ensureOpenTablesListen() {
 async function enterOpenTable(roomId) {
   const fb = getFirebase();
   const user = getUser();
-  if (!fb || !user || !roomId) return;
+  if (!fb || !user || !roomId || openJoinBusy) return;
+  openJoinBusy = true;
+  const root = $('#mpRoot');
+  const row = root?.querySelector(`.mp-row[data-rid="${CSS.escape(roomId)}"]`);
+  if (row) {
+    row.setAttribute('aria-busy', 'true');
+    row.disabled = true;
+    const go = row.querySelector('.mp-go');
+    if (go) go.textContent = '加入中…';
+  }
   try {
     const res = await joinByRoomId(fb, roomId, user.uid);
     if (res.ended || res.error) {
-      toast(res.error || '牌桌已結束');
+      toast(
+        friendlyError(
+          res.error,
+          res.ended
+            ? '這桌已結束，請選其他桌或開一桌新的'
+            : '無法加入這桌，請再試一次或換一桌',
+        ),
+      );
+      if (screen === 'lobby') paint();
       return;
     }
     await enterRoom(roomId);
   } catch (e) {
-    toast(String(e.message || '無法加入'));
+    toast(friendlyError(e, '無法加入這桌，請檢查網路後再試一次'));
+    if (screen === 'lobby') paint();
+  } finally {
+    openJoinBusy = false;
   }
 }
 
@@ -785,16 +843,22 @@ async function onCreateTable() {
 async function doCreate(data) {
   const fb = getFirebase();
   const user = getUser();
+  createDraft = {
+    name: data.name || createDraft.name,
+    sb: data.sb,
+    chips: data.newPlayerChips,
+  };
   if (!fb || !user) {
-    createError = '連不上網路，無法開房';
+    createError = '連不上網路，請檢查連線後再按「開房」';
     paint();
     return;
   }
   if (data.newPlayerChips < 1000 || data.newPlayerChips > 100000 || data.newPlayerChips % 500) {
-    createError = '起始籌碼要在 1,000-100,000 之間';
+    createError = '起始籌碼要在 1,000–100,000 之間，且是 500 的倍數；請改完再按「開房」';
     paint();
     return;
   }
+  if (creating) return;
   creating = true;
   createError = '';
   paint();
@@ -816,6 +880,7 @@ async function doCreate(data) {
       return;
     }
     shareInfo = res;
+    createDraft = { name: '週五牌局', sb: 10, chips: 2000 };
     // createRoom writes hostRoomId in the same txn; refresh local player doc
     try {
       playerDoc = await getPlayer(fb, user.uid);
@@ -825,10 +890,7 @@ async function doCreate(data) {
     screen = 'share';
   } catch (e) {
     console.error(e);
-    createError =
-      e?.code === 'too-many-tables' || /牌桌太多/.test(String(e?.message || ''))
-        ? '牌桌太多，稍後再試'
-        : '開房失敗，請再試一次';
+    createError = friendlyError(e, '開房失敗，請再按一次「開房」');
   }
   creating = false;
   paint();
@@ -870,8 +932,8 @@ async function doJoin(code, expectedR = null) {
   } catch (e) {
     joinError =
       e?.message === 'timeout'
-        ? '連線逾時，請再試一次'
-        : `房號 ${joinDigits} 不存在，請再確認`;
+        ? '連線逾時，請檢查網路後再打一次房號'
+        : friendlyError(e, `房號 ${joinDigits} 加入失敗，請確認號碼後再試`);
   }
   joining = false;
   paint();
@@ -1065,7 +1127,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
             await hostLoop?.seatPlayer(0, user.uid);
           } catch (e) {
             console.warn('host sit', e);
-            toast(String(e.message || e));
+            toast(friendlyError(e, '入座失敗，請點空位再試一次'));
           }
         }
         // L3: ensure hostRoomId points at this table (replace only if prior gone/closed/null)
@@ -1256,12 +1318,17 @@ function renderSeatOverlays() {
       ps?.hole?.length === 2
         ? `<div class="reveal-hole" data-seat="${seat}">${ps.hole.map((c) => cardHtml(c, { hero: true })).join('')}</div>`
         : '';
+    const stateTag = folded
+      ? '<i class="mp-seat-state" aria-label="已蓋牌">已蓋牌</i>'
+      : away
+        ? '<i class="mp-seat-state is-away-tag" aria-label="暫離">暫離</i>'
+        : '';
     el.innerHTML = `
       ${reveal || backs}
       <div class="plate plateA">
         <div class="av"><span>${esc(name.slice(0, 1))}</span></div>
         <div>
-          <div class="nm">${esc(name)}${seat === room.seatUids.indexOf(room.hostUid) ? '<i class="mp-host-tag">房主</i>' : ''}${pending ? '<i class="mp-host-tag">排隊</i>' : ''}</div>
+          <div class="nm">${esc(name)}${seat === room.seatUids.indexOf(room.hostUid) ? '<i class="mp-host-tag">房主</i>' : ''}${pending ? '<i class="mp-host-tag">排隊</i>' : ''}${stateTag}</div>
           <span class="ch st">${fmtChips(chips)}</span>
         </div>
       </div>`;
@@ -1406,7 +1473,9 @@ function renderActBar() {
       $('#mpShow')?.addEventListener('click', () => sendReveal('SHOW'));
       $('#mpMuck')?.addEventListener('click', () => sendReveal('MUCK'));
     } else {
-      btns.innerHTML = `<div class="mp-spec">等待其他人選擇亮牌…</div>`;
+      btns.innerHTML = `<div class="mp-spec">等待其他人選擇亮牌…</div>
+        <button type="button" class="ghost" id="mpBtnLeaveLobby">回大廳</button>`;
+      wireLeaveLobbyBtn();
     }
     return;
   }
@@ -1591,15 +1660,16 @@ function openMpRaise(minRaiseTo, send) {
 async function sitDown(seat) {
   const fb = getFirebase();
   const user = getUser();
-  if (!fb || !user || !room) return;
+  if (!fb || !user || !room || sittingBusy) return;
   if (room.seatUids[seat]) {
-    toast('座位已被佔用');
+    toast('這個座位剛被佔走了，請選其他空位');
     return;
   }
   if (room.seatUids.includes(user.uid)) {
     toast('你已入座，要換位請先離座');
     return;
   }
+  sittingBusy = true;
   toast('入座中…');
   try {
     if (playerDoc?.tableRoomId !== roomId) {
@@ -1617,7 +1687,9 @@ async function sitDown(seat) {
       await hostLoop?.seatPlayer(seat, user.uid);
     }
   } catch (e) {
-    toast(String(e.message || '入座失敗'));
+    toast(friendlyError(e, '入座失敗，請再點一次空位'));
+  } finally {
+    sittingBusy = false;
   }
 }
 
@@ -1719,7 +1791,7 @@ async function doRescue() {
     toast('已結帳回帳戶');
     paint();
   } catch (e) {
-    toast(String(e.message || '結帳失敗（可能未滿 10 分鐘）'));
+    toast(friendlyError(e, '結帳失敗，請稍後再試或請房主協助'));
   }
 }
 
@@ -1991,5 +2063,5 @@ export function mpCloseRoom() {
       autoResumeTried = false;
       leaveToLobby();
     })
-    .catch((e) => toast(String(e.message || '收桌失敗')));
+    .catch((e) => toast(friendlyError(e, '收桌失敗，請再試一次；若仍不行請重整頁面')));
 }

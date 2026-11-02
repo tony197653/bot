@@ -1,6 +1,6 @@
 /**
  * Multiplayer Playwright against Auth+Firestore emulators (demo-poker).
- * Never talks to production. Viewports 390 and 1280.
+ * Never talks to production. Lobby top-bar checks at 360/390/1280; other flows at 390/1280.
  *
  * Run via: node firebase/run-mp-e2e.mjs
  */
@@ -984,11 +984,30 @@ async function runOpenTablesList(browser, base, viewport, label) {
   };
 }
 
-/** §2.1/§2.2: host / guest / settle cards + away toast (fixed height). */
+/** §2.1/§2.2: host / guest / settle cards + away toast (f7e147a 50px top bar). */
 async function runMineCardStates(browser, base, viewport, label) {
   const hostUid = `hostmc${label}`;
   const guestUid = `guestmc${label}`;
   const host = await makePlayer(browser, base, '阿明', hostUid, viewport);
+  // Idle lobby: 「在大廳」+ menu items (no primary continue/settle); core CTAs visible
+  const idle = await host.page.evaluate(() => {
+    const top = document.querySelector('.mp-lobby .mp-top');
+    const r = top?.getBoundingClientRect();
+    const stl = document.getElementById('mpStl');
+    const create = document.querySelector('.mp-btn-primary[data-act="create"]');
+    const join = document.getElementById('mpJoinCode');
+    return {
+      top: window.__qaTopStatus?.() || '',
+      h: r ? Math.round(r.height) : 0,
+      stlTag: stl?.tagName || '',
+      stlClickable: !!(stl && (stl.closest('button') || stl.getAttribute('role') === 'button')),
+      hasCreate: !!create,
+      createVisible: !!(create && getComputedStyle(create).display !== 'none'),
+      hasJoin: !!join,
+      menu: window.__qaOpenMenu?.() || [],
+    };
+  });
+  await host.page.evaluate(() => document.getElementById('mpMenuBtn')?.click());
   const { roomId, code } = await createAndShare(host);
   await host.page.evaluate(() => window.__qaLeaveToLobby());
   await host.page.waitForSelector('.mp-mine.is-host, .mp-mine', { timeout: 15000 });
@@ -1071,11 +1090,14 @@ async function runMineCardStates(browser, base, viewport, label) {
     if (!top) return null;
     const r = top.getBoundingClientRect();
     const foot = document.querySelector('.mp-foot');
+    const footLinks = [...document.querySelectorAll('.mp-foot [data-act="solo"], .mp-foot [data-act="signout"]')];
     return {
       h: Math.round(r.height),
       hasTotal: /總計/.test(document.body.innerText),
       footHidden: !foot || getComputedStyle(foot).display === 'none',
+      footHasLegacy: footLinks.length > 0,
       hasMenu: !!document.getElementById('mpMenuBtn'),
+      menuIsM7: document.getElementById('mpMenuBtn')?.classList.contains('m7') === true,
     };
   });
 
@@ -1121,11 +1143,28 @@ async function runMineCardStates(browser, base, viewport, label) {
     topBar &&
     topBar.h === 50 &&
     topBar.footHidden &&
+    !topBar.footHasLegacy &&
     !topBar.hasTotal &&
-    topBar.hasMenu;
+    topBar.hasMenu &&
+    topBar.menuIsM7;
+  const idleOk =
+    idle.top === '在大廳' &&
+    idle.h === 50 &&
+    idle.stlTag === 'SPAN' &&
+    !idle.stlClickable &&
+    idle.hasCreate &&
+    idle.createVisible &&
+    idle.hasJoin &&
+    idle.menu.some((t) => t === '戰績') &&
+    idle.menu.some((t) => t === '設定') &&
+    idle.menu.some((t) => /同一支手機輪流玩/.test(t)) &&
+    idle.menu.some((t) => t === '登出') &&
+    !idle.menu.some((t) => /回到牌桌|結帳離開/.test(t));
 
   return {
-    ok: hostOk && guestOk && settleOk && toastOk && heightOk && barOk,
+    ok: idleOk && hostOk && guestOk && settleOk && toastOk && heightOk && barOk,
+    idle,
+    idleOk,
     hostCard,
     guestCard,
     settleCard,
@@ -1239,6 +1278,10 @@ async function main() {
         runOpenTablesList(browser, base, vp, vp.label),
       );
     }
+    // Top-bar / status / menu: also verify at 360 (with 390/1280 covered above)
+    await push('mine-card-states-360', () =>
+      runMineCardStates(browser, base, { width: 360, height: 780 }, '360'),
+    );
   } finally {
     await browser.close();
     server.close();

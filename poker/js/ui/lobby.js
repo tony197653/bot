@@ -95,7 +95,9 @@ export function showLobbyNotify(title, desc = '', action = null) {
     if (action) a.textContent = action.label;
   }
   el.classList.add('on');
-  armNtc();
+  // UI/UX #4: actionable notices stay until dismiss/action (no auto-jump while reading)
+  if (action) clearTimeout(ntcTimer);
+  else armNtc();
 }
 
 /** Flash「我的牌桌」border 1.6s (opacity/shadow only). */
@@ -246,6 +248,7 @@ export function openRowHtml(t) {
       <span class="mp-row-side" aria-hidden="true">
         <span class="mp-blinds"><small>盲注</small>${esc(blinds)}</span>
         <span class="mp-seats"><span class="mp-pips">${pipsHtml(seated)}</span><span class="mp-n">${esc(seated)}/6</span></span>
+        <span class="mp-go">${full ? '觀戰' : '加入'}${CHEV_SVG}</span>
       </span>
     </button>
   </li>`;
@@ -367,7 +370,7 @@ export function renderMpLobby(root, vm) {
     <div class="mp-empty" id="mpOpenEmpty" data-e1 ${openTables.length ? 'hidden' : ''}>
       ${EMPTY_SVG}
       <h3>現在沒有牌桌，開一桌吧</h3>
-      <p>開好之後，家人登入就會在這裡看到。</p>
+      <p>開好之後，家人登入就會在這裡看到。請用下方「開新牌桌」開始。</p>
     </div>
   </section>`;
 
@@ -430,7 +433,8 @@ export function renderMpLobby(root, vm) {
     set: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="2.4"/><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2M4.4 4.4l1.4 1.4M12.2 12.2l1.4 1.4M4.4 13.6l1.4-1.4M12.2 5.8l1.4-1.4"/></svg>`,
     pass: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="8" height="13" rx="1.8"/><path d="M8 12.8h2"/></svg>`,
     out: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3.5H4.5v11H7M11 6l3 3-3 3M14 9H7.5"/></svg>`,
-    dots: `<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4.5" cy="10" r="1.7"/><circle cx="10" cy="10" r="1.7"/><circle cx="15.5" cy="10" r="1.7"/></svg>`,
+    /* M7 kebab glyph (components c81c4f2): solid dots, no morph */
+    dots: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5.5" cy="12" r="1.75"/><circle cx="12" cy="12" r="1.75"/><circle cx="18.5" cy="12" r="1.75"/></svg>`,
   };
 
   root.innerHTML = `
@@ -444,7 +448,7 @@ export function renderMpLobby(root, vm) {
         <span class="mp-amt" id="mpAmtAcc" aria-label="帳戶 ${fmtChips(bank)}"><small>帳戶</small><b id="mpBAcc">${fmtChips(bank)}</b></span>
         <span class="mp-amt" id="mpAmtTab" aria-label="牌桌 ${shownInPlay ? fmtChips(shownInPlay) : 0}"><small>牌桌</small><b id="mpBTab" class="${tableBalZero}">${tableBal}</b></span>
         <div class="mp-mw">
-          <button type="button" class="mp-mbtn" id="mpMenuBtn" aria-label="功能清單"
+          <button type="button" class="mp-mbtn m7" id="mpMenuBtn" aria-label="開啟選單"
             aria-haspopup="menu" aria-expanded="false" aria-controls="mpMenu">${menuIco.dots}</button>
           <div class="mp-menu" id="mpMenu" role="menu" aria-label="功能清單" hidden>
             ${
@@ -530,13 +534,15 @@ export function renderMpLobby(root, vm) {
   });
 }
 
-function closeLobbyMenu(root) {
+function closeLobbyMenu(root, focusBtn) {
   const btn = $('#mpMenuBtn', root);
   const menu = $('#mpMenu', root);
   if (!btn || !menu) return;
-  menu.classList.remove('on');
+  menu.classList.remove('on', 'is-open');
   menu.hidden = true;
   btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-label', '開啟選單');
+  if (focusBtn) btn.focus({ preventScroll: true });
 }
 
 function wireLobbyMenu(root) {
@@ -545,45 +551,84 @@ function wireLobbyMenu(root) {
   if (!btn || !menu) return;
 
   const items = () => [...menu.querySelectorAll('[role="menuitem"]')];
+  const isOpen = () => btn.getAttribute('aria-expanded') === 'true';
+  menu.tabIndex = -1;
 
-  const open = () => {
-    menu.hidden = false;
-    requestAnimationFrame(() => menu.classList.add('on'));
-    btn.setAttribute('aria-expanded', 'true');
-    items()[0]?.focus();
+  const setOpen = (o) => {
+    btn.setAttribute('aria-expanded', o ? 'true' : 'false');
+    btn.setAttribute('aria-label', o ? '關閉選單' : '開啟選單');
+    if (o) {
+      menu.hidden = false;
+      requestAnimationFrame(() => {
+        menu.classList.add('on', 'is-open');
+      });
+    } else {
+      menu.classList.remove('on', 'is-open');
+      menu.hidden = true;
+    }
   };
-  const close = () => closeLobbyMenu(root);
+
+  const open = (focusIdx) => {
+    setOpen(true);
+    const list = items();
+    const target =
+      focusIdx == null
+        ? menu
+        : focusIdx < 0
+          ? list[list.length - 1]
+          : list[focusIdx];
+    target?.focus?.({ preventScroll: true });
+  };
+  const close = (focusBtn) => closeLobbyMenu(root, focusBtn);
 
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (btn.getAttribute('aria-expanded') === 'true') close();
-    else open();
+    if (isOpen()) close(true);
+    else open(e.detail === 0 ? 0 : null);
   });
 
-  menu.addEventListener('keydown', (e) => {
-    const list = items();
-    const i = list.indexOf(document.activeElement);
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      close();
-      btn.focus();
-      return;
-    }
+  // M7: ArrowDown/Up on the button opens and focuses first/last item
+  btn.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      list[(i + 1) % list.length]?.focus();
+      open(0);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      list[(i - 1 + list.length) % list.length]?.focus();
-    } else if (e.key === 'Home') {
-      e.preventDefault();
-      list[0]?.focus();
-    } else if (e.key === 'End') {
-      e.preventDefault();
-      list[list.length - 1]?.focus();
-    } else if (e.key === 'Tab') {
-      close();
+      open(-1);
     }
+  });
+
+  root.addEventListener('keydown', (e) => {
+    if (!isOpen()) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      close(true);
+      return;
+    }
+    if (!menu.contains(e.target) && e.target !== menu) return;
+    const list = items();
+    const i = list.indexOf(document.activeElement);
+    let j = null;
+    if (e.key === 'ArrowDown') j = i < 0 ? 0 : (i + 1) % list.length;
+    else if (e.key === 'ArrowUp') j = i < 0 ? list.length - 1 : (i - 1 + list.length) % list.length;
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = list.length - 1;
+    else if (e.key === 'Tab') {
+      e.preventDefault();
+      close(true);
+      return;
+    }
+    if (j !== null) {
+      e.preventDefault();
+      list[j]?.focus({ preventScroll: true });
+    }
+  });
+
+  items().forEach((it) => {
+    it.addEventListener('pointermove', () => {
+      if (document.activeElement !== it) it.focus({ preventScroll: true });
+    });
   });
 
   // One document listener for outside-close (replace prior)
@@ -593,7 +638,7 @@ function wireLobbyMenu(root) {
   window.__mpMenuOutside = (e) => {
     const b = document.getElementById('mpMenuBtn');
     const m = document.getElementById('mpMenu');
-    if (!m?.classList.contains('on')) return;
+    if (!m || (!m.classList.contains('on') && !m.classList.contains('is-open'))) return;
     if (m.contains(e.target) || b?.contains(e.target)) return;
     closeLobbyMenu(document.getElementById('mpRoot') || document);
   };
@@ -729,17 +774,18 @@ function wireJoinBoxes(root, { digits, joining, error, onJoinCode }) {
 }
 
 export function renderCreateRoom(root, vm) {
-  const { defaults, onCancel, onSubmit, creating, error } = vm;
+  const { defaults, onCancel, onSubmit, onDraft, creating, error } = vm;
+  const chipsHintId = 'mpCreateChipsHint';
   root.innerHTML = `
     <div class="mp-shell mp-create">
       <header class="mp-top">
         <h1>開新牌桌</h1>
-        <button type="button" class="mp-link" data-act="cancel">取消</button>
+        <button type="button" class="mp-btn-ghost" data-act="cancel">取消</button>
       </header>
-      <form class="mp-form" id="createForm">
+      <form class="mp-form" id="createForm" novalidate>
         <label class="mp-float">
-          <span>牌桌名稱</span>
-          <input name="name" maxlength="20" placeholder="週五牌局" value="${esc(defaults.name || '')}">
+          <span>牌桌名稱 <em class="mp-opt">選填</em></span>
+          <input name="name" maxlength="20" placeholder="週五牌局" value="${esc(defaults.name || '')}" autocomplete="off">
         </label>
         <fieldset class="mp-seg">
           <legend>盲注（小盲／大盲）</legend>
@@ -755,12 +801,12 @@ export function renderCreateRoom(root, vm) {
           <span>新玩家起始籌碼</span>
           <div class="mp-affix-row">
             <em>送</em>
-            <input name="chips" type="number" inputmode="numeric" min="1000" max="100000" step="500" value="${defaults.chips}">
+            <input name="chips" id="mpCreateChips" type="number" inputmode="numeric" min="1000" max="100000" step="500" value="${defaults.chips}" aria-describedby="${chipsHintId}">
             <em>籌碼</em>
           </div>
-          <small>第一次來的人送這筆；回來的人用帳戶餘額。1,000–100,000，每次 500。</small>
+          <small id="${chipsHintId}">第一次來的人送這筆；回來的人用帳戶餘額。1,000–100,000，每次 500。</small>
         </label>
-        ${error ? `<p class="mp-err">${esc(error)}</p>` : ''}
+        <p class="mp-err" id="mpCreateLiveErr" ${error ? '' : 'hidden'}>${esc(error || '')}</p>
         <div class="mp-rules">
           <h3>固定規則</h3>
           <ul>
@@ -769,26 +815,70 @@ export function renderCreateRoom(root, vm) {
             <li>斷線 60 秒標暫離</li>
           </ul>
         </div>
-        <button type="submit" class="mp-btn-primary" ${creating ? 'disabled' : ''}>${creating ? '開房中…' : '開房'}</button>
+        <button type="submit" class="mp-btn-primary" ${creating ? 'disabled aria-busy="true"' : ''}>${creating ? '<span class="mp-spin" aria-hidden="true"></span>開房中…' : '開房'}</button>
       </form>
     </div>`;
   $('[data-act="cancel"]', root)?.addEventListener('click', onCancel);
-  $('#createForm', root)?.addEventListener('submit', (e) => {
+  const form = $('#createForm', root);
+  const chipsIn = $('#mpCreateChips', root);
+  const liveErr = $('#mpCreateLiveErr', root);
+  const persist = () => {
+    if (!form || !onDraft) return;
+    const fd = new FormData(form);
+    const [sb] = String(fd.get('blinds') || '10/20').split('/').map(Number);
+    onDraft({
+      name: String(fd.get('name') || ''),
+      sb,
+      chips: Number(fd.get('chips')) || defaults.chips,
+    });
+  };
+  const validateChips = () => {
+    const n = Number(chipsIn?.value);
+    let msg = '';
+    if (!Number.isFinite(n)) msg = '請輸入起始籌碼數字';
+    else if (n < 1000 || n > 100000) msg = '起始籌碼要在 1,000–100,000 之間';
+    else if (n % 500) msg = '起始籌碼必須是 500 的倍數';
+    if (liveErr) {
+      if (msg || error) {
+        liveErr.hidden = false;
+        liveErr.textContent = msg || error;
+      } else {
+        liveErr.hidden = true;
+        liveErr.textContent = '';
+      }
+    }
+    return !msg;
+  };
+  form?.addEventListener('input', () => {
+    persist();
+    validateChips();
+  });
+  form?.addEventListener('change', () => {
+    persist();
+    validateChips();
+  });
+  form?.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (creating) return;
+    persist();
+    if (!validateChips()) return;
     const fd = new FormData(e.target);
     const [sb, bb] = String(fd.get('blinds') || '10/20').split('/').map(Number);
     const chips = Number(fd.get('chips'));
-    const name = String(fd.get('name') || '').trim();
+    const name = String(fd.get('name') || '').trim() || '週五牌局';
     onSubmit({ name, sb, bb, newPlayerChips: chips });
   });
 }
 
 export function renderShareRoom(root, vm) {
-  const { name, code, roomId, onShare, onCopy, onEnter } = vm;
+  const { name, code, roomId, onShare, onCopy, onEnter, onLobby } = vm;
   const url = shareUrl(code, roomId);
   root.innerHTML = `
     <div class="mp-shell mp-share">
-      <header class="mp-top"><h1>牌桌開好了</h1></header>
+      <header class="mp-top">
+        <h1>牌桌開好了</h1>
+        <button type="button" class="mp-btn-ghost" data-act="lobby">回大廳</button>
+      </header>
       <p class="mp-table-name">${esc(name)}</p>
       <button type="button" class="mp-code" data-act="copy" aria-label="複製房號">${esc(formatCode(code))}</button>
       <p class="mp-meta">點連結加入，或在大廳輸入房號。房號 24 小時有效。</p>
@@ -797,7 +887,12 @@ export function renderShareRoom(root, vm) {
       <button type="button" class="mp-b4" data-act="enter">進入牌桌</button>
       <p class="mp-url">${esc(url)}</p>
     </div>`;
-  wire(root, { share: () => onShare(url), copy: () => onCopy(url), enter: onEnter });
+  wire(root, {
+    share: () => onShare(url),
+    copy: () => onCopy(url),
+    enter: onEnter,
+    lobby: onLobby,
+  });
 }
 
 /** 附錄 L2/L7：舊 ③ 輸入頁已併入大廳；深連結失效時仍顯示結束態。 */

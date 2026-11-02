@@ -78,7 +78,7 @@ export function renderStats(root, vm) {
     <div class="mp-shell mp-stats">
       <header class="mp-top">
         <h1>戰績</h1>
-        <button type="button" class="mp-link" data-act="back">返回</button>
+        <button type="button" class="mp-btn-ghost" data-act="back">返回</button>
       </header>
       ${offline ? '<p class="mp-offline">離線資料</p>' : ''}
       <div class="mp-seg-row" role="tablist">
