@@ -77,7 +77,7 @@ export function showResult(opts) {
 
   const cloudBanner =
     opts.cloudStatus === 'pending' || opts.cloudStatus === 'error'
-      ? `<p class="cloud-warn" role="status">還沒存到雲端，<button type="button" class="btn b5" data-act="retry-cloud">重試</button></p>`
+      ? `<p class="cloud-warn" role="status">還沒存到雲端，<button type="button" class="btn b2" data-act="retry-cloud">重試</button></p>`
       : '';
 
   const showWrongOnly = wrongN > 0;
@@ -140,7 +140,7 @@ export function showResult(opts) {
               const group = q.groupId ? groupsMap[q.groupId] : null;
               const reportBtn =
                 showExamReport && !ok
-                  ? `<button type="button" class="btn b5 report" data-report-qid="${escHtml(q.id)}" data-report-n="${n}"${
+                  ? `<button type="button" class="btn b2 report" data-report-qid="${escHtml(q.id)}" data-report-n="${n}"${
                       reported.has(q.id) ? ' disabled' : ''
                     }>${reported.has(q.id) ? '已回報' : '回報題目有誤'}</button>`
                   : '';
@@ -166,7 +166,7 @@ export function showResult(opts) {
       }</button>
       <button type="button" class="btn b2" data-act="restart">從頭再做</button>
       <button type="button" class="btn b2" data-act="copy">複製摘要</button>
-      <button type="button" class="btn b5" data-act="home">回首頁</button>
+      <button type="button" class="btn b2" data-act="home">回首頁</button>
     </div>
     <dialog class="report-dlg" data-el="resultReportDlg">
       <form method="dialog" class="report-form">

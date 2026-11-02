@@ -17,6 +17,36 @@ const FLAGS = new Set([
   'GROUP_BROKEN',
   'IMAGE_TOO_BIG',
 ]);
+
+/** 紅標代碼 → 白話（介面顯示用；內部仍用代碼） */
+const FLAG_LABELS = {
+  COUNT_MISMATCH: '題數與預期不符',
+  EXPLAIN_MISSING: '缺少詳解',
+  EXPLAIN_MISMATCH: '詳解與正解對不上',
+  ANSWER_MISSING: '缺少正解',
+  OPTION_COUNT: '選項數量不對',
+  FORMULA_CHECK: '公式需人工核對',
+  FIGURE_MISSING: '提到圖表但缺圖',
+  LOW_CONFIDENCE: '擷取信心偏低，請人工確認',
+  DUPLICATE_ID: '題目編號重複',
+  GROUP_BROKEN: '題組不完整',
+  IMAGE_TOO_BIG: '圖片太大',
+};
+
+const REPORT_REASON_LABELS = {
+  answer: '答案錯',
+  typo: '題目打錯',
+  figure: '圖有問題',
+  other: '其他',
+};
+
+export function flagLabel(code) {
+  return FLAG_LABELS[code] || String(code || '');
+}
+
+export function reportReasonLabel(code) {
+  return REPORT_REASON_LABELS[code] || String(code || '');
+}
 const FIG_WORDS = /如圖|下圖|右圖|左圖|上圖|附圖|圖[（(一二三四五六七八九十0-9]|如表|下表|右表|附表/;
 const BATCH_ID_RE = /^[0-9]{8}-[a-z0-9-]+$/;
 const BOOK_ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -247,4 +277,4 @@ export function validateBatch(d, opts = {}) {
   };
 }
 
-export { FIG_WORDS, FLAGS };
+export { FIG_WORDS, FLAGS, FLAG_LABELS, REPORT_REASON_LABELS };

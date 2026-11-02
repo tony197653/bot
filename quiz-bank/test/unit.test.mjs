@@ -14,6 +14,7 @@ import {
   pendingKey,
 } from '../js/stats.js';
 import { wrongPracticeLabel, formatUnitsExportText, SUBJECT_LABELS } from '../js/views.js';
+import { flagLabel, reportReasonLabel } from '../js/schema.js';
 
 let failed = 0;
 function pass(n) {
@@ -196,6 +197,12 @@ function fail(n, e) {
   const empty = await flushPending(uid);
   if (empty.flushed !== 0 || empty.failed !== 0) fail('empty flush', empty);
   else pass('I-3 empty flush is not success (flushed=0)');
+}
+
+{
+  if (flagLabel('LOW_CONFIDENCE') !== '擷取信心偏低，請人工確認') fail('flagLabel');
+  else if (reportReasonLabel('answer') !== '答案錯') fail('reportReasonLabel');
+  else pass('UX#13 flag/reason plain labels');
 }
 
 console.log(`\nunit.test ${failed ? 'FAILED' : 'OK'} (${failed} failed)`);

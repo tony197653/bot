@@ -461,7 +461,7 @@ async function openWrongDetail(qid) {
         <p><strong>正確答案：</strong>(${L[q.answer]}) ${escHtml(q.options[q.answer])}</p>
         <div class="wd-ex">${escHtml(q.explain || '').replace(/\n/g, '<br>')}</div>
         <div class="leave-actions">
-          <button type="button" class="btn b5" data-wd-remove>移出錯題本</button>
+          <button type="button" class="btn b2" data-wd-remove>移出錯題本</button>
           <button type="submit" class="btn b2" value="close">關閉</button>
         </div>
       </form>`;
@@ -563,7 +563,8 @@ async function renderRoute(route) {
     main.innerHTML = `<p class="e1">請從首頁開始練習。</p><button type="button" class="btn b1" data-home>回首頁</button>`;
     main.querySelector('[data-home]')?.addEventListener('click', () => navigate('#/'));
   } else {
-    main.innerHTML = `<p class="e2">找不到頁面</p>`;
+    main.innerHTML = `<div class="page"><p class="e2">找不到這個頁面。</p>
+      <div class="empty-next"><a class="btn b1" href="#/">回首頁</a></div></div>`;
   }
 }
 
@@ -684,6 +685,10 @@ async function boot() {
   toggleDrawer(false);
   bindM6Drawer();
   document.getElementById('btn-signout')?.addEventListener('click', () => signOut());
+  document.getElementById('nav-avatar')?.addEventListener('click', () => {
+    const open = document.body.classList.contains('drawer-open');
+    toggleDrawer(!open);
+  });
   document.querySelector('.drawer-backdrop')?.addEventListener('click', () => toggleDrawer(false));
   document.getElementById('app-drawer')?.addEventListener('click', (e) => {
     if (e.target.matches('a,[data-route]')) toggleDrawer(false);

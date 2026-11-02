@@ -1,7 +1,7 @@
 /**
  * 匯入校對（管理者）：三步驟、紅標、預覽、分批 writeBatch、回報分頁。
  */
-import { validateBatch, figureByteSize } from './schema.js';
+import { validateBatch, figureByteSize, flagLabel, reportReasonLabel } from './schema.js';
 import { escHtml, renderMath, stemHtml, optionsHtml, groupPassageHtml } from './render.js';
 import { askConfirm } from './dialog.js';
 
@@ -214,6 +214,7 @@ export async function renderImport(mount, ctx) {
     const validation = validateBatch(data, { existingIds });
     state = {
       ...state,
+      pasteText: text,
       step: validation.schemaErrors?.length ? 1 : 2,
       batch: data,
       validation,
@@ -358,7 +359,7 @@ export async function renderImport(mount, ctx) {
       ${flags
         .map(
           (f) =>
-            `<span class="l2 bad flag" data-flag="${escHtml(f)}">${escHtml(f)} <button type="button" class="btn b5 dismiss-flag">我看過了</button></span>`,
+            `<span class="l2 bad flag" data-flag="${escHtml(f)}">${escHtml(flagLabel(f))} <button type="button" class="btn b2 dismiss-flag">我看過了</button></span>`,
         )
         .join('')}
       ${(q.extract?.uncertain || [])
@@ -384,7 +385,7 @@ export async function renderImport(mount, ctx) {
       <button type="button" class="btn b2" data-act="confirm-q"${
         flags.length ? ' disabled' : ''
       }>這題確認</button>
-      <button type="button" class="btn b5" data-act="delete-q">刪題</button>
+      <button type="button" class="btn b2" data-act="delete-q">刪題</button>
       <label class="btn b2 fig-upload">換圖<input type="file" accept="image/*" id="fig-file" hidden></label>
     </div>`;
   }
@@ -427,7 +428,7 @@ export async function renderImport(mount, ctx) {
           const span = document.createElement('span');
           span.className = 'l2 bad flag';
           span.dataset.flag = f;
-          span.innerHTML = `${escHtml(f)} <button type="button" class="btn b5 dismiss-flag">我看過了</button>`;
+          span.innerHTML = `${escHtml(flagLabel(f))} <button type="button" class="btn b2 dismiss-flag">我看過了</button>`;
           flagHost.insertBefore(span, flagHost.firstChild?.nextSibling || flagHost.firstChild);
           span.querySelector('.dismiss-flag')?.addEventListener('click', (ev) => {
             ev.stopPropagation();
@@ -505,7 +506,7 @@ export async function renderImport(mount, ctx) {
       .map(
         (row) => `<button type="button" class="import-row" data-report="${escHtml(row.id)}" data-qid="${escHtml(row.qid)}">
           <span>${escHtml(row.qid)}</span>
-          <span class="l3">${escHtml(row.reason)} · ${escHtml(row.note || '')}</span>
+          <span class="l3">${escHtml(reportReasonLabel(row.reason))}${row.note ? ` · ${escHtml(row.note)}` : ''}</span>
         </button>`,
       )
       .join('') || '<p class="mute">目前沒有未處理回報</p>';
@@ -540,7 +541,9 @@ export async function renderImport(mount, ctx) {
                 const cover = existingIds.has(row.id) ? '<span class="l3">將覆蓋</span>' : '';
                 return `<button type="button" class="import-row${state.selectedId === row.id ? ' sel' : ''}" data-qid="${escHtml(row.id)}">
                 <span>${escHtml(row.id)}</span>${cover}${
-                  flags.length ? `<span class="l3">${flags.join(',')}</span>` : ''
+                  flags.length
+                    ? `<span class="l3">${flags.map((f) => flagLabel(f)).join('、')}</span>`
+                    : ''
                 }
               </button>`;
               })
@@ -575,7 +578,7 @@ export async function renderImport(mount, ctx) {
         state.tab !== 'reports' && step === 1
           ? `<div class="import-step">
         <label class="btn b2">選擇 JSON 檔<input type="file" accept=".json,application/json" hidden id="import-file"></label>
-        <label class="i1">或貼上 JSON<textarea id="import-paste" rows="6"></textarea></label>
+        <label class="i1">或貼上 JSON<textarea id="import-paste" rows="6">${escHtml(state.pasteText || '')}</textarea></label>
         <button type="button" class="btn b1" id="import-parse">解析</button>
         ${
           state.validation?.schemaErrors?.length
@@ -590,7 +593,7 @@ export async function renderImport(mount, ctx) {
           ? `<div class="import-work">
         ${
           state.validation?.batchFlags?.length && state.tab !== 'reports'
-            ? `<p class="banner">${state.validation.batchFlags.map(escHtml).join('；')}
+            ? `<p class="banner">${state.validation.batchFlags.map((f) => escHtml(flagLabel(f))).join('；')}
                 ${
                   state.batchAck
                     ? '（已確認）'
@@ -626,11 +629,26 @@ export async function renderImport(mount, ctx) {
       await parseInput(await file.text());
     });
     mount.querySelector('#import-parse')?.addEventListener('click', async () => {
+      const btn = mount.querySelector('#import-parse');
+      if (btn?.dataset.busy === '1') return;
       const text = mount.querySelector('#import-paste')?.value || '';
+      state.pasteText = text;
+      if (btn) {
+        btn.dataset.busy = '1';
+        btn.disabled = true;
+        btn.textContent = '解析中…';
+      }
       try {
         await parseInput(text);
       } catch {
-        ctx.toast?.('JSON 格式錯誤');
+        ctx.toast?.('JSON 格式不正確，請檢查後再貼一次');
+        if (btn) {
+          btn.dataset.busy = '';
+          btn.disabled = false;
+          btn.textContent = '解析';
+        }
+        const ta = mount.querySelector('#import-paste');
+        if (ta) ta.value = text;
       }
     });
     mount.querySelector('#import-save')?.addEventListener('click', () => commitBatch());
@@ -640,6 +658,9 @@ export async function renderImport(mount, ctx) {
       paint();
     });
     mount.querySelector('#confirm-unflagged')?.addEventListener('click', () => {
+      const btn = mount.querySelector('#confirm-unflagged');
+      if (btn?.dataset.busy === '1') return;
+      if (btn) btn.dataset.busy = '1';
       for (const q of state.batch.questions) {
         if (!(state.validation?.flags?.[q.id] || []).length) {
           q.review = { ...(q.review || {}), status: 'checked' };

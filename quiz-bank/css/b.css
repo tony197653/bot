@@ -1,7 +1,7 @@
 /* ===== B 安靜高級 ===== */
 :root{--bg:#F5F4F1;--surface:#FFFFFF;--surface-2:#F0EEEA;--ink:#1F1F1D;--ink-rgb:31,31,29;--mute:#67655F;--line:#E5E3DD;--line-soft:#E8E6E0;--line-strong:#CDCAC2;
  --accent:#34445A;--sel:rgba(52,68,90,.16);--sage:#66745F;
- --ok:#3B7150;--ok-ink:#2E5C40;--ok-soft:#E7EFE9;--bad:#A03F4A;--bad-ink:#8C3540;--bad-soft:#F6E8E9;--warn:#9A6A1E;--warn-soft:#F7F0E3;
+ --ok:#3B7150;--ok-ink:#2E5C40;--ok-soft:#E7EFE9;--bad:#A03F4A;--bad-ink:#8C3540;--bad-soft:#F6E8E9;--warn:#7A5418;--warn-soft:#F7F0E3;
  --b1-bg:#1F1F1D;--b1-fg:#FAFAF8;--b1-hover:#34332F;--top-bg:rgba(245,244,241,.86);--bar-bg:rgba(245,244,241,.9);
  --g1-bg:#ECEAE5;--g1-thumb:#FFFFFF;--toast-bg:#1F1F1D;--toast-fg:#FAFAF8;--press:#EEEDE9;
  --shadow:0 1px 2px rgba(31,31,29,.05),0 4px 16px rgba(31,31,29,.05);--shadow-up:0 2px 4px rgba(31,31,29,.06),0 14px 32px rgba(31,31,29,.10);
@@ -17,10 +17,13 @@ body{letter-spacing:.03em}
 .bub.now .bub-d{box-shadow:inset 0 0 0 1.5px var(--ink);color:var(--ink)}
 .bub.ok .bub-d{background:var(--ok-soft);color:var(--ok-ink);box-shadow:none}
 .bub.bad .bub-d{background:var(--bad-soft);color:var(--bad-ink);box-shadow:none}
-.bub.now.ok .bub-d,.bub.now.bad .bub-d{box-shadow:inset 0 0 0 1.5px currentColor}
+.bub.done .bub-d{background:var(--ink);color:var(--surface);box-shadow:none} /* 模考已作答：填滿，不只靠顏色 */
+.bub.now.ok .bub-d,.bub.now.bad .bub-d,.bub.now.done .bub-d{box-shadow:inset 0 0 0 1.5px currentColor}
+.bub.now.done .bub-d{box-shadow:inset 0 0 0 1.5px var(--ink),0 0 0 2px var(--bg)}
 .bub-m{width:14px;height:14px;right:-4px;top:-4px;color:var(--surface);box-shadow:0 0 0 2px var(--bg)}
 .bub-m svg{width:9px;height:9px}
 .bub.ok .bub-m{background:var(--ok)}.bub.bad .bub-m{background:var(--bad)}
+.bub.done .bub-m{background:var(--surface);color:var(--ink)}
 /* 題目：沒有卡框，只有留白；換題無進／出場過渡 */
 .qcard{padding:20px 4px 8px}
 .qno{letter-spacing:.08em;font-size:13px}.qno b{font-family:var(--font-num);font-size:17px;font-weight:500;margin:0 1px}

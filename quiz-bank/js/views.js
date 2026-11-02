@@ -250,7 +250,14 @@ export async function renderHome(mount, ctx) {
 
     const bookCards =
       filtered.length === 0
-        ? `<p class="e1">題目準備中${ctx.isAdmin ? '。管理者可至匯入頁存入題目。' : '。'}</p>`
+        ? `<div class="empty-next">
+            <p class="e1">題目準備中${ctx.isAdmin ? '。管理者可至匯入頁存入題目。' : '，請稍後再來。'}</p>
+            ${
+              ctx.isAdmin
+                ? '<a class="btn b1" href="#/import">去匯入題目</a>'
+                : '<button type="button" class="btn b2" data-retry>重新整理</button>'
+            }
+          </div>`
         : filtered
             .map((book) => {
               const units = book.units || [];
@@ -280,14 +287,16 @@ export async function renderHome(mount, ctx) {
             })
             .join('');
 
-    const unitPracticeEntry = filtered.some((b) => (b.units || []).length)
-      ? `<p class="home-unit-entry"><a class="btn b5" href="#/units">單元練習／強弱表</a></p>`
-      : '';
+    const quickNav = `<nav class="home-quick" aria-label="快速入口">
+      <a class="btn b2" href="#/wrong">錯題本</a>
+      <a class="btn b2" href="#/units">單元練習</a>
+      ${ctx.isAdmin ? '<a class="btn b2" href="#/import" data-admin-only>匯入校對</a>' : ''}
+    </nav>`;
 
     mount.innerHTML = `<div class="page home">
       <h1 class="page-title">首頁</h1>
+      ${quickNav}
       ${suggestHtml}
-      ${unitPracticeEntry}
       <div class="filters s3">
         <label class="field">科目
           <select id="home-subject" class="ctrl-select">
@@ -303,7 +312,7 @@ export async function renderHome(mount, ctx) {
       <aside class="start-panel" id="start-panel" hidden role="dialog" aria-labelledby="start-panel-h">
         <div class="start-panel-head">
           <h2 id="start-panel-h">開始設定</h2>
-          <button type="button" class="btn b5 start-close" id="start-close" aria-label="關閉">關閉</button>
+          <button type="button" class="btn b2 start-close" id="start-close" aria-label="關閉">關閉</button>
         </div>
         <p class="start-title" id="start-title"></p>
         <label class="field s3">對答案方式
@@ -362,30 +371,46 @@ export async function renderHome(mount, ctx) {
       writeFilters({ subject: e.target.value });
       renderHome(mount, ctx);
     });
+    mount.querySelector('[data-retry]')?.addEventListener('click', () => renderHome(mount, ctx));
 
     mount.querySelector('#start-go')?.addEventListener('click', async () => {
       if (!pendingScope) return;
-      const mode = mount.querySelector('#start-mode').value;
-      const shuffle = mount.querySelector('#start-shuffle').checked;
-      const { questions, groups } = await fetchQuestionsForRound(
-        ctx,
-        pendingScope.bookId,
-        pendingScope.unitCode,
-        pendingScope.round,
-      );
-      if (!questions.length) {
-        ctx.toast?.('這個範圍沒有題目');
-        return;
+      const go = mount.querySelector('#start-go');
+      if (go?.dataset.busy === '1') return;
+      if (go) {
+        go.dataset.busy = '1';
+        go.disabled = true;
+        go.textContent = '開始中…';
       }
-      closeStart();
-      ctx.startScope?.({
-        ...pendingScope,
-        mode,
-        shuffle,
-        questions,
-        groups,
-        title: pendingScope.title,
-      });
+      try {
+        const mode = mount.querySelector('#start-mode').value;
+        const shuffle = mount.querySelector('#start-shuffle').checked;
+        const { questions, groups } = await fetchQuestionsForRound(
+          ctx,
+          pendingScope.bookId,
+          pendingScope.unitCode,
+          pendingScope.round,
+        );
+        if (!questions.length) {
+          ctx.toast?.('這個範圍沒有題目');
+          return;
+        }
+        closeStart();
+        ctx.startScope?.({
+          ...pendingScope,
+          mode,
+          shuffle,
+          questions,
+          groups,
+          title: pendingScope.title,
+        });
+      } finally {
+        if (go && mount.contains(go)) {
+          go.dataset.busy = '';
+          go.disabled = false;
+          go.textContent = '開始作答';
+        }
+      }
     });
   } catch {
     mount.innerHTML = `<div class="page home"><p class="e2">載入失敗。<button type="button" class="btn b2" data-retry>重試</button></p></div>`;
@@ -394,7 +419,7 @@ export async function renderHome(mount, ctx) {
 }
 
 export async function renderWrongBook(mount, ctx) {
-  mount.innerHTML = `<div class="page wrong"><div class="e3">載入中…</div></div>`;
+  mount.innerHTML = `<div class="page wrong"><div class="e3 skel" aria-busy="true">載入中…</div></div>`;
   const uid = ctx.user.uid;
   const filters = readFilters();
   let subject = filters.wrongSubject || '';
@@ -424,12 +449,27 @@ export async function renderWrongBook(mount, ctx) {
           </select>
         </label>
       </div>
-      <div class="wrong-list">${count ? stats.map((s) => `<article class="card c1 wrong-card" data-qid="${escHtml(s.qid)}">
+      <div class="wrong-list">${
+        count
+          ? stats
+              .map(
+                (s) => `<article class="card c1 wrong-card" data-qid="${escHtml(s.qid)}">
           <p class="meta">${escHtml(s.unitCode)} · 連對 ${Math.min(s.streak || 0, 2)}/2</p>
           <p class="qid">${escHtml(s.qid)}</p>
-        </article>`).join('') : '<p class="e1">目前沒有錯題，去做新的一回吧。</p>'}
+        </article>`,
+              )
+              .join('')
+          : `<div class="empty-next">
+            <p class="e1">目前沒有錯題，去做新的一回吧。</p>
+            <a class="btn b1" href="#/">去首頁選一回</a>
+          </div>`
+      }
       </div>
-      <footer class="dock"><button type="button" class="btn b1" id="wrong-practice" ${count ? '' : 'disabled'}>${label}</button></footer>
+      ${
+        count
+          ? `<footer class="dock"><button type="button" class="btn b1" id="wrong-practice">${label}</button></footer>`
+          : ''
+      }
     </div>`;
 
     mount.querySelectorAll('.tab').forEach((tab) => {
@@ -445,37 +485,55 @@ export async function renderWrongBook(mount, ctx) {
     });
 
     mount.querySelector('#wrong-practice')?.addEventListener('click', async () => {
-      let pack = await fetchWrongQuestions(ctx, uid, subject || undefined);
-      if (unitFilter) {
-        pack = {
-          ...pack,
-          questions: pack.questions.filter((q) => q.unitCode === unitFilter).slice(0, 10),
-        };
+      const go = mount.querySelector('#wrong-practice');
+      if (go?.dataset.busy === '1') return;
+      if (go) {
+        go.dataset.busy = '1';
+        go.disabled = true;
+        go.textContent = '開始中…';
       }
-      if (!pack.questions.length) {
-        ctx.toast?.('沒有可練的錯題');
-        return;
+      try {
+        let pack = await fetchWrongQuestions(ctx, uid, subject || undefined);
+        if (unitFilter) {
+          pack = {
+            ...pack,
+            questions: pack.questions.filter((q) => q.unitCode === unitFilter).slice(0, 10),
+          };
+        }
+        if (!pack.questions.length) {
+          ctx.toast?.('沒有可練的錯題');
+          return;
+        }
+        ctx.startScope?.({
+          type: 'wrong',
+          mode: 'instant',
+          shuffle: true,
+          questions: pack.questions.slice(0, 10),
+          groups: pack.groups,
+          title: '錯題本',
+        });
+      } finally {
+        if (go && mount.contains(go)) {
+          go.dataset.busy = '';
+          go.disabled = false;
+          go.textContent = label;
+        }
       }
-      ctx.startScope?.({
-        type: 'wrong',
-        mode: 'instant',
-        shuffle: true,
-        questions: pack.questions.slice(0, 10),
-        groups: pack.groups,
-        title: '錯題本',
-      });
     });
 
     mount.querySelectorAll('.wrong-card').forEach((card) => {
       card.addEventListener('click', () => ctx.openWrongDetail?.(card.dataset.qid));
     });
   } catch {
-    mount.innerHTML = `<div class="page wrong"><p class="e2">載入失敗</p></div>`;
+    mount.innerHTML = `<div class="page wrong"><p class="e2">載入失敗，請檢查網路後再試。</p>
+      <div class="empty-next"><button type="button" class="btn b2" data-retry>重試</button>
+      <a class="btn b2" href="#/">回首頁</a></div></div>`;
+    mount.querySelector('[data-retry]')?.addEventListener('click', () => renderWrongBook(mount, ctx));
   }
 }
 
 export async function renderUnits(mount, ctx) {
-  mount.innerHTML = `<div class="page units-page"><div class="e3">載入中…</div></div>`;
+  mount.innerHTML = `<div class="page units-page"><div class="e3 skel" aria-busy="true">載入中…</div></div>`;
   const uid = ctx.user.uid;
   try {
     const [attempts, banks, wrongStats, summary] = await Promise.all([
@@ -549,7 +607,7 @@ export async function renderUnits(mount, ctx) {
                   : '—'
               }</td>
               <td class="st"><span class="l2 ${u.status}"><i></i>${escHtml(u.label)}</span>${u.lowSample ? '<span class="l3">題數少</span>' : ''}</td>
-              <td><button type="button" class="btn b5 unit-practice" data-unit="${escHtml(u.unitCode)}" data-book="${escHtml(u.bookId || '')}" data-unit-name="${escHtml(u.unit)}">練這單元</button></td>
+              <td><button type="button" class="btn b2 unit-practice" data-unit="${escHtml(u.unitCode)}" data-book="${escHtml(u.bookId || '')}" data-unit-name="${escHtml(u.unit)}">練這單元</button></td>
             </tr>`,
           )
           .join('')}</tbody>
@@ -563,7 +621,7 @@ export async function renderUnits(mount, ctx) {
       <aside class="start-panel" id="unit-start-panel" hidden role="dialog" aria-labelledby="unit-start-h">
         <div class="start-panel-head">
           <h2 id="unit-start-h">開始設定</h2>
-          <button type="button" class="btn b5 start-close" id="unit-start-close" aria-label="關閉">關閉</button>
+          <button type="button" class="btn b2 start-close" id="unit-start-close" aria-label="關閉">關閉</button>
         </div>
         <p class="start-title" id="unit-start-title"></p>
         <label class="field s3">對答案方式
@@ -637,34 +695,52 @@ export async function renderUnits(mount, ctx) {
 
     mount.querySelector('#unit-start-go')?.addEventListener('click', async () => {
       if (!pendingUnit) return;
-      const mode = mount.querySelector('#unit-start-mode').value;
-      const shuffle = mount.querySelector('#unit-start-shuffle').checked;
-      const pack = await fetchQuestionsForUnit(
-        ctx,
-        pendingUnit.bookId,
-        pendingUnit.unitCode,
-        10,
-      );
-      if (!pack.questions.length) {
-        ctx.toast?.('這個單元還沒有題目');
-        return;
+      const go = mount.querySelector('#unit-start-go');
+      if (go?.dataset.busy === '1') return;
+      if (go) {
+        go.dataset.busy = '1';
+        go.disabled = true;
+        go.textContent = '開始中…';
       }
-      closeUnitStart();
-      ctx.startScope?.({
-        type: 'unit',
-        bookId: pendingUnit.bookId,
-        unitCode: pendingUnit.unitCode,
-        unitName: pendingUnit.unitName,
-        bookTitle: pendingUnit.bookTitle,
-        mode,
-        shuffle,
-        questions: pack.questions,
-        groups: pack.groups,
-        title: `${pendingUnit.bookTitle}・${pendingUnit.unitCode} 單元練習`,
-      });
+      try {
+        const mode = mount.querySelector('#unit-start-mode').value;
+        const shuffle = mount.querySelector('#unit-start-shuffle').checked;
+        const pack = await fetchQuestionsForUnit(
+          ctx,
+          pendingUnit.bookId,
+          pendingUnit.unitCode,
+          10,
+        );
+        if (!pack.questions.length) {
+          ctx.toast?.('這個單元還沒有題目');
+          return;
+        }
+        closeUnitStart();
+        ctx.startScope?.({
+          type: 'unit',
+          bookId: pendingUnit.bookId,
+          unitCode: pendingUnit.unitCode,
+          unitName: pendingUnit.unitName,
+          bookTitle: pendingUnit.bookTitle,
+          mode,
+          shuffle,
+          questions: pack.questions,
+          groups: pack.groups,
+          title: `${pendingUnit.bookTitle}・${pendingUnit.unitCode} 單元練習`,
+        });
+      } finally {
+        if (go && mount.contains(go)) {
+          go.dataset.busy = '';
+          go.disabled = false;
+          go.textContent = '開始作答';
+        }
+      }
     });
   } catch {
-    mount.innerHTML = `<div class="page units-page"><p class="e2">載入失敗</p></div>`;
+    mount.innerHTML = `<div class="page units-page"><p class="e2">載入失敗，請檢查網路後再試。</p>
+      <div class="empty-next"><button type="button" class="btn b2" data-retry>重試</button>
+      <a class="btn b2" href="#/">回首頁</a></div></div>`;
+    mount.querySelector('[data-retry]')?.addEventListener('click', () => renderUnits(mount, ctx));
   }
 }
 

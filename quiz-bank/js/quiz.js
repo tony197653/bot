@@ -125,7 +125,7 @@ function createSession(opts) {
   root.className = 'quiz-root';
   root.innerHTML = `
     <header class="top quiz-top"><div class="top-in">
-      <button type="button" class="btn b5 leave" data-act="leave" aria-label="離開">
+      <button type="button" class="btn b2 leave" data-act="leave" aria-label="離開">
         <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span>離開</span>
       </button>
@@ -242,7 +242,11 @@ function createSession(opts) {
         const lab = `第 ${n + 1} 題${st === 'ok' ? '，答對' : st === 'bad' ? '，答錯' : a >= 0 ? '，已作答' : '，未作答'}${n === i ? '，目前這題' : ''}`;
         return `<button type="button" class="bub ${st}${n === i ? ' now' : ''}" data-n="${n}" aria-label="${lab}"${n === i ? ' aria-current="step"' : ''}>
           <span class="bub-d"><span class="bub-n">${n + 1}</span>${
-            st === 'ok' || st === 'bad' ? `<span class="bub-m">${ICON[st]}</span>` : ''
+            st === 'ok' || st === 'bad'
+              ? `<span class="bub-m">${ICON[st]}</span>`
+              : st === 'done'
+                ? `<span class="bub-m" aria-hidden="true"><svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>`
+                : ''
           }</span></button>`;
       })
       .join('');

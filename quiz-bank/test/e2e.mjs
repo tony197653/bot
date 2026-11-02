@@ -1012,7 +1012,7 @@ try {
     pass('N-1 bar right margin 360/390/1280 + 80px ≤375');
   }
 
-  // --- QA r2 N-2：回首頁底線落在文字下方 ---
+  // --- 回首頁改 B2（B5 底線鈕已禁用）---
   {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await page.goto(`http://127.0.0.1:${port}/template-demo.html`, { waitUntil: 'networkidle' });
@@ -1020,43 +1020,31 @@ try {
       page,
       batch.questions.map((q) => q.answer),
     );
-    await page.waitForSelector('.r-actions .b5');
-    const under = await page.evaluate(() => {
-      const btn = [...document.querySelectorAll('.r-actions .b5')].find((b) =>
-        (b.textContent || '').includes('回首頁'),
-      );
+    await page.waitForSelector('.r-actions [data-act=home]');
+    const home = await page.evaluate(() => {
+      const btn = document.querySelector('.r-actions [data-act=home]');
       if (!btn) return { err: 'no home btn' };
       const br = btn.getBoundingClientRect();
-      const cs = getComputedStyle(btn, '::after');
-      // 量文字中心：用 Range
-      const range = document.createRange();
-      range.selectNodeContents(btn);
-      const tr = range.getBoundingClientRect();
-      const textCx = tr.left + tr.width / 2;
-      const btnCx = br.left + br.width / 2;
+      const after = getComputedStyle(btn, '::after');
+      const underlineish =
+        after &&
+        after.content !== 'none' &&
+        parseFloat(after.height || '0') > 0 &&
+        after.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+        after.position === 'absolute';
       return {
-        btnW: br.width,
-        textW: tr.width,
-        textCx,
-        btnCx,
-        delta: Math.abs(textCx - btnCx),
-        afterOrigin: cs.transformOrigin,
+        isB2: btn.classList.contains('b2') && !btn.classList.contains('b5'),
         minH: br.height,
+        underlineish: !!underlineish,
+        b5Left: !!document.querySelector('.btn.b5, .b5.btn'),
       };
     });
-    if (under.err) throw new Error(under.err);
-    if (under.minH < 44) throw new Error(`home hit area <44: ${under.minH}`);
-    if (under.delta > 6) {
-      throw new Error(`回首頁 text not centered in btn: ${JSON.stringify(under)}`);
-    }
-    // 底線應以中心為原點（非 left）
-    if (under.afterOrigin && !/center|50%/.test(under.afterOrigin) && under.btnW > under.textW + 40) {
-      // 寬鈕若底線仍靠左會失敗；我們已改成 width:auto，btn≈text
-    }
-    if (under.btnW > under.textW + 48) {
-      throw new Error(`回首頁 btn much wider than text: ${JSON.stringify(under)}`);
-    }
-    pass('N-2 回首頁 underline under text');
+    if (home.err) throw new Error(home.err);
+    if (!home.isB2) throw new Error('回首頁 must be B2');
+    if (home.minH < 44) throw new Error(`home hit area <44: ${home.minH}`);
+    if (home.underlineish) throw new Error('回首頁 still has underline ::after');
+    if (home.b5Left) throw new Error('b5 still present on result page');
+    pass('N-2 回首頁 is B2 (no B5 underline)');
     await page.close();
   }
 
@@ -1229,6 +1217,86 @@ try {
       await page.close();
     }
     pass('header M6 + M8 blink 360/390/1280');
+  }
+
+  // --- UI/UX 紅線：核心導覽可見、M8 可點、正文 16/1.5、觸控 44、模考已答樣式 ---
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: 'networkidle' });
+    await page.evaluate(() => {
+      document.body.classList.remove('signed-out');
+      document.body.classList.add('signed-in');
+      document.body.dataset.view = '';
+      new MutationObserver(() => {
+        document.body.classList.remove('signed-out');
+        document.body.classList.add('signed-in');
+      }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    });
+    await page.waitForTimeout(100);
+    const ux = await page.evaluate(() => {
+      const body = getComputedStyle(document.body);
+      const sub = document.querySelector('.app-subnav');
+      const links = [...(sub?.querySelectorAll('a') || [])].map((a) => ({
+        t: a.textContent.trim(),
+        href: a.getAttribute('href'),
+        h: Math.round(a.getBoundingClientRect().height),
+        vis: getComputedStyle(a).display !== 'none' && a.getClientRects().length > 0,
+      }));
+      const blink = document.querySelector('a.blink');
+      const m6 = document.querySelector('.mbtn.m6');
+      return {
+        fontSize: parseFloat(body.fontSize),
+        lineHeight: parseFloat(body.lineHeight) / parseFloat(body.fontSize),
+        subDisp: sub ? getComputedStyle(sub).display : 'missing',
+        links,
+        blinkHref: blink?.getAttribute('href'),
+        m6h: m6 ? Math.round(m6.getBoundingClientRect().height) : 0,
+        avatarH: Math.round(document.querySelector('.nav-avatar')?.getBoundingClientRect().height || 0),
+      };
+    });
+    if (ux.fontSize < 16) throw new Error(`body font-size <16: ${ux.fontSize}`);
+    if (ux.lineHeight < 1.5) throw new Error(`body line-height <1.5: ${ux.lineHeight}`);
+    if (ux.subDisp === 'none' || ux.subDisp === 'missing') {
+      throw new Error('app-subnav hidden on phone — core nav drawer-only');
+    }
+    for (const need of ['練習', '錯題本', '單元表']) {
+      const hit = ux.links.find((l) => l.t === need && l.vis);
+      if (!hit) throw new Error(`subnav missing visible ${need}`);
+      if (hit.h < 44) throw new Error(`subnav ${need} touch <44: ${hit.h}`);
+    }
+    if (ux.blinkHref !== '#/') throw new Error('M8 blink not home');
+    if (ux.m6h !== 44 || ux.avatarH !== 44) throw new Error('header touch targets not 44');
+    // 模考 .bub.done 樣式存在（非只靠顏色的 class）
+    const hasDone = await page.evaluate(() => {
+      const s = [...document.styleSheets];
+      try {
+        return s.some((sheet) => {
+          try {
+            return [...(sheet.cssRules || [])].some((r) => String(r.cssText || '').includes('.bub.done'));
+          } catch {
+            return false;
+          }
+        });
+      } catch {
+        return !!document.querySelector('link[href*="b.css"]');
+      }
+    });
+    // 直接讀 computed via temp node
+    const doneStyle = await page.evaluate(() => {
+      const b = document.createElement('button');
+      b.className = 'bub done';
+      b.innerHTML = '<span class="bub-d"><span class="bub-n">1</span></span>';
+      document.body.appendChild(b);
+      const bg = getComputedStyle(b.querySelector('.bub-d')).backgroundColor;
+      b.remove();
+      return bg;
+    });
+    if (!doneStyle || doneStyle === 'rgba(0, 0, 0, 0)' || doneStyle === 'transparent') {
+      throw new Error(`.bub.done not styled: ${doneStyle} (sheet=${hasDone})`);
+    }
+    await page.screenshot({ path: path.join(outDir, 'ux-subnav-390.png') });
+    await page.close();
+    pass('UI/UX red lines phone subnav + type + touch + bub.done');
   }
 
   await browser.close();

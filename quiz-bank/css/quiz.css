@@ -49,5 +49,5 @@ body.signed-out .app-drawer,
 body.signed-out .drawer-backdrop{display:none!important}
 .report-dlg{border:0;border-radius:var(--r-lg);padding:20px;max-width:420px;width:calc(100% - 32px);box-shadow:var(--pop-shadow)}
 .report-dlg form{display:grid;gap:12px}
-.report-dlg select,.report-dlg textarea{width:100%;min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px;font:inherit}
+.report-dlg select,.report-dlg textarea,.report-dlg input{width:100%;min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px;font:inherit;box-sizing:border-box}
 .cloud-warn{color:var(--bad-ink);font-size:14px;margin-top:8px}

@@ -2,8 +2,8 @@
 .app-shell{min-height:100dvh;display:flex;flex-direction:column}
 .app-top{position:sticky;top:0;z-index:40;background:var(--top-bg);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line)}
 .app-top-in{max-width:1120px;margin:0 auto;height:56px;display:flex;align-items:center;gap:8px;padding:0 max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left))}
-/* 標頭內禁止底線裝飾（含舊 b5） */
-.app-top .b5::after,.app-top a{text-decoration:none}
+/* 標頭連結不加底線（內文 a 除外） */
+.app-top a{text-decoration:none}
 .app-top a:hover{text-decoration:none}
 /* 標題區：M6＋M8；container-type 需由外層 flex 給寬（不可依內容撐開，否則寬度為 0） */
 .hdr-title.m8bar{display:flex;align-items:center;gap:4px;min-width:0;flex:1 1 auto;container-type:inline-size}
@@ -32,9 +32,16 @@
  .mbtn::before,.m6 line,.blink::before{transition:none}
 }
 .app-nav{display:none;gap:4px}
-.app-nav a{padding:8px 12px;border-radius:var(--r-sm);text-decoration:none;color:var(--mute);font-size:14px}
+.app-nav a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;border-radius:var(--r-sm);text-decoration:none;color:var(--mute);font-size:14px}
 .app-nav a.on{color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-strong)}
 @media (hover:hover) and (pointer:fine){.app-nav a:hover:not(.on){background:var(--surface)}}
+/* 手機核心導覽：練習／錯題本／單元表／匯入不進抽屜才看得到 */
+.app-subnav{display:none;max-width:1120px;width:100%;margin:0 auto;padding:0 max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left));gap:2px;border-bottom:1px solid var(--line);background:var(--top-bg)}
+body.signed-in:not([data-view=quiz]):not([data-view=result]) .app-subnav{display:flex}
+@media (min-width:900px){body.signed-in .app-subnav{display:none!important}}
+.app-subnav a{flex:1;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 6px;border-radius:var(--r-sm);text-decoration:none;color:var(--mute);font-size:14px;font-weight:500;text-align:center}
+.app-subnav a.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+@media (hover:hover) and (pointer:fine){.app-subnav a:hover:not(.on){background:var(--surface)}}
 .app-main{flex:1;max-width:1120px;width:100%;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 .page-title{font-size:22px;font-weight:600;margin:0 0 12px;letter-spacing:.04em}
 .page.login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100dvh - 120px);text-align:center;gap:12px;padding-bottom:24px}
@@ -139,6 +146,9 @@
 .i1 textarea,.i1 input[type=text]{width:100%;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;font:inherit;min-height:44px}
 .th-sort{border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:4px 8px;min-height:44px;min-width:44px}
 .home-unit-entry{margin:0 0 12px}
+.home-quick{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.home-quick a{flex:1 1 7rem;min-height:44px}
+.empty-next{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
 body.signed-out .drawer-backdrop,body.signed-out .app-drawer{display:none!important}
 body[data-view=result] .app-main{max-width:808px;margin-left:auto;margin-right:auto}
 body[data-view=result] .result .r-hero .segs,

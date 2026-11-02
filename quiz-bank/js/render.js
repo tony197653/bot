@@ -211,7 +211,7 @@ export function feedbackHtml(q, a, opts = {}) {
   const reportBtn =
     opts.onReport === false
       ? ''
-      : `<button type="button" class="b5 btn report"${opts.reported ? ' disabled' : ''}>${
+      : `<button type="button" class="btn b2 report"${opts.reported ? ' disabled' : ''}>${
           opts.reported ? '已回報' : '回報題目有誤'
         }</button>`;
   return `<div class="fb ${ok ? 'is-ok' : 'is-bad'}">
