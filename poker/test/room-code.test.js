@@ -5,6 +5,7 @@ import {
   formatCode,
   buildLobbySummary,
   isRoomOpenStatus,
+  hostRoomCreateDisposition,
   ROOM_CONST,
 } from '../js/net/room.js';
 
@@ -30,6 +31,21 @@ describe('room code L7', () => {
     assert.equal(isRoomOpenStatus('playing'), true);
     assert.equal(isRoomOpenStatus('open'), true);
     assert.equal(isRoomOpenStatus('closed'), false);
+  });
+
+  it('hostRoomCreateDisposition: idle open → close-then-create; active → resume', () => {
+    const now = 1_700_000_000_000;
+    const idleMs = ROOM_CONST.IDLE_CLOSE_MS;
+    assert.equal(
+      hostRoomCreateDisposition('lobby', now - idleMs, now),
+      'close-then-create',
+    );
+    assert.equal(
+      hostRoomCreateDisposition('lobby', now - idleMs + 1000, now),
+      'resume',
+    );
+    assert.equal(hostRoomCreateDisposition('closed', now - idleMs, now), 'create');
+    assert.equal(hostRoomCreateDisposition('open', now - 31 * 60_000, now), 'close-then-create');
   });
 
   it('buildLobbySummary', () => {

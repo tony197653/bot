@@ -580,6 +580,28 @@ await t('#compat', '舊客戶端建 open+6碼房', 'ok', async () => {
   b.set(doc(d, 'pokerRooms', rid), legacyOpen(rid, code));
   return b.commit();
 });
+// 非成員 get：舊 open 拒（main joinByCode 靠被拒）、新 lobby|playing 可
+await t('#compat', '非成員不可 get 舊 open 房', 'deny', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'pokerRooms', 'ROLD'), {
+      ...legacyOpen('ROLD', '482913'), hostSince: ago(MIN), createdAt: ago(MIN), updatedAt: ago(5000),
+    });
+  });
+}, () => getDoc(doc(db('A'), 'pokerRooms', 'ROLD')));
+await t('#compat', '非成員可 get lobby 房', 'ok', S, () => getDoc(doc(db('X'), 'pokerRooms', R)));
+await t('#compat', '非成員可 get playing 房', 'ok', async () => {
+  await seed({ room: { status: 'playing' } });
+}, () => getDoc(doc(db('X'), 'pokerRooms', R)));
+await t('#compat', '成員可 get 舊 open 房', 'ok', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'pokerRooms', 'ROLD'), {
+      ...legacyOpen('ROLD', '482913'), members: ['H', 'A'],
+      hostSince: ago(MIN), createdAt: ago(MIN), updatedAt: ago(5000),
+    });
+  });
+}, () => getDoc(doc(db('A'), 'pokerRooms', 'ROLD')));
 // 舊客戶端一桌限制：player.lastRoomId 已指向自己開著的 open 房 → 拒第二桌
 await t('#compat', '舊客戶端已有 open 桌時不能再建第二桌', 'deny', async () => {
   await env.clearFirestore();
@@ -664,6 +686,38 @@ await t('#compat', '舊 open 房可 buyin', 'ok', async () => {
   const d = db('A'); const no = 1; const b = writeBatch(d);
   b.update(doc(d, 'pokerPlayers', 'A'), { bank: 0, inPlay: 5000, tableRoomId: 'ROLD', sessionNo: no, lastRoomId: 'ROLD', updatedAt: serverTimestamp() });
   b.set(doc(d, 'pokerPlayers', 'A', 'ledger', `ROLD_${no}_buyin`), { type: 'buyin', amount: 5000, roomId: 'ROLD', sessionNo: no, bankAfter: 0, by: 'A', at: serverTimestamp() });
+  return b.commit();
+});
+
+// 閒置 31 分：不先收桌就改 hostRoomId／開新桌會被拒；先 auto-close 再清指標才可建
+await t('#idle', '閒置仍 open 時不能改指 hostRoomId 到新房', 'deny', async () => {
+  await seed({
+    room: { updatedAt: ago(31 * MIN), status: 'lobby' },
+    players: { H: player({ bank: 5000, inPlay: 0, tableRoomId: null, sessionNo: 0, hostRoomId: R, lastRoomId: R }) },
+  });
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const d = ctx.firestore();
+    await setDoc(doc(d, 'pokerRooms', R, 'presence', 'H'), { beat: ago(31 * MIN), vis: false });
+    await setDoc(doc(d, 'pokerRooms', 'RIDLE2'), lobbyCreate('RIDLE2', '777'));
+  });
+}, () => updateDoc(doc(db('H'), 'pokerPlayers', 'H'), { hostRoomId: 'RIDLE2', updatedAt: serverTimestamp() }));
+await t('#idle', '先 auto-close 再清 hostRoomId 後可建新桌', 'ok', async () => {
+  await seed({
+    room: { updatedAt: ago(31 * MIN), status: 'lobby' },
+    players: { H: player({ bank: 5000, inPlay: 0, tableRoomId: null, sessionNo: 0, hostRoomId: R, lastRoomId: R }) },
+  });
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'pokerRooms', R, 'presence', 'H'), { beat: ago(31 * MIN), vis: false });
+  });
+  await updateDoc(doc(db('H'), 'pokerRooms', R), {
+    status: 'closed', closedBy: 'auto', closedAt: serverTimestamp(),
+  });
+  await updateDoc(doc(db('H'), 'pokerPlayers', 'H'), { hostRoomId: null, updatedAt: serverTimestamp() });
+}, async () => {
+  const d = db('H'); const b = writeBatch(d); const rid = 'RIDLE3';
+  b.set(doc(d, 'pokerCodes', '778'), { roomId: rid, hostUid: 'H', createdAt: serverTimestamp(), expiresAt: exp24(0) });
+  b.set(doc(d, 'pokerRooms', rid), lobbyCreate(rid, '778'));
+  b.update(doc(d, 'pokerPlayers', 'H'), { hostRoomId: rid, updatedAt: serverTimestamp() });
   return b.commit();
 });
 

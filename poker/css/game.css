@@ -830,7 +830,7 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-ntc.on{opacity:1;visibility:visible;pointer-events:auto;transition:opacity var(--mp-t) var(--mp-ease),visibility 0s}
 .mp-ntc-i{width:20px;height:20px;margin-top:1px;color:var(--gold)}
 .mp-ntc-b{min-width:0;padding-top:1px}
-.mp-ntc-t{font-size:14.5px;font-weight:700;line-height:1.45;margin:0}
+.mp-ntc-t{font-size:14.5px;font-weight:700;line-height:1.5;margin:0}
 .mp-ntc-d{font-size:13px;color:var(--mute);line-height:1.5;margin:2px 0 0}
 .mp-ntc-d:empty{display:none}
 /* BD r5: notify action = 44px B2 (transparent fill) */

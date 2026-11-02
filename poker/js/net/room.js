@@ -34,6 +34,18 @@ export function isRoomOpenStatus(status) {
 }
 
 /**
+ * createRoom policy when hostRoomId already points at a room:
+ * - resume: still active → return existing
+ * - close-then-create: idle ≥30m → auto-close then create (never create while open)
+ * - create: closed/missing
+ */
+export function hostRoomCreateDisposition(status, updatedMs, now = Date.now()) {
+  if (!isRoomOpenStatus(status)) return 'create';
+  if (now - (updatedMs || 0) >= IDLE_CLOSE_MS) return 'close-then-create';
+  return 'resume';
+}
+
+/**
  * Build public lobby summary (附錄 L7).
  */
 export function buildLobbySummary(room, { hostName, hostPhoto, seated } = {}) {
@@ -86,25 +98,31 @@ export async function createRoom(fb, opts) {
     topUpAmount: 2000,
   };
 
-  // L3: already hosting an open table → return it; closed/missing hostRoomId is reclaimable
+  // L3: already hosting an open table → return it.
+  // Idle ≥30m: close first (rules reject a second open hostRoomId), then create.
   const pref = fs.doc(db, 'pokerPlayers', opts.uid);
   const pSnap = await fs.getDoc(pref);
   const existingHost = pSnap.exists() ? pSnap.data()?.hostRoomId : null;
   if (existingHost) {
-    const er = await fs.getDoc(fs.doc(db, 'pokerRooms', existingHost));
+    const existingRef = fs.doc(db, 'pokerRooms', existingHost);
+    const er = await fs.getDoc(existingRef);
     if (er.exists()) {
       const rd = er.data();
-      const updatedMs = rd.updatedAt?.toMillis?.() || 0;
-      const idle = Date.now() - updatedMs >= IDLE_CLOSE_MS;
-      if (isRoomOpenStatus(rd.status) && !idle) {
-        rememberLastRoom(existingHost, rd.code, { name: rd.name });
-        return {
-          roomId: existingHost,
-          code: rd.code,
-          name: rd.name,
-          config: rd.config,
-          existing: true,
-        };
+      if (isRoomOpenStatus(rd.status)) {
+        await maybeAutoCloseIdleRoom(fb, { id: existingHost, ...rd });
+        const er2 = await fs.getDoc(existingRef);
+        if (er2.exists() && isRoomOpenStatus(er2.data()?.status)) {
+          const live = er2.data();
+          rememberLastRoom(existingHost, live.code, { name: live.name });
+          return {
+            roomId: existingHost,
+            code: live.code,
+            name: live.name,
+            config: live.config,
+            existing: true,
+          };
+        }
+        // closed → fall through and create a new table
       }
     }
   }
@@ -120,24 +138,21 @@ export async function createRoom(fb, opts) {
     const roomId = randomRoomId();
     try {
       await fs.runTransaction(db, async (tx) => {
-        // Re-check hostRoomId inside txn
+        // Re-check hostRoomId inside txn — any still-open prior table blocks create
         const pNow = await tx.get(pref);
         if (pNow.exists()) {
           const hid = pNow.data()?.hostRoomId;
           if (hid) {
             const er = await tx.get(fs.doc(db, 'pokerRooms', hid));
-            if (er.exists()) {
+            if (er.exists() && isRoomOpenStatus(er.data()?.status)) {
               const rd = er.data();
-              const updatedMs = rd.updatedAt?.toMillis?.() || 0;
-              if (isRoomOpenStatus(rd.status) && Date.now() - updatedMs < IDLE_CLOSE_MS) {
-                throw Object.assign(new Error('already hosting'), {
-                  code: 'already-hosting',
-                  roomId: hid,
-                  roomCode: rd.code,
-                  roomName: rd.name,
-                  config: rd.config,
-                });
-              }
+              throw Object.assign(new Error('already hosting'), {
+                code: 'already-hosting',
+                roomId: hid,
+                roomCode: rd.code,
+                roomName: rd.name,
+                config: rd.config,
+              });
             }
             // prior gone/closed → replace hostRoomId below
           }
@@ -264,7 +279,9 @@ export async function createRoom(fb, opts) {
 }
 
 /**
- * Join order §9.2: code → try get room → else arrayUnion members.
+ * Join order §9.2: code → resolve roomId → explicit arrayUnion if not member → get.
+ * New client never relies on get denial; legacy open rooms still deny non-member get
+ * so main 9ac534c's catch→arrayUnion path keeps working under these rules.
  * L7: 3-digit codes; if expectedRoomId mismatches current mapping → 牌桌已結束.
  */
 export async function joinByCode(fb, code, uid, expectedRoomId = null) {
@@ -291,9 +308,12 @@ export async function joinByCode(fb, code, uid, expectedRoomId = null) {
     return { roomId: null, ended: true, error: '牌桌已結束' };
   }
   const roomId = c.roomId;
+  const roomRef = fs.doc(db, 'pokerRooms', roomId);
 
+  // Probe: member / closed / already-readable lobby|playing. Ignore perm-denied (legacy open).
+  let knownMember = false;
   try {
-    const roomSnap = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
+    const roomSnap = await fs.getDoc(roomRef);
     if (roomSnap.exists()) {
       const room = { id: roomId, ...roomSnap.data() };
       if (room.status === 'closed') {
@@ -303,22 +323,26 @@ export async function joinByCode(fb, code, uid, expectedRoomId = null) {
         rememberLastRoom(roomId, digits, { name: room.name });
         return { roomId, room };
       }
+      knownMember = false;
     }
   } catch (e) {
     if (!isPerm(e)) throw e;
   }
 
-  try {
-    await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), {
-      members: fs.arrayUnion(uid),
-    });
-    recordWrite();
-  } catch (e) {
-    if (isPerm(e)) return { roomId, ended: true, error: '牌桌已結束' };
-    throw e;
+  // Explicit join — do not depend on get being denied
+  if (!knownMember) {
+    try {
+      await fs.updateDoc(roomRef, {
+        members: fs.arrayUnion(uid),
+      });
+      recordWrite();
+    } catch (e) {
+      if (isPerm(e)) return { roomId, ended: true, error: '牌桌已結束' };
+      throw e;
+    }
   }
 
-  const roomSnap = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
+  const roomSnap = await fs.getDoc(roomRef);
   if (!roomSnap.exists() || roomSnap.data().status === 'closed') {
     return { roomId, ended: true, error: '牌桌已結束' };
   }

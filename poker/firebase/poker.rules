@@ -183,24 +183,13 @@
       function isHostPubWrite() {
         let d = request.resource.data;
         let r = resource.data;
+        // hasOnly 已保證未列欄位不變 → 省掉 seatUids/sess/身分欄位逐一相等（壓 1000 運算式）
         return request.auth.uid == r.hostUid
           && d.rev == r.rev + 1
           && d.updatedAt == request.time
           && d.pub is map
           && (d.deadlineAt == null || d.deadlineAt is int)
           && d.diff(r).affectedKeys().hasOnly(['pub', 'deadlineAt', 'rev', 'updatedAt', 'stacks'])
-          && d.seatUids == r.seatUids
-          && d.sess == r.sess
-          && d.chipTotal == r.chipTotal
-          && d.lastMoneyEvent == r.lastMoneyEvent
-          && d.status == r.status
-          && d.hostUid == r.hostUid
-          && d.hostSince == r.hostSince
-          && d.name == r.name
-          && d.code == r.code
-          && d.config == r.config
-          && d.members == r.members
-          && d.createdAt == r.createdAt
           && stacksOk(d.stacks) && sumOf(d.stacks) == d.chipTotal;
       }
       // 房主寫入；交棒只能交給在座的人。
@@ -320,7 +309,12 @@
           && !hostHasOpenTable();
       }
 
-      allow get: if signedIn() && (request.auth.uid in resource.data.members || roomOpen(resource.data.status));
+      // 成員可讀任何狀態；非成員只能讀新版大廳桌（lobby|playing）。
+      // 舊式 status=open 維持僅成員可讀：線上 main joinByCode 靠「讀取被拒 → arrayUnion members」。
+      allow get: if signedIn() && (
+        request.auth.uid in resource.data.members
+        || resource.data.status in ['lobby', 'playing']
+      );
       // 附錄 L7：限 20、只列 lobby|playing（與客戶端 query 一致）
       allow list: if signedIn()
         && request.query.limit <= 20
