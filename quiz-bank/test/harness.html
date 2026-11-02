@@ -40,7 +40,7 @@
       } catch { /* ignore */ }
     }
 
-    /** @type {Map<string, Promise<{ok:boolean, wrongBookDelta:number}>>} */
+    /** @type {Map<string, Promise<{ok:boolean}>>} */
     const inflight = new Map();
     const pendingKey = 'quizbank:v1:pending:harness';
     const resultKey = 'quizbank:v1:lastResult:harness';
@@ -73,7 +73,6 @@
       reports: [],
       reportFail: false,
       saveCount: 0,
-      wrongBookApplied: 0,
       records: [],
       offline: params.get('offline') === '1',
     };
@@ -142,7 +141,6 @@
             JSON.stringify({
               result: { ...result, title },
               summaryText: summary,
-              wrongBookDelta: 0,
               cloudStatus,
               attemptId,
               savedAt: payload.savedAt,
@@ -160,7 +158,6 @@
             if (!window.__harness.records.includes(attemptId)) {
               window.__harness.records.push(attemptId);
               window.__harness.saveCount += 1;
-              window.__harness.wrongBookApplied += 1;
             }
             try {
               const list = JSON.parse(localStorage.getItem(pendingKey) || '[]').filter(
@@ -168,7 +165,7 @@
               );
               localStorage.setItem(pendingKey, JSON.stringify(list));
             } catch { /* ignore */ }
-            return { ok: true, wrongBookDelta: 1 };
+            return { ok: true };
           })().finally(() => inflight.delete(attemptId));
           inflight.set(attemptId, work);
           return work;
