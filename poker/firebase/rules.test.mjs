@@ -580,8 +580,8 @@ await t('#compat', '舊客戶端建 open+6碼房', 'ok', async () => {
   b.set(doc(d, 'pokerRooms', rid), legacyOpen(rid, code));
   return b.commit();
 });
-// 非成員 get：舊 open 拒（main joinByCode 靠被拒）、新 lobby|playing 可
-await t('#compat', '非成員不可 get 舊 open 房', 'deny', async () => {
+// 方案 A：舊 open — 非成員 get 拒，再走 main joinByCode 的 arrayUnion 自己
+await t('#compat', '方案A：舊 open 非成員 get 被拒', 'deny', async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), 'pokerRooms', 'ROLD'), {
@@ -589,7 +589,24 @@ await t('#compat', '非成員不可 get 舊 open 房', 'deny', async () => {
     });
   });
 }, () => getDoc(doc(db('A'), 'pokerRooms', 'ROLD')));
-await t('#compat', '非成員可 get lobby 房', 'ok', S, () => getDoc(doc(db('X'), 'pokerRooms', R)));
+await t('#compat', '方案A：舊 open get 拒後可照舊流程加入（arrayUnion 自己）', 'ok', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'pokerRooms', 'ROLD'), {
+      ...legacyOpen('ROLD', '482913'), hostSince: ago(MIN), createdAt: ago(MIN), updatedAt: ago(5000),
+    });
+  });
+}, async () => {
+  // Replay main joinByCode: get denied → then arrayUnion self
+  await assertFails(getDoc(doc(db('A'), 'pokerRooms', 'ROLD')));
+  return updateDoc(doc(db('A'), 'pokerRooms', 'ROLD'), { members: ['H', 'A'] });
+});
+// 方案 A：新 lobby — 非成員可 get；只能把「自己」寫進 members
+await t('#compat', '方案A：新 lobby 非成員可 get', 'ok', S, () => getDoc(doc(db('X'), 'pokerRooms', R)));
+await t('#compat', '方案A：新 lobby 非成員可 arrayUnion 自己', 'ok', S, () =>
+  updateDoc(doc(db('X'), 'pokerRooms', R), { members: ['H', 'A', 'B', 'C', 'D', 'X'] }));
+await t('#compat', '方案A：新 lobby 非成員不能把別人寫進 members', 'deny', S, () =>
+  updateDoc(doc(db('X'), 'pokerRooms', R), { members: ['H', 'A', 'B', 'C', 'D', 'B2'] }));
 await t('#compat', '非成員可 get playing 房', 'ok', async () => {
   await seed({ room: { status: 'playing' } });
 }, () => getDoc(doc(db('X'), 'pokerRooms', R)));
