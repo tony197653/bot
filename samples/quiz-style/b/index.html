@@ -206,10 +206,10 @@ body{letter-spacing:.03em}
 .fig svg{color:#3A3A37}
 .opts{gap:12px;margin-top:28px}
 .opt{background:var(--surface);color:var(--ink);border-radius:var(--r);box-shadow:var(--shadow);min-height:60px;padding:12px 18px 12px 14px;font-weight:400;
- transition:background-color .5s var(--ease-out),color .4s var(--ease-out),transform .14s var(--ease)}
+ transition:background-color .5s var(--ease-out),color .4s var(--ease-out)}
 .opt::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:var(--shadow-up);opacity:0;transition:opacity .3s var(--ease-out);z-index:-1;pointer-events:none}
 @media (hover:hover) and (pointer:fine){.opt:not([aria-disabled]):hover::after{opacity:1}}
-.opt:active:not([aria-disabled]){transform:scale(.97)}
+.opt:active:not([aria-disabled]){transform:none;background:var(--press,#EEEDE9)} /* 宗良：選擇不縮放、不抖動，按下只變底色 */
 .key{width:30px;height:30px;color:var(--mute);box-shadow:inset 0 0 0 1px var(--line-strong);font-family:var(--font-num);font-size:15px;font-weight:500;transition:background-color .35s var(--ease-out),color .35s var(--ease-out),box-shadow .35s var(--ease-out)}
 .opt.chosen .key{background:var(--accent);color:#fff;box-shadow:none}
 .opt.ok{background:var(--ok-soft)}
@@ -218,13 +218,13 @@ body{letter-spacing:.03em}
 .opt.bad .key{background:var(--bad);color:#fff}
 .opt.dim{color:var(--mute);box-shadow:0 0 0 1px var(--line)}
 .revealed.fresh .opt.ok,.revealed.fresh .opt.bad{transition-delay:.12s}
-.mk svg{opacity:0;transform:scale(.6);filter:blur(4px)}
+.mk svg{opacity:0}
 .opt.ok .mk{color:var(--ok)}.opt.bad .mk{color:var(--bad)}
-.opt.ok .mk svg,.opt.bad .mk svg{opacity:1;transform:none;filter:none}
+.opt.ok .mk svg,.opt.bad .mk svg{opacity:1}
 .revealed.fresh .opt.ok .mk svg,.revealed.fresh .opt.bad .mk svg{animation:mkB .45s var(--ease-out) .2s both}
-@keyframes mkB{from{opacity:0;transform:scale(.6);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@keyframes mkB{from{opacity:0}to{opacity:1}}
 .qcard.in .opt{animation:optB .6s var(--ease-out) both;animation-delay:calc(var(--i)*60ms + 120ms)}
-@keyframes optB{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes optB{from{opacity:0}to{opacity:1}}
 .fb{margin-top:22px;padding:4px 2px 0}
 .revealed.fresh .fb{animation:fbB .6s var(--ease-out) .3s both}
 @keyframes fbB{from{opacity:0;transform:translateY(6px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
@@ -248,6 +248,9 @@ body{letter-spacing:.03em}
 .result.in .r-hero{animation:fbB .9s var(--ease-out) both}
 .result.in .stats{animation:fbB .8s var(--ease-out) .2s both}
 .result.in .r-grid{animation:fbB .8s var(--ease-out) .32s both}
+
+.bub:active .bub-d{transform:none}
+.opt,.opt .key,.opt .mk svg{transform:none}
 
 </style></head>
 <body class="dir-b" data-view="quiz">
