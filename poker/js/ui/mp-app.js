@@ -1998,6 +1998,16 @@ function renderActBar() {
   // No bottom seat-pick strip (empty seats are on the felt only)
   $('#mpSeatPick')?.remove();
 
+  // Lock raise as soon as this seat is not the actor (or hand left betting)
+  if (
+    between ||
+    pub.phase === 'showdown' ||
+    mySeat < 0 ||
+    mySeat !== pub.actor
+  ) {
+    lockMpRaisePanel();
+  }
+
   if (mySeat < 0) {
     // PL: soft leave via top 「‹ 大廳」only — no bottom 回大廳
     btns.innerHTML = `<div class="mp-spec">你正在觀戰，點牌桌上的空位就坐下<br><small>坐下時整筆帶入你的帳戶 ${fmtChips(playerDoc?.bank || 0)}</small></div>`;
@@ -2270,6 +2280,27 @@ function bindMpRaiseStep(btn, dir) {
   btn.addEventListener('pointercancel', onUp);
   btn.addEventListener('lostpointercapture', onUp);
   btn.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+/** Close MP raise immediately when the turn leaves this seat (stale confirm). */
+function lockMpRaisePanel() {
+  if (!raiseOpen) return;
+  clearMpRaiseHold();
+  mpRaisePresetId = null;
+  raiseOpen = false;
+  const panel = $('#raisePanel');
+  const scrim = $('#raiseScrim');
+  if (panel) {
+    panel.classList.remove('is-on');
+    panel.hidden = true;
+    panel.inert = true;
+    panel.setAttribute('aria-hidden', 'true');
+  }
+  if (scrim) {
+    scrim.classList.remove('is-on');
+    scrim.hidden = true;
+    scrim.inert = true;
+  }
 }
 
 function openMpRaise(minRaiseTo, send) {

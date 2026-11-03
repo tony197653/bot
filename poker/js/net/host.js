@@ -23,6 +23,19 @@ import { buildLobbySummary } from './room.js';
 const AWAY_UNSEAT_MS = 30 * 60_000;
 
 /**
+ * Host timeout gate: use the engine's current per-action deadline only.
+ * Stale host-side arms (deadlineLocal not reset after acts) must not fire.
+ * @param {object|null|undefined} engine
+ * @param {number} [now]
+ * @param {number} [graceMs] host lag grace (matches prior onTick +1000)
+ */
+export function hostShouldTimeout(engine, now = Date.now(), graceMs = 1000) {
+  if (!engine || engine.actor == null) return false;
+  if (engine.deadline == null) return false;
+  return now > engine.deadline + graceMs;
+}
+
+/**
  * @param {{ db:any, fs:any }} fb
  * @param {object} opts
  */
@@ -319,6 +332,23 @@ export function createHostLoop(fb, opts) {
     }
   }
 
+  /** Keep published deadlineAt in sync with engine.deadline (re-armed every act). */
+  function syncDeadlineFromEngine() {
+    if (!engine) {
+      deadlineLocal = null;
+      hostClockAt = null;
+      return;
+    }
+    deadlineLocal = engine.deadline ?? null;
+    if (deadlineLocal != null) {
+      const ms = engine.config?.actionTimeoutMs || 30000;
+      hostClockAt = deadlineLocal - ms;
+    } else {
+      // Deal FX / hand end / between hands — never keep a prior arm
+      hostClockAt = null;
+    }
+  }
+
   function applyAndPublish(action, meta = {}) {
     try {
       engine = applyAction(engine, action, { now: Date.now() });
@@ -331,6 +361,7 @@ export function createHostLoop(fb, opts) {
       pubVoided = false;
     }
     actionSeq += 1;
+    syncDeadlineFromEngine();
     afterEngineChange();
     if (meta.lastAction) {
       queueWrite(() => ({ }));
@@ -709,9 +740,9 @@ export function createHostLoop(fb, opts) {
     const n = engine.seats.filter((p) => p && p.hasHole).length;
     const dealMs = estimateMpDealTotalMs(DEAL_FX, n);
     setTimeout(() => {
-      hostClockAt = Date.now();
-      deadlineLocal = hostClockAt + (room.config.actionMs || 30000);
-      engine = applyAction(engine, { type: 'ARM_DEADLINE' }, { now: hostClockAt });
+      const now = Date.now();
+      engine = applyAction(engine, { type: 'ARM_DEADLINE' }, { now });
+      syncDeadlineFromEngine();
       queueWrite();
     }, dealMs);
     // Persist pre-blind stacks snapshot (same chipTotal)
@@ -792,19 +823,13 @@ export function createHostLoop(fb, opts) {
       }
     }
 
-    // Timeout
-    if (
-      deadlineLocal &&
-      engine.actor != null &&
-      Date.now() > deadlineLocal + 1000
-    ) {
+    // Timeout — engine.deadline is re-armed per action; never a stale host arm
+    if (hostShouldTimeout(engine)) {
       const seat = engine.actor;
       if (away[seat]) {
         // auto check/fold immediately when away on turn
       }
       applyAndPublish({ type: 'TIMEOUT', seat });
-      hostClockAt = Date.now();
-      deadlineLocal = hostClockAt + (room.config.actionMs || 30000);
       writeHoles();
     }
 
