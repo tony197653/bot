@@ -79,7 +79,7 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     const app = read('js/ui/mp-app.js');
     const closed = app.slice(
       app.indexOf("if (r.status === 'closed')"),
-      app.indexOf("if (r.status === 'closed')") + 1200,
+      app.indexOf("if (r.status === 'closed')") + 2800,
     );
     assert.match(closed, /closeResultDismissedFor/);
     assert.match(closed, /screen !== 'table'/);
@@ -125,10 +125,12 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     // The async lobby follow-up after maybeRefreshRescue
     const start = app.indexOf('maybeRefreshRescue().then(async (changed)');
     assert.ok(start > 0);
-    const block = app.slice(start, start + 1600);
+    const block = app.slice(start, start + 2400);
     assert.match(block, /settledChanged/);
     assert.match(block, /lobbyBindKey/);
-    assert.match(block, /\(changed \|\| settledChanged\)/);
+    assert.match(block, /changed \|\| settledChanged/);
+    // Must re-read after maybeAutoCloseIdleRoom (stale open snapshot)
+    assert.match(block, /didClose/);
     // No bare unconditional re-paint on closed pointer
     assert.doesNotMatch(
       block,
@@ -149,6 +151,25 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     const finallyAt = fn.indexOf('finally');
     const joiningFalseAt = fn.indexOf('joining = false', finallyAt);
     assert.ok(finallyAt > 0 && joiningFalseAt > finallyAt);
+  });
+
+  it('close-result 金額可升級、不會被後到的 0 蓋掉；soft-leave closed 會 paint lobby', () => {
+    const app = read('js/ui/mp-app.js');
+    const show = app.slice(
+      app.indexOf('function showCloseResultCard'),
+      app.indexOf('function showCloseResultCard') + 1800,
+    );
+    assert.match(show, /closeResultChipsShown/);
+    assert.match(show, /n > closeResultChipsShown/);
+    assert.match(app, /pendingCloseReturnChips/);
+    assert.match(app, /lastKnownSelfTableChips/);
+    assert.match(app, /lobbyClosedSynced/);
+    const closed = app.slice(
+      app.indexOf("if (r.status === 'closed')"),
+      app.indexOf("if (r.status === 'closed')") + 2200,
+    );
+    assert.match(closed, /lobbyClosedSynced/);
+    assert.match(closed, /screen !== 'lobby'[\s\S]*paint\(\)/);
   });
 });
 
@@ -374,7 +395,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
     }
   });
 
-  it('manual 收桌 → 回大廳：clean lobby、bank 正確', async () => {
+  it('manual 收桌：對話框金額＝實際帶回；回大廳 clean', async () => {
     const { server, base } = await startStatic();
     const browser = await chromium.launch({
       headless: true,
@@ -426,12 +447,28 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       const totalBefore =
         (Number(before.player?.bank) || 0) + (Number(before.player?.inPlay) || 0);
 
+      const stackBefore = await withRulesDisabled(async (c) => {
+        const db = c.firestore();
+        const r = (await getDoc(doc(db, 'pokerRooms', roomId))).data();
+        const seat = r.seatUids.indexOf(before.uid);
+        return seat >= 0 ? Number(r.stacks[seat]) || 0 : Number(before.player?.inPlay) || 0;
+      });
+      assert.ok(stackBefore > 0, `expected seated stack, got ${stackBefore}`);
+
       // Open ⋯ menu → 收桌
       await page.evaluate(() => {
         document.getElementById('btnMenu')?.click();
         document.getElementById('mpBtnCloseRoom')?.click();
       });
       await page.waitForSelector('#mpCloseResult', { timeout: 20000 });
+      const dialogText = await page.innerText('#mpCloseResult');
+      assert.match(
+        dialogText,
+        new RegExp(`牌桌已收桌，你帶回 ${stackBefore.toLocaleString('en-US')}`),
+        `dialog must show returned ${stackBefore}, got: ${dialogText}`,
+      );
+      assert.doesNotMatch(dialogText, /你帶回 0 籌碼/);
+
       await page.click('#mpCloseLobby');
       await page.waitForSelector('.mp-lobby', { timeout: 15000 });
       await page.waitForTimeout(1000);
@@ -445,6 +482,204 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       assert.equal(Number(after.player?.bank) || 0, totalBefore);
 
       await ctx.close();
+    } finally {
+      await browser.close();
+      server.close();
+    }
+  });
+
+  it('lobby soft-leave：host 收桌／auto-close 後 live 清掉我的牌桌且餘額正確', async () => {
+    const { server, base } = await startStatic();
+    const browser = await chromium.launch({
+      headless: true,
+      executablePath: existsSync('/usr/bin/google-chrome')
+        ? '/usr/bin/google-chrome'
+        : undefined,
+      args: ['--no-sandbox'],
+    });
+    const alwaysVis = () => {
+      try {
+        Object.defineProperty(document, 'visibilityState', {
+          configurable: true,
+          get: () => 'visible',
+        });
+        Object.defineProperty(document, 'hidden', {
+          configurable: true,
+          get: () => false,
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+    try {
+      // --- host close while guest waits in lobby ---
+      const hostCtx = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      await hostCtx.addInitScript(alwaysVis);
+      await hostCtx.route('**/*', blockProd);
+      const host = await hostCtx.newPage();
+      host.on('dialog', (d) => d.accept());
+      await host.goto(`${base}/poker/?emu=1`, { waitUntil: 'domcontentloaded' });
+      await host.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
+        timeout: 20000,
+      });
+      await host.evaluate(() => window.__qaSignIn('hostSoftClose', '房主'));
+      await host.waitForSelector('.mp-lobby', { timeout: 20000 });
+      await host.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
+      await host.waitForSelector('form, .mp-create', { timeout: 8000 });
+      await host.click('button[type="submit"]');
+      await host.waitForSelector('.mp-url', { timeout: 20000 });
+      const share = (await host.innerText('.mp-url')).trim();
+      const roomId = new URL(share).searchParams.get('r');
+      let code = String(new URL(share).searchParams.get('room') || '')
+        .replace(/\D/g, '')
+        .slice(0, 3);
+      await host.click('[data-act="enter"]');
+      await host.waitForSelector('#mpLeave, #seats .seat, #mpStart', { timeout: 25000 });
+
+      const guestCtx = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      await guestCtx.addInitScript(alwaysVis);
+      await guestCtx.route('**/*', blockProd);
+      const guest = await guestCtx.newPage();
+      await guest.goto(`${base}/poker/?emu=1`, { waitUntil: 'domcontentloaded' });
+      await guest.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
+        timeout: 20000,
+      });
+      await guest.evaluate(() => window.__qaSignIn('guestSoftClose', '訪客'));
+      await guest.waitForSelector('.mp-lobby', { timeout: 20000 });
+      await guest.locator('.mp-join input, input[inputmode="numeric"]').first().fill(code);
+      await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
+        timeout: 20000,
+      });
+      // Sit if needed
+      if (!(await guest.locator('#mpLeave').count())) {
+        await guest
+          .evaluate(() => document.querySelector('.mp-empty-seat')?.click())
+          .catch(() => {});
+        await guest.waitForSelector('#mpLeave', { timeout: 15000 }).catch(() => {});
+      }
+      assert.ok(await guest.locator('#mpLeave').count(), 'guest seated');
+
+      const guestBefore = await withRulesDisabled(async (c) => {
+        const db = c.firestore();
+        const r = (await getDoc(doc(db, 'pokerRooms', roomId))).data();
+        const uid = (r.seatUids || []).find((u) => u && u !== r.hostUid);
+        assert.ok(uid, 'guest uid');
+        const p = (await getDoc(doc(db, 'pokerPlayers', uid))).data();
+        const seat = r.seatUids.indexOf(uid);
+        return {
+          uid,
+          total: (Number(p.bank) || 0) + (Number(p.inPlay) || 0),
+          stack: seat >= 0 ? Number(r.stacks[seat]) || 0 : Number(p.inPlay) || 0,
+        };
+      });
+
+      // Soft leave to lobby while still bound
+      await guest.evaluate(() => window.__qaLeaveToLobby?.());
+      await guest.waitForSelector('.mp-lobby', { timeout: 15000 });
+      await guest.waitForFunction(
+        () => /我的牌桌|回到牌桌|入座中/.test(document.body.innerText),
+        null,
+        { timeout: 10000 },
+      );
+
+      await guest.evaluate(() => window.__qaResetPaintCount?.());
+      // Host 收桌
+      await host.evaluate(() => {
+        document.getElementById('btnMenu')?.click();
+        document.getElementById('mpBtnCloseRoom')?.click();
+      });
+      await guest.waitForFunction(
+        () => !/我的牌桌|回到牌桌|入座中|結帳離開|已收桌/.test(document.body.innerText),
+        null,
+        { timeout: 20000 },
+      );
+      await guest.waitForTimeout(800);
+      const paints = await guest.evaluate(() => Number(window.__qaPaintCount) || 0);
+      assert.ok(paints < 25, `soft-leave lobby paint bounded after host close, got ${paints}`);
+
+      const guestAfter = await withRulesDisabled(async (c) => {
+        const db = c.firestore();
+        const p = (
+          await getDoc(doc(db, 'pokerPlayers', guestBefore.uid))
+        ).data();
+        return {
+          tableRoomId: p.tableRoomId ?? null,
+          inPlay: Number(p.inPlay) || 0,
+          bank: Number(p.bank) || 0,
+        };
+      });
+      assert.equal(guestAfter.tableRoomId, null);
+      assert.equal(guestAfter.inPlay, 0);
+      assert.equal(guestAfter.bank, guestBefore.total);
+
+      // Header should show bank (not 牌桌 2,000)
+      const header = await guest.innerText('.mp-lobby');
+      assert.doesNotMatch(header, /牌桌\s*2,?000|牌桌\s*2000/);
+      assert.equal(/我的牌桌/.test(header), false);
+
+      await guestCtx.close();
+      await hostCtx.close();
+
+      // --- auto-close while soft-left in lobby ---
+      const host2Ctx = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      await host2Ctx.addInitScript(alwaysVis);
+      await host2Ctx.route('**/*', blockProd);
+      const host2 = await host2Ctx.newPage();
+      await host2.goto(`${base}/poker/?emu=1`, { waitUntil: 'domcontentloaded' });
+      await host2.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
+        timeout: 20000,
+      });
+      await host2.evaluate(() => window.__qaSignIn('hostSoftAuto', '房主二'));
+      await host2.waitForSelector('.mp-lobby', { timeout: 20000 });
+      await host2.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
+      await host2.waitForSelector('form, .mp-create', { timeout: 8000 });
+      await host2.click('button[type="submit"]');
+      await host2.waitForSelector('.mp-url', { timeout: 20000 });
+      const share2 = (await host2.innerText('.mp-url')).trim();
+      const roomId2 = new URL(share2).searchParams.get('r');
+      await host2.click('[data-act="enter"]');
+      await host2.waitForSelector('#mpLeave, #seats .seat, #mpStart', { timeout: 25000 });
+
+      const before2 = await readPlayerDocForRoomHost(roomId2);
+      const total2 =
+        (Number(before2.player?.bank) || 0) + (Number(before2.player?.inPlay) || 0);
+
+      await host2.evaluate(() => window.__qaLeaveToLobby?.());
+      await host2.waitForSelector('.mp-lobby', { timeout: 15000 });
+      await host2.waitForFunction(
+        () => /我的牌桌|回到牌桌/.test(document.body.innerText),
+        null,
+        { timeout: 10000 },
+      );
+      await host2.evaluate(() => window.__qaResetPaintCount?.());
+      await forceCloseRoom(roomId2);
+      // Soft-leave still has listenRoom — closed snapshot should refresh lobby
+      await host2.waitForFunction(
+        () => !/我的牌桌|回到牌桌|入座中|結帳離開|已收桌/.test(document.body.innerText),
+        null,
+        { timeout: 20000 },
+      );
+      await host2.waitForTimeout(800);
+      const paints2 = await host2.evaluate(() => Number(window.__qaPaintCount) || 0);
+      assert.ok(paints2 < 25, `soft-leave lobby paint bounded after auto-close, got ${paints2}`);
+      const after2 = await readPlayerDocForRoomHost(roomId2);
+      assert.equal(after2.player?.tableRoomId ?? null, null);
+      assert.equal(Number(after2.player?.inPlay) || 0, 0);
+      assert.equal(Number(after2.player?.bank) || 0, total2);
+
+      await host2Ctx.close();
     } finally {
       await browser.close();
       server.close();
