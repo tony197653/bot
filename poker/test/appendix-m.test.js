@@ -70,7 +70,8 @@ describe('附錄 M — 房號與錯誤契約', () => {
     assert.match(app, /\$\('#btnEndMenu'\)\?\.classList\.add\('hidden'\)/);
     assert.match(app, /mpBtnCloseRoom/);
     assert.match(app, /btnBackLobby/);
-    assert.match(app, /function leaveToLobby/);
+    assert.match(app, /showLeaveTableConfirm/);
+    assert.match(app, /function confirmLeaveTable/);
   });
 
   it('M2 #14: 戰績空狀態有回大廳', () => {

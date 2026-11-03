@@ -373,7 +373,7 @@ function showHostAloneLeaveDialog() {
     <div class="mp-close-result-card">
       <h2 id="mpHostAloneT">桌上只剩你，不能交給別人。要結束的話請收桌，或等有人入座</h2>
       <button type="button" class="mp-btn-primary" id="mpHostAloneClose">收桌</button>
-      <button type="button" class="mp-b2" id="mpHostAloneCancel">先不要</button>
+      <button type="button" class="mp-btn-ghost" id="mpHostAloneCancel">先不要</button>
     </div>`;
   el.hidden = false;
   $('#mpHostAloneClose', el)?.addEventListener('click', () => {
@@ -382,6 +382,46 @@ function showHostAloneLeaveDialog() {
   });
   $('#mpHostAloneCancel', el)?.addEventListener('click', () => {
     el.hidden = true;
+  });
+}
+
+/**
+ * Table 「‹ 大廳」: confirm leave (no soft-detach).
+ * Host → 收桌 then clean lobby; non-host → 離座結帳 then clean lobby.
+ */
+function showLeaveTableConfirm() {
+  if (!room) return;
+  let el = document.getElementById('mpLeaveConfirm');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'mpLeaveConfirm';
+    el.className = 'mp-close-result';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'mpLeaveConfirmT');
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `
+    <div class="mp-close-result-card">
+      <h2 id="mpLeaveConfirmT">是否離開牌局？</h2>
+      <button type="button" class="mp-btn-primary" id="mpLeaveConfirmOk">確認離開</button>
+      <button type="button" class="mp-btn-ghost" id="mpLeaveConfirmCancel">取消</button>
+    </div>`;
+  el.hidden = false;
+  $('#mpLeaveConfirmCancel', el)?.addEventListener('click', () => {
+    el.hidden = true;
+  });
+  $('#mpLeaveConfirmOk', el)?.addEventListener('click', () => {
+    const ok = $('#mpLeaveConfirmOk', el);
+    const cancel = $('#mpLeaveConfirmCancel', el);
+    if (ok) {
+      ok.disabled = true;
+      ok.textContent = '離開中…';
+    }
+    if (cancel) cancel.disabled = true;
+    void confirmLeaveTable().finally(() => {
+      el.hidden = true;
+    });
   });
 }
 let statsMode = 'total';
@@ -422,6 +462,8 @@ const lobbyClosedSynced = new Set();
 let pendingCloseReturnChips = null;
 /** Last known chips for this player at the current table (survives host cashout-before-close). */
 let lastKnownSelfTableChips = 0;
+/** After voluntary ‹ 大廳 confirm: never show 我的牌桌／繼續 until unbound. */
+let lobbyExitSuppressMine = false;
 /** @type {any[]} */
 let openTables = [];
 /** @type {(() => void)|null} */
@@ -559,7 +601,16 @@ export async function startMpApp() {
       };
     };
     window.__qaLeaveToLobby = () => {
-      leaveToLobby();
+      // QA: confirm-leave without dialog (host close / guest cashout → clean lobby)
+      void confirmLeaveTable();
+    };
+    window.__qaShowLeaveConfirm = () => {
+      showLeaveTableConfirm();
+      return !!document.getElementById('mpLeaveConfirm');
+    };
+    window.__qaLeaveConfirmClick = (which) => {
+      const id = which === 'ok' ? 'mpLeaveConfirmOk' : 'mpLeaveConfirmCancel';
+      document.getElementById(id)?.click();
     };
     window.__qaShowCloseResult = (chips = 2000, auto = true) => {
       screen = 'table';
@@ -772,8 +823,13 @@ function paint() {
     }
     const last = getLastRoom();
     // Closed tables: never show 我的牌桌 (settle is silent). Open bind only.
-    const continueId =
-      playerDoc?.tableRoomId && !rescueOk
+    // Voluntary ‹ 大廳 exit: suppress 我的牌桌／繼續 until tableRoomId clears.
+    if (lobbyExitSuppressMine && !playerDoc?.tableRoomId && !playerDoc?.hostRoomId) {
+      lobbyExitSuppressMine = false;
+    }
+    const continueId = lobbyExitSuppressMine
+      ? null
+      : playerDoc?.tableRoomId && !rescueOk
         ? playerDoc.tableRoomId
         : playerDoc?.hostRoomId && !rescueOk
           ? playerDoc.hostRoomId
@@ -1364,7 +1420,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
     closeResultChipsShown = 0;
   }
 
-  // Soft resume after leaveToLobby keepAlive: same room still listening — just show table.
+  // Re-enter same open room while listenRoom still active (e.g. crash recovery race).
   if (
     roomId === id &&
     room &&
@@ -2543,7 +2599,7 @@ function renderBanner() {
     el.innerHTML = `<span class="mp-banner-msg">${esc(msg)}</span><span class="mp-banner-acts">${actions}</span>`;
     $('#mpQuotaClose', el)?.addEventListener('click', () => mpCloseRoom());
     $('#mpQuotaLeave', el)?.addEventListener('click', () => requestLeave());
-    $('#mpQuotaLobby', el)?.addEventListener('click', () => leaveToLobby());
+    $('#mpQuotaLobby', el)?.addEventListener('click', () => showLeaveTableConfirm());
     return;
   }
   if (warn) {
@@ -2697,61 +2753,81 @@ function openSolo() {
 }
 
 /**
- * Return to lobby without 離座. Spec §6.2 / EGM #7: host loop + presence
- * keep running on any visible screen so the host is never judged「失聯」by self.
- * PL: entry is top 「‹ 大廳」only (no bottom 回大廳 / menu「大廳」).
+ * Land on lobby after a full exit (or when already unbound).
+ * Soft-detach removed (owner 2026-11): ‹ 大廳 confirms leave/close instead.
  */
-function leaveToLobby() {
-  const user = getUser();
-  const uid = user?.uid;
-  const keepAlive =
-    !!roomId &&
-    !!playerDoc?.tableRoomId &&
-    room?.status !== 'closed' &&
-    !!uid &&
-    (room?.hostUid === uid || (room?.seatUids || []).includes(uid));
-
-  // Intentional lobby visit while still bound to a table — do not auto-bounce
+function goLobbyClean() {
   autoResumeTried = true;
-
-  if (keepAlive) {
-    // Soft detach: table-only UI; keep listenRoom, presence, hostLoop
-    stopHole?.();
-    stopHole = null;
-    intents = null;
-    animQ?.clear();
-    animQ = null;
-    myHole = null;
-    membersPanelOpen = false;
-    clearMpRaiseHold();
-    raiseOpen = false;
-    removeMpMenuExtras();
-    if (room?.hostUid === uid && !hostLoop) {
-      hostLoop = createHostLoop(getFirebase(), {
-        roomId,
-        uid,
-        getRoom: () => room,
-        displayNameOf,
-        onLocalState: () => paintTableChrome(),
-      });
-      hostLoop.start();
-    }
-    if (!presence && roomId && uid) {
-      presence = startPresence(getFirebase(), roomId, uid, {
-        isHost: () => room?.hostUid === uid,
-        lastRoomWriteAt: () => hostLoop?.lastRoomWriteAt?.() || 0,
-      });
-    } else {
-      presence?.beatNow?.();
-    }
-  } else {
-    tearDownRoom();
-    if (!playerDoc?.tableRoomId) autoResumeTried = false;
-  }
+  tearDownRoom();
+  hideCloseResultCard();
+  const leaveDlg = document.getElementById('mpLeaveConfirm');
+  if (leaveDlg) leaveDlg.hidden = true;
   screen = 'lobby';
   const back = $('#btnBackLobby');
   if (back) back.hidden = true;
   paint();
+}
+
+/** @deprecated name kept for stats/exports — hard lobby only (no soft-detach). */
+function leaveToLobby() {
+  goLobbyClean();
+}
+
+/**
+ * Confirmed ‹ 大廳: host closes table (like 收桌); guest leaves+cashout (like 離座).
+ * Then clean lobby — no 我的牌桌 card.
+ */
+async function confirmLeaveTable() {
+  const fb = getFirebase();
+  const uid = getUser()?.uid;
+  if (!fb || !room || !uid) {
+    goLobbyClean();
+    return;
+  }
+  lobbyExitSuppressMine = true;
+  autoResumeTried = true;
+  const isHost = room.hostUid === uid;
+  try {
+    if (isHost) {
+      await performHostCloseRoom({ showResultCard: false });
+      await syncAfterRoomClosed();
+      goLobbyClean();
+      return;
+    }
+    // Spectator: just leave the room shell
+    const mySeat = room.seatUids.indexOf(uid);
+    if (mySeat < 0) {
+      goLobbyClean();
+      return;
+    }
+    // Same path as 離座: LEAVE intent (mid-hand folds first; host cashout between hands)
+    await requestLeave();
+    // Wait until chips settled / bind cleared (host processes LEAVE)
+    for (let i = 0; i < 80; i++) {
+      try {
+        playerDoc = (await getPlayer(fb, uid)) || playerDoc;
+      } catch {
+        /* keep */
+      }
+      if (!playerDoc?.tableRoomId) break;
+      const stillSeated = Array.isArray(room?.seatUids) && room.seatUids.includes(uid);
+      if (!stillSeated && !playerDoc?.tableRoomId) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    // Defensive settle if room closed while leaving
+    if (playerDoc?.tableRoomId) {
+      try {
+        await silentlySettleClosedBinding();
+        playerDoc = (await getPlayer(fb, uid)) || playerDoc;
+      } catch {
+        /* keep */
+      }
+    }
+    goLobbyClean();
+  } catch (e) {
+    lobbyExitSuppressMine = false;
+    toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
+  }
 }
 
 function tearDownRoom() {
@@ -2804,7 +2880,7 @@ function ensureMpMenu() {
     <div id="mpMembersPanel" class="mp-members hidden" hidden></div>`;
   pop.appendChild(extras);
 
-  // M2: fixed top 「‹ 大廳」(soft leave, keep seat) — sole lobby exit on table
+  // M2: fixed top 「‹ 大廳」→ confirm leave/close (no soft-detach)
   if (!$('#btnBackLobby')?.dataset.mpWired) {
     const back = $('#btnBackLobby');
     if (back) {
@@ -2812,7 +2888,7 @@ function ensureMpMenu() {
       back.addEventListener('click', () => {
         if (!room) return;
         closeMpMenu();
-        leaveToLobby();
+        showLeaveTableConfirm();
       });
     }
   }
@@ -2890,7 +2966,7 @@ function toast(msg) {
 
 /** Expose for menu hooks */
 export function mpLeaveToLobby() {
-  leaveToLobby();
+  showLeaveTableConfirm();
 }
 
 export function mpExtendCode() {
@@ -2899,63 +2975,74 @@ export function mpExtendCode() {
   extendCode(fb, room.code, getUser()?.uid).then(() => toast('房號延長 24 小時'));
 }
 
+/**
+ * Host 收桌 core (cashout all → closeRoom → settle). Shared by menu 收桌 and ‹ 大廳.
+ * @param {{ showResultCard?: boolean }} opt showResultCard=false → caller goes clean lobby
+ * @returns {Promise<number>} chips returned for this host
+ */
+async function performHostCloseRoom({ showResultCard = true } = {}) {
+  const fb = getFirebase();
+  const uid = getUser()?.uid;
+  if (!fb || !room || !uid) return 0;
+  const id = room.id;
+  const mySeat = room.seatUids?.indexOf(uid) ?? -1;
+  let chips =
+    mySeat >= 0
+      ? Number(room.stacks?.[mySeat]) || 0
+      : playerDoc?.tableRoomId === id
+        ? Number(playerDoc?.inPlay) || 0
+        : 0;
+  pendingCloseReturnChips = chips;
+  if (room.hostUid === uid && hostLoop?.cashoutSeat) {
+    const seats = [...(room.seatUids || [])];
+    const stacks = [...(room.stacks || [])];
+    for (let i = 0; i < seats.length; i++) {
+      const u = seats[i];
+      if (!u) continue;
+      const amt = Number(stacks[i]) || 0;
+      try {
+        await hostLoop.cashoutSeat(i, u);
+        if (u === uid) chips = amt;
+      } catch (e) {
+        console.warn('close cashout seat', i, e);
+      }
+    }
+  }
+  pendingCloseReturnChips = chips;
+  await closeRoom(fb, id);
+  clearLastRoom();
+  try {
+    playerDoc = (await getPlayer(fb, uid)) || playerDoc;
+  } catch {
+    /* keep */
+  }
+  if (playerDoc?.tableRoomId === id) {
+    const settled = await silentlySettleClosedBinding();
+    if (settled > 0) chips = settled;
+  } else {
+    await silentlySettleClosedBinding();
+  }
+  if (showResultCard && closeResultDismissedFor !== id) {
+    showCloseResultCard({ chips, auto: false });
+  } else if (!showResultCard) {
+    closeResultDismissedFor = id;
+  }
+  pendingCloseReturnChips = null;
+  return chips;
+}
+
 export function mpCloseRoom() {
   const fb = getFirebase();
   if (!fb || !room) return;
   if (!confirm('確定收桌？在座的人會結帳回帳戶。')) return;
-  const id = room.id;
   const btn = document.getElementById('mpBtnCloseRoom');
   if (btn) {
     btn.disabled = true;
     btn.textContent = '收桌中…';
   }
-  const uid = getUser()?.uid;
   void (async () => {
     try {
-      // Capture this player's return BEFORE cashout empties the seat / clears tableRoomId
-      const mySeat = uid ? room.seatUids?.indexOf(uid) ?? -1 : -1;
-      let chips =
-        mySeat >= 0
-          ? Number(room.stacks?.[mySeat]) || 0
-          : playerDoc?.tableRoomId === id
-            ? Number(playerDoc?.inPlay) || 0
-            : 0;
-      pendingCloseReturnChips = chips;
-      // Host: cash out every seated stack while room still open (ledger + seat clear)
-      if (uid && room.hostUid === uid && hostLoop?.cashoutSeat) {
-        const seats = [...(room.seatUids || [])];
-        const stacks = [...(room.stacks || [])];
-        for (let i = 0; i < seats.length; i++) {
-          const u = seats[i];
-          if (!u) continue;
-          const amt = Number(stacks[i]) || 0;
-          try {
-            await hostLoop.cashoutSeat(i, u);
-            if (u === uid) chips = amt;
-          } catch (e) {
-            console.warn('close cashout seat', i, e);
-          }
-        }
-      }
-      pendingCloseReturnChips = chips;
-      await closeRoom(fb, id);
-      clearLastRoom();
-      try {
-        playerDoc = (await getPlayer(fb, uid)) || playerDoc;
-      } catch {
-        /* keep */
-      }
-      // Settle leftover bind; never replace a known return with settle's 0
-      if (playerDoc?.tableRoomId === id) {
-        const settled = await silentlySettleClosedBinding();
-        if (settled > 0) chips = settled;
-      } else {
-        await silentlySettleClosedBinding();
-      }
-      if (closeResultDismissedFor !== id) {
-        showCloseResultCard({ chips, auto: false });
-      }
-      pendingCloseReturnChips = null;
+      await performHostCloseRoom({ showResultCard: true });
     } catch (e) {
       pendingCloseReturnChips = null;
       toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));

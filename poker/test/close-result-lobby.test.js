@@ -155,7 +155,7 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     assert.ok(finallyAt > 0 && joiningFalseAt > finallyAt);
   });
 
-  it('close-result 金額可升級、不會被後到的 0 蓋掉；soft-leave closed 會 paint lobby', () => {
+  it('close-result 金額可升級、不會被後到的 0 蓋掉；closed 仍可 paint lobby', () => {
     const app = read('js/ui/mp-app.js');
     const show = app.slice(
       app.indexOf('function showCloseResultCard'),
@@ -172,6 +172,9 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     );
     assert.match(closed, /lobbyClosedSynced/);
     assert.match(closed, /screen !== 'lobby'[\s\S]*paint\(\)/);
+    // Soft-detach removed — ‹ 大廳 uses confirm leave
+    assert.match(app, /showLeaveTableConfirm/);
+    assert.doesNotMatch(app, /Soft detach/);
   });
 });
 
@@ -490,7 +493,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
     }
   });
 
-  it('lobby soft-leave：host 收桌／auto-close 後 live 清掉我的牌桌且餘額正確', async () => {
+  it('‹ 大廳 confirm：host／guest 離開後 clean lobby（無我的牌桌）', async () => {
     const { server, base } = await startStatic();
     const browser = await chromium.launch({
       headless: true,
@@ -514,7 +517,6 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       }
     };
     try {
-      // --- host close while guest waits in lobby ---
       const hostCtx = await browser.newContext({
         viewport: { width: 390, height: 844 },
         isMobile: true,
@@ -528,7 +530,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       await host.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
         timeout: 20000,
       });
-      await host.evaluate(() => window.__qaSignIn('hostSoftClose', '房主'));
+      await host.evaluate(() => window.__qaSignIn('hostLeaveConf', '房主'));
       await host.waitForSelector('.mp-lobby', { timeout: 20000 });
       await host.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
       await host.waitForSelector('form, .mp-create', { timeout: 8000 });
@@ -536,7 +538,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       await host.waitForSelector('.mp-url', { timeout: 20000 });
       const share = (await host.innerText('.mp-url')).trim();
       const roomId = new URL(share).searchParams.get('r');
-      let code = String(new URL(share).searchParams.get('room') || '')
+      const code = String(new URL(share).searchParams.get('room') || '')
         .replace(/\D/g, '')
         .slice(0, 3);
       await host.click('[data-act="enter"]');
@@ -554,13 +556,12 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       await guest.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
         timeout: 20000,
       });
-      await guest.evaluate(() => window.__qaSignIn('guestSoftClose', '訪客'));
+      await guest.evaluate(() => window.__qaSignIn('guestLeaveConf', '訪客'));
       await guest.waitForSelector('.mp-lobby', { timeout: 20000 });
       await guest.locator('.mp-join input, input[inputmode="numeric"]').first().fill(code);
       await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
         timeout: 20000,
       });
-      // Sit if needed
       if (!(await guest.locator('#mpLeave').count())) {
         await guest
           .evaluate(() => document.querySelector('.mp-empty-seat')?.click())
@@ -569,49 +570,38 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       }
       assert.ok(await guest.locator('#mpLeave').count(), 'guest seated');
 
+      // Guest cancel confirm → stay at table
+      await guest.evaluate(() => window.__qaShowLeaveConfirm?.());
+      await guest.waitForSelector('#mpLeaveConfirm:not([hidden])', { timeout: 5000 });
+      await guest.evaluate(() => window.__qaLeaveConfirmClick?.('cancel'));
+      await guest.waitForSelector('#mpLeaveConfirm[hidden], #mpLeave', { timeout: 5000 });
+      assert.ok(await guest.locator('#mpLeave').count(), 'guest still at table after cancel');
+
       const guestBefore = await withRulesDisabled(async (c) => {
         const db = c.firestore();
         const r = (await getDoc(doc(db, 'pokerRooms', roomId))).data();
         const uid = (r.seatUids || []).find((u) => u && u !== r.hostUid);
         assert.ok(uid, 'guest uid');
         const p = (await getDoc(doc(db, 'pokerPlayers', uid))).data();
-        const seat = r.seatUids.indexOf(uid);
         return {
           uid,
           total: (Number(p.bank) || 0) + (Number(p.inPlay) || 0),
-          stack: seat >= 0 ? Number(r.stacks[seat]) || 0 : Number(p.inPlay) || 0,
         };
       });
 
-      // Soft leave to lobby while still bound
+      // Guest confirm leave → clean lobby, no 我的牌桌
       await guest.evaluate(() => window.__qaLeaveToLobby?.());
-      await guest.waitForSelector('.mp-lobby', { timeout: 15000 });
-      await guest.waitForFunction(
-        () => /我的牌桌|回到牌桌|入座中/.test(document.body.innerText),
-        null,
-        { timeout: 10000 },
-      );
-
-      await guest.evaluate(() => window.__qaResetPaintCount?.());
-      // Host 收桌
-      await host.evaluate(() => {
-        document.getElementById('btnMenu')?.click();
-        document.getElementById('mpBtnCloseRoom')?.click();
-      });
-      await guest.waitForFunction(
-        () => !/我的牌桌|回到牌桌|入座中|結帳離開|已收桌/.test(document.body.innerText),
-        null,
-        { timeout: 20000 },
-      );
+      await guest.waitForSelector('.mp-lobby', { timeout: 25000 });
       await guest.waitForTimeout(800);
-      const paints = await guest.evaluate(() => Number(window.__qaPaintCount) || 0);
-      assert.ok(paints < 25, `soft-leave lobby paint bounded after host close, got ${paints}`);
-
+      const guestText = await guest.innerText('body');
+      assert.equal(
+        /我的牌桌|回到牌桌|入座中|結帳離開|已收桌/.test(guestText),
+        false,
+        `guest lobby must be clean, got: ${guestText.slice(0, 200)}`,
+      );
       const guestAfter = await withRulesDisabled(async (c) => {
         const db = c.firestore();
-        const p = (
-          await getDoc(doc(db, 'pokerPlayers', guestBefore.uid))
-        ).data();
+        const p = (await getDoc(doc(db, 'pokerPlayers', guestBefore.uid))).data();
         return {
           tableRoomId: p.tableRoomId ?? null,
           inPlay: Number(p.inPlay) || 0,
@@ -622,66 +612,27 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       assert.equal(guestAfter.inPlay, 0);
       assert.equal(guestAfter.bank, guestBefore.total);
 
-      // Header should show bank (not 牌桌 2,000)
-      const header = await guest.innerText('.mp-lobby');
-      assert.doesNotMatch(header, /牌桌\s*2,?000|牌桌\s*2000/);
-      assert.equal(/我的牌桌/.test(header), false);
-
       await guestCtx.close();
+
+      // Host confirm leave (= 收桌) → clean lobby
+      const beforeH = await readPlayerDocForRoomHost(roomId);
+      const totalH =
+        (Number(beforeH.player?.bank) || 0) + (Number(beforeH.player?.inPlay) || 0);
+      await host.evaluate(() => window.__qaLeaveToLobby?.());
+      await host.waitForSelector('.mp-lobby', { timeout: 25000 });
+      await host.waitForTimeout(800);
+      const hostText = await host.innerText('body');
+      assert.equal(
+        /我的牌桌|回到牌桌|入座中|結帳離開|已收桌/.test(hostText),
+        false,
+        'host lobby clean after confirm leave',
+      );
+      const afterH = await readPlayerDocForRoomHost(roomId);
+      assert.equal(afterH.player?.tableRoomId ?? null, null);
+      assert.equal(Number(afterH.player?.inPlay) || 0, 0);
+      assert.equal(Number(afterH.player?.bank) || 0, totalH);
+
       await hostCtx.close();
-
-      // --- auto-close while soft-left in lobby ---
-      const host2Ctx = await browser.newContext({
-        viewport: { width: 390, height: 844 },
-        isMobile: true,
-        hasTouch: true,
-      });
-      await host2Ctx.addInitScript(alwaysVis);
-      await host2Ctx.route('**/*', blockProd);
-      const host2 = await host2Ctx.newPage();
-      await host2.goto(`${base}/poker/?emu=1`, { waitUntil: 'domcontentloaded' });
-      await host2.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
-        timeout: 20000,
-      });
-      await host2.evaluate(() => window.__qaSignIn('hostSoftAuto', '房主二'));
-      await host2.waitForSelector('.mp-lobby', { timeout: 20000 });
-      await host2.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
-      await host2.waitForSelector('form, .mp-create', { timeout: 8000 });
-      await host2.click('button[type="submit"]');
-      await host2.waitForSelector('.mp-url', { timeout: 20000 });
-      const share2 = (await host2.innerText('.mp-url')).trim();
-      const roomId2 = new URL(share2).searchParams.get('r');
-      await host2.click('[data-act="enter"]');
-      await host2.waitForSelector('#mpLeave, #seats .seat, #mpStart', { timeout: 25000 });
-
-      const before2 = await readPlayerDocForRoomHost(roomId2);
-      const total2 =
-        (Number(before2.player?.bank) || 0) + (Number(before2.player?.inPlay) || 0);
-
-      await host2.evaluate(() => window.__qaLeaveToLobby?.());
-      await host2.waitForSelector('.mp-lobby', { timeout: 15000 });
-      await host2.waitForFunction(
-        () => /我的牌桌|回到牌桌/.test(document.body.innerText),
-        null,
-        { timeout: 10000 },
-      );
-      await host2.evaluate(() => window.__qaResetPaintCount?.());
-      await forceCloseRoom(roomId2);
-      // Soft-leave still has listenRoom — closed snapshot should refresh lobby
-      await host2.waitForFunction(
-        () => !/我的牌桌|回到牌桌|入座中|結帳離開|已收桌/.test(document.body.innerText),
-        null,
-        { timeout: 20000 },
-      );
-      await host2.waitForTimeout(800);
-      const paints2 = await host2.evaluate(() => Number(window.__qaPaintCount) || 0);
-      assert.ok(paints2 < 25, `soft-leave lobby paint bounded after auto-close, got ${paints2}`);
-      const after2 = await readPlayerDocForRoomHost(roomId2);
-      assert.equal(after2.player?.tableRoomId ?? null, null);
-      assert.equal(Number(after2.player?.inPlay) || 0, 0);
-      assert.equal(Number(after2.player?.bank) || 0, total2);
-
-      await host2Ctx.close();
     } finally {
       await browser.close();
       server.close();
