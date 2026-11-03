@@ -119,6 +119,37 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     assert.match(silent, /hostRoomId:\s*null/);
     assert.match(silent, /status === 'closed'/);
   });
+
+  it('lobby closed-pointer 不得無條件 paint()（防無限重繪）', () => {
+    const app = read('js/ui/mp-app.js');
+    // The async lobby follow-up after maybeRefreshRescue
+    const start = app.indexOf('maybeRefreshRescue().then(async (changed)');
+    assert.ok(start > 0);
+    const block = app.slice(start, start + 1600);
+    assert.match(block, /settledChanged/);
+    assert.match(block, /lobbyBindKey/);
+    assert.match(block, /\(changed \|\| settledChanged\)/);
+    // No bare unconditional re-paint on closed pointer
+    assert.doesNotMatch(
+      block,
+      /status === 'closed'[\s\S]{0,200}if \(screen === 'lobby'\) paint\(\);/,
+    );
+    assert.doesNotMatch(app, /return prev !== rescueOk \|\| true/);
+  });
+
+  it('doJoin 成功／失敗都在 finally 清掉 joining', () => {
+    const app = read('js/ui/mp-app.js');
+    const fn = app.slice(
+      app.indexOf('async function doJoin'),
+      app.indexOf('async function doJoin') + 1600,
+    );
+    assert.match(fn, /finally\s*\{/);
+    assert.match(fn, /joining\s*=\s*false/);
+    // success must not return before finally — finally wraps the try
+    const finallyAt = fn.indexOf('finally');
+    const joiningFalseAt = fn.indexOf('joining = false', finallyAt);
+    assert.ok(finallyAt > 0 && joiningFalseAt > finallyAt);
+  });
 });
 
 function startStatic() {
@@ -285,7 +316,13 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
         timeout: 10000,
       });
       await page.waitForSelector('.mp-lobby', { timeout: 15000 });
-      await page.waitForTimeout(1000);
+      await page.evaluate(() => window.__qaResetPaintCount?.());
+      await page.waitForTimeout(2500);
+      const paints = await page.evaluate(
+        () => Number(window.__qaPaintCount) || 0,
+      );
+      // Steady lobby must not spin (was ~35–85/s). Allow a few async follow-ups.
+      assert.ok(paints < 25, `lobby paint count bounded, got ${paints}`);
 
       const text = await page.innerText('body');
       assert.equal(/我的牌桌/.test(text), false, 'no 我的牌桌 after auto-close');
@@ -408,6 +445,123 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       assert.equal(Number(after.player?.bank) || 0, totalBefore);
 
       await ctx.close();
+    } finally {
+      await browser.close();
+      server.close();
+    }
+  });
+
+  it('join by code → 回大廳 → join by code again（joining 不得卡在加入中）', async () => {
+    const { server, base } = await startStatic();
+    const browser = await chromium.launch({
+      headless: true,
+      executablePath: existsSync('/usr/bin/google-chrome')
+        ? '/usr/bin/google-chrome'
+        : undefined,
+      args: ['--no-sandbox'],
+    });
+    const alwaysVis = () => {
+      try {
+        Object.defineProperty(document, 'visibilityState', {
+          configurable: true,
+          get: () => 'visible',
+        });
+        Object.defineProperty(document, 'hidden', {
+          configurable: true,
+          get: () => false,
+        });
+      } catch {
+        /* ignore */
+      }
+    };
+    try {
+      const hostCtx = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      await hostCtx.addInitScript(alwaysVis);
+      await hostCtx.route('**/*', blockProd);
+      const host = await hostCtx.newPage();
+      await host.goto(`${base}/poker/?emu=1`, { waitUntil: 'domcontentloaded' });
+      await host.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
+        timeout: 20000,
+      });
+      await host.evaluate(() => window.__qaSignIn('hostJoin2', '房主'));
+      await host.waitForSelector('.mp-lobby', { timeout: 20000 });
+      await host.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
+      await host.waitForSelector('form, .mp-create', { timeout: 8000 });
+      await host.click('button[type="submit"]');
+      await host.waitForSelector('.mp-url', { timeout: 20000 });
+      const share = (await host.innerText('.mp-url')).trim();
+      const roomId = new URL(share).searchParams.get('r');
+      let code = new URL(share).searchParams.get('room') || '';
+      code = String(code).replace(/\D/g, '').slice(0, 3);
+      assert.equal(code.length, 3);
+      await host.click('[data-act="enter"]');
+      await host.waitForSelector('#mpLeave, #seats .seat, #mpStart', { timeout: 25000 });
+
+      const guestCtx = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      await guestCtx.addInitScript(alwaysVis);
+      await guestCtx.route('**/*', blockProd);
+      const guest = await guestCtx.newPage();
+      await guest.goto(`${base}/poker/?emu=1`, { waitUntil: 'domcontentloaded' });
+      await guest.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
+        timeout: 20000,
+      });
+      await guest.evaluate(() => window.__qaSignIn('guestJoin2', '訪客'));
+      await guest.waitForSelector('.mp-lobby', { timeout: 20000 });
+
+      // First join by code
+      const joinInput = guest.locator('.mp-join input, input[inputmode="numeric"]').first();
+      await joinInput.fill(code);
+      await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
+        timeout: 20000,
+      });
+      assert.equal(
+        await guest.evaluate(() => window.__qaJoining?.() === true),
+        false,
+        'joining cleared after first join',
+      );
+
+      // Soft leave to lobby without reload
+      await guest.evaluate(() => window.__qaLeaveToLobby?.());
+      await guest.waitForSelector('.mp-lobby', { timeout: 15000 });
+      await guest.waitForTimeout(400);
+      const stuck = await guest.evaluate(() => {
+        const t = document.body.innerText;
+        return {
+          joining: window.__qaJoining?.() === true,
+          statusJoining: /加入中/.test(t),
+        };
+      });
+      assert.equal(stuck.joining, false, 'joining false on lobby');
+      assert.equal(stuck.statusJoining, false, 'UI not stuck on 加入中');
+
+      // Leave host table so guest can re-join same code? Room still open — join again OK
+      // Guest may already be a member; joinByCode should re-enter
+      await joinInput.fill('');
+      await joinInput.fill(code);
+      await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
+        timeout: 20000,
+      });
+      assert.equal(
+        await guest.evaluate(() => window.__qaJoining?.() === true),
+        false,
+        'joining cleared after second join',
+      );
+      assert.equal(
+        await guest.evaluate(() => window.__qaCloseResultState?.()?.screen === 'table'),
+        true,
+        'second join reached table',
+      );
+
+      await guestCtx.close();
+      await hostCtx.close();
     } finally {
       await browser.close();
       server.close();

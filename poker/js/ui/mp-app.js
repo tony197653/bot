@@ -547,7 +547,14 @@ export async function startMpApp() {
       rescueOk,
       roomId,
       roomStatus: room?.status || null,
+      paintCount,
+      joining,
     });
+    window.__qaResetPaintCount = () => {
+      paintCount = 0;
+      window.__qaPaintCount = 0;
+    };
+    window.__qaJoining = () => joining;
     window.__qaShowAwayToast = () => {
       awayLobbyStatus = '已自動離座';
       showLobbyNotify(
@@ -659,7 +666,14 @@ function injectAuthCss() {
   document.head.appendChild(s);
 }
 
+/** @type {number} emu/QA: lobby+shell paint invocations (detect redraw loops) */
+let paintCount = 0;
+
 function paint() {
+  paintCount += 1;
+  if (typeof window !== 'undefined') {
+    window.__qaPaintCount = paintCount;
+  }
   const root = $('#mpRoot');
   if (!root) return;
 
@@ -746,7 +760,10 @@ function paint() {
       return;
     }
     maybeRefreshRescue().then(async (changed) => {
-      // L4: lazy auto-close idle rooms we know about
+      // L4: lazy auto-close idle rooms we know about.
+      // Only re-paint when bindings actually change — never unconditional paint()
+      // (1e92a4b closed-pointer path caused infinite lobby redraw).
+      let settledChanged = false;
       try {
         const fb = getFirebase();
         const tid = playerDoc?.tableRoomId || playerDoc?.hostRoomId;
@@ -755,22 +772,21 @@ function paint() {
           if (snap.exists()) {
             const data = snap.data();
             await maybeAutoCloseIdleRoom(fb, { id: tid, ...data });
-            // Pointer at closed room → sync settle / clear host card
             if (data?.status === 'closed' && screen === 'lobby') {
+              const before = lobbyBindKey();
               await syncAfterRoomClosed();
-              if (screen === 'lobby') paint();
-              return;
+              settledChanged = before !== lobbyBindKey();
             }
           } else if (screen === 'lobby') {
+            const before = lobbyBindKey();
             await syncAfterRoomClosed();
-            if (screen === 'lobby') paint();
-            return;
+            settledChanged = before !== lobbyBindKey();
           }
         }
       } catch {
         /* ignore */
       }
-      if (changed && screen === 'lobby') paint();
+      if ((changed || settledChanged) && screen === 'lobby') paint();
     });
     const seatIdx =
       room?.seatUids
@@ -1025,6 +1041,16 @@ async function enterOpenTable(roomId) {
   }
 }
 
+function lobbyBindKey() {
+  return [
+    playerDoc?.tableRoomId || '',
+    playerDoc?.hostRoomId || '',
+    playerDoc?.inPlay ?? '',
+    rescueOk ? '1' : '0',
+    rescueReason || '',
+  ].join('|');
+}
+
 async function maybeRefreshRescue() {
   const fb = getFirebase();
   const uid = getUser()?.uid;
@@ -1039,10 +1065,11 @@ async function maybeRefreshRescue() {
   try {
     const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
     const prev = rescueOk;
+    const before = lobbyBindKey();
     // Closed / missing: silent settle — never show「結帳離開」for closed tables
     if (!snap.exists() || snap.data()?.status === 'closed') {
       await silentlySettleClosedBinding();
-      return prev !== rescueOk || true;
+      return before !== lobbyBindKey() || prev !== rescueOk;
     }
     const d = snap.data();
     const seat = Array.isArray(d.seatUids) ? d.seatUids.indexOf(uid) : -1;
@@ -1235,9 +1262,11 @@ async function doJoin(code, expectedR = null) {
       e?.message === 'timeout'
         ? '連線太慢，沒有加入成功。請按 Enter 再試一次'
         : friendlyError(e, `房號 ${joinDigits} 不存在，請再確認`);
+  } finally {
+    // Success path used to return before clearing — lobby 房號 stuck on「加入中…」
+    joining = false;
   }
-  joining = false;
-  paint();
+  if (screen !== 'table') paint();
 }
 
 async function tryDeepLink(code, r) {
