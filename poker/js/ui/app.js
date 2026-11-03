@@ -2283,6 +2283,25 @@ function closeRaisePanel() {
 }
 
 function openRaisePanel(legal) {
+  const scrim = $('#raiseScrim');
+  const panel = $('#raisePanel');
+  const range = $('#raiseRange');
+  // Unlock BEFORE presets/sync (same failure mode as MP 56b2833): boot sets
+  // inert+aria-hidden; clicks otherwise fall through to #raiseScrim.
+  if (scrim) {
+    scrim.hidden = false;
+    scrim.inert = false;
+    requestAnimationFrame(() => scrim.classList.add('is-on'));
+    scrim.onclick = () => closeRaisePanel();
+  }
+  if (panel) {
+    panel.hidden = false;
+    panel.inert = false;
+    panel.removeAttribute('aria-hidden');
+    requestAnimationFrame(() => panel.classList.add('is-on'));
+  }
+  raisePanelOpen = true;
+
   const min = legal.minRaiseTo;
   const max = legal.maxRaiseTo;
   const lo = Math.min(min, max);
@@ -2295,7 +2314,6 @@ function openRaisePanel(legal) {
       ? preferred.id
       : presets.find((p) => p.to === raiseTo)?.id ?? null;
 
-  const range = $('#raiseRange');
   range.min = String(lo);
   range.max = String(max);
   range.step = '1';
@@ -2326,29 +2344,14 @@ function openRaisePanel(legal) {
   }
   syncRaiseUi();
 
-  const scrim = $('#raiseScrim');
-  const panel = $('#raisePanel');
-  // Boot / silenceSoloScreens leave the panel inert+aria-hidden; must clear or
-  // clicks fall through to #raiseScrim and 確認下注/快捷鍵 do nothing.
-  if (scrim) {
-    scrim.hidden = false;
-    scrim.inert = false;
-    requestAnimationFrame(() => scrim.classList.add('is-on'));
-    scrim.onclick = () => closeRaisePanel();
-  }
-  if (panel) {
-    panel.hidden = false;
-    panel.inert = false;
-    panel.removeAttribute('aria-hidden');
-    requestAnimationFrame(() => panel.classList.add('is-on'));
-  }
-  raisePanelOpen = true;
   const cancel = $('#raiseCancel');
   if (cancel) cancel.onclick = () => closeRaisePanel();
   const conf = $('#raiseConfirm');
   if (conf) {
     conf.onclick = () => {
-      const amt = raiseTo;
+      // Live range value (same contract as e44c13f MP confirm)
+      const amt = Number(range.value);
+      raiseTo = amt;
       closeRaisePanel();
       dispatch({ type: 'BET_RAISE', seat: viewerSeat, amount: amt });
       passToNextIfNeeded();

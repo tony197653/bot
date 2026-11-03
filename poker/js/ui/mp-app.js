@@ -1977,6 +1977,9 @@ function bindMpRaiseStep(btn, dir) {
 }
 
 function openMpRaise(minRaiseTo, send) {
+  // Betting core restored from e44c13f openMpRaise (known-good on preview):
+  // unlock panel FIRST, confirm reads range.value. UI (presets / hold / wording)
+  // is layered on top — see 56b2833 which moved unlock after fallible work.
   const panel = $('#raisePanel');
   const scrim = $('#raiseScrim');
   const range = $('#raiseRange');
@@ -1984,13 +1987,34 @@ function openMpRaise(minRaiseTo, send) {
     send('BET_RAISE', minRaiseTo);
     return;
   }
+
+  // --- e44c13f unlock order (must run before presets/engine work) ---
+  panel.hidden = false;
+  panel.inert = false;
+  panel.removeAttribute('aria-hidden');
+  if (scrim) {
+    scrim.hidden = false;
+    scrim.inert = false;
+  }
+  raiseOpen = true;
+  requestAnimationFrame(() => {
+    panel.classList.add('is-on');
+    scrim?.classList.add('is-on');
+  });
+
   const mySeat = room.seatUids.indexOf(getUser()?.uid);
   const pub = room.pub || {};
   const ps = pub.seats?.[mySeat];
   const maxTo = (ps?.chips || 0) + (ps?.bet || 0);
   const lo = Math.min(minRaiseTo, maxTo);
   const hi = Math.max(lo, maxTo);
-  const presets = mpRaisePresets(mySeat, lo, hi);
+
+  let presets = [];
+  try {
+    presets = mpRaisePresets(mySeat, lo, hi) || [];
+  } catch {
+    presets = [];
+  }
   const preferred = presets.find((p) => p.preferred);
   mpRaiseTo = clampMpRaise(preferred?.to ?? lo, lo, hi);
   mpRaisePresetId = preferred?.id ?? null;
@@ -2029,20 +2053,11 @@ function openMpRaise(minRaiseTo, send) {
         ? minHint
         : `跟注 ${fmtChips(callAmt)} · ${minHint}`;
   }
-  syncMpRaiseUi(range);
-
-  panel.hidden = false;
-  panel.inert = false;
-  panel.removeAttribute('aria-hidden');
-  if (scrim) {
-    scrim.hidden = false;
-    scrim.inert = false;
+  try {
+    syncMpRaiseUi(range);
+  } catch {
+    /* keep panel usable even if chrome sync fails */
   }
-  requestAnimationFrame(() => {
-    panel.classList.add('is-on');
-    scrim?.classList.add('is-on');
-  });
-  raiseOpen = true;
 
   const close = () => {
     clearMpRaiseHold();
@@ -2068,8 +2083,10 @@ function openMpRaise(minRaiseTo, send) {
     close();
     paintTableChrome();
   };
+  // e44c13f: amount from the live range, not a stale mirror variable
   $('#raiseConfirm').onclick = () => {
-    const amt = mpRaiseTo;
+    const amt = Number(range.value);
+    mpRaiseTo = amt;
     close();
     send('BET_RAISE', amt);
   };

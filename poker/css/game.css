@@ -410,12 +410,13 @@ input:focus-visible,.mp-float input:focus-visible,.mp-digit:focus-visible,.mp-af
 
 /* Raise sheet (slides over table) */
 .raise-scrim{
-  position:fixed;inset:0;z-index:24;background:rgba(0,0,0,.35);
+  /* Above .mp-root (50) so MP table raise sheet is never covered */
+  position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.35);
   opacity:0;pointer-events:none;transition:opacity .25s ease;
 }
 .raise-scrim.is-on{opacity:1;pointer-events:auto}
 .raise-panel{
-  position:fixed;left:0;right:0;bottom:0;z-index:25;
+  position:fixed;left:0;right:0;bottom:0;z-index:61;
   padding:14px 14px max(24px,env(safe-area-inset-bottom,0px));
   background:linear-gradient(#1a2a20,#101b14);
   border-top:1px solid rgba(214,180,90,.35);border-radius:18px 18px 0 0;

@@ -51,19 +51,37 @@ function startServer() {
 }
 
 describe('加注確認實際送出（inert/scrim regression）', () => {
-  it('openRaisePanel 清除 inert／aria-hidden（source）', () => {
+  it('openRaisePanel 清除 inert／aria-hidden；confirm 讀 range.value（source）', () => {
     const src = readFileSync(join(ROOT, 'js/ui/app.js'), 'utf8');
     const open = src.slice(
       src.indexOf('function openRaisePanel'),
-      src.indexOf('function openRaisePanel') + 3200,
+      src.indexOf('function openRaisePanel') + 3600,
     );
     assert.match(open, /panel\.inert\s*=\s*false/);
     assert.match(open, /removeAttribute\(\s*['"]aria-hidden['"]\s*\)/);
+    assert.match(open, /Number\(\s*range\.value\s*\)/);
+    // Unlock must precede raisePresets / syncRaiseUi (56b2833 MP regression pattern)
+    const unlockAt = open.indexOf('panel.inert = false');
+    const presetsAt = open.indexOf('raisePresets(');
+    assert.ok(unlockAt >= 0 && presetsAt > unlockAt, 'inert clear must run before raisePresets');
     const close = src.slice(
       src.indexOf('function closeRaisePanel'),
       src.indexOf('function openRaisePanel'),
     );
     assert.match(close, /panel\.inert\s*=\s*true/);
+  });
+
+  it('openMpRaise 先 unlock 再組 UI；confirm 讀 range.value（e44c13f contract）', () => {
+    const src = readFileSync(join(ROOT, 'js/ui/mp-app.js'), 'utf8');
+    const open = src.slice(
+      src.indexOf('function openMpRaise'),
+      src.indexOf('function openMpRaise') + 4200,
+    );
+    const unlockAt = open.indexOf('panel.inert = false');
+    const presetsAt = open.indexOf('mpRaisePresets(');
+    assert.ok(unlockAt >= 0 && (presetsAt < 0 || presetsAt > unlockAt));
+    assert.match(open, /Number\(\s*range\.value\s*\)/);
+    assert.match(open, /raiseOpen\s*=\s*true/);
   });
 
   it('solo: 點確認加注後引擎收到 BET_RAISE（非 inert 穿透）', async () => {
