@@ -18,7 +18,13 @@ import { DEAL_FX } from '../ui/fx.js';
 import { nightKeyOf, hostCashoutBatch } from './ledger.js';
 import { recordWrite, hostMustStopNewHand } from './quota.js';
 import { listenPresence } from './presence.js';
-import { buildLobbySummary } from './room.js';
+import {
+  buildLobbySummary,
+  buildLobbyListing,
+  lobbyListingKey,
+  upsertLobbyListing,
+  deleteLobbyListing,
+} from './room.js';
 
 const AWAY_UNSEAT_MS = 30 * 60_000;
 
@@ -82,6 +88,8 @@ export function createHostLoop(fb, opts) {
   let deadlineLocal = null;
   let hostClockAt = null;
   let rejects = {};
+  /** Last pokerLobby fingerprint — skip listing writes when unchanged. */
+  let lastLobbyListingKey = '';
   let running = false;
   /** @type {ReturnType<typeof setTimeout>|null} */
   let revealTimer = null;
@@ -251,8 +259,32 @@ export function createHostLoop(fb, opts) {
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), patch);
       lastWriteAt = Date.now();
       recordWrite();
+      await syncLobbyListingDoc({
+        ...latest,
+        seatUids: patch.seatUids || latest.seatUids,
+        status: listStatus,
+        lobby,
+        code: latest.code,
+        name: latest.name,
+        hostUid: latest.hostUid,
+        config: latest.config,
+      }, lobby, listStatus);
     }).catch((e) => console.warn('[host] write', e));
     return writeChain;
+  }
+
+  async function syncLobbyListingDoc(roomLike, lobby, listStatus) {
+    if (!roomLike || roomLike.hostUid !== uid) return;
+    if (listStatus === 'closed' || roomLike.status === 'closed') {
+      lastLobbyListingKey = '';
+      await deleteLobbyListing({ db, fs }, roomId);
+      return;
+    }
+    const fields = buildLobbyListing(roomLike, lobby, listStatus);
+    const key = lobbyListingKey(fields);
+    if (key === lastLobbyListingKey) return;
+    lastLobbyListingKey = key;
+    await upsertLobbyListing({ db, fs }, roomId, fields);
   }
 
   /** Non-money follow-up: refresh public lobby summary after seat/cashout. */
@@ -269,19 +301,32 @@ export function createHostLoop(fb, opts) {
           hostUid === latest.hostUid ? latest.lobby?.hostPhoto || '' : '',
       },
     );
+    const listStatus = roomLike?.status || curStatus(latest) || 'lobby';
     try {
       const cur = getRoom() || latest;
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), {
         rev: (cur.rev || 0) + 1,
         updatedAt: fs.serverTimestamp(),
         lobby,
-        status: roomLike?.status || cur.status || 'lobby',
+        status: listStatus,
       });
       lastWriteAt = Date.now();
       recordWrite();
+      await syncLobbyListingDoc(
+        { ...latest, seatUids, hostUid, status: listStatus, lobby },
+        lobby,
+        listStatus,
+      );
     } catch (e) {
       console.warn('[host] lobby refresh', e);
     }
+  }
+
+  function curStatus(room) {
+    const phase = room?.pub?.phase;
+    return phase === 'lobby' || phase === 'hand_over' || !phase
+      ? 'lobby'
+      : 'playing';
   }
 
   function clearRevealTimer() {

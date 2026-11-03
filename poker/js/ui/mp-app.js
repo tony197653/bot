@@ -428,6 +428,18 @@ let stopOpenTables = null;
 let pendingAwayUnseatToast = false;
 /** Top-bar status override after auto-unseat (BD §2.1). */
 let awayLobbyStatus = null;
+/** Lobby idle/rescue getDoc: only on bind change or ≥30s (not every paint). */
+const LOBBY_IDLE_CHECK_MS = 30_000;
+let lobbyIdleCheckAt = 0;
+let lobbyIdleCheckKey = '';
+let lobbyIdleCheckInflight = false;
+
+function lobbyIdleCheckNeeded() {
+  const key = `${playerDoc?.tableRoomId || ''}|${playerDoc?.hostRoomId || ''}`;
+  if (key !== lobbyIdleCheckKey) return true;
+  if (Date.now() - lobbyIdleCheckAt >= LOBBY_IDLE_CHECK_MS) return true;
+  return false;
+}
 
 function looksLikeUidStub(name, uid) {
   if (!name || !uid) return !name;
@@ -775,51 +787,60 @@ function paint() {
       enterRoom(continueId);
       return;
     }
-    maybeRefreshRescue().then(async (changed) => {
-      // L4: lazy auto-close idle rooms we know about.
-      // Only re-paint when bindings actually change — never unconditional paint()
-      // (1e92a4b closed-pointer path caused infinite lobby redraw).
-      let settledChanged = false;
-      try {
-        const fb = getFirebase();
-        const tid = playerDoc?.tableRoomId || playerDoc?.hostRoomId;
-        if (fb && tid) {
-          const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
-          if (snap.exists()) {
-            const data = snap.data();
-            const didClose = await maybeAutoCloseIdleRoom(fb, {
-              id: tid,
-              ...data,
-            });
-            // Re-read after idle close — pre-close snapshot is still "open"
-            let closed = data?.status === 'closed';
-            if (didClose) {
-              try {
-                const again = await fb.fs.getDoc(
-                  fb.fs.doc(fb.db, 'pokerRooms', tid),
-                );
-                closed =
-                  !again.exists() || again.data()?.status === 'closed';
-              } catch {
-                closed = true;
+    // Soft-leave live close still comes from listenRoom → silentlySettle + paint.
+    // This getDoc path is only for lobby-entry / bind change / ~30s idle-close.
+    if (lobbyIdleCheckNeeded() && !lobbyIdleCheckInflight) {
+      lobbyIdleCheckKey = `${playerDoc?.tableRoomId || ''}|${playerDoc?.hostRoomId || ''}`;
+      lobbyIdleCheckAt = Date.now();
+      lobbyIdleCheckInflight = true;
+      maybeRefreshRescue()
+        .then(async (changed) => {
+          let settledChanged = false;
+          try {
+            const fb = getFirebase();
+            const tid = playerDoc?.tableRoomId || playerDoc?.hostRoomId;
+            if (fb && tid) {
+              const snap = await fb.fs.getDoc(
+                fb.fs.doc(fb.db, 'pokerRooms', tid),
+              );
+              if (snap.exists()) {
+                const data = snap.data();
+                const didClose = await maybeAutoCloseIdleRoom(fb, {
+                  id: tid,
+                  ...data,
+                });
+                let closed = data?.status === 'closed';
+                if (didClose) {
+                  try {
+                    const again = await fb.fs.getDoc(
+                      fb.fs.doc(fb.db, 'pokerRooms', tid),
+                    );
+                    closed =
+                      !again.exists() || again.data()?.status === 'closed';
+                  } catch {
+                    closed = true;
+                  }
+                }
+                if (closed && screen === 'lobby') {
+                  const before = lobbyBindKey();
+                  await syncAfterRoomClosed();
+                  settledChanged = before !== lobbyBindKey();
+                }
+              } else if (screen === 'lobby') {
+                const before = lobbyBindKey();
+                await syncAfterRoomClosed();
+                settledChanged = before !== lobbyBindKey();
               }
             }
-            if (closed && screen === 'lobby') {
-              const before = lobbyBindKey();
-              await syncAfterRoomClosed();
-              settledChanged = before !== lobbyBindKey();
-            }
-          } else if (screen === 'lobby') {
-            const before = lobbyBindKey();
-            await syncAfterRoomClosed();
-            settledChanged = before !== lobbyBindKey();
+          } catch {
+            /* ignore */
           }
-        }
-      } catch {
-        /* ignore */
-      }
-      if ((changed || settledChanged) && screen === 'lobby') paint();
-    });
+          if ((changed || settledChanged) && screen === 'lobby') paint();
+        })
+        .finally(() => {
+          lobbyIdleCheckInflight = false;
+        });
+    }
     const seatIdx =
       room?.seatUids
         ? room.seatUids.indexOf(authState.user?.uid)

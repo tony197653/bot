@@ -122,10 +122,12 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
 
   it('lobby closed-pointer 不得無條件 paint()（防無限重繪）', () => {
     const app = read('js/ui/mp-app.js');
-    // The async lobby follow-up after maybeRefreshRescue
-    const start = app.indexOf('maybeRefreshRescue().then(async (changed)');
-    assert.ok(start > 0);
-    const block = app.slice(start, start + 2400);
+    // Throttled lobby follow-up after maybeRefreshRescue (bind change / ~30s)
+    assert.match(app, /lobbyIdleCheckNeeded/);
+    const start = app.indexOf('lobbyIdleCheckNeeded() && !lobbyIdleCheckInflight');
+    assert.ok(start > 0, 'lobby idle check gate');
+    const block = app.slice(start, start + 2800);
+    assert.match(block, /maybeRefreshRescue\(/);
     assert.match(block, /settledChanged/);
     assert.match(block, /lobbyBindKey/);
     assert.match(block, /changed \|\| settledChanged/);

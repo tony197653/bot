@@ -577,6 +577,59 @@ await t('#L7', '收桌後可覆蓋重用 3 碼房號', 'ok', async () => {
   roomId: R, hostUid: 'H', createdAt: serverTimestamp(), expiresAt: exp24(0),
 }));
 
+// pokerLobby 輕量大廳列表
+const lobbyListing = (roomId, code, uid = 'H', o = {}) => ({
+  name: '家庭桌', code, blinds: '10/20', seated: 0, status: 'lobby',
+  hostName: 'H', hostPhoto: '', hostUid: uid,
+  createdAt: serverTimestamp(), updatedAt: serverTimestamp(), ...o,
+});
+await t('#pokerLobby', '登入者可 list pokerLobby limit 20', 'ok', S, async () => {
+  const { getDocs, collection, query, where, orderBy, limit } = await import('firebase/firestore');
+  return getDocs(query(collection(db('A'), 'pokerLobby'), where('status', 'in', ['lobby', 'playing']), orderBy('createdAt', 'asc'), limit(20)));
+});
+await t('#pokerLobby', 'unlimited list pokerLobby 被拒', 'deny', S, async () => {
+  const { getDocs, collection, query, where, orderBy } = await import('firebase/firestore');
+  return getDocs(query(collection(db('A'), 'pokerLobby'), where('status', 'in', ['lobby', 'playing']), orderBy('createdAt', 'asc')));
+});
+await t('#pokerLobby', '房主可同批建房＋pokerLobby', 'ok', async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'pokerPlayers', 'H'), player({ bank: 5000, inPlay: 0, tableRoomId: null, sessionNo: 0, hostRoomId: null, lastRoomId: 'x' }));
+  });
+}, async () => {
+  const d = db('H'); const b = writeBatch(d); const rid = 'RLB1';
+  b.set(doc(d, 'pokerCodes', '401'), { roomId: rid, hostUid: 'H', createdAt: serverTimestamp(), expiresAt: exp24(0) });
+  b.set(doc(d, 'pokerRooms', rid), lobbyCreate(rid, '401'));
+  b.set(doc(d, 'pokerLobby', rid), lobbyListing(rid, '401'));
+  b.update(doc(d, 'pokerPlayers', 'H'), { hostRoomId: rid, updatedAt: serverTimestamp() });
+  return b.commit();
+});
+await t('#pokerLobby', '非房主不能寫 pokerLobby', 'deny', S, async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'pokerLobby', R), lobbyListing(R, CODE));
+  });
+  return updateDoc(doc(db('A'), 'pokerLobby', R), { seated: 2, updatedAt: serverTimestamp() });
+});
+await t('#pokerLobby', '房主可更新 seated', 'ok', S, async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'pokerLobby', R), lobbyListing(R, CODE));
+  });
+  return updateDoc(doc(db('H'), 'pokerLobby', R), { seated: 2, updatedAt: serverTimestamp() });
+});
+await t('#pokerLobby', 'seated>6 被拒', 'deny', S, async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'pokerLobby', R), lobbyListing(R, CODE));
+  });
+  return updateDoc(doc(db('H'), 'pokerLobby', R), { seated: 7, updatedAt: serverTimestamp() });
+});
+await t('#pokerLobby', '房主可刪 pokerLobby', 'ok', S, async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'pokerLobby', R), lobbyListing(R, CODE));
+  });
+  const { deleteDoc } = await import('firebase/firestore');
+  return deleteDoc(doc(db('H'), 'pokerLobby', R));
+});
+
 // lobby 欄位驗證（防 XSS）
 await t('#lobby', '建房 lobby.seated 字串被拒', 'deny', async () => {
   await env.clearFirestore();

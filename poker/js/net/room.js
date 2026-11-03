@@ -8,6 +8,8 @@ import { recordWrite } from './quota.js';
 const CODE_DIGITS = 3;
 const CODE_ATTEMPTS = 10;
 const IDLE_CLOSE_MS = 30 * 60_000;
+/** Lightweight lobby list docs (not full pokerRooms). Doc id = roomId. */
+export const LOBBY_LIST_COL = 'pokerLobby';
 
 function randomCode() {
   const n = Math.floor(Math.random() * 10 ** CODE_DIGITS);
@@ -66,6 +68,90 @@ export function buildLobbySummary(room, { hostName, hostPhoto, seated } = {}) {
     blinds: String(`${cfg.sb ?? 10}/${cfg.bb ?? 20}`).slice(0, 15),
     seated: seatN,
   };
+}
+
+/**
+ * Flat lobby-list fields (pokerLobby/{roomId}). Only these change the list UI.
+ * @returns {{ name:string, code:string, blinds:string, seated:number, status:string,
+ *   hostName:string, hostPhoto:string, hostUid:string }}
+ */
+export function buildLobbyListing(room, lobby, listStatus) {
+  const L = lobby || room?.lobby || buildLobbySummary(room);
+  const status =
+    listStatus === 'playing' || room?.status === 'playing' ? 'playing' : 'lobby';
+  return {
+    name: String(L.name || room?.name || '週五牌局').slice(0, 20),
+    code: String(room?.code || '').replace(/\D/g, '').slice(0, 6),
+    blinds: String(L.blinds || '10/20').slice(0, 15),
+    seated: Math.max(0, Math.min(6, Math.trunc(Number(L.seated) || 0))),
+    status,
+    hostName: String(L.hostName || '').slice(0, 60),
+    hostPhoto:
+      typeof L.hostPhoto === 'string' && /^https:\/\//.test(L.hostPhoto)
+        ? L.hostPhoto
+        : '',
+    hostUid: String(room?.hostUid || ''),
+  };
+}
+
+/** Fingerprint of lobby-visible fields — skip writes when unchanged. */
+export function lobbyListingKey(fields) {
+  if (!fields) return '';
+  return [
+    fields.status,
+    fields.seated,
+    fields.name,
+    fields.code,
+    fields.blinds,
+    fields.hostName,
+    fields.hostPhoto || '',
+    fields.hostUid || '',
+  ].join('|');
+}
+
+export async function upsertLobbyListing(fb, roomId, fields, { createdAt } = {}) {
+  if (!fb || !roomId || !fields) return;
+  const { db, fs } = fb;
+  const ref = fs.doc(db, LOBBY_LIST_COL, roomId);
+  const payload = {
+    ...fields,
+    updatedAt: fs.serverTimestamp(),
+  };
+  try {
+    const snap = await fs.getDoc(ref);
+    if (!snap.exists()) {
+      await fs.setDoc(ref, {
+        ...payload,
+        createdAt: createdAt || fs.serverTimestamp(),
+      });
+    } else {
+      await fs.updateDoc(ref, payload);
+    }
+    recordWrite();
+  } catch (e) {
+    console.warn('[lobby] upsert listing', e);
+  }
+}
+
+export async function deleteLobbyListing(fb, roomId) {
+  if (!fb || !roomId) return;
+  const { db, fs } = fb;
+  try {
+    await fs.deleteDoc(fs.doc(db, LOBBY_LIST_COL, roomId));
+    recordWrite();
+  } catch {
+    /* already gone */
+  }
+}
+
+/** Stable open-table sort: createdAt asc, then id (never updatedAt). */
+export function sortLobbyListings(rows) {
+  return [...(rows || [])].sort((a, b) => {
+    const am = a.createdAt?.toMillis?.() ?? a.createdAtMs ?? 0;
+    const bm = b.createdAt?.toMillis?.() ?? b.createdAtMs ?? 0;
+    if (am !== bm) return am - bm;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
 }
 
 async function codeIsFree(tx, fs, db, code) {
@@ -210,6 +296,16 @@ export async function createRoom(fb, opts) {
           sess: [null, null, null, null, null, null],
           lastMoneyEvent: null,
           lobby,
+        });
+        // Lightweight lobby list (listenOpenTables) — not full room pub/stacks
+        tx.set(fs.doc(db, LOBBY_LIST_COL, roomId), {
+          ...buildLobbyListing(
+            { name, code, hostUid: opts.uid, status: 'lobby', config },
+            lobby,
+            'lobby',
+          ),
+          createdAt: fs.serverTimestamp(),
+          updatedAt: fs.serverTimestamp(),
         });
 
         // Rules: create requires getAfter(player).hostRoomId == roomId in same txn
@@ -423,6 +519,7 @@ export async function closeRoom(fb, roomId, { auto = false } = {}) {
     });
   }
   recordWrite();
+  await deleteLobbyListing(fb, roomId);
   if (r.code) {
     try {
       await expireCodeNow(fb, r.code);
@@ -472,27 +569,26 @@ export async function maybeAutoCloseIdleRoom(fb, room) {
   }
 }
 
-/** Live list of joinable tables (附錄 L7). */
+/**
+ * Live list of joinable tables (附錄 L7).
+ * Reads pokerLobby summaries only (stable createdAt order — not full room pubs).
+ */
 export function listenOpenTables(fb, onRows, onErr) {
   const { db, fs } = fb;
   const q = fs.query(
-    fs.collection(db, 'pokerRooms'),
+    fs.collection(db, LOBBY_LIST_COL),
     fs.where('status', 'in', ['lobby', 'playing']),
-    fs.orderBy('updatedAt', 'desc'),
+    fs.orderBy('createdAt', 'asc'),
     fs.limit(20),
   );
   return fs.onSnapshot(
     q,
     (snap) => {
-      const cutoff = Date.now() - IDLE_CLOSE_MS;
       const rows = [];
       snap.forEach((d) => {
-        const data = d.data();
-        const ms = data.updatedAt?.toMillis?.() || 0;
-        if (ms < cutoff) return;
-        rows.push({ id: d.id, ...data });
+        rows.push({ id: d.id, ...d.data() });
       });
-      onRows(rows);
+      onRows(sortLobbyListings(rows));
     },
     (err) => onErr?.(err),
   );

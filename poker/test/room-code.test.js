@@ -4,9 +4,13 @@ import {
   normalizeCode,
   formatCode,
   buildLobbySummary,
+  buildLobbyListing,
+  lobbyListingKey,
+  sortLobbyListings,
   isRoomOpenStatus,
   hostRoomCreateDisposition,
   ROOM_CONST,
+  LOBBY_LIST_COL,
 } from '../js/net/room.js';
 
 describe('room code L7', () => {
@@ -73,5 +77,35 @@ describe('room code L7', () => {
     );
     assert.equal(s.hostPhoto, '');
     assert.equal(s.seated, 6);
+  });
+
+  it('buildLobbyListing + key + stable sort by createdAt (not updatedAt)', () => {
+    assert.equal(LOBBY_LIST_COL, 'pokerLobby');
+    const lobby = buildLobbySummary(
+      { name: '桌A', config: { sb: 10, bb: 20 }, seatUids: ['h'] },
+      { hostName: '房主' },
+    );
+    const fields = buildLobbyListing(
+      { name: '桌A', code: '123', hostUid: 'H', status: 'playing', config: { sb: 10, bb: 20 } },
+      lobby,
+      'playing',
+    );
+    assert.equal(fields.status, 'playing');
+    assert.equal(fields.seated, 1);
+    assert.equal(fields.code, '123');
+    const k1 = lobbyListingKey(fields);
+    assert.equal(lobbyListingKey({ ...fields }), k1);
+    assert.notEqual(lobbyListingKey({ ...fields, seated: 2 }), k1);
+
+    const rows = sortLobbyListings([
+      { id: 'b', createdAtMs: 200, updatedAtMs: 900 },
+      { id: 'a', createdAtMs: 100, updatedAtMs: 999 },
+      { id: 'c', createdAtMs: 100, updatedAtMs: 1 },
+    ]);
+    assert.deepEqual(
+      rows.map((r) => r.id),
+      ['a', 'c', 'b'],
+      'order by createdAt then id — ignore updatedAt',
+    );
   });
 });

@@ -612,4 +612,48 @@
     match /{path=**}/nights/{nightKey} {
       allow list: if signedIn() && request.query.limit <= 50;
     }
+
+    // 大廳列表摘要（輕量）：僅 list 可見欄位；房主在 seated/status/name 等變更時寫入
+    function lobbyListingOk(d) {
+      return d.keys().hasOnly([
+          'name', 'code', 'blinds', 'seated', 'status',
+          'hostName', 'hostPhoto', 'hostUid', 'createdAt', 'updatedAt'
+        ])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 20
+        && codeDigitsOk(d.code)
+        && d.blinds is string && d.blinds.size() > 0 && d.blinds.size() <= 15
+        && d.seated is int && d.seated >= 0 && d.seated <= 6
+        && d.status in ['lobby', 'playing']
+        && d.hostName is string && d.hostName.size() <= 60
+        && (d.hostPhoto == '' || (d.hostPhoto is string && d.hostPhoto.size() <= 500
+            && d.hostPhoto.matches('https://.+')))
+        && d.hostUid is string && d.hostUid.size() > 0 && d.hostUid.size() <= 128
+        && d.createdAt is timestamp
+        && d.updatedAt is timestamp;
+    }
+    match /pokerLobby/{roomId} {
+      allow get: if signedIn();
+      allow list: if signedIn()
+        && request.query.limit <= 20
+        && resource.data.status in ['lobby', 'playing'];
+      allow create: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid
+        && lobbyListingOk(request.resource.data)
+        && existsAfter(roomPath(roomId))
+        && getAfter(roomPath(roomId)).data.hostUid == request.auth.uid;
+      allow update: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid
+        && lobbyListingOk(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && exists(roomPath(roomId))
+        && roomOf(roomId).hostUid == request.auth.uid
+        && roomOpen(roomOf(roomId).status);
+      allow delete: if signedIn() && (
+        resource.data.hostUid == request.auth.uid
+        || (exists(roomPath(roomId)) && (
+          roomOf(roomId).hostUid == request.auth.uid
+          || roomOf(roomId).status == 'closed'
+        ))
+      );
+    }
     // ===== [/POKER] ===========================================================

@@ -215,10 +215,23 @@ function pipsHtml(n) {
   return Array.from({ length: 6 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('');
 }
 
+function rowHostName(t) {
+  return t.hostName || t.lobby?.hostName || '房主';
+}
+function rowHostPhoto(t) {
+  return t.hostPhoto || t.lobby?.hostPhoto || '';
+}
+function rowName(t) {
+  return t.name || t.lobby?.name || '牌桌';
+}
+function rowBlinds(t) {
+  return t.blinds || t.lobby?.blinds || `${t.config?.sb || 10}/${t.config?.bb || 20}`;
+}
+
 function openRowLabel(t, seated, full) {
-  const name = t.lobby?.name || t.name || '牌桌';
-  const host = t.lobby?.hostName || '房主';
-  const blinds = t.lobby?.blinds || `${t.config?.sb || 10}/${t.config?.bb || 20}`;
+  const name = rowName(t);
+  const host = rowHostName(t);
+  const blinds = rowBlinds(t);
   const code = formatCode(t.code || '');
   return `${name}，房主 ${host}，盲注 ${blinds}，${seated} / 6 人，房號 ${code}${full ? '，已滿，可觀戰' : ''}`;
 }
@@ -231,24 +244,25 @@ function hostAvHtml(hostName, hostPhoto) {
 }
 
 function seatedCountOf(t) {
-  const raw = t.lobby?.seated ?? (t.seatUids || []).filter(Boolean).length;
+  const raw =
+    t.seated ?? t.lobby?.seated ?? (t.seatUids || []).filter(Boolean).length;
   const n = Number(raw);
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(6, Math.trunc(n)));
 }
 
-/** @param {object} t open-table row */
+/** @param {object} t open-table row (pokerLobby flat or legacy room) */
 export function openRowHtml(t) {
   const seated = seatedCountOf(t);
   const full = seated >= 6;
-  const hostName = t.lobby?.hostName || '房主';
-  const blinds = t.lobby?.blinds || `${t.config?.sb || 10}/${t.config?.bb || 20}`;
-  const name = t.lobby?.name || t.name || '牌桌';
+  const hostName = rowHostName(t);
+  const blinds = rowBlinds(t);
+  const name = rowName(t);
   const code = formatCode(t.code || '');
   return `<li>
     <button type="button" class="mp-row${full ? ' full' : ''}" data-act="open-table" data-rid="${esc(t.id)}"
       aria-label="${esc(openRowLabel(t, seated, full))}">
-      ${hostAvHtml(hostName, t.lobby?.hostPhoto)}
+      ${hostAvHtml(hostName, rowHostPhoto(t))}
       <span class="mp-txt" aria-hidden="true">
         <span class="mp-l1"><b>${esc(name)}</b><span class="mp-tag">已滿，可觀戰</span></span>
         <em>${esc(hostName)} 開桌 · 房號 ${esc(code)}</em>
@@ -262,8 +276,48 @@ export function openRowHtml(t) {
   </li>`;
 }
 
+function patchOneOpenRow(row, t) {
+  const seated = seatedCountOf(t);
+  const full = seated >= 6;
+  const hostName = rowHostName(t);
+  const blinds = rowBlinds(t);
+  const name = rowName(t);
+  const code = formatCode(t.code || '');
+  row.classList.toggle('full', full);
+  row.setAttribute('aria-label', openRowLabel(t, seated, full));
+  const bName = row.querySelector('.mp-l1 b');
+  if (bName && bName.textContent !== name) bName.textContent = name;
+  const em = row.querySelector('.mp-txt em');
+  if (em) em.textContent = `${hostName} 開桌 · 房號 ${code}`;
+  const blindsEl = row.querySelector('.mp-blinds');
+  if (blindsEl) {
+    const next = `<small>盲注</small>${esc(blinds)}`;
+    if (blindsEl.innerHTML !== next) blindsEl.innerHTML = next;
+  }
+  const go = row.querySelector('.mp-go');
+  if (go) {
+    const label = full ? '觀戰' : '加入';
+    if (!go.textContent.startsWith(label)) {
+      go.innerHTML = `${label}${CHEV_SVG}`;
+    }
+  }
+  row.querySelectorAll('.mp-pips i').forEach((p, i) => {
+    p.classList.toggle('on', i < seated);
+  });
+  const num = row.querySelector('.mp-n');
+  const seatLabel = `${seated}/6`;
+  if (num && num.textContent !== seatLabel) {
+    num.classList.add('swap');
+    setTimeout(() => {
+      num.textContent = seatLabel;
+      num.classList.remove('swap');
+    }, 110);
+  }
+}
+
 /**
- * Patch open-table seat counts in place (no layout shift).
+ * Row-level patch: update / insert / remove only; stable order preserved in DOM.
+ * Full paint only when lobby shell (#mpOpenList) is missing.
  * @returns {boolean} true if DOM was patched; false if full re-render needed
  */
 export function patchOpenTables(root, tables) {
@@ -272,40 +326,41 @@ export function patchOpenTables(root, tables) {
   const countEl = $('#mpOpenN', root);
   if (!list || !empty) return false;
 
-  const ids = tables.map((t) => t.id);
-  const existing = [...list.querySelectorAll('.mp-row')].map((r) => r.getAttribute('data-rid'));
-  if (
-    ids.length !== existing.length ||
-    ids.some((id, i) => id !== existing[i])
-  ) {
-    return false;
+  const rows = tables || [];
+  const idSet = new Set(rows.map((t) => t.id));
+
+  if (countEl) countEl.textContent = String(rows.length);
+  list.hidden = rows.length === 0;
+  empty.hidden = rows.length !== 0;
+  root.querySelector('.mp-lobby')?.classList.toggle('is-empty', rows.length === 0);
+
+  // Remove gone rows
+  for (const btn of [...list.querySelectorAll('.mp-row')]) {
+    const id = btn.getAttribute('data-rid');
+    if (!idSet.has(id)) btn.closest('li')?.remove();
   }
 
-  if (countEl) countEl.textContent = String(tables.length);
-  list.hidden = tables.length === 0;
-  empty.hidden = tables.length !== 0;
-  root.querySelector('.mp-lobby')?.classList.toggle('is-empty', tables.length === 0);
-
-  tables.forEach((t) => {
-    const seated = seatedCountOf(t);
-    const full = seated >= 6;
-    const row = list.querySelector(`.mp-row[data-rid="${CSS.escape(t.id)}"]`);
-    if (!row) return;
-    row.classList.toggle('full', full);
-    row.setAttribute('aria-label', openRowLabel(t, seated, full));
-    row.querySelectorAll('.mp-pips i').forEach((p, i) => {
-      p.classList.toggle('on', i < seated);
-    });
-    const num = row.querySelector('.mp-n');
-    const label = `${seated}/6`;
-    if (num && num.textContent !== label) {
-      num.classList.add('swap');
-      setTimeout(() => {
-        num.textContent = label;
-        num.classList.remove('swap');
-      }, 110);
+  // Update / insert in stable order
+  let anchor = null;
+  for (const t of rows) {
+    let li = list
+      .querySelector(`.mp-row[data-rid="${CSS.escape(t.id)}"]`)
+      ?.closest('li');
+    if (li) {
+      patchOneOpenRow(li.querySelector('.mp-row'), t);
+    } else {
+      const tmp = document.createElement('ul');
+      tmp.innerHTML = openRowHtml(t);
+      li = tmp.firstElementChild;
+      if (!li) continue;
     }
-  });
+    if (!anchor) {
+      if (list.firstChild !== li) list.insertBefore(li, list.firstChild);
+    } else if (anchor.nextSibling !== li) {
+      list.insertBefore(li, anchor.nextSibling);
+    }
+    anchor = li;
+  }
   return true;
 }
 
