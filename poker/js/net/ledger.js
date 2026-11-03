@@ -227,6 +227,37 @@ export async function hostCashoutBatch(fb, {
 }
 
 /**
+ * After a room is closed (or missing): move this player's table chips back to
+ * bank. Idempotent via fixed ledger id — safe to call from close dialog, 回大廳,
+ * and lobby paint. Never double-credits.
+ *
+ * @returns {Promise<{ ok: boolean, amount?: number, skipped?: boolean, idempotent?: boolean }>}
+ */
+export async function settleClosedRoomBinding(fb, uid, roomOrId) {
+  const roomId =
+    typeof roomOrId === 'string'
+      ? roomOrId
+      : roomOrId?.id || roomOrId?.roomId || null;
+  if (!fb || !uid || !roomId) return { ok: true, skipped: true };
+
+  const { db, fs } = fb;
+  let room = typeof roomOrId === 'object' && roomOrId ? { ...roomOrId } : null;
+  if (!room || !Array.isArray(room.seatUids)) {
+    const snap = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
+    if (snap.exists()) room = { id: roomId, ...snap.data() };
+    else room = { id: roomId, roomId, status: 'closed', seatUids: [] };
+  } else {
+    room = { ...room, id: room.id || roomId, roomId };
+  }
+  // Only for closed / missing rooms — open-table host-gone still uses explicit rescue UI
+  if (room.status && room.status !== 'closed') {
+    return { ok: true, skipped: true };
+  }
+  room.status = 'closed';
+  return selfRescueCashout(fb, uid, room);
+}
+
+/**
  * Self-rescue cashout when host gone ≥10m or room closed (§6.10).
  */
 export async function selfRescueCashout(fb, uid, room) {

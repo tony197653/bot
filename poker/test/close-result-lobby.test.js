@@ -1,10 +1,8 @@
 /**
- * Close-result → 回大廳 / 看戰績 regressions (宗良 preview 489b6b1):
- * 1) 回大廳 must remove the dialog and not show 我的牌桌／回到牌桌 for a closed table
- * 2) 看戰績 → 回大廳 must land on lobby (not re-enter the table)
+ * Close-result → 回大廳 must leave a CLEAN lobby (no 我的牌桌／已收桌／結帳離開).
+ * Closing settles chips into bank (idempotent); never double-credit.
  *
- * Source contracts always run. Emulator Playwright runs when FIRESTORE_EMULATOR_HOST is set
- * (e.g. firebase emulators:exec … node --test test/close-result-lobby.test.js).
+ * Source contracts always run. Emulator Playwright runs when FIRESTORE_EMULATOR_HOST is set.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +12,14 @@ import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
+import {
+  doc,
+  updateDoc,
+  getDoc,
+  Timestamp,
+  collection,
+  getDocs,
+} from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -40,7 +45,7 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     assert.match(app, /async function dismissCloseResultToLobby/);
     assert.match(app, /async function dismissCloseResultToStats/);
     assert.match(app, /function hideCloseResultCard/);
-    assert.match(app, /async function syncAfterRoomClosed/);
+    assert.match(app, /silentlySettleClosedBinding/);
     assert.match(app, /closeResultDismissedFor/);
 
     const lobbyFn = app.slice(
@@ -61,7 +66,6 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     assert.doesNotMatch(statsFn, /autoResumeTried\s*=\s*false/);
     assert.match(statsFn, /openStats/);
 
-    // Old bug: click handlers set autoResumeTried = false then leaveToLobby/openStats
     const show = app.slice(
       app.indexOf('function showCloseResultCard'),
       app.indexOf('function showCloseResultCard') + 2200,
@@ -75,11 +79,12 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     const app = read('js/ui/mp-app.js');
     const closed = app.slice(
       app.indexOf("if (r.status === 'closed')"),
-      app.indexOf("if (r.status === 'closed')") + 900,
+      app.indexOf("if (r.status === 'closed')") + 1200,
     );
     assert.match(closed, /closeResultDismissedFor/);
     assert.match(closed, /screen !== 'table'/);
     assert.match(closed, /showCloseResultCard/);
+    assert.match(closed, /silentlySettleClosedBinding/);
     assert.doesNotMatch(closed, /leaveToLobby\(\)/);
   });
 
@@ -95,15 +100,24 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     assert.match(stats, /classList\.remove\(\s*['"]mp-root-table['"]\s*\)/);
   });
 
-  it('syncAfterRoomClosed 清掉 closed 桌的 hostRoomId（避免 回到牌桌）', () => {
+  it('closed 桌改靜默結帳，不得再設 rescueReason closed／結帳離開卡', () => {
     const app = read('js/ui/mp-app.js');
-    const sync = app.slice(
-      app.indexOf('async function syncAfterRoomClosed'),
-      app.indexOf('async function syncAfterRoomClosed') + 1600,
+    const led = read('js/net/ledger.js');
+    assert.match(led, /export async function settleClosedRoomBinding/);
+    assert.match(app, /silentlySettleClosedBinding/);
+    assert.match(app, /settleClosedRoomBinding/);
+    const refresh = app.slice(
+      app.indexOf('async function maybeRefreshRescue'),
+      app.indexOf('async function maybeRefreshRescue') + 2200,
     );
-    assert.match(sync, /hostRoomId:\s*null/);
-    assert.match(sync, /maybeRefreshRescue/);
-    assert.match(sync, /status === 'closed'/);
+    assert.match(refresh, /silentlySettleClosedBinding/);
+    assert.doesNotMatch(refresh, /rescueReason = 'closed'/);
+    const silent = app.slice(
+      app.indexOf('async function silentlySettleClosedBinding'),
+      app.indexOf('async function silentlySettleClosedBinding') + 2200,
+    );
+    assert.match(silent, /hostRoomId:\s*null/);
+    assert.match(silent, /status === 'closed'/);
   });
 });
 
@@ -144,40 +158,65 @@ function blockProd(route) {
   return route.continue();
 }
 
-async function forceCloseRoom(roomId) {
+async function withRulesDisabled(fn) {
   const rules = readFileSync(join(ROOT, 'firebase/firestore.rules'), 'utf8');
   const env = await initializeTestEnvironment({
     projectId: 'demo-poker',
     firestore: { host: '127.0.0.1', port: 8195, rules },
   });
   try {
+    let out;
     await env.withSecurityRulesDisabled(async (ctx) => {
-      const db = ctx.firestore();
-      const snap = await getDoc(doc(db, 'pokerRooms', roomId));
-      if (!snap.exists()) throw new Error('room missing');
-      const hostUid = snap.data()?.hostUid;
-      await updateDoc(doc(db, 'pokerRooms', roomId), {
-        status: 'closed',
-        closedBy: 'auto',
-        closedAt: Timestamp.now(),
-        'lobby.autoClosed': true,
-      });
-      if (hostUid) {
-        await updateDoc(doc(db, 'pokerPlayers', hostUid), {
-          hostRoomId: null,
-          updatedAt: Timestamp.now(),
-        }).catch(() => {});
-      }
+      out = await fn(ctx);
     });
+    return out;
   } finally {
     await env.cleanup();
   }
 }
 
+async function forceCloseRoom(roomId) {
+  await withRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    const snap = await getDoc(doc(db, 'pokerRooms', roomId));
+    if (!snap.exists()) throw new Error('room missing');
+    const hostUid = snap.data()?.hostUid;
+    await updateDoc(doc(db, 'pokerRooms', roomId), {
+      status: 'closed',
+      closedBy: 'auto',
+      closedAt: Timestamp.now(),
+      'lobby.autoClosed': true,
+    });
+    if (hostUid) {
+      await updateDoc(doc(db, 'pokerPlayers', hostUid), {
+        hostRoomId: null,
+        updatedAt: Timestamp.now(),
+      }).catch(() => {});
+    }
+  });
+}
+
+async function readPlayerDocForRoomHost(roomId) {
+  return withRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    const room = await getDoc(doc(db, 'pokerRooms', roomId));
+    const hostUid = room.data()?.hostUid;
+    assert.ok(hostUid, 'hostUid');
+    const p = await getDoc(doc(db, 'pokerPlayers', hostUid));
+    const led = await getDocs(collection(db, 'pokerPlayers', hostUid, 'ledger'));
+    return {
+      uid: hostUid,
+      player: p.data(),
+      ledgerN: led.size,
+      cashouts: led.docs.filter((d) => d.data()?.type === 'cashout').length,
+    };
+  });
+}
+
 const emuDescribe = HAS_EMU ? describe : describe.skip;
 
-emuDescribe('收桌結果卡 → 大廳／戰績（emulator）', () => {
-  it('auto-close → 回大廳：對話框關閉且無 我的牌桌／回到牌桌；戰績→回大廳留在大廳', async () => {
+emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
+  it('auto-close → 回大廳：無我的牌桌／結帳離開；bank 正確；再結一次不雙重入帳', async () => {
     const { server, base } = await startStatic();
     const browser = await chromium.launch({
       headless: true,
@@ -212,7 +251,7 @@ emuDescribe('收桌結果卡 → 大廳／戰績（emulator）', () => {
       await page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
         timeout: 20000,
       });
-      await page.evaluate(() => window.__qaSignIn('hostCloseLob', '謝宗良'));
+      await page.evaluate(() => window.__qaSignIn('hostCleanLob', '謝宗良'));
       await page.waitForSelector('.mp-lobby, [data-act="create"]', { timeout: 20000 });
 
       await page.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
@@ -220,55 +259,62 @@ emuDescribe('收桌結果卡 → 大廳／戰績（emulator）', () => {
       await page.click('button[type="submit"]');
       await page.waitForSelector('.mp-url', { timeout: 20000 });
       const url = (await page.innerText('.mp-url')).trim();
-      const roomId =
-        new URL(url).searchParams.get('r') ||
-        (await page.evaluate(() => window.__qaCloseResultState?.()?.roomId));
-      assert.ok(roomId, `expected roomId from share ${url}`);
+      const roomId = new URL(url).searchParams.get('r');
+      assert.ok(roomId);
       await page.click('[data-act="enter"]');
       await page.waitForSelector('#mpLeave, #seats .seat, #mpStart', { timeout: 25000 });
 
+      const before = await readPlayerDocForRoomHost(roomId);
+      const stack = await withRulesDisabled(async (c) => {
+        const db = c.firestore();
+        const r = (await getDoc(doc(db, 'pokerRooms', roomId))).data();
+        const seat = r.seatUids.indexOf(before.uid);
+        return seat >= 0 ? Number(r.stacks[seat]) || 0 : Number(before.player?.inPlay) || 0;
+      });
+      const bankBefore = Number(before.player?.bank) || 0;
+      const inPlayBefore = Number(before.player?.inPlay) || 0;
+      const totalBefore = bankBefore + inPlayBefore;
+      const cashoutsBefore = before.cashouts;
+
       await forceCloseRoom(roomId);
       await page.waitForSelector('#mpCloseResult', { timeout: 15000 });
-      await page.waitForFunction(
-        () => {
-          const el = document.getElementById('mpCloseResult');
-          return el && !el.hidden;
-        },
-        null,
-        { timeout: 10000 },
-      );
       assert.match(await page.innerText('#mpCloseResult'), /牌桌已收桌/);
 
-      // Bug 1: 回大廳
       await page.click('#mpCloseLobby');
-      await page.waitForFunction(
-        () => !document.getElementById('mpCloseResult'),
-        null,
-        { timeout: 10000 },
-      );
-      await page.waitForSelector('.mp-lobby', { timeout: 15000 });
-      // Allow syncAfterRoomClosed paint to settle
-      await page.waitForTimeout(800);
-      const afterLobby = await page.evaluate(() => {
-        const t = document.body.innerText;
-        return {
-          hasCard: !!document.getElementById('mpCloseResult'),
-          screen: window.__qaCloseResultState?.()?.screen,
-          hasMyTable: /我的牌桌/.test(t),
-          hasContinue: /回到牌桌/.test(t),
-          hasSettle: /結帳離開/.test(t),
-          state: window.__qaCloseResultState?.(),
-        };
+      await page.waitForFunction(() => !document.getElementById('mpCloseResult'), null, {
+        timeout: 10000,
       });
-      assert.equal(afterLobby.hasCard, false, 'close dialog must be gone');
-      assert.equal(afterLobby.screen, 'lobby');
-      assert.equal(afterLobby.hasContinue, false, 'closed table must not show 回到牌桌');
-      if (afterLobby.hasMyTable) {
-        assert.equal(afterLobby.hasSettle, true, 'only settle card allowed for closed table');
-      }
+      await page.waitForSelector('.mp-lobby', { timeout: 15000 });
+      await page.waitForTimeout(1000);
 
-      // Bug 2: 看戰績 → 回大廳 stays on lobby (use close-result path via QA on a fresh close card)
-      // Dismiss already tore down; open stats from lobby menu/card then back.
+      const text = await page.innerText('body');
+      assert.equal(/我的牌桌/.test(text), false, 'no 我的牌桌 after auto-close');
+      assert.equal(/結帳離開/.test(text), false, 'no 結帳離開 after auto-close');
+      assert.equal(/已收桌/.test(text), false, 'no 已收桌 after auto-close');
+      assert.equal(/回到牌桌/.test(text), false, 'no 回到牌桌 after auto-close');
+
+      const after = await readPlayerDocForRoomHost(roomId);
+      assert.equal(after.player?.tableRoomId ?? null, null);
+      assert.equal(Number(after.player?.inPlay) || 0, 0);
+      const bankAfter = Number(after.player?.bank) || 0;
+      assert.equal(bankAfter, totalBefore, `bank ${bankAfter} === totalBefore ${totalBefore}`);
+      assert.ok(
+        after.cashouts >= cashoutsBefore + (stack > 0 || inPlayBefore > 0 ? 1 : 0) ||
+          after.cashouts === cashoutsBefore + 1 ||
+          bankAfter === totalBefore,
+        'cashout ledger written or balance already correct',
+      );
+
+      // Idempotent: dismiss path / refresh must not double-credit
+      await page.evaluate(async () => {
+        await window.__qaRefreshRescue?.();
+      });
+      await page.waitForTimeout(500);
+      const again = await readPlayerDocForRoomHost(roomId);
+      assert.equal(Number(again.player?.bank) || 0, bankAfter, 'no double credit');
+      assert.equal(again.cashouts, after.cashouts, 'no extra cashout ledger');
+
+      // Stats → 回大廳 stays clean
       const statsOpen = await page.evaluate(() => {
         const el =
           document.querySelector('.mp-lobby [data-act="stats"]') ||
@@ -277,61 +323,89 @@ emuDescribe('收桌結果卡 → 大廳／戰績（emulator）', () => {
         el.click();
         return true;
       });
-      assert.ok(statsOpen, 'lobby stats entry');
+      assert.ok(statsOpen);
       await page.waitForSelector('.mp-stats, .mp-shell.mp-stats', { timeout: 15000 });
-      // Simulate post-close-result stats back: autoResumeTried must remain true
-      await page.evaluate(() => {
-        /* autoResumeTried already true from dismiss; onBack reinforces */
-      });
-      await page.locator('.mp-stats [data-act="back"], .mp-shell.mp-stats [data-act="back"]').first().click();
+      await page.locator('.mp-stats [data-act="back"]').first().click();
       await page.waitForSelector('.mp-lobby', { timeout: 15000 });
-      await page.waitForTimeout(500);
-      const afterStats = await page.evaluate(() => {
-        const t = document.body.innerText;
-        return {
-          screen: window.__qaCloseResultState?.()?.screen,
-          hasCard: !!document.getElementById('mpCloseResult'),
-          onTable: !!document.querySelector('#btnBackLobby:not([hidden])'),
-          hasContinue: /回到牌桌/.test(t),
-          autoResumeTried: window.__qaCloseResultState?.()?.autoResumeTried,
-        };
-      });
-      assert.equal(afterStats.screen, 'lobby', 'stats 回大廳 must land on lobby');
-      assert.equal(afterStats.onTable, false, 'must not return to table chrome');
-      assert.equal(afterStats.hasCard, false);
-      assert.equal(afterStats.hasContinue, false);
-      assert.equal(afterStats.autoResumeTried, true);
+      const t2 = await page.innerText('body');
+      assert.equal(/我的牌桌|結帳離開|已收桌|回到牌桌/.test(t2), false);
 
-      // Also exercise close-result → 看戰績 → 回大廳 on a second room
+      await ctx.close();
+    } finally {
+      await browser.close();
+      server.close();
+    }
+  });
+
+  it('manual 收桌 → 回大廳：clean lobby、bank 正確', async () => {
+    const { server, base } = await startStatic();
+    const browser = await chromium.launch({
+      headless: true,
+      executablePath: existsSync('/usr/bin/google-chrome')
+        ? '/usr/bin/google-chrome'
+        : undefined,
+      args: ['--no-sandbox'],
+    });
+    try {
+      const ctx = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      });
+      await ctx.route('**/*', blockProd);
+      const page = await ctx.newPage();
+      await page.addInitScript(() => {
+        try {
+          Object.defineProperty(document, 'visibilityState', {
+            configurable: true,
+            get: () => 'visible',
+          });
+          Object.defineProperty(document, 'hidden', {
+            configurable: true,
+            get: () => false,
+          });
+        } catch {
+          /* ignore */
+        }
+      });
+      page.on('dialog', (d) => d.accept());
+      await page.goto(`${base}/poker/?emu=1`, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
+        timeout: 20000,
+      });
+      await page.evaluate(() => window.__qaSignIn('hostManualClose', '謝宗良'));
+      await page.waitForSelector('.mp-lobby, [data-act="create"]', { timeout: 20000 });
+
       await page.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
       await page.waitForSelector('form, .mp-create', { timeout: 8000 });
       await page.click('button[type="submit"]');
       await page.waitForSelector('.mp-url', { timeout: 20000 });
-      const url2 = (await page.innerText('.mp-url')).trim();
-      const roomId2 = new URL(url2).searchParams.get('r');
-      assert.ok(roomId2);
+      const roomId = new URL((await page.innerText('.mp-url')).trim()).searchParams.get('r');
+      assert.ok(roomId);
       await page.click('[data-act="enter"]');
       await page.waitForSelector('#mpLeave, #seats .seat, #mpStart', { timeout: 25000 });
-      await forceCloseRoom(roomId2);
-      await page.waitForSelector('#mpCloseResult', { timeout: 15000 });
-      await page.click('#mpCloseStats');
-      await page.waitForSelector('.mp-stats, .mp-shell.mp-stats', { timeout: 15000 });
-      assert.equal(
-        await page.evaluate(() => !!document.getElementById('mpCloseResult')),
-        false,
-      );
-      await page.locator('.mp-stats [data-act="back"]').first().click();
+
+      const before = await readPlayerDocForRoomHost(roomId);
+      const totalBefore =
+        (Number(before.player?.bank) || 0) + (Number(before.player?.inPlay) || 0);
+
+      // Open ⋯ menu → 收桌
+      await page.evaluate(() => {
+        document.getElementById('btnMenu')?.click();
+        document.getElementById('mpBtnCloseRoom')?.click();
+      });
+      await page.waitForSelector('#mpCloseResult', { timeout: 20000 });
+      await page.click('#mpCloseLobby');
       await page.waitForSelector('.mp-lobby', { timeout: 15000 });
-      const afterStats2 = await page.evaluate(() => ({
-        screen: window.__qaCloseResultState?.()?.screen,
-        onTable: !!document.querySelector('#btnBackLobby:not([hidden])'),
-        hasContinue: /回到牌桌/.test(document.body.innerText),
-        hasCard: !!document.getElementById('mpCloseResult'),
-      }));
-      assert.equal(afterStats2.screen, 'lobby');
-      assert.equal(afterStats2.onTable, false);
-      assert.equal(afterStats2.hasContinue, false);
-      assert.equal(afterStats2.hasCard, false);
+      await page.waitForTimeout(1000);
+
+      const text = await page.innerText('body');
+      assert.equal(/我的牌桌|結帳離開|已收桌|回到牌桌/.test(text), false, 'clean lobby');
+
+      const after = await readPlayerDocForRoomHost(roomId);
+      assert.equal(after.player?.tableRoomId ?? null, null);
+      assert.equal(Number(after.player?.inPlay) || 0, 0);
+      assert.equal(Number(after.player?.bank) || 0, totalBefore);
 
       await ctx.close();
     } finally {

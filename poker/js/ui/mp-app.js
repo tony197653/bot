@@ -44,6 +44,7 @@ import {
   fetchLeaderboard,
   fetchNightBoard,
   selfRescueCashout,
+  settleClosedRoomBinding,
   nightKeyOf,
   readCachedPlayer,
 } from '../net/ledger.js';
@@ -187,52 +188,91 @@ function hideCloseResultCard() {
 }
 
 /**
- * After auto/manual close: refresh ledger pointers so lobby never shows a
- * closed table as「我的牌桌／回到牌桌」. Closed + still seated → rescue settle.
+ * Closed-table binding: silently cash out (idempotent) and clear pointers.
+ * Lobby must never show「已收桌／結帳離開」for a closed table.
+ * @returns {Promise<number>} chips credited this call (0 if skipped/idempotent)
  */
-async function syncAfterRoomClosed() {
+async function silentlySettleClosedBinding() {
   const fb = getFirebase();
   const uid = getUser()?.uid;
-  if (!fb || !uid) return;
+  if (!fb || !uid) return 0;
   try {
     playerDoc = await getPlayer(fb, uid);
   } catch {
     /* keep stale */
   }
-  const tid = playerDoc?.tableRoomId || playerDoc?.hostRoomId;
-  if (!tid) {
+  const tid = playerDoc?.tableRoomId;
+  let credited = 0;
+  if (tid) {
+    try {
+      const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
+      const closed = !snap.exists() || snap.data()?.status === 'closed';
+      if (closed) {
+        const inPlayBefore = Number(playerDoc?.inPlay) || 0;
+        const room = snap.exists()
+          ? { id: tid, ...snap.data(), status: 'closed' }
+          : { id: tid, status: 'closed', seatUids: [] };
+        const res = await settleClosedRoomBinding(fb, uid, room);
+        if (typeof res?.amount === 'number') credited = res.amount;
+        else if (res?.skipped || res?.idempotent) credited = 0;
+        else credited = inPlayBefore;
+        try {
+          playerDoc = await getPlayer(fb, uid);
+        } catch {
+          if (playerDoc) {
+            playerDoc = {
+              ...playerDoc,
+              tableRoomId: null,
+              inPlay: 0,
+              bank: (playerDoc.bank || 0) + credited,
+              total: (playerDoc.bank || 0) + credited,
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('silent settle closed', e);
+    }
+  }
+  // Clear host pointer at closed/missing room
+  const hid = playerDoc?.hostRoomId;
+  if (hid && fb && uid) {
+    try {
+      const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', hid));
+      if (!snap.exists() || snap.data()?.status === 'closed') {
+        try {
+          await fb.fs.updateDoc(fb.fs.doc(fb.db, 'pokerPlayers', uid), {
+            hostRoomId: null,
+            updatedAt: fb.fs.serverTimestamp(),
+          });
+        } catch {
+          /* rules may deny */
+        }
+        try {
+          playerDoc = await getPlayer(fb, uid);
+        } catch {
+          /* keep going */
+        }
+        if (playerDoc?.hostRoomId === hid) {
+          playerDoc = { ...playerDoc, hostRoomId: null };
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  // Closed tables never use the rescue settle card
+  if (rescueReason === 'closed' || !playerDoc?.tableRoomId) {
     rescueOk = false;
     rescueReason = null;
     rescueChips = null;
-    return;
   }
-  try {
-    const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
-    const closed = !snap.exists() || snap.data()?.status === 'closed';
-    if (!closed) return;
-    // Host pointer must not keep「我的牌桌／回到牌桌」after close
-    if (playerDoc?.hostRoomId === tid) {
-      try {
-        await fb.fs.updateDoc(fb.fs.doc(fb.db, 'pokerPlayers', uid), {
-          hostRoomId: null,
-          updatedAt: fb.fs.serverTimestamp(),
-        });
-      } catch {
-        /* rules may deny; still clear local cache for lobby paint */
-      }
-      try {
-        playerDoc = await getPlayer(fb, uid);
-      } catch {
-        /* keep going */
-      }
-      if (playerDoc?.hostRoomId === tid) {
-        playerDoc = { ...playerDoc, hostRoomId: null };
-      }
-    }
-    await maybeRefreshRescue();
-  } catch {
-    /* ignore */
-  }
+  return credited;
+}
+
+/** @deprecated name kept for call sites — always silent-settles closed bindings */
+async function syncAfterRoomClosed() {
+  await silentlySettleClosedBinding();
 }
 
 /** Leave close-result without bouncing back into the closed table. */
@@ -270,6 +310,11 @@ function showCloseResultCard({ chips = 0, auto = false } = {}) {
   // User already chose 回大廳／看戰績 — late closed snapshots must not re-open the card
   if (rid && closeResultDismissedFor === rid) return;
   if (screen !== 'table' && screen !== 'linking') return;
+  // Host mpCloseRoom already painted the card with the settled amount — don't clobber with 0
+  if (rid && closeResultShownFor === rid && document.getElementById('mpCloseResult')) {
+    return;
+  }
+  if (rid) closeResultShownFor = rid;
 
   let el = document.getElementById('mpCloseResult');
   if (!el) {
@@ -357,6 +402,8 @@ let mpRaiseHoldRepeat = null;
 let autoResumeTried = false;
 /** Room id whose close-result card the user already dismissed (回大廳／看戰績). */
 let closeResultDismissedFor = null;
+/** Room id currently showing (or shown) close-result — avoid listenRoom overwriting amount. */
+let closeResultShownFor = null;
 /** @type {any[]} */
 let openTables = [];
 /** @type {(() => void)|null} */
@@ -680,16 +727,13 @@ function paint() {
       awayLobbyStatus = null;
     }
     const last = getLastRoom();
-    // Closed tables: only settle (rescueOk) may keep a card — never「回到牌桌」
-    const openPointer =
+    // Closed tables: never show 我的牌桌 (settle is silent). Open bind only.
+    const continueId =
       playerDoc?.tableRoomId && !rescueOk
         ? playerDoc.tableRoomId
         : playerDoc?.hostRoomId && !rescueOk
           ? playerDoc.hostRoomId
           : null;
-    const continueId = rescueOk
-      ? playerDoc?.tableRoomId || null
-      : openPointer || null;
     // Auto-resume after refresh only (not after intentional 回大廳／收桌結果)
     if (
       continueId &&
@@ -995,12 +1039,10 @@ async function maybeRefreshRescue() {
   try {
     const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
     const prev = rescueOk;
-    if (!snap.exists()) {
-      // Missing room: allow cash-out of inPlay (cancel-buyin / gone)
-      rescueOk = true;
-      rescueReason = 'gone';
-      rescueChips = playerDoc?.inPlay ?? 0;
-      return prev !== rescueOk;
+    // Closed / missing: silent settle — never show「結帳離開」for closed tables
+    if (!snap.exists() || snap.data()?.status === 'closed') {
+      await silentlySettleClosedBinding();
+      return prev !== rescueOk || true;
     }
     const d = snap.data();
     const seat = Array.isArray(d.seatUids) ? d.seatUids.indexOf(uid) : -1;
@@ -1010,7 +1052,7 @@ async function maybeRefreshRescue() {
       stackAmt != null ? stackAmt : Number(playerDoc?.inPlay) || 0;
 
     let hostBeatMs = null;
-    if (d.hostUid && d.status !== 'closed') {
+    if (d.hostUid) {
       try {
         const hp = await fb.fs.getDoc(
           fb.fs.doc(fb.db, 'pokerRooms', tid, 'presence', d.hostUid),
@@ -1031,9 +1073,10 @@ async function maybeRefreshRescue() {
       hostBeatMs,
     });
 
-    if (decision.ok) {
+    // reason === 'closed' should be unreachable (handled above); keep gone-only card
+    if (decision.ok && decision.reason === 'gone') {
       rescueOk = true;
-      rescueReason = decision.reason;
+      rescueReason = 'gone';
       rescueChips = settled;
     } else {
       rescueOk = false;
@@ -1220,8 +1263,9 @@ async function enterRoom(id, { asHostSit = false } = {}) {
   if (closeResultDismissedFor && closeResultDismissedFor !== id) {
     closeResultDismissedFor = null;
   }
-  // Re-entering the same closed room after dismiss should not re-show the card
-  // unless the room is open again; cleared when status is open below.
+  if (closeResultShownFor && closeResultShownFor !== id) {
+    closeResultShownFor = null;
+  }
 
   // Soft resume after leaveToLobby keepAlive: same room still listening — just show table.
   if (
@@ -1268,6 +1312,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
   roomId = id;
   // Fresh enter of an open table resets dismiss guard
   closeResultDismissedFor = null;
+  closeResultShownFor = null;
 
   // Ensure membership: try read; on permission-denied, need code path from lastRoom / URL
   try {
@@ -1298,16 +1343,25 @@ async function enterRoom(id, { asHostSit = false } = {}) {
         clearLastRoom();
         // Already dismissed (回大廳／看戰績) or left table — ignore late snapshots
         if (closeResultDismissedFor === id || screen !== 'table') {
+          // Still settle if somehow still bound (e.g. soft-leave race)
+          void silentlySettleClosedBinding();
           return;
         }
-        const uid = getUser()?.uid;
-        const seat = uid ? r.seatUids?.indexOf(uid) ?? -1 : -1;
-        const chips =
-          seat >= 0
-            ? Number(r.stacks?.[seat] || 0)
-            : Number(playerDoc?.inPlay || 0);
         const auto =
           !!(r.lobby?.autoClosed || r.autoClosed) || r.closedBy === 'auto';
+        // Cash out as part of close/dialog — only THIS room's return shows on the card
+        let chips = 0;
+        try {
+          playerDoc = (await getPlayer(getFirebase(), getUser()?.uid)) || playerDoc;
+        } catch {
+          /* keep */
+        }
+        if (playerDoc?.tableRoomId === id) {
+          chips = await silentlySettleClosedBinding();
+        } else {
+          // Legacy closed bind elsewhere: settle silently, don't attribute to this dialog
+          await silentlySettleClosedBinding();
+        }
         showCloseResultCard({ chips, auto });
         paintTableChrome();
         return;
@@ -2694,21 +2748,46 @@ export function mpCloseRoom() {
     btn.textContent = '收桌中…';
   }
   const uid = getUser()?.uid;
-  const seat = uid ? room.seatUids?.indexOf(uid) ?? -1 : -1;
-  const chips = seat >= 0 ? Number(room.stacks?.[seat] || 0) : Number(playerDoc?.inPlay || 0);
-  closeRoom(fb, id)
-    .then(() => {
+  void (async () => {
+    try {
+      let chips = 0;
+      // Host: cash out every seated stack while room still open (ledger + seat clear)
+      if (uid && room.hostUid === uid && hostLoop?.cashoutSeat) {
+        const seats = [...(room.seatUids || [])];
+        const stacks = [...(room.stacks || [])];
+        for (let i = 0; i < seats.length; i++) {
+          const u = seats[i];
+          if (!u) continue;
+          const amt = Number(stacks[i]) || 0;
+          try {
+            await hostLoop.cashoutSeat(i, u);
+            if (u === uid) chips = amt;
+          } catch (e) {
+            console.warn('close cashout seat', i, e);
+          }
+        }
+      }
+      await closeRoom(fb, id);
       clearLastRoom();
-      // Stay on table; listenRoom closed branch also fires — show card here too for host
+      try {
+        playerDoc = (await getPlayer(fb, uid)) || playerDoc;
+      } catch {
+        /* keep */
+      }
+      if (playerDoc?.tableRoomId === id) {
+        chips = await silentlySettleClosedBinding();
+      } else {
+        await silentlySettleClosedBinding();
+      }
       if (closeResultDismissedFor !== id) {
         showCloseResultCard({ chips, auto: false });
       }
-    })
-    .catch((e) => {
+    } catch (e) {
       toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
       if (btn) {
         btn.disabled = false;
         btn.textContent = '收桌';
       }
-    });
+    }
+  })();
 }
