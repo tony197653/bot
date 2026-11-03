@@ -70,4 +70,33 @@ describe('‹ 大廳 leave confirm（source contracts）', () => {
     const app = read('js/ui/mp-app.js');
     assert.match(app, /onBack:\s*\(\)\s*=>\s*\{[\s\S]*?screen = 'lobby'/);
   });
+
+  it('mid-hand: ‹ 大廳 toasts 這手打完才能離開 (host+guest); no dialog', () => {
+    const app = read('js/ui/mp-app.js');
+    assert.match(app, /function isHandInProgress/);
+    assert.match(app, /這手打完才能離開/);
+    const show = app.slice(
+      app.indexOf('function showLeaveTableConfirm'),
+      app.indexOf('function showLeaveTableConfirm') + 900,
+    );
+    assert.match(show, /isHandInProgress\(\)/);
+    assert.match(show, /toastLeaveAfterHand|這手打完才能離開/);
+    // Must return before creating/showing dialog
+    assert.match(show, /isHandInProgress\(\)[\s\S]{0,200}return/);
+  });
+
+  it('race: 確認離開 re-checks phase; mid-hand closes dialog + same toast', () => {
+    const app = read('js/ui/mp-app.js');
+    const fn = app.slice(
+      app.indexOf('async function confirmLeaveTable'),
+      app.indexOf('async function confirmLeaveTable') + 900,
+    );
+    assert.match(fn, /isHandInProgress\(\)/);
+    assert.match(fn, /mpLeaveConfirm[\s\S]{0,120}hidden = true/);
+    assert.match(fn, /toastLeaveAfterHand|這手打完才能離開/);
+    // Abort before cashout/close
+    const raceReturn = fn.indexOf('return');
+    const hostClose = fn.indexOf('performHostCloseRoom');
+    assert.ok(raceReturn > 0 && hostClose > raceReturn, 'race abort before host close');
+  });
 });

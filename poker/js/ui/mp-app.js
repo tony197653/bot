@@ -385,12 +385,28 @@ function showHostAloneLeaveDialog() {
   });
 }
 
+/** Hand live = not between hands (lobby / hand_over / missing). Host+guest cannot leave. */
+function isHandInProgress(phase = room?.pub?.phase) {
+  return !!phase && phase !== 'lobby' && phase !== 'hand_over';
+}
+
+const LEAVE_AFTER_HAND_TOAST = '這手打完才能離開';
+
+function toastLeaveAfterHand() {
+  toast(LEAVE_AFTER_HAND_TOAST);
+}
+
 /**
- * Table 「‹ 大廳」: confirm leave (no soft-detach).
- * Host → 收桌 then clean lobby; non-host → 離座結帳 then clean lobby.
+ * Table 「‹ 大廳」: between hands → confirm; mid-hand → toast only (no dialog).
+ * Host confirm → 收桌 then clean lobby; guest → 離座結帳 then clean lobby.
  */
 function showLeaveTableConfirm() {
   if (!room) return;
+  // Mid-hand: no dialog — same toast for host and guest
+  if (isHandInProgress()) {
+    toastLeaveAfterHand();
+    return;
+  }
   let el = document.getElementById('mpLeaveConfirm');
   if (!el) {
     el = document.createElement('div');
@@ -601,16 +617,25 @@ export async function startMpApp() {
       };
     };
     window.__qaLeaveToLobby = () => {
-      // QA: confirm-leave without dialog (host close / guest cashout → clean lobby)
+      // QA: between-hands confirm-leave (skips dialog); mid-hand → toast path via showLeaveTableConfirm
+      if (isHandInProgress()) {
+        showLeaveTableConfirm();
+        return;
+      }
       void confirmLeaveTable();
     };
     window.__qaShowLeaveConfirm = () => {
       showLeaveTableConfirm();
-      return !!document.getElementById('mpLeaveConfirm');
+      const el = document.getElementById('mpLeaveConfirm');
+      return !!(el && !el.hidden);
     };
     window.__qaLeaveConfirmClick = (which) => {
       const id = which === 'ok' ? 'mpLeaveConfirmOk' : 'mpLeaveConfirmCancel';
       document.getElementById(id)?.click();
+    };
+    window.__qaIsHandInProgress = () => isHandInProgress();
+    window.__qaSetPubPhase = (phase) => {
+      if (room) room.pub = { ...(room.pub || {}), phase };
     };
     window.__qaShowCloseResult = (chips = 2000, auto = true) => {
       screen = 'table';
@@ -2782,6 +2807,13 @@ async function confirmLeaveTable() {
   const uid = getUser()?.uid;
   if (!fb || !room || !uid) {
     goLobbyClean();
+    return;
+  }
+  // Race: hand started while dialog was open — abort leave
+  if (isHandInProgress()) {
+    const dlg = document.getElementById('mpLeaveConfirm');
+    if (dlg) dlg.hidden = true;
+    toastLeaveAfterHand();
     return;
   }
   lobbyExitSuppressMine = true;
