@@ -316,6 +316,33 @@ function patchOneOpenRow(row, t) {
 }
 
 /**
+ * One delegated listener on #mpOpenList — covers full-paint rows and patch inserts.
+ * Idempotent: re-paint updates the callback without stacking handlers.
+ * @param {HTMLElement|null} listEl
+ * @param {(roomId: string) => void} onOpenTable
+ */
+export function wireOpenTablesDelegate(listEl, onOpenTable) {
+  if (!listEl || typeof onOpenTable !== 'function') return;
+  listEl._mpOnOpenTable = onOpenTable;
+  if (listEl.dataset.mpOpenWired === '1') return;
+  listEl.dataset.mpOpenWired = '1';
+  const activate = (ev) => {
+    const btn = ev.target?.closest?.('[data-act="open-table"]');
+    if (!btn || !listEl.contains(btn)) return;
+    if (btn.getAttribute('aria-busy') === 'true' || btn.disabled) return;
+    const rid = btn.getAttribute('data-rid');
+    if (!rid) return;
+    if (ev.type === 'keydown') {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+    }
+    listEl._mpOnOpenTable?.(rid);
+  };
+  listEl.addEventListener('click', activate);
+  listEl.addEventListener('keydown', activate);
+}
+
+/**
  * Row-level patch: update / insert / remove only; stable order preserved in DOM.
  * Full paint only when lobby shell (#mpOpenList) is missing.
  * @returns {boolean} true if DOM was patched; false if full re-render needed
@@ -593,9 +620,8 @@ export function renderMpLobby(root, vm) {
     });
   });
 
-  root.querySelectorAll('[data-act="open-table"]').forEach((el) => {
-    el.addEventListener('click', () => onOpenTable?.(el.getAttribute('data-rid')));
-  });
+  // Delegated: patched/inserted rows join without a full re-paint
+  wireOpenTablesDelegate($('#mpOpenList', root), (rid) => onOpenTable?.(rid));
 
   // menu primary continue/rescue
   root.querySelectorAll('.mp-menu [data-act="continue"], .mp-menu [data-act="rescue"]').forEach((el) => {

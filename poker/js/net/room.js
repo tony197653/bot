@@ -133,8 +133,25 @@ export async function upsertLobbyListing(fb, roomId, fields, { createdAt } = {})
   }
 }
 
+/** Local suppress set: hide listings after we know the room closed (delete may lag). */
+const closedLobbySuppress = new Set();
+
+export function noteLobbyRoomClosed(roomId) {
+  if (roomId) closedLobbySuppress.add(roomId);
+}
+
+export function isLobbyRoomSuppressed(roomId) {
+  return !!roomId && closedLobbySuppress.has(roomId);
+}
+
+/** @visibleForTesting */
+export function _resetLobbyClosedSuppress() {
+  closedLobbySuppress.clear();
+}
+
 export async function deleteLobbyListing(fb, roomId) {
   if (!fb || !roomId) return;
+  noteLobbyRoomClosed(roomId);
   const { db, fs } = fb;
   try {
     await fs.deleteDoc(fs.doc(db, LOBBY_LIST_COL, roomId));
@@ -502,9 +519,16 @@ export async function closeRoom(fb, roomId, { auto = false } = {}) {
   const { db, fs } = fb;
   const ref = fs.doc(db, 'pokerRooms', roomId);
   const snap = await fs.getDoc(ref);
-  if (!snap.exists()) return;
+  if (!snap.exists()) {
+    await deleteLobbyListing(fb, roomId);
+    return;
+  }
   const r = snap.data();
-  if (r.status === 'closed') return;
+  // Always drop lobby listing — even if room was already closed by another path
+  if (r.status === 'closed') {
+    await deleteLobbyListing(fb, roomId);
+    return;
+  }
   if (auto) {
     await fs.updateDoc(ref, {
       status: 'closed',
@@ -586,7 +610,11 @@ export function listenOpenTables(fb, onRows, onErr) {
     (snap) => {
       const rows = [];
       snap.forEach((d) => {
-        rows.push({ id: d.id, ...d.data() });
+        const data = d.data() || {};
+        // Defensive: never show suppressed / closed leftovers
+        if (closedLobbySuppress.has(d.id)) return;
+        if (data.status === 'closed') return;
+        rows.push({ id: d.id, ...data });
       });
       onRows(sortLobbyListings(rows));
     },

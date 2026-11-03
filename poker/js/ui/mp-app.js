@@ -36,6 +36,8 @@ import {
   closeRoom,
   maybeAutoCloseIdleRoom,
   isRoomOpenStatus,
+  noteLobbyRoomClosed,
+  deleteLobbyListing,
 } from '../net/room.js';
 import {
   ensurePlayerGrant,
@@ -1076,7 +1078,16 @@ async function enterOpenTable(roomId) {
   try {
     const res = await joinByRoomId(fb, roomId, user.uid);
     if (res.ended || res.error) {
-      // M2 #2: just-closed from open list
+      // M2 #2: just-closed from open list — drop stale pokerLobby row
+      if (res.ended) {
+        noteLobbyRoomClosed(roomId);
+        try {
+          await deleteLobbyListing(fb, roomId);
+        } catch {
+          /* ignore */
+        }
+        openTables = openTables.filter((t) => t.id !== roomId);
+      }
       toast(
         res.ended
           ? '這桌剛收桌了，換一桌或開新牌桌'

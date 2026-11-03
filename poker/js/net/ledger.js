@@ -4,6 +4,7 @@
  */
 
 import { LS_PREFIX } from './firebase-config.js';
+import { deleteLobbyListing } from './room.js';
 
 /**
  * Taipei night key: day rolls at 06:00 (§6.10.4).
@@ -254,6 +255,8 @@ export async function settleClosedRoomBinding(fb, uid, roomOrId) {
     return { ok: true, skipped: true };
   }
   room.status = 'closed';
+  // Defensive: any settle-on-closed path must drop the lobby list entry
+  await deleteLobbyListing(fb, roomId);
   return selfRescueCashout(fb, uid, room);
 }
 
