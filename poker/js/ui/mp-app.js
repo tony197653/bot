@@ -178,8 +178,99 @@ function clearRoomUrlParams() {
   }
 }
 
+function hideCloseResultCard() {
+  const el = document.getElementById('mpCloseResult');
+  if (!el) return;
+  el.hidden = true;
+  el.setAttribute('aria-hidden', 'true');
+  el.remove();
+}
+
+/**
+ * After auto/manual close: refresh ledger pointers so lobby never shows a
+ * closed table as「我的牌桌／回到牌桌」. Closed + still seated → rescue settle.
+ */
+async function syncAfterRoomClosed() {
+  const fb = getFirebase();
+  const uid = getUser()?.uid;
+  if (!fb || !uid) return;
+  try {
+    playerDoc = await getPlayer(fb, uid);
+  } catch {
+    /* keep stale */
+  }
+  const tid = playerDoc?.tableRoomId || playerDoc?.hostRoomId;
+  if (!tid) {
+    rescueOk = false;
+    rescueReason = null;
+    rescueChips = null;
+    return;
+  }
+  try {
+    const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
+    const closed = !snap.exists() || snap.data()?.status === 'closed';
+    if (!closed) return;
+    // Host pointer must not keep「我的牌桌／回到牌桌」after close
+    if (playerDoc?.hostRoomId === tid) {
+      try {
+        await fb.fs.updateDoc(fb.fs.doc(fb.db, 'pokerPlayers', uid), {
+          hostRoomId: null,
+          updatedAt: fb.fs.serverTimestamp(),
+        });
+      } catch {
+        /* rules may deny; still clear local cache for lobby paint */
+      }
+      try {
+        playerDoc = await getPlayer(fb, uid);
+      } catch {
+        /* keep going */
+      }
+      if (playerDoc?.hostRoomId === tid) {
+        playerDoc = { ...playerDoc, hostRoomId: null };
+      }
+    }
+    await maybeRefreshRescue();
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Leave close-result without bouncing back into the closed table. */
+async function dismissCloseResultToLobby() {
+  const closedId = roomId || room?.id || null;
+  closeResultDismissedFor = closedId;
+  hideCloseResultCard();
+  clearRoomUrlParams();
+  clearLastRoom();
+  // Intentional exit — must NOT clear autoResumeTried (that re-enterRoom'd the table)
+  autoResumeTried = true;
+  await syncAfterRoomClosed();
+  tearDownRoom();
+  screen = 'lobby';
+  const back = $('#btnBackLobby');
+  if (back) back.hidden = true;
+  paint();
+}
+
+async function dismissCloseResultToStats() {
+  const closedId = roomId || room?.id || null;
+  closeResultDismissedFor = closedId;
+  hideCloseResultCard();
+  clearRoomUrlParams();
+  clearLastRoom();
+  autoResumeTried = true;
+  await syncAfterRoomClosed();
+  tearDownRoom();
+  await openStats();
+}
+
 /** M2 #5: stay on table with result card; do not auto-kick. */
 function showCloseResultCard({ chips = 0, auto = false } = {}) {
+  const rid = roomId || room?.id || null;
+  // User already chose 回大廳／看戰績 — late closed snapshots must not re-open the card
+  if (rid && closeResultDismissedFor === rid) return;
+  if (screen !== 'table' && screen !== 'linking') return;
+
   let el = document.getElementById('mpCloseResult');
   if (!el) {
     el = document.createElement('div');
@@ -202,20 +293,12 @@ function showCloseResultCard({ chips = 0, auto = false } = {}) {
       <button type="button" class="mp-b2" id="mpCloseStats">看戰績</button>
     </div>`;
   el.hidden = false;
+  el.removeAttribute('aria-hidden');
   $('#mpCloseLobby', el)?.addEventListener('click', () => {
-    el.hidden = true;
-    clearRoomUrlParams();
-    clearLastRoom();
-    autoResumeTried = false;
-    leaveToLobby();
+    void dismissCloseResultToLobby();
   });
   $('#mpCloseStats', el)?.addEventListener('click', () => {
-    el.hidden = true;
-    clearRoomUrlParams();
-    clearLastRoom();
-    autoResumeTried = false;
-    tearDownRoom();
-    openStats();
+    void dismissCloseResultToStats();
   });
 }
 
@@ -272,6 +355,8 @@ let mpRaiseHoldTimer = null;
 /** @type {ReturnType<typeof setTimeout> | null} */
 let mpRaiseHoldRepeat = null;
 let autoResumeTried = false;
+/** Room id whose close-result card the user already dismissed (回大廳／看戰績). */
+let closeResultDismissedFor = null;
 /** @type {any[]} */
 let openTables = [];
 /** @type {(() => void)|null} */
@@ -399,6 +484,23 @@ export async function startMpApp() {
     window.__qaLeaveToLobby = () => {
       leaveToLobby();
     };
+    window.__qaShowCloseResult = (chips = 2000, auto = true) => {
+      screen = 'table';
+      showCloseResultCard({ chips, auto });
+      return !!document.getElementById('mpCloseResult');
+    };
+    window.__qaCloseResultState = () => ({
+      screen,
+      hasCard: !!document.getElementById('mpCloseResult'),
+      cardHidden: document.getElementById('mpCloseResult')?.hidden ?? null,
+      autoResumeTried,
+      closeResultDismissedFor,
+      hostRoomId: playerDoc?.hostRoomId || null,
+      tableRoomId: playerDoc?.tableRoomId || null,
+      rescueOk,
+      roomId,
+      roomStatus: room?.status || null,
+    });
     window.__qaShowAwayToast = () => {
       awayLobbyStatus = '已自動離座';
       showLobbyNotify(
@@ -518,6 +620,11 @@ function paint() {
   const soloLobby = $('#lobbyScreen');
   const app = $('#app');
   const inTable = screen === 'table';
+  // Table-only control — must not linger over lobby/stats after close-result
+  if (!inTable) {
+    const back = $('#btnBackLobby');
+    if (back) back.hidden = true;
+  }
 
   if (screen === 'auth') {
     root.hidden = false;
@@ -573,12 +680,17 @@ function paint() {
       awayLobbyStatus = null;
     }
     const last = getLastRoom();
-    const continueId =
-      playerDoc?.tableRoomId ||
-      playerDoc?.hostRoomId ||
-      last?.roomId ||
-      null;
-    // Auto-resume after refresh only (not after intentional 回大廳)
+    // Closed tables: only settle (rescueOk) may keep a card — never「回到牌桌」
+    const openPointer =
+      playerDoc?.tableRoomId && !rescueOk
+        ? playerDoc.tableRoomId
+        : playerDoc?.hostRoomId && !rescueOk
+          ? playerDoc.hostRoomId
+          : null;
+    const continueId = rescueOk
+      ? playerDoc?.tableRoomId || null
+      : openPointer || null;
+    // Auto-resume after refresh only (not after intentional 回大廳／收桌結果)
     if (
       continueId &&
       playerDoc?.tableRoomId === continueId &&
@@ -597,7 +709,18 @@ function paint() {
         if (fb && tid) {
           const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
           if (snap.exists()) {
-            await maybeAutoCloseIdleRoom(fb, { id: tid, ...snap.data() });
+            const data = snap.data();
+            await maybeAutoCloseIdleRoom(fb, { id: tid, ...data });
+            // Pointer at closed room → sync settle / clear host card
+            if (data?.status === 'closed' && screen === 'lobby') {
+              await syncAfterRoomClosed();
+              if (screen === 'lobby') paint();
+              return;
+            }
+          } else if (screen === 'lobby') {
+            await syncAfterRoomClosed();
+            if (screen === 'lobby') paint();
+            return;
           }
         }
       } catch {
@@ -682,6 +805,7 @@ function paint() {
 
   if (screen === 'create') {
     root.hidden = false;
+    root.classList.remove('mp-root-table');
     renderCreateRoom(root, {
       defaults: createDraft,
       creating,
@@ -700,6 +824,7 @@ function paint() {
 
   if (screen === 'share' && shareInfo) {
     root.hidden = false;
+    root.classList.remove('mp-root-table');
     renderShareRoom(root, {
       ...shareInfo,
       onShare: async (url) => {
@@ -730,6 +855,7 @@ function paint() {
 
   if (screen === 'join') {
     root.hidden = false;
+    root.classList.remove('mp-root-table');
     renderJoinCode(root, {
       digits: joinDigits,
       joining,
@@ -760,6 +886,9 @@ function paint() {
 
   if (screen === 'stats') {
     root.hidden = false;
+    root.classList.remove('mp-root-table');
+    if (app) app.classList.add('hidden');
+    silenceSoloScreens();
     renderStats(root, {
       mode: statsMode,
       rows: statsRows,
@@ -768,6 +897,8 @@ function paint() {
       myUid: authState.user?.uid,
       offline: authState.status === 'offline',
       onBack: () => {
+        // From 看戰績 after close-result: stay in lobby, never auto-resume table
+        autoResumeTried = true;
         screen = 'lobby';
         paint();
       },
@@ -1085,6 +1216,12 @@ async function enterRoom(id, { asHostSit = false } = {}) {
   const fb = getFirebase();
   const user = getUser();
   if (!fb || !user) return;
+  // New/resumed table — allow a future close-result for this (or another) room
+  if (closeResultDismissedFor && closeResultDismissedFor !== id) {
+    closeResultDismissedFor = null;
+  }
+  // Re-entering the same closed room after dismiss should not re-show the card
+  // unless the room is open again; cleared when status is open below.
 
   // Soft resume after leaveToLobby keepAlive: same room still listening — just show table.
   if (
@@ -1129,6 +1266,8 @@ async function enterRoom(id, { asHostSit = false } = {}) {
 
   tearDownRoom();
   roomId = id;
+  // Fresh enter of an open table resets dismiss guard
+  closeResultDismissedFor = null;
 
   // Ensure membership: try read; on permission-denied, need code path from lastRoom / URL
   try {
@@ -1156,15 +1295,19 @@ async function enterRoom(id, { asHostSit = false } = {}) {
       lastRecvAt = Date.now();
       if (r.status === 'closed') {
         // M2 #5: result card — do not auto-kick to lobby
+        clearLastRoom();
+        // Already dismissed (回大廳／看戰績) or left table — ignore late snapshots
+        if (closeResultDismissedFor === id || screen !== 'table') {
+          return;
+        }
         const uid = getUser()?.uid;
         const seat = uid ? r.seatUids?.indexOf(uid) ?? -1 : -1;
         const chips =
           seat >= 0
             ? Number(r.stacks?.[seat] || 0)
             : Number(playerDoc?.inPlay || 0);
-        const auto = !!(r.lobby?.autoClosed || r.autoClosed);
-        clearLastRoom();
-        autoResumeTried = false;
+        const auto =
+          !!(r.lobby?.autoClosed || r.autoClosed) || r.closedBy === 'auto';
         showCloseResultCard({ chips, auto });
         paintTableChrome();
         return;
@@ -2418,8 +2561,7 @@ function tearDownRoom() {
     clearInterval(topUpDenyTick);
     topUpDenyTick = null;
   }
-  const closeCard = document.getElementById('mpCloseResult');
-  if (closeCard) closeCard.hidden = true;
+  hideCloseResultCard();
   const alone = document.getElementById('mpHostAlone');
   if (alone) alone.hidden = true;
   removeMpMenuExtras();
@@ -2557,9 +2699,10 @@ export function mpCloseRoom() {
   closeRoom(fb, id)
     .then(() => {
       clearLastRoom();
-      autoResumeTried = false;
       // Stay on table; listenRoom closed branch also fires — show card here too for host
-      showCloseResultCard({ chips, auto: false });
+      if (closeResultDismissedFor !== id) {
+        showCloseResultCard({ chips, auto: false });
+      }
     })
     .catch((e) => {
       toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
