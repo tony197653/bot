@@ -1905,7 +1905,11 @@ function syncMpRaiseUi(range) {
     range.style.setProperty('--raise-pct', `${clampMpRaise(pct, 0, 100)}%`);
   }
   if (mpRaisePresetId) {
-    const btn = document.querySelector(`#presets button[data-id="${mpRaisePresetId}"]`);
+    const safeId =
+      typeof CSS !== 'undefined' && CSS.escape
+        ? CSS.escape(mpRaisePresetId)
+        : mpRaisePresetId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const btn = document.querySelector(`#presets button[data-id="${safeId}"]`);
     if (btn && +btn.dataset.to !== mpRaiseTo) mpRaisePresetId = null;
   }
   for (const b of document.querySelectorAll('#presets button')) {
@@ -2281,15 +2285,17 @@ function silenceSoloScreens() {
     el.classList.remove('is-on');
     el.classList.add('hidden');
   });
-  // Raise panel lives outside #app — keep closed panels out of tab order
+  // Raise panel lives outside #app — keep closed panels out of tab order.
+  // Never clobber an in-flight open (is-on / raiseOpen): that re-inert's the
+  // panel and makes 確認下注 clicks fall through to the scrim.
   const raise = $('#raisePanel');
   const scrim = $('#raiseScrim');
-  if (raise && !raise.classList.contains('is-on')) {
+  if (raise && !raise.classList.contains('is-on') && !raiseOpen) {
     raise.inert = true;
     raise.setAttribute('aria-hidden', 'true');
     raise.hidden = true;
   }
-  if (scrim && !scrim.classList.contains('is-on')) {
+  if (scrim && !scrim.classList.contains('is-on') && !raiseOpen) {
     scrim.inert = true;
     scrim.hidden = true;
   }

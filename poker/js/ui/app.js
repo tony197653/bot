@@ -178,7 +178,11 @@ function syncRaiseUi() {
   }
   // Slider/± may leave the selected preset's amount — clear id so dupes don't re-light
   if (raisePresetId) {
-    const btn = $(`#presets button[data-id="${raisePresetId}"]`);
+    const safeId =
+      typeof CSS !== 'undefined' && CSS.escape
+        ? CSS.escape(raisePresetId)
+        : raisePresetId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const btn = $(`#presets button[data-id="${safeId}"]`);
     if (btn && +btn.dataset.to !== raiseTo) raisePresetId = null;
   }
   syncPresetPressed();
@@ -2267,10 +2271,13 @@ function closeRaisePanel() {
   if (scrim) {
     scrim.classList.remove('is-on');
     scrim.hidden = true;
+    scrim.inert = true;
   }
   if (panel) {
     panel.classList.remove('is-on');
     panel.hidden = true;
+    panel.inert = true;
+    panel.setAttribute('aria-hidden', 'true');
   }
   clearRaiseHold();
 }
@@ -2321,13 +2328,18 @@ function openRaisePanel(legal) {
 
   const scrim = $('#raiseScrim');
   const panel = $('#raisePanel');
+  // Boot / silenceSoloScreens leave the panel inert+aria-hidden; must clear or
+  // clicks fall through to #raiseScrim and 確認下注/快捷鍵 do nothing.
   if (scrim) {
     scrim.hidden = false;
+    scrim.inert = false;
     requestAnimationFrame(() => scrim.classList.add('is-on'));
     scrim.onclick = () => closeRaisePanel();
   }
   if (panel) {
     panel.hidden = false;
+    panel.inert = false;
+    panel.removeAttribute('aria-hidden');
     requestAnimationFrame(() => panel.classList.add('is-on'));
   }
   raisePanelOpen = true;
