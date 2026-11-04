@@ -1007,7 +1007,7 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-seat-state{margin-left:4px;font-size:10px;font-style:normal;color:var(--mute);font-weight:700;border:1px solid rgba(201,191,159,.45);border-radius:7px;padding:0 5px;line-height:16px}
 .mp-seat-state.is-away-tag{color:var(--accent);border-color:rgba(230,191,90,.45)}
 .mp-actions{display:flex;flex-direction:column;gap:8px;margin-top:8px}
-.mp-foot{display:none} /* L9: 同一支手機輪流玩／登出 → ⋯ menu only */
+.mp-foot{display:none} /* L9: foot legacy CTA hidden; ⋯ menu is 戰績／設定／登出 */
 /* P3/P4 (15a1503): prev white+#A9ADA3 B2; next sage-deep B1; poker page primaries stay --accent */
 .mp-stp-ctl{display:flex;justify-content:center;gap:10px;margin-top:22px}
 .mp-stp-prev,.mp-stp-next{box-sizing:border-box;width:112px;min-width:112px;height:44px;min-height:44px;padding:0 12px;border-radius:8px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;transition:background-color .22s cubic-bezier(.2,.7,.2,1),border-color .22s cubic-bezier(.2,.7,.2,1),opacity .22s cubic-bezier(.2,.7,.2,1);transform:none}

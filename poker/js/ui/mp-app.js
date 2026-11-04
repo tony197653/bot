@@ -1,6 +1,6 @@
 /**
  * Milestone-2 shell: auth → lobby → create/join → table (§2 / §13).
- * Solo hot-seat remains available via openSolo().
+ * Solo hot-seat engine kept for ?solo=1 / internal use; no lobby menu entry.
  */
 
 import {
@@ -988,12 +988,10 @@ function paint() {
       },
       onOpenTable: (rid) => enterOpenTable(rid),
       onStats: () => openStats(),
-      onSolo: () => openSolo(),
       onSignOut: () => signOut(),
       onRescue: () => doRescue(),
       onAvatar: () => openStats(),
-      onSettings: () =>
-        toast('設定還在製作中，請先用⋯選單的「戰績」或「同一支手機輪流玩」'),
+      onSettings: () => toast('設定還在製作中，請先用⋯選單的「戰績」'),
       lobbyStatus: awayLobbyStatus,
     });
     return;

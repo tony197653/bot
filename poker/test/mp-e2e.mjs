@@ -347,13 +347,9 @@ async function runShowdown(browser, base, viewport, label) {
   return { ok: hasShowOrNext || sawShow, hasShowOrNext, sawShow, roomId };
 }
 
-/** Lobby →「同一支手機輪流玩」→ full solo hand (not ?solo=1). */
+/** Solo hand via ?solo=1 (lobby ⋯ menu no longer exposes 同一支手機輪流玩). */
 async function runSoloFromLobby(browser, base, viewport, label) {
-  const p = await makePlayer(browser, base, '宜靜', `solo${label}`, viewport);
-  // BD §2.1: solo lives in ⋯ menu
-  await p.page.click('#mpMenuBtn');
-  await p.page.waitForSelector('#mpMenu.on [data-act="solo"]', { timeout: 5000 });
-  await p.page.click('#mpMenu [data-act="solo"]');
+  const p = await makePlayer(browser, `${base}?solo=1`, '宜靜', `solo${label}`, viewport);
   await p.page.waitForSelector('#lobbyScreen.is-on', { timeout: 10000 });
   const appHidden = await p.page.evaluate(() =>
     document.getElementById('app')?.classList.contains('hidden'),
@@ -1181,8 +1177,9 @@ async function runMineCardStates(browser, base, viewport, label) {
     hostAgain.top === '我是房主' &&
     hostMenu.some((t) => /回到牌桌/.test(t)) &&
     hostMenu.some((t) => t === '戰績') &&
-    hostMenu.some((t) => /同一支手機輪流玩/.test(t)) &&
-    hostMenu.some((t) => t === '登出');
+    hostMenu.some((t) => t === '設定') &&
+    hostMenu.some((t) => t === '登出') &&
+    !hostMenu.some((t) => /同一支手機輪流玩/.test(t));
   const guestOk =
     guestCard.hasMine &&
     /入座中/.test(guestCard.tag) &&
@@ -1232,8 +1229,8 @@ async function runMineCardStates(browser, base, viewport, label) {
     idle.hasJoin &&
     idle.menu.some((t) => t === '戰績') &&
     idle.menu.some((t) => t === '設定') &&
-    idle.menu.some((t) => /同一支手機輪流玩/.test(t)) &&
     idle.menu.some((t) => t === '登出') &&
+    !idle.menu.some((t) => /同一支手機輪流玩/.test(t)) &&
     !idle.menu.some((t) => /回到牌桌|結帳離開/.test(t));
 
   return {
