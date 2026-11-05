@@ -1,0 +1,237 @@
+/* 考題網 shell：登入、首頁、匯入、抽屜（v1.4.1） */
+.app-shell{min-height:100dvh;display:flex;flex-direction:column}
+.app-top{position:sticky;top:0;z-index:40;background:var(--top-bg);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--line)}
+.app-top-in{max-width:1120px;margin:0 auto;height:56px;display:flex;align-items:center;gap:8px;padding:0 max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left))}
+/* QA#27：文字鈕／導覽／選單連結不加底線（內文連結、I2、I6、G2 除外） */
+.app-top a,.app-nav a,.app-drawer a,
+.r-actions a,.r-actions .btn,.btn.b1,.btn.b2,.btn.leave{
+  text-decoration:none!important
+}
+.app-top a:hover,.app-top a:focus,.app-top a:focus-visible,
+.app-nav a:hover,.app-nav a:focus,.app-nav a:focus-visible,
+.app-drawer a:hover,.app-drawer a:focus,.app-drawer a:focus-visible,
+.r-actions a:hover,.r-actions a:focus,.r-actions .btn:hover,.r-actions .btn:focus,
+.btn.b2:hover,.btn.b2:focus{
+  text-decoration:none!important
+}
+/* 標題區：手機 M6＋站名；桌機站名＋橫向導覽（A-1）。CQ 只包 m8bar，避免導覽擠掉站名 */
+.hdr-title{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 auto}
+.hdr-title .m8bar{display:flex;align-items:center;gap:4px;min-width:0;flex:1 1 auto;container-type:inline-size}
+@media (min-width:900px){
+  /* R5-5／線框 A-1：站名完整顯示、導覽在旁、不重疊；右上讓給 M1。
+     桌機關掉 container-type，避免 inline-size containment 把 m8bar 寬度算成 0。 */
+  .hdr-title{flex:0 0 auto;max-width:calc(100% - 140px);gap:12px}
+  .hdr-title .m8bar{flex:0 0 auto;min-width:auto;container-type:normal}
+  .hdr-title .blink{flex:none;min-width:auto}
+  .hdr-title .blink .bname{
+    position:relative!important;width:auto!important;height:auto!important;
+    overflow:visible!important;clip-path:none!important;clip:auto!important
+  }
+}
+/* M6 三線變叉（components/ 原樣） */
+.mbtn{position:relative;width:44px;height:44px;flex:none;display:grid;place-items:center;padding:0;border:0;border-radius:var(--r-sm);background:transparent;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.mbtn::before{content:"";position:absolute;inset:0;border-radius:inherit;background:#E8E9E3;opacity:0;transition:opacity .22s var(--ease)}
+.mbtn svg{position:relative;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;overflow:visible}
+@media (hover:hover) and (pointer:fine){.mbtn:hover::before{opacity:.6}}
+.mbtn[aria-expanded=true]::before{opacity:.75}
+.mbtn:active::before{opacity:1;transition-duration:.06s}
+.mbtn:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.m6 line{transform-box:view-box;transform-origin:12px 12px;transition:transform .22s var(--ease),opacity .22s var(--ease)}
+.m6[aria-expanded=true] .l1{transform:translateY(5px) rotate(45deg)}
+.m6[aria-expanded=true] .l2{opacity:0}
+.m6[aria-expanded=true] .l3{transform:translateY(-5px) rotate(-45deg)}
+/* M8 網站名稱／回首頁（components/ 原樣） */
+.blink{position:relative;display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 10px;border-radius:var(--r-sm);color:var(--ink);text-decoration:none;white-space:nowrap;min-width:0;flex:0 1 auto;-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer}
+.blink::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--bg);opacity:0;transition:opacity .22s var(--ease)}
+@media (hover:hover) and (pointer:fine){.blink:hover::before{opacity:1}}
+.blink:active::before{opacity:1;background:var(--line-soft);transition-duration:.06s}
+.blink:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.blink .bmark{position:relative;flex:none;width:24px;height:24px;display:grid;place-items:center;border-radius:var(--r-xs);background:var(--ink);color:#fff;font-size:13px;font-weight:700;line-height:1}
+.blink .bname{position:relative;font-size:17px;font-weight:600;color:var(--ink);line-height:1;overflow:hidden;text-overflow:clip}
+@container (max-width:200px){.blink .bname{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}}
+@media (prefers-reduced-motion:reduce){
+ .mbtn::before,.m6 line,.blink::before{transition:none}
+}
+.app-nav{display:none;gap:4px;flex:none;align-items:center}
+.app-nav a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:8px 12px;border-radius:var(--r-sm);text-decoration:none;color:var(--mute);font-size:14px}
+.app-nav a.on{color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-strong)}
+@media (hover:hover) and (pointer:fine){.app-nav a:hover:not(.on){background:var(--surface)}}
+/* R5-4：桌機導覽／抽屜焦點用 sage 焦點環（元件庫） */
+.app-nav a:focus-visible,.app-drawer a:focus-visible{
+  outline:2px solid var(--sage);outline-offset:3px;box-shadow:none
+}
+.app-main{flex:1;max-width:1120px;width:100%;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.page-title{font-size:22px;font-weight:600;margin:0 0 12px;letter-spacing:.04em}
+.page.login{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100dvh - 120px);text-align:center;gap:12px;padding-bottom:24px}
+.page.login h1{font-size:28px;margin:0}
+.page.login .lead{color:var(--mute);max-width:320px}
+.page.login .btn.b1{width:min(100%,400px);margin-top:8px}
+.page.login .warn.on,.page.login .iab-warn{height:auto;opacity:1;overflow:visible;max-width:360px;margin:0;color:var(--bad-ink)}
+.page.login .err{color:var(--bad-ink);max-width:360px}
+@media (max-width:767px){
+ .page.login{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+ .page.login .btn.b1{position:fixed;left:16px;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));max-width:400px;margin:0 auto;width:auto}
+}
+.card{background:var(--surface);box-shadow:var(--shadow);border-radius:var(--r);padding:16px}
+.field{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--mute)}
+.ctrl-select,.i1 select{
+ min-height:44px;min-width:8rem;border-radius:var(--r-sm);border:1px solid var(--line);padding:0 36px 0 12px;
+ background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2367655F' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 12px center;
+ color:var(--ink);font:inherit;appearance:none;-webkit-appearance:none}
+.ctrl-check{display:inline-flex;align-items:center;gap:10px;min-height:44px;font-size:15px;color:var(--ink)}
+.ctrl-check input[type=checkbox]{
+ appearance:none;-webkit-appearance:none;width:20px;height:20px;margin:0;flex:none;border:1.5px solid var(--line-strong);
+ border-radius:4px;background:var(--surface);display:grid;place-content:center;cursor:pointer}
+.ctrl-check input[type=checkbox]::before{
+ content:"";width:10px;height:10px;transform:scale(0);transition:transform .14s var(--ease);
+ box-shadow:inset 1em 1em var(--accent);clip-path:polygon(14% 44%,0 65%,50% 100%,100% 16%,80% 0,43% 62%)}
+.ctrl-check input[type=checkbox]:checked{border-color:var(--accent);background:var(--sel)}
+.ctrl-check input[type=checkbox]:checked::before{transform:scale(1)}
+.ctrl-check input[type=checkbox]:focus-visible{outline:none;box-shadow:var(--halo)}
+.book-grid{display:grid;gap:16px}
+@media (min-width:900px){
+ .book-grid{grid-template-columns:repeat(3,1fr)}
+ .app-nav{display:flex}
+ .app-nav[hidden]{display:none!important}
+ [data-drawer-toggle]{display:none!important}
+}
+.book header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:12px}
+.book h2{font-size:17px;margin:0;font-weight:600}
+.unit-block{margin-top:10px}
+.unit-name{font-size:13px;color:var(--mute);margin:0 0 6px}
+.round{display:flex;justify-content:space-between;width:100%;text-align:left;padding:10px 12px;border:0;background:var(--surface-2);border-radius:var(--r-sm);margin-bottom:6px;cursor:pointer;min-height:44px}
+.round.on{box-shadow:inset 0 0 0 2px var(--accent);background:var(--sel)}
+.round-pick{color:var(--accent);font-weight:600;margin-left:4px}
+@media (hover:hover) and (pointer:fine){.round:hover{background:var(--surface)}}
+.dock{position:sticky;bottom:0;z-index:20;padding:12px;margin:0 -4px;background:var(--surface);box-shadow:0 -1px 0 var(--line);display:grid;gap:8px;border-radius:var(--r) var(--r) 0 0}
+.import-work{padding-bottom:140px}
+.import-preview .preview{padding-bottom:16px}
+.import-editor select[data-field=answer]{min-width:6rem;min-height:48px;font-size:16px}
+.fig-upload{display:inline-flex;cursor:pointer}
+.vh{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.save-hint{margin:0;padding:8px 10px;border-radius:var(--r-sm);background:var(--bad-soft);color:var(--bad-ink);font-size:13px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tab{border:0;background:var(--surface-2);padding:8px 12px;border-radius:999px;cursor:pointer;min-height:44px}
+.tab.on{background:var(--ink);color:var(--b1-fg)}
+.tab .l5{margin-left:6px;font-variant-numeric:tabular-nums;opacity:.85}
+.e1,.e2,.e3,.mute{color:var(--mute)}
+.e2{color:var(--bad-ink)}
+.skel{animation:pulse 1.2s var(--ease-in) infinite}
+@keyframes pulse{50%{opacity:.5}}
+/* D5 抽屜 */
+.drawer-backdrop{display:none;position:fixed;inset:0;background:rgba(31,31,29,.35);z-index:50;opacity:0;transition:opacity .22s var(--ease)}
+.app-drawer{position:fixed;top:0;left:0;bottom:0;width:min(300px,88vw);background:var(--surface);box-shadow:var(--sheet-shadow);transform:translateX(-105%);opacity:0;visibility:hidden;transition:transform .22s var(--ease),opacity .22s var(--ease),visibility 0s linear .22s;z-index:60;padding:20px 16px;display:flex;flex-direction:column;gap:8px}
+.drawer-open .drawer-backdrop{display:block;opacity:1}
+.drawer-open .app-drawer{transform:none;opacity:1;visibility:visible;transition:transform .22s var(--ease),opacity .22s var(--ease),visibility 0s}
+@media (prefers-reduced-motion:reduce){
+ .app-drawer,.drawer-backdrop{transition:none}
+}
+.app-drawer a{text-decoration:none;color:var(--ink);padding:12px;border-radius:var(--r-sm);min-height:44px;display:flex;align-items:center}
+@media (hover:hover) and (pointer:fine){.app-drawer a:hover{background:var(--surface-2)}}
+/* 手機：圓形頭像開 D5；桌機：線框 A-1「宗良 ↓」開 M1 */
+.nav-user{position:relative;margin-left:auto;flex:none}
+.nav-avatar{width:44px;height:44px;min-width:44px;min-height:44px;border-radius:50%;border:0;background:var(--accent);color:var(--surface);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex:none;gap:4px;padding:0;font:inherit}
+.nav-avatar-letter{display:inline-flex;align-items:center;justify-content:center}
+.nav-avatar-label{display:none;align-items:center;gap:4px}
+.nav-avatar-name{font-size:14px;font-weight:500;max-width:8em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-avatar-chev{font-size:12px;line-height:1;opacity:.75}
+.nav-user-menu{position:absolute;right:0;top:calc(100% + 6px);min-width:160px;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);box-shadow:var(--sheet-shadow);z-index:70;display:flex;flex-direction:column;gap:2px}
+.nav-user-menu[hidden]{display:none!important}
+.nav-user-menu .mi{appearance:none;border:0;background:transparent;text-align:left;padding:10px 12px;border-radius:var(--r-xs);min-height:44px;font:inherit;color:var(--ink);cursor:pointer}
+@media (hover:hover) and (pointer:fine){.nav-user-menu .mi:hover{background:var(--surface-2)}}
+.nav-user-menu .mi:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
+@media (min-width:900px){
+  .nav-avatar{
+    width:auto;min-width:44px;height:44px;border-radius:var(--r-sm);
+    background:transparent;color:var(--ink);padding:0 10px;
+    border:1px solid transparent
+  }
+  .nav-avatar[aria-expanded=true],.nav-avatar:focus-visible{border-color:var(--line-strong);outline:2px solid var(--sage);outline-offset:3px;box-shadow:none}
+  @media (hover:hover) and (pointer:fine){.nav-avatar:hover{background:var(--surface)}}
+  .nav-avatar-letter{display:none}
+  .nav-avatar-label{display:inline-flex}
+}
+#app-toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(12px);background:var(--toast-bg);color:var(--toast-fg);padding:12px 18px;border-radius:var(--r);opacity:0;pointer-events:none;transition:opacity .2s var(--ease-out),transform .2s var(--ease-out);z-index:80;max-width:90vw;display:flex;align-items:center;gap:12px}
+#app-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#app-toast.has-act{pointer-events:auto}
+#app-toast .toast-msg{flex:1 1 auto;min-width:0}
+#app-toast .toast-act{flex:none;min-height:36px;padding:6px 12px;font-size:14px}
+.import-split{display:grid;gap:16px}
+@media (min-width:960px){.import-split{grid-template-columns:320px 1fr}}
+.import-row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:flex-start;gap:6px;width:100%;text-align:left;padding:12px;border:0;background:var(--surface);border-radius:var(--r-sm);margin-bottom:6px;cursor:pointer;min-height:56px}
+.import-row>span:first-child{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+/* N-8：「將覆蓋」標籤隨內容縮放，不撐滿整列 */
+.import-row .l3{flex:0 0 auto;width:auto;max-width:100%;margin-left:0;align-self:flex-start;display:inline-block}
+.import-row.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.import-editor>.l3{display:inline-block;width:auto;max-width:fit-content}
+.p3{display:flex;gap:8px;list-style:none;padding:0;margin:0 0 16px}
+.p3 li{padding:6px 10px;border-radius:999px;background:var(--surface-2);font-size:13px}
+.p3 li.on{background:var(--ink);color:var(--b1-fg)}
+.banner{background:var(--bad-soft);color:var(--bad-ink);padding:10px 12px;border-radius:var(--r-sm);margin-bottom:12px}
+.l2{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:2px 8px;border-radius:999px}
+.l2.good{color:var(--ok-ink);background:var(--ok-soft)}
+.l2.mid{color:var(--warn);background:var(--warn-soft)}
+.l2.weak,.l2.bad{color:var(--bad-ink);background:var(--bad-soft)}
+.l2.none{color:var(--mute);background:var(--surface-2)}
+.l3{font-size:12px;color:var(--mute);margin-left:6px}
+.i1 textarea,.i1 input[type=text]{width:100%;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;font:inherit;min-height:44px}
+.th-sort{border:0;background:none;font:inherit;color:inherit;cursor:pointer;padding:4px 8px;min-height:44px;min-width:44px}
+.home-unit-entry{margin:0 0 12px}
+/* §3 2 首頁 v1.4：sticky 主操作列 → 這次要練 → 書卡 */
+.page.home{margin:0;padding:0}
+.page.home .home-empty{margin:0;font-size:16px;line-height:1.6}
+.home-ops{
+  position:sticky;top:56px;z-index:30;display:grid;gap:8px;align-items:end;
+  margin:0 -16px 16px;padding:10px 16px;background:var(--bg);
+  border-bottom:1px solid var(--line)
+}
+.home-ops--admin{grid-template-columns:1fr 1.2fr 1.2fr}
+.home-ops--student{grid-template-columns:1fr 2.4fr}
+.home-ops .home-ops-subject{margin:0;min-width:0}
+.home-ops-sub-label{display:none}
+.home-ops .ctrl-select{width:100%;min-width:0;height:48px;min-height:48px;font-size:16px}
+.home-ops .btn{width:100%;height:48px;min-height:48px;font-size:16px;padding:0 8px}
+.home-ops-import{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.practice-card{margin:0 0 16px;display:grid;gap:12px}
+.practice-range{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:space-between}
+.practice-range-t{margin:0;font-size:16px;line-height:1.5;font-weight:500;flex:1 1 auto;min-width:0}
+.practice-settings{display:grid;gap:8px}
+.practice-empty-reason{margin:0}
+.book-toolbar{margin:0 0 12px}
+.book-toolbar .home-book-filter{display:none}
+.home-empty-wrap{margin:8px 0}
+@media (min-width:900px){
+  .app-top-in{height:64px}
+  .home-ops{
+    top:64px;max-width:960px;margin:0 auto 20px;padding:12px 0;gap:16px;border-bottom:0
+  }
+  .home-ops--admin{grid-template-columns:1fr 1.5fr 1.5fr}
+  .home-ops--student{grid-template-columns:1fr 3fr}
+  .home-ops-sub-label{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
+  .home-ops .ctrl-select,.home-ops .btn{height:52px;min-height:52px}
+  .practice-card{
+    max-width:960px;margin:0 auto 20px;
+    grid-template-columns:1fr auto;align-items:center
+  }
+  .practice-settings{display:flex;align-items:flex-end;gap:16px}
+  .book-toolbar{max-width:960px;margin:0 auto 12px;display:flex;justify-content:flex-end}
+  .book-toolbar .home-book-filter{display:flex;flex-direction:column}
+  .book-grid{max-width:960px;margin:0 auto}
+}
+.flag-code{font-size:11px;color:var(--mute);margin-left:4px;font-weight:500}
+.opt-tag{display:inline-block;margin-left:8px;font-size:13px;font-weight:600}
+.opt-tag.ok-t{color:var(--ok-ink)}.opt-tag.bad-t{color:var(--bad-ink)}
+.char-count{font-size:13px;color:var(--mute);margin:0 0 8px}
+/* 高於 #app-toast(80)，避免「重新登入」被另一則提示蓋住 */
+.session-expired-banner{
+  position:fixed;left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:90;
+  background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r);padding:12px 14px;
+  box-shadow:var(--pop-shadow);display:grid;gap:10px
+}
+.session-expired-banner p{margin:0;font-size:15px;line-height:1.5}
+.import-done{margin:16px 0;padding:12px;border-top:1px solid var(--line)}
+.empty-next{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+body.signed-out .drawer-backdrop,body.signed-out .app-drawer{display:none!important}
+body[data-view=result] .app-main{max-width:808px;margin-left:auto;margin-right:auto}
+body[data-view=result] .result .r-hero .segs,
+body[data-view=result] .result .r-actions{width:100%;max-width:100%;box-sizing:border-box}

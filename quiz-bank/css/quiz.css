@@ -1,0 +1,55 @@
+/* 作答＋結算延伸（template-demo 與正式站共用） */
+body[data-view=quiz] .app-shell .app-top,
+body[data-view=quiz] .app-shell .app-nav,
+body[data-view=quiz] .app-shell [data-drawer-toggle],
+body[data-view=quiz] .app-shell .nav-avatar,
+body[data-view=quiz] .app-shell .nav-user{display:none!important}
+body[data-view=quiz] .app-shell .app-main{padding:0;max-width:none}
+body[data-view=result] .app-shell .app-main{max-width:808px}
+/* 超過約 12 題：只有泡泡列橫向捲，頁面本身不橫捲 */
+.strip.strip-scroll,.bub-strip.strip-scroll{
+  flex-wrap:nowrap!important;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+  padding-bottom:4px;
+  max-width:100%;
+  scrollbar-width:thin;
+}
+.strip-scroll .bub{flex:0 0 44px;width:44px;height:44px}
+.segs.strip-scroll{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;padding:4px 0;max-width:100%;justify-content:flex-start}
+@media (max-width:520px){
+  body[data-view=quiz] .wrap,body[data-view=result] .wrap{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+  html,body{overflow-x:hidden;overflow-x:clip;max-width:100vw}
+}
+.group-pass{margin-bottom:12px}
+.fig,.fig-zoom{max-width:100%}
+.fig-zoom{border:0;padding:0;background:none;cursor:pointer;border-radius:var(--r-sm);display:block;width:fit-content;max-width:100%}
+.fig-zoom img,.fig img{max-width:100%;width:auto;height:auto;max-height:min(70dvh,640px);object-fit:contain;display:block;border-radius:var(--r-sm)}
+.lightbox{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px}
+.lightbox-backdrop{position:absolute;inset:0;background:rgba(31,31,29,.72)}
+.lightbox-panel{position:relative;z-index:1;max-width:min(100%,900px)}
+.lightbox-panel img{max-width:100%;width:auto;height:auto;max-height:90dvh;object-fit:contain;border-radius:var(--r);display:block}
+.lightbox-close{position:absolute;top:8px;right:8px;z-index:2}
+.lightbox-open{overflow:hidden}
+body[data-view=result] .result{max-width:808px;margin:0 auto}
+body[data-view=result] .segs{justify-content:center;flex-wrap:wrap}
+body[data-view=result] .r-actions{justify-content:center}
+.katex-error{color:inherit!important;background:none!important}
+.leave-dlg{border:0;border-radius:var(--r-lg);padding:20px;max-width:420px;width:calc(100% - 32px);box-shadow:var(--pop-shadow);margin:auto}
+.leave-dlg::backdrop{background:rgba(31,31,29,.72)}
+.leave-dlg form{display:grid;gap:12px}
+.leave-dlg .leave-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.wrong-detail-dlg{border:0;border-radius:var(--r-lg);padding:20px;max-width:560px;width:calc(100% - 32px);box-shadow:var(--pop-shadow);margin:auto;max-height:90dvh;overflow:auto}
+.wrong-detail-dlg::backdrop{background:rgba(31,31,29,.72)}
+body.signed-out [data-drawer-toggle],
+body.signed-out .app-nav,
+body.signed-out .nav-avatar,
+body.signed-out .nav-user,
+body.signed-out .app-drawer,
+body.signed-out .drawer-backdrop{display:none!important}
+.report-dlg{border:0;border-radius:var(--r-lg);padding:20px;max-width:420px;width:calc(100% - 32px);box-shadow:var(--pop-shadow)}
+.report-dlg form{display:grid;gap:12px}
+.report-dlg select,.report-dlg textarea,.report-dlg input{width:100%;min-height:44px;border:1px solid var(--line);border-radius:var(--r-sm);padding:8px;font:inherit;box-sizing:border-box}
+.cloud-warn{color:var(--bad-ink);font-size:14px;margin-top:8px}

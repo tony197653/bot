@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>考題網・測試 harness</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/b.css">
+  <link rel="stylesheet" href="../css/quiz.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/mhchem.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    import { startQuiz, requestLeave, getActiveQuiz } from '../js/quiz.js';
+    import { showResult } from '../js/result.js';
+    import { bindLightboxOnce } from '../js/lightbox.js';
+    import { formatRoundSummary } from '../js/summary.js';
+
+    bindLightboxOnce(document);
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode') || 'instant';
+    const resume = params.get('resume') === '1';
+    const progressKey = 'quizbank:v1:progress:harness';
+    const batch = await (await fetch('../test-data/fake-batch.json')).json();
+    const title = batch.book.title + '・第 1 回';
+
+    let initialAnswers;
+    let initialIndex;
+    if (resume) {
+      try {
+        const prog = JSON.parse(localStorage.getItem(progressKey) || 'null');
+        if (prog?.answers) {
+          initialAnswers = prog.answers;
+          initialIndex = prog.idx;
+        }
+      } catch { /* ignore */ }
+    }
+
+    /** @type {Map<string, Promise<{ok:boolean}>>} */
+    const inflight = new Map();
+    const pendingKey = 'quizbank:v1:pending:harness';
+    const resultKey = 'quizbank:v1:lastResult:harness';
+
+    function attemptIdFor(result) {
+      const q0 = (result.qids && result.qids[0]) || 'x';
+      return `att_${result.startedAt}_${result.endedAt}_${result.score}_${result.total}_${q0}`;
+    }
+
+    function toast(msg) {
+      let el = document.getElementById('app-toast');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'app-toast';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+      el.classList.add('on');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.remove('on'), 2200);
+    }
+
+    window.__harness = {
+      progressKey,
+      formatRoundSummary,
+      requestLeave,
+      getActiveQuiz,
+      lastResult: null,
+      lastSummary: null,
+      reports: [],
+      reportFail: false,
+      saveCount: 0,
+      records: [],
+      offline: params.get('offline') === '1',
+    };
+
+    startQuiz({
+      title,
+      questions: batch.questions,
+      groups: batch.groups,
+      mode,
+      shuffle: false,
+      mount: document.getElementById('root'),
+      progressKey,
+      scope: {
+        type: 'round',
+        bookId: batch.book.bookId,
+        bookTitle: batch.book.title,
+        unitCode: batch.questions[0].unitCode,
+        unitName: batch.questions[0].unit,
+        round: 1,
+      },
+      initialAnswers,
+      initialIndex,
+      clearProgressOnFinish: false,
+      onReport: async (payload) => {
+        if (window.__harness.reportFail) throw new Error('回報失敗測試');
+        if (window.__harness.reports.includes(payload.qid)) return;
+        window.__harness.reports.push(payload.qid);
+      },
+      onLeave: () => {
+        document.getElementById('root').innerHTML = '<p data-el="left">已離開</p>';
+      },
+      onFinish: async (result) => {
+        window.__harness.lastResult = result;
+        const summary = formatRoundSummary({
+          scope: {
+            type: 'round',
+            bookTitle: batch.book.title,
+            unitCode: batch.questions[0].unitCode,
+            unitName: batch.questions[0].unit,
+            round: 1,
+          },
+          result,
+          bookTitle: batch.book.title,
+          unitName: batch.questions[0].unit,
+          round: 1,
+        });
+        window.__harness.lastSummary = summary;
+        const offline = params.get('offline') === '1' || window.__harness.offline;
+        const saveDelay = Number(params.get('saveDelay') || 0);
+        const attemptId = attemptIdFor(result);
+        const payload = { attemptId, result, meta: { mode: result.mode }, savedAt: Date.now() };
+
+        // 換頁前先入隊
+        try {
+          const list = JSON.parse(localStorage.getItem(pendingKey) || '[]');
+          if (!list.some((x) => x.attemptId === attemptId)) {
+            list.push(payload);
+            localStorage.setItem(pendingKey, JSON.stringify(list));
+          }
+        } catch { /* ignore */ }
+
+        const cloudStatus = offline || saveDelay > 0 ? 'pending' : 'ok';
+        try {
+          localStorage.setItem(
+            resultKey,
+            JSON.stringify({
+              result: { ...result, title },
+              summaryText: summary,
+              cloudStatus,
+              attemptId,
+              savedAt: payload.savedAt,
+            }),
+          );
+        } catch { /* ignore */ }
+
+        const settleOnce = () => {
+          if (inflight.has(attemptId)) return inflight.get(attemptId);
+          const work = (async () => {
+            // 模擬慢上傳：延遲期間可重試並共用同一 Promise
+            if (saveDelay > 0) await new Promise((r) => setTimeout(r, saveDelay));
+            if (window.__harness.offline) throw new Error('offline');
+            // idempotent：同 id 只記一筆
+            if (!window.__harness.records.includes(attemptId)) {
+              window.__harness.records.push(attemptId);
+              window.__harness.saveCount += 1;
+            }
+            try {
+              const list = JSON.parse(localStorage.getItem(pendingKey) || '[]').filter(
+                (x) => x.attemptId !== attemptId,
+              );
+              localStorage.setItem(pendingKey, JSON.stringify(list));
+            } catch { /* ignore */ }
+            return { ok: true };
+          })().finally(() => inflight.delete(attemptId));
+          inflight.set(attemptId, work);
+          return work;
+        };
+
+        const markOk = () => {
+          document.querySelector('.cloud-warn')?.remove();
+          try {
+            const snap = JSON.parse(localStorage.getItem(resultKey) || '{}');
+            snap.cloudStatus = 'ok';
+            localStorage.setItem(resultKey, JSON.stringify(snap));
+          } catch { /* ignore */ }
+        };
+
+        showResult({
+          mount: document.getElementById('root'),
+          result: { ...result, title },
+          getSummaryText: () => summary,
+          cloudStatus,
+          onReport: async (payload) => {
+            if (window.__harness.reportFail) throw new Error('回報失敗測試');
+            if (window.__harness.reports.includes(payload.qid)) return;
+            window.__harness.reports.push(payload.qid);
+          },
+          onRetryWrong: () => location.reload(),
+          onRestart: () => location.reload(),
+          onHome: () => { location.href = '../'; },
+          onRetryCloud: async () => {
+            if (window.__harness.offline) {
+              toast('目前離線，連上線後會自動上傳');
+              return;
+            }
+            try {
+              await settleOnce();
+              markOk();
+              toast('已存到雲端');
+            } catch {
+              toast('仍無法寫入，請稍後再試');
+            }
+          },
+        });
+
+        // 背景上傳（與重試共用 inflight）；離線時等延遲後失敗，連線後重試可成功
+        settleOnce().then(markOk).catch(() => {});
+        if (!offline && saveDelay === 0) {
+          try { localStorage.removeItem(progressKey); } catch { /* ignore */ }
+        }
+      },
+    });
+  </script>
+</body>
+</html>

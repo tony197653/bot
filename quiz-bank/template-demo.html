@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#F5F4F1">
+  <title>考題網・示範模板</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/b.css">
+  <link rel="stylesheet" href="css/quiz.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/mhchem.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="demo-root"></div>
+  <script type="module">
+    import { startQuiz } from './js/quiz.js';
+    import { showResult } from './js/result.js';
+
+    const root = document.getElementById('demo-root');
+    const res = await fetch('./test-data/fake-batch.json');
+    const batch = await res.json();
+    const title = batch.book.title + '・第 1 回';
+
+    startQuiz({
+      title,
+      questions: batch.questions,
+      groups: batch.groups,
+      mode: 'instant',
+      shuffle: false,
+      mount: root,
+      onFinish: (result) => {
+        showResult({
+          mount: root,
+          result: { ...result, title },
+          summaryPrefix: '考題網・示範',
+          onRetryWrong: () => location.reload(),
+          onRestart: () => location.reload(),
+          onHome: () => { location.href = './'; },
+        });
+      },
+    });
+  </script>
+</body>
+</html>

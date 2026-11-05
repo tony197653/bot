@@ -1,0 +1,80 @@
+/* ===== B 安靜高級 ===== */
+:root{--bg:#F5F4F1;--surface:#FFFFFF;--surface-2:#F0EEEA;--ink:#1F1F1D;--ink-rgb:31,31,29;--mute:#67655F;--line:#E5E3DD;--line-soft:#E8E6E0;--line-strong:#CDCAC2;
+ --accent:#34445A;--sel:rgba(52,68,90,.16);--sage:#66745F;--sage-deep:#505C4A;--sage-soft:#DFE4DA;
+ --ok:#3B7150;--ok-ink:#2E5C40;--ok-soft:#E7EFE9;--bad:#A03F4A;--bad-ink:#8C3540;--bad-soft:#F6E8E9;--warn:#7A5418;--warn-soft:#F7F0E3;
+ /* 主按鈕用 accent（非墨黑）；P3/P4 下一步另用 sage-deep */
+ --b1-bg:var(--accent);--b1-fg:#FAFAF8;--b1-hover:#2B384A;--b1-active:#243040;--top-bg:rgba(245,244,241,.86);--bar-bg:var(--bg);
+ --g1-bg:#ECEAE5;--g1-thumb:#FFFFFF;--toast-bg:#1F1F1D;--toast-fg:#FAFAF8;--press:#EEEDE9;
+ --shadow:0 1px 2px rgba(31,31,29,.05),0 4px 16px rgba(31,31,29,.05);--shadow-up:0 2px 4px rgba(31,31,29,.06),0 14px 32px rgba(31,31,29,.10);
+ --pop-shadow:0 2px 4px rgba(31,31,29,.05),0 16px 40px -8px rgba(31,31,29,.18);--sheet-shadow:0 1px 2px rgba(31,31,29,.06),0 24px 64px -12px rgba(31,31,29,.28);
+ --halo:0 0 0 1px rgba(52,68,90,.22),0 0 0 3px rgba(52,68,90,.10),0 0 14px 2px rgba(52,68,90,.18);
+ --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;--font-stem:var(--font);--font-num:"Newsreader","Noto Serif TC",Georgia,serif;
+ --in-ms:.2s;--out-ms:.2s}
+body{letter-spacing:.03em}
+.bar{box-shadow:0 -1px 0 var(--line)}
+.prog{height:1px;background:var(--line)}
+/* 泡泡：安靜的小圓 */
+.bub-d{width:28px;height:28px;background:transparent;color:var(--mute);font-family:var(--font-num);font-size:14px;font-weight:500;box-shadow:inset 0 0 0 1px var(--line-strong)}
+.bub.now .bub-d{box-shadow:inset 0 0 0 1.5px var(--ink);color:var(--ink)}
+.bub.ok .bub-d{background:var(--ok-soft);color:var(--ok-ink);box-shadow:none}
+.bub.bad .bub-d{background:var(--bad-soft);color:var(--bad-ink);box-shadow:none}
+.bub.done .bub-d{background:var(--ink);color:var(--surface);box-shadow:none} /* 模考已作答：填滿，不只靠顏色 */
+.bub.now.ok .bub-d,.bub.now.bad .bub-d,.bub.now.done .bub-d{box-shadow:inset 0 0 0 1.5px currentColor}
+.bub.now.done .bub-d{box-shadow:inset 0 0 0 1.5px var(--ink),0 0 0 2px var(--bg)}
+.bub-m{width:14px;height:14px;right:-4px;top:-4px;color:var(--surface);box-shadow:0 0 0 2px var(--bg)}
+.bub-m svg{width:9px;height:9px}
+.bub.ok .bub-m{background:var(--ok)}.bub.bad .bub-m{background:var(--bad)}
+.bub.done .bub-m{background:var(--surface);color:var(--ink)}
+/* 題目：沒有卡框，只有留白；換題無進／出場過渡 */
+.qcard{padding:20px 4px 8px}
+.qno{letter-spacing:.08em;font-size:13px}.qno b{font-family:var(--font-num);font-size:17px;font-weight:500;margin:0 1px}
+.tag{color:var(--mute);font-weight:500;box-shadow:inset 0 0 0 1px var(--line-strong);border-radius:999px;padding:2px 10px}
+.stem{font-size:19px;line-height:1.9;font-weight:400;letter-spacing:.03em}
+.fig svg{color:var(--ink)}
+.opts{gap:12px;margin-top:28px}
+.opt{background:var(--surface);color:var(--ink);border-radius:var(--r);box-shadow:var(--shadow);min-height:60px;padding:12px 18px 12px 14px;font-weight:400;
+ transition:background-color .2s var(--ease-out),color .2s var(--ease-out)}
+.opt::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:var(--shadow-up);opacity:0;transition:opacity .2s var(--ease-out);z-index:-1;pointer-events:none}
+@media (hover:hover) and (pointer:fine){.opt:not([aria-disabled]):hover::after{opacity:1}}
+.opt:active:not([aria-disabled]){transform:none;background:var(--press)} /* 宗良：選擇不縮放、不抖動，按下只變底色 */
+.key{width:30px;height:30px;color:var(--mute);box-shadow:inset 0 0 0 1px var(--line-strong);font-family:var(--font-num);font-size:15px;font-weight:500;line-height:1;padding-top:1px;transition:background-color .2s var(--ease-out),color .2s var(--ease-out),box-shadow .2s var(--ease-out)}
+.opt.chosen .key{background:var(--accent);color:var(--surface);box-shadow:none}
+.opt.ok{background:var(--ok-soft)}
+.opt.ok .key{background:var(--ok);color:var(--surface);box-shadow:none}
+.opt.bad{background:var(--bad-soft)}
+.opt.bad .key{background:var(--bad);color:var(--surface)}
+.opt.dim{color:var(--mute);box-shadow:0 0 0 1px var(--line)}
+.revealed.fresh .opt.ok,.revealed.fresh .opt.bad{transition-delay:0s}
+.mk svg{opacity:0}
+.opt.ok .mk{color:var(--ok)}.opt.bad .mk{color:var(--bad)}
+.opt.ok .mk svg,.opt.bad .mk svg{opacity:1}
+.revealed.fresh .opt.ok .mk svg,.revealed.fresh .opt.bad .mk svg{animation:mkB .2s var(--ease-out) both}
+@keyframes mkB{from{opacity:0}to{opacity:1}}
+.fb{margin-top:22px;padding:4px 2px 0}
+.revealed.fresh .fb{animation:fbB .2s var(--ease-out) both}
+@keyframes fbB{from{opacity:0}to{opacity:1}}
+.verdict{font-weight:500;font-size:16px}
+.is-ok .vi{color:var(--ok);box-shadow:inset 0 0 0 1.5px var(--ok)}.is-bad .vi{color:var(--bad);box-shadow:inset 0 0 0 1.5px var(--bad)}
+.is-ok .vt{color:var(--ok-ink)}.is-bad .vt{color:var(--bad-ink)}
+.a1 .acc-i{border-color:var(--line)}
+.acc-b{font-weight:400}
+/* 結算：大量留白、襯線數字 */
+.r-hero{padding:28px 0 8px}
+.score .num{font-size:96px;font-weight:400;letter-spacing:-.03em}
+.score .unit{font-size:18px}
+.segs{gap:8px}.segs i{width:8px;height:8px;border-radius:50%}
+.segs i.ok{background:var(--ok)}.segs i.bad{background:transparent;box-shadow:inset 0 0 0 1.5px var(--bad)}
+.msg{color:var(--mute)}
+.stats{gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:28px 0 24px}
+.stat{padding:16px 6px}.stat+.stat{box-shadow:-1px 0 0 var(--line)}
+.stat b{font-weight:500}
+.panel{background:var(--surface);box-shadow:var(--shadow);padding:20px}
+.panel h2{font-weight:500;letter-spacing:.06em}
+.result.in .r-hero,.result.in .stats,.result.in .r-grid{animation:fbB .2s var(--ease-out) both}
+
+.bub:active .bub-d{transform:none}
+.opt,.opt .key,.opt .mk svg{transform:none}
+
+/* 鍵盤高亮：浮起陰影＋字母圈變深，不縮放不位移 */
+.opt:not([aria-disabled]):focus-visible::after{opacity:1}
+.opt:not([aria-disabled]):focus-visible .key{box-shadow:inset 0 0 0 1.5px var(--accent);color:var(--accent)}

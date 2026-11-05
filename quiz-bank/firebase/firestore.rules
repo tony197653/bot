@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function allowed() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/allow/$(request.auth.token.email));
+    }
+    function admin() {
+      return allowed()
+        && get(/databases/$(database)/documents/allow/$(request.auth.token.email)).data.role == "admin";
+    }
+
+    function validAttempt(d) {
+      return d.keys().hasOnly([
+          'scope', 'mode', 'qids', 'answers', 'correct', 'total',
+          'score', 'byUnit', 'startedAt', 'endedAt', 'at'
+        ])
+        && d.keys().hasAll([
+          'scope', 'mode', 'qids', 'answers', 'correct', 'total',
+          'score', 'byUnit', 'startedAt', 'endedAt', 'at'
+        ])
+        && d.scope is map
+        && d.scope.keys().hasAll(['type'])
+        && d.scope.type in ['round', 'unit', 'retry']
+        && d.mode in ['instant', 'exam']
+        && d.qids is list && d.answers is list
+        && d.qids.size() == d.total
+        && d.answers.size() == d.total
+        && d.total is int && d.total >= 1 && d.total <= 200
+        && d.correct is int && d.correct >= 0 && d.correct <= d.total
+        && d.score is int && d.score >= 0 && d.score <= 100
+        && d.byUnit is map
+        && d.byUnit.size() >= 1 && d.byUnit.size() <= 50
+        && d.startedAt is timestamp
+        && d.endedAt is timestamp
+        && d.at == request.time;
+    }
+
+    function validReport(d) {
+      return d.keys().hasOnly(['qid', 'uid', 'reason', 'note', 'status', 'at'])
+        && d.keys().hasAll(['qid', 'uid', 'reason', 'note', 'status', 'at'])
+        && d.qid is string && d.qid.size() > 0 && d.qid.size() <= 120
+        && d.uid is string && d.uid == request.auth.uid
+        && d.reason in ['answer', 'typo', 'figure', 'other']
+        && d.note is string && d.note.size() <= 200
+        && d.status == 'open'
+        && d.at == request.time;
+    }
+
+    match /allow/{email} {
+      allow read: if signedIn() && (request.auth.token.email == email || admin());
+      allow write: if false;
+    }
+
+    match /banks/{id} {
+      allow read: if allowed();
+      allow write: if admin();
+    }
+
+    match /groups/{id} {
+      allow read: if allowed();
+      allow write: if admin();
+    }
+
+    match /questions/{id} {
+      allow read: if admin()
+        || (allowed() && resource.data.review.status == "checked");
+      allow write: if admin();
+    }
+
+    match /users/{uid}/attempts/{a} {
+      allow read: if allowed() && request.auth.uid == uid;
+      allow create: if allowed()
+        && request.auth.uid == uid
+        && validAttempt(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /reports/{r} {
+      allow create: if allowed()
+        && request.resource.data.uid == request.auth.uid
+        && r == request.resource.data.qid + "__" + request.auth.uid
+        && validReport(request.resource.data);
+      // get：文件不存在時 resource 為 null（首次回報先 getDoc 檢查）；本人／管理者可讀
+      allow get: if admin()
+        || (allowed() && (resource == null || resource.data.uid == request.auth.uid));
+      allow list: if admin()
+        || (allowed() && resource.data.uid == request.auth.uid);
+      allow update: if admin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == "done";
+      allow delete: if false;
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

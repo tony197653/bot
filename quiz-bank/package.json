@@ -1,0 +1,20 @@
+{
+  "name": "quiz-bank",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:rules": "node firebase/run-rules-tests.mjs",
+    "test:schema": "node test/schema.test.mjs",
+    "test:unit": "node test/unit.test.mjs",
+    "test:e2e": "node test/e2e.mjs",
+    "test:smoke": "node test/smoke-app.mjs",
+    "test:emu": "node firebase/run-emu-acceptance.mjs",
+    "test": "npm run test:schema && npm run test:unit && npm run test:rules && npm run test:emu && npm run test:smoke && npm run test:e2e"
+  },
+  "dependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "^10.14.1",
+    "firebase-tools": "^13.22.1",
+    "playwright": "^1.48.2"
+  }
+}
