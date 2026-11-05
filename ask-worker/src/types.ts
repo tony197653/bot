@@ -1,11 +1,8 @@
 export interface Env {
-  AI: Ai;
   COUNTER: DurableObjectNamespace;
   FLAGS: KVNamespace;
   ALLOWED_ORIGIN: string;
   EXTRA_ALLOWED_ORIGIN: string;
-  WORKERS_AI_MODEL: string;
-  WORKERS_AI_FALLBACK_MODEL: string;
   GROQ_MODEL: string;
   GEMINI_MODEL: string;
   OPENROUTER_MODEL: string;
@@ -40,7 +37,7 @@ export interface ChatMessage {
   content: string;
 }
 
-export type ProviderName = "workers-ai" | "groq" | "gemini" | "openrouter" | "mock";
+export type ProviderName = "groq" | "gemini" | "openrouter" | "mock";
 
 export interface ProviderResult {
   stream: ReadableStream<Uint8Array>;

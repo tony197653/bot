@@ -418,7 +418,6 @@ describe("provider fallback (mocked)", () => {
   function fakeEnv(overrides: Partial<Env> = {}): Env {
     const flags = new Map<string, string>();
     return {
-      AI: {} as Ai,
       COUNTER: {} as DurableObjectNamespace,
       FLAGS: {
         get: async (k: string) => flags.get(k) ?? null,
@@ -428,8 +427,6 @@ describe("provider fallback (mocked)", () => {
       } as unknown as KVNamespace,
       ALLOWED_ORIGIN: ORIGIN,
       EXTRA_ALLOWED_ORIGIN: "",
-      WORKERS_AI_MODEL: "@cf/openai/gpt-oss-20b",
-      WORKERS_AI_FALLBACK_MODEL: "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
       GROQ_MODEL: "openai/gpt-oss-120b",
       GEMINI_MODEL: "gemini-2.0-flash",
       OPENROUTER_MODEL: "google/gemma-2-9b-it:free",
@@ -453,7 +450,7 @@ describe("provider fallback (mocked)", () => {
 
   it("falls through quota providers then succeeds", async () => {
     const out: string[] = [];
-    for await (const c of runMockFallbackChain(["quota", "quota", "ok"])) {
+    for await (const c of runMockFallbackChain(["quota", "ok"])) {
       if (c.type === "text" && c.text) out.push(c.text);
       if (c.type === "done") out.push("DONE:" + (c.provider || ""));
     }
@@ -463,7 +460,7 @@ describe("provider fallback (mocked)", () => {
 
   it("all quota yields all_quota", async () => {
     let code = "";
-    for await (const c of runMockFallbackChain(["quota", "quota", "quota", "quota"])) {
+    for await (const c of runMockFallbackChain(["quota", "quota", "quota"])) {
       if (c.type === "error") code = c.code || "";
     }
     expect(code).toBe("all_quota");
