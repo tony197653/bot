@@ -86,11 +86,16 @@ export function buildHandStatsSnapshot(opts) {
     const topUp = Number(externalTopUps[seat]) || 0;
     const netDelta = chipsAfter - (Number(start.chipsBefore) || 0) - topUp;
     const wonAmt = Number(payouts[seat]) || 0;
+    // Payouts include uncalled chips, even when computePots merges that layer
+    // with a single-eligible pot. Folded players' contributions still match bets.
+    const matched = Math.max(0, ...(engine.seats || []).map((other, i) =>
+      i === seat ? 0 : Number(other?.contributed) || 0));
+    const refund = Math.max(0, (Number(p?.contributed) || 0) - matched);
 
     seats.push({
       uid,
       seat,
-      wonAnyPot: wonAmt > 0,
+      wonAnyPot: wonAmt > refund,
       vpipOpp: !!flags.vpipOpp,
       vpip: !!flags.vpip && !!flags.vpipOpp,
       pfrOpp: !!flags.pfrOpp,

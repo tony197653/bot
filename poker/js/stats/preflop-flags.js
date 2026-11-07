@@ -139,6 +139,8 @@ export function createPreflopFlagTracker() {
  * @param {object} legal
  */
 function canCompleteReRaise(prev, seat, legal) {
+  // allIn remains available for calling even when a short raise did not reopen.
+  if ((prev.actedBit & (1 << seat)) && prev.currentBet > prev.seats[seat].bet) return false;
   if (legal.raise) return true;
   if (!legal.allIn) return false;
   const p = prev.seats[seat];

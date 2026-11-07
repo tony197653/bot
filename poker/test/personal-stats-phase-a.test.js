@@ -3,6 +3,8 @@
  * independent write chain (does not block game flow).
  */
 import { describe, it } from 'node:test';
+import { createHostLoop } from '../js/net/host.js';
+import { computePots } from '../js/engine/pots.js';
 import assert from 'node:assert/strict';
 import {
   createInitialState,
@@ -377,5 +379,144 @@ describe('pending queue + independent write chain', () => {
     });
     await chain.whenIdle();
     assert.equal(await q.has('hx', 'uid-a'), true);
+  });
+});
+
+
+describe('Phase A fix-up coverage', () => {
+  it('excludes a single-contributor refund but retains uncontested pots and splits', () => {
+    const summarize = (rows, payouts) => buildHandStatsSnapshot({
+      roomId: 'r', handId: 'refund', engine: { seats: rows, winnerPayouts: payouts },
+      startBySeat: Object.fromEntries(rows.map((p, seat) => [seat, {
+        uid: `u${seat}`, chipsBefore: 1000, dealt: true,
+      }])), flagsBySeat: {},
+    }).seats.map(p => p.wonAnyPot);
+    const rows = [
+      { contributed: 300, chips: 900, folded: false },
+      { contributed: 100, chips: 1100, folded: false },
+      { contributed: 100, chips: 1000, folded: true },
+    ];
+    assert.deepEqual(computePots(rows.map((p, seat) => ({ ...p, seat }))), [
+      { amount: 300, eligible: [0, 1] }, { amount: 200, eligible: [0] },
+    ]);
+    assert.deepEqual(summarize(rows, { 0: 200, 1: 300 }), [false, true, false]);
+    assert.deepEqual(summarize(rows, { 0: 350, 1: 150 }), [true, true, false]);
+    rows[1].folded = true;
+    assert.deepEqual(computePots(rows.map((p, seat) => ({ ...p, seat }))), [
+      { amount: 500, eligible: [0] },
+    ]);
+    assert.deepEqual(summarize(rows, { 0: 500 }), [true, false, false]);
+  });
+
+  for (const shortRaise of [false, true]) {
+    it(`multi-seat 3-bet: ${shortRaise ? 'short shove does not reopen opener' : 'full re-raise and later 4-bet'}`, () => {
+      let s = seatTwo(createInitialState({ timerEnabled: false, smallBlind: 10, bigBlind: 20 }));
+      s = applyAction(s, { type: 'SEAT', seat: 2, id: 'uid-c', name: 'C', buyIn: 2000 });
+      s = start(s, 42);
+      const tracker = createPreflopFlagTracker();
+      const opener = s.actor;
+      const step = (type, amount) => {
+        const prev = s;
+        const action = { type, seat: s.actor, ...(amount == null ? {} : { amount }) };
+        s = applyAction(s, action);
+        tracker.observe(prev, action, s);
+        return action.seat;
+      };
+      const nextSeat = (opener + 1) % 3;
+      if (shortRaise) s.seats[nextSeat].chips = 70 - s.seats[nextSeat].bet;
+      step('BET_RAISE', 60);
+      const reraiser = step(shortRaise ? 'ALL_IN' : 'BET_RAISE', shortRaise ? undefined : 100);
+      const caller = step('CALL');
+      assert.equal(s.actor, opener);
+      step(shortRaise ? 'CALL' : 'BET_RAISE', shortRaise ? undefined : 180);
+      const flags = tracker.snapshot();
+      assert.equal(flags[reraiser].threeBetOpp, !shortRaise);
+      assert.equal(flags[reraiser].threeBet, !shortRaise);
+      assert.equal(flags[caller].threeBetOpp, true);
+      assert.equal(flags[caller].threeBet, false);
+      assert.equal(flags[opener].threeBetOpp, !shortRaise);
+    });
+  }
+
+  it('real host actions enqueue immutable hands while stats storage stalls/fails; reconnect keeps identity', async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+    const priorDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: { visibilityState: 'visible' } });
+    t.after(() => {
+      if (priorDocument) Object.defineProperty(globalThis, 'document', priorDocument);
+      else delete globalThis.document;
+    });
+    let room = {
+      id: 'local', hostUid: 'uid-a', seatUids: ['uid-a', 'uid-b', null, null, null, null],
+      stacks: [2000, 2000, 0, 0, 0, 0], chipTotal: 4000, sess: Array(6).fill(null), rev: 0,
+      config: { sb: 10, bb: 20, newPlayerChips: 2000, actionMs: 30000 }, pub: {},
+    };
+    const fs = {
+      doc: (...args) => args.slice(1).join('/'), collection: () => 'local',
+      onSnapshot: () => () => {}, serverTimestamp: () => 1,
+      writeBatch: () => ({ set() {}, async commit() {} }),
+      async updateDoc() {}, async setDoc() {},
+    };
+    const makeHost = () => createHostLoop({ db: {}, fs }, {
+      roomId: 'local', uid: room.hostUid, getRoom: () => room,
+    });
+    const host = makeHost();
+    t.after(() => host.stop());
+    host.start();
+    const queue = host.getStatsQueue();
+    const chain = host.getStatsWriteChain();
+    const originalEnqueue = queue.enqueue;
+    let release;
+    const stalled = new Promise(resolve => { release = resolve; });
+    let fail = true;
+    let failures = 0;
+    queue.enqueue = async entry => {
+      await stalled;
+      if (fail) { fail = false; failures++; throw new Error('local storage rejected'); }
+      return originalEnqueue(entry);
+    };
+    // The failure is expected; keep its reporting local to this test.
+    const warn = console.warn;
+    console.warn = () => {};
+    t.after(() => { console.warn = warn; });
+    assert.equal(host.startHand(), true);
+    const firstId = host.getEngine().handId;
+    host.hostAction({ type: 'FOLD', seat: host.getEngine().actor });
+    const first = host.getStatsSession().getLastSnapshot();
+    assert.equal(first.handId, firstId);
+    assert.equal(host.startHand(), true);
+    const secondId = host.getEngine().handId;
+    assert.notEqual(firstId, secondId);
+    host.hostAction({ type: 'CALL', seat: host.getEngine().actor });
+    host.hostAction({ type: 'CHECK', seat: host.getEngine().actor });
+    assert.equal(host.getEngine().phase, PHASE.FLOP);
+    host.hostAction({ type: 'BET_RAISE', amount: 40, seat: host.getEngine().actor });
+    host.hostAction({ type: 'FOLD', seat: host.getEngine().actor });
+    assert.equal(host.getEngine().phase, PHASE.HAND_OVER);
+    assert.ok(chain.getPendingCount() > 0);
+    release();
+    await chain.whenIdle();
+    assert.equal(failures, 1);
+    assert.equal((await queue.list()).length, 2);
+    // Re-enqueue the captured first hand after failure, then dedupe a resend.
+    chain.enqueueSnapshot(first);
+    chain.enqueueSnapshot(first);
+    await chain.whenIdle();
+    const pending = await queue.list();
+    assert.equal(pending.length, 4);
+    assert.deepEqual(pending.filter(e => e.handId === firstId).map(e => e.summary.netDelta),
+      first.seats.map(e => e.netDelta));
+    assert.ok(Object.isFrozen(first.seats[0]));
+    room = { ...room, pub: publicState(host.getEngine()) };
+    host.stop();
+    for (const nextHost of ['uid-a', 'uid-b']) {
+      room = { ...room, hostUid: nextHost };
+      const resumed = makeHost();
+      resumed.start();
+      assert.equal(resumed.getEngine().handId, secondId);
+      assert.equal(resumed.getStatsSession().getHandId(), secondId);
+      assert.equal((await resumed.getStatsQueue().list()).length, 0);
+      resumed.stop();
+    }
   });
 });
