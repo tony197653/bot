@@ -1133,3 +1133,7 @@ body:has(#pauseScreen.is-on) #toast{
   .mp-create,.mp-share{display:grid;grid-template-columns:1fr 1fr;gap:24px}
   .mp-create .mp-top,.mp-share .mp-top{grid-column:1/-1;display:flex;height:auto;min-height:56px}
 }
+/* iOS home-screen app: system top edge blur reaches ~20px below the status bar — push lobby header clear of it */
+@media (display-mode: standalone){
+  .mp-shell{padding-top:calc(max(12px,env(safe-area-inset-top)) + 20px)}
+}
