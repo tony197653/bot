@@ -266,13 +266,24 @@ export function placeDealer() {
   const dh = dealer.offsetHeight || 20;
 
   // ALL nameplates + backs + cards are hard obstacles (incl. own plate).
+  // Include #board box (padded) so D never lands on the 3rd/river community card
+  // at narrow phone widths (360–430) when button is near the board.
   // Skip bets still parked at 0,0 (not yet placed).
   const obstacles = [
     ...document.querySelectorAll(
-      '.seat .plateA, .seat .plate, .meinfo, .backs, .reveal-hole, .pot, #board .card, #heroHole .card',
+      '.seat .plateA, .seat .plate, .meinfo, .backs, .reveal-hole, .pot, #board, #board .card, #heroHole .card',
     ),
   ]
-    .map((el) => el.getBoundingClientRect())
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      const pad = el.id === 'board' ? 6 : 0;
+      return {
+        left: r.left - pad,
+        top: r.top - pad,
+        right: r.right + pad,
+        bottom: r.bottom + pad,
+      };
+    })
     .concat(
       [...document.querySelectorAll('#bets .bet')]
         .filter((el) => {
@@ -352,9 +363,40 @@ export function placeDealer() {
 
   const issues = [];
   if (!best) {
-    // Last resort: inward from plate edge at GAP + radius
-    const cx = px + ux * minDist;
-    const cy = py + uy * minDist;
+    // Spiral search — never use a blind inward point (that lands on the board).
+    for (let dist = minDist; dist < minDist + 140 && !best; dist += 2) {
+      for (let i = 0; i < 32; i++) {
+        const ang = (i / 32) * Math.PI * 2;
+        const cx = px + Math.cos(ang) * dist;
+        const cy = py + Math.sin(ang) * dist;
+        if (!inFelt(F, cx, cy)) continue;
+        const l = cx - dw / 2;
+        const t = cy - dh / 2;
+        const box = { left: l, top: t, right: l + dw, bottom: t + dh };
+        let hit = false;
+        for (const o of obstacles) {
+          const g = Math.max(
+            o.left - box.right,
+            box.left - o.right,
+            o.top - box.bottom,
+            box.top - o.bottom,
+          );
+          if (g < GAP) {
+            hit = true;
+            break;
+          }
+        }
+        if (hit) continue;
+        best = { l, t, score: dist, ownDist: dist, minGap: GAP };
+        break;
+      }
+    }
+  }
+  if (!best) {
+    // Absolute last resort: park beside the plate, still clear of board if possible
+    const side = px < F.cx ? -1 : 1;
+    const cx = px + side * (p.width / 2 + dw / 2 + GAP + 2);
+    const cy = py;
     dealer.style.left = `${((cx - dw / 2 - F.table.left) / F.table.width) * 100}%`;
     dealer.style.top = `${((cy - dh / 2 - F.table.top) / F.table.height) * 100}%`;
     dealer.style.transform = 'none';

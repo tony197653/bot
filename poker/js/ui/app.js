@@ -15,7 +15,7 @@ import {
   HOLD_MS_SHOWDOWN,
   HOLD_MS_FOLD_WIN,
 } from '../engine/index.js';
-import { cardHtml, cardBackPair, heroBackPair, fmtChips, cardFaceInner } from './cards-dom.js';
+import { cardHtml, cardBackPair, heroBackPair, fmtChips, cardFaceInner, paintBoardSlots, raisePresetsMarkup, raisePanelCopy } from './cards-dom.js';
 import { onTick } from './ticker.js';
 import { mapSeatsClockwise, seatVisualPos } from './seating.js';
 import {
@@ -54,6 +54,8 @@ let viewerSeat = 0;
 let needsPass = false;
 let lastActor = null;
 let raiseTo = 0;
+/** @type {string|null} single pressed preset id (amount-dupes must not multi-highlight) */
+let raisePresetId = null;
 let toastTimer = 0;
 let dealAnimKey = '';
 /** Hand number waiting for deal FX (plays before 換人). */
@@ -173,6 +175,15 @@ function syncRaiseUi() {
     const max = +range.max;
     const pct = max > min ? ((raiseTo - min) / (max - min)) * 100 : 0;
     range.style.setProperty('--raise-pct', `${clamp(pct, 0, 100)}%`);
+  }
+  // Slider/± may leave the selected preset's amount — clear id so dupes don't re-light
+  if (raisePresetId) {
+    const safeId =
+      typeof CSS !== 'undefined' && CSS.escape
+        ? CSS.escape(raisePresetId)
+        : raisePresetId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const btn = $(`#presets button[data-id="${safeId}"]`);
+    if (btn && +btn.dataset.to !== raiseTo) raisePresetId = null;
   }
   syncPresetPressed();
   syncRaiseBtn();
@@ -892,13 +903,19 @@ function renderTable(v) {
   const dealingSetup = dealPresenting || awaitingDealThenPass;
   const atShowdown = v.isShowdown || v.isHandOver;
   const boardEl = $('#board');
-  // Felt shows ONLY dealt community cards — no dashed placeholders.
+  // Five fixed slots from hand start; empty slots invisible but reserve river width.
   // Freeze board DOM during showdown/hand-over so dealIn never replays on re-render.
   const boardKey = (v.board || []).map((c) => `${c.r}${c.s}`).join('-') + `:${v.handNumber}`;
   if (!atShowdown || boardFrozenKey !== boardKey) {
-    boardEl.innerHTML = (v.board || [])
-      .map((c) => cardHtml(c, { anim: !atShowdown }))
-      .join('');
+    const boardCards = v.board || [];
+    const boardActive =
+      boardCards.length > 0 ||
+      (!!v.handNumber && !v.isHandOver && (v.phase || '') !== 'lobby') ||
+      v.isShowdown;
+    paintBoardSlots(boardEl, boardCards, {
+      anim: !atShowdown,
+      active: boardActive,
+    });
     if (atShowdown) boardFrozenKey = boardKey;
     else boardFrozenKey = '';
   }
@@ -2254,24 +2271,49 @@ function closeRaisePanel() {
   if (scrim) {
     scrim.classList.remove('is-on');
     scrim.hidden = true;
+    scrim.inert = true;
   }
   if (panel) {
     panel.classList.remove('is-on');
     panel.hidden = true;
+    panel.inert = true;
+    panel.setAttribute('aria-hidden', 'true');
   }
   clearRaiseHold();
 }
 
 function openRaisePanel(legal) {
+  const scrim = $('#raiseScrim');
+  const panel = $('#raisePanel');
+  const range = $('#raiseRange');
+  // Unlock BEFORE presets/sync (same failure mode as MP 56b2833): boot sets
+  // inert+aria-hidden; clicks otherwise fall through to #raiseScrim.
+  if (scrim) {
+    scrim.hidden = false;
+    scrim.inert = false;
+    requestAnimationFrame(() => scrim.classList.add('is-on'));
+    scrim.onclick = () => closeRaisePanel();
+  }
+  if (panel) {
+    panel.hidden = false;
+    panel.inert = false;
+    panel.removeAttribute('aria-hidden');
+    requestAnimationFrame(() => panel.classList.add('is-on'));
+  }
+  raisePanelOpen = true;
+
   const min = legal.minRaiseTo;
   const max = legal.maxRaiseTo;
   const lo = Math.min(min, max);
   const presets = raisePresets(state, viewerSeat);
-  const preferred = presets.find((p) => p.preferred)?.to ?? min;
-  if (!raiseTo) raiseTo = preferred;
+  const preferred = presets.find((p) => p.preferred);
+  if (!raiseTo) raiseTo = preferred?.to ?? min;
   raiseTo = clamp(raiseTo, lo, max);
+  raisePresetId =
+    preferred && preferred.to === raiseTo
+      ? preferred.id
+      : presets.find((p) => p.to === raiseTo)?.id ?? null;
 
-  const range = $('#raiseRange');
   range.min = String(lo);
   range.max = String(max);
   range.step = '1';
@@ -2280,17 +2322,11 @@ function openRaisePanel(legal) {
     raiseTo = +range.value;
     syncRaiseUi();
   };
-  $('#presets').innerHTML = presets
-    .map(
-      (p) =>
-        `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.to === raiseTo}">` +
-        `<span class="preset-lbl">${p.label}</span>` +
-        `<span class="preset-amt">${fmtChips(p.to)}</span></button>`,
-    )
-    .join('');
+  $('#presets').innerHTML = raisePresetsMarkup(presets, raisePresetId);
   $('#presets').onclick = (e) => {
     const b = e.target.closest('button[data-to]');
     if (!b) return;
+    raisePresetId = b.dataset.id || null;
     raiseTo = clamp(+b.dataset.to, lo, max);
     range.value = String(raiseTo);
     syncRaiseUi();
@@ -2301,30 +2337,21 @@ function openRaisePanel(legal) {
   const callAmt = legal.callAmount || 0;
   const hint = $('#raiseHint');
   if (hint) {
+    const minHint = raisePanelCopy(!!legal.bet, lo).minHint;
     hint.textContent = legal.check
-      ? `最少加到 ${fmtChips(lo)}`
-      : `跟注 ${fmtChips(callAmt)} · 最少加到 ${fmtChips(lo)}`;
+      ? minHint
+      : `跟注 ${fmtChips(callAmt)} · ${minHint}`;
   }
   syncRaiseUi();
 
-  const scrim = $('#raiseScrim');
-  const panel = $('#raisePanel');
-  if (scrim) {
-    scrim.hidden = false;
-    requestAnimationFrame(() => scrim.classList.add('is-on'));
-    scrim.onclick = () => closeRaisePanel();
-  }
-  if (panel) {
-    panel.hidden = false;
-    requestAnimationFrame(() => panel.classList.add('is-on'));
-  }
-  raisePanelOpen = true;
   const cancel = $('#raiseCancel');
   if (cancel) cancel.onclick = () => closeRaisePanel();
   const conf = $('#raiseConfirm');
   if (conf) {
     conf.onclick = () => {
-      const amt = raiseTo;
+      // Live range value (same contract as e44c13f MP confirm)
+      const amt = Number(range.value);
+      raiseTo = amt;
       closeRaisePanel();
       dispatch({ type: 'BET_RAISE', seat: viewerSeat, amount: amt });
       passToNextIfNeeded();
@@ -2540,22 +2567,27 @@ function renderActions(v) {
 function syncRaiseBtn() {
   const out = $('#raiseOut');
   if (out) out.textContent = fmtChips(raiseTo);
+  const legal = getLegalActions(state, viewerSeat);
+  const copy = raisePanelCopy(!!legal?.bet, raiseTo);
+  const verbEl = $('#raiseVerb');
+  if (verbEl) verbEl.textContent = copy.verb;
+  const title = $('#raiseTitle');
+  if (title) title.setAttribute('aria-label', copy.title);
+  const panel = $('#raisePanel');
+  if (panel) panel.setAttribute('aria-label', copy.verb);
   const conf = $('#raiseConfirm');
-  if (conf) {
-    const legal = getLegalActions(state, viewerSeat);
-    const verb = legal?.bet ? '確認下注' : '確認加注到';
-    conf.textContent = `${verb} ${fmtChips(raiseTo)}`;
-  }
+  if (conf) conf.textContent = copy.confirm;
 }
 
 function syncPresetPressed() {
   for (const b of $$('#presets button')) {
-    b.setAttribute('aria-pressed', String(+b.dataset.to === raiseTo));
+    b.setAttribute('aria-pressed', String(b.dataset.id === raisePresetId));
   }
 }
 
 function passToNextIfNeeded() {
   raiseTo = 0;
+  raisePresetId = null;
   if (state.phase === PHASE.HAND_OVER || state.phase === PHASE.SHOWDOWN) {
     render();
     return;

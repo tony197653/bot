@@ -4,6 +4,7 @@
  */
 
 import { LS_PREFIX } from './firebase-config.js';
+import { deleteLobbyListing } from './room.js';
 
 /**
  * Taipei night key: day rolls at 06:00 (§6.10.4).
@@ -57,6 +58,7 @@ export async function ensurePlayerGrant(fb, uid, roomId, n, profile) {
     topUpChips: 0,
     handsPlayed: 0,
     lastRoomId: roomId,
+    hostRoomId: null,
     createdAt: fs.serverTimestamp(),
     updatedAt: fs.serverTimestamp(),
   });
@@ -226,6 +228,39 @@ export async function hostCashoutBatch(fb, {
 }
 
 /**
+ * After a room is closed (or missing): move this player's table chips back to
+ * bank. Idempotent via fixed ledger id — safe to call from close dialog, 回大廳,
+ * and lobby paint. Never double-credits.
+ *
+ * @returns {Promise<{ ok: boolean, amount?: number, skipped?: boolean, idempotent?: boolean }>}
+ */
+export async function settleClosedRoomBinding(fb, uid, roomOrId) {
+  const roomId =
+    typeof roomOrId === 'string'
+      ? roomOrId
+      : roomOrId?.id || roomOrId?.roomId || null;
+  if (!fb || !uid || !roomId) return { ok: true, skipped: true };
+
+  const { db, fs } = fb;
+  let room = typeof roomOrId === 'object' && roomOrId ? { ...roomOrId } : null;
+  if (!room || !Array.isArray(room.seatUids)) {
+    const snap = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
+    if (snap.exists()) room = { id: roomId, ...snap.data() };
+    else room = { id: roomId, roomId, status: 'closed', seatUids: [] };
+  } else {
+    room = { ...room, id: room.id || roomId, roomId };
+  }
+  // Only for closed / missing rooms — open-table host-gone still uses explicit rescue UI
+  if (room.status && room.status !== 'closed') {
+    return { ok: true, skipped: true };
+  }
+  room.status = 'closed';
+  // Defensive: any settle-on-closed path must drop the lobby list entry
+  await deleteLobbyListing(fb, roomId);
+  return selfRescueCashout(fb, uid, room);
+}
+
+/**
  * Self-rescue cashout when host gone ≥10m or room closed (§6.10).
  */
 export async function selfRescueCashout(fb, uid, room) {
@@ -258,7 +293,7 @@ export async function selfRescueCashout(fb, uid, room) {
     by: uid,
     at: fs.serverTimestamp(),
   });
-  batch.update(pref, {
+  const playerPatch = {
     bank: p.bank + amount,
     inPlay: 0,
     total: p.bank + amount,
@@ -267,7 +302,12 @@ export async function selfRescueCashout(fb, uid, room) {
     topUpChips: p.topUpChips + sessRow.topUpChips,
     handsPlayed: p.handsPlayed + sessRow.hands,
     updatedAt: fs.serverTimestamp(),
-  });
+  };
+  // 附錄 L3：只有房間已 closed 才清 hostRoomId；房仍開著時保留，避免房主兑現後又能再開一桌
+  if (p.hostRoomId === roomId && room.status === 'closed') {
+    playerPatch.hostRoomId = null;
+  }
+  batch.update(pref, playerPatch);
   const nref = fs.doc(db, 'pokerPlayers', uid, 'nights', sessRow.nightKey);
   const nSnap = await fs.getDoc(nref);
   const base = nSnap.exists()
