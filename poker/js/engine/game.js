@@ -70,6 +70,8 @@ export function createInitialState(opts = {}) {
     },
     seats: /** @type {(Player|null)[]} */ (Array(6).fill(null)),
     handNumber: 0,
+    /** Stable hand identity for personal stats; survives host reconnect when published. */
+    handId: /** @type {string|null} */ (null),
     button: 0,
     phase: PHASE.LOBBY,
     deck: [],
@@ -288,6 +290,9 @@ function startHand(s, env) {
   }
 
   s.handNumber += 1;
+  // Fixed once per real hand start; HAND_OVER re-send / host handoff reuse pub.handId.
+  // Do not derive solely from handNumber — coalesced/skipped pub writes can reuse handNo.
+  s.handId = newHandId();
   s.board = [];
   s.pots = [];
   s.winners = null;
@@ -1345,6 +1350,21 @@ function randomRoomCode() {
   }
   for (let i = 0; i < 4; i++) out += alphabet[buf[i] % alphabet.length];
   return out;
+}
+
+/** Stable per-hand id (not handNumber). Kept local to avoid engine↔stats import cycles. */
+function newHandId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i++) bytes[i] = (Math.random() * 256) | 0;
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /** Export for tests that need to force deck / mid-hand state */

@@ -25,6 +25,11 @@ import {
   upsertLobbyListing,
   deleteLobbyListing,
 } from './room.js';
+import {
+  createMemoryPendingQueue,
+  createStatsWriteChain,
+  createStatsSession,
+} from '../stats/index.js';
 
 const AWAY_UNSEAT_MS = 30 * 60_000;
 
@@ -70,6 +75,13 @@ export function createHostLoop(fb, opts) {
   let stopPresenceListen = null;
   let lastWriteAt = 0;
   let writeChain = Promise.resolve();
+  /** Personal-stats chain: independent of writeChain; never awaited by game flow. */
+  const statsQueue = createMemoryPendingQueue();
+  const statsWriteChain = createStatsWriteChain({ queue: statsQueue });
+  const statsSession = createStatsSession({
+    roomId,
+    writeChain: statsWriteChain,
+  });
   let pendingFlush = null;
   /** @type {object[]} */
   const sitQueue = [];
@@ -135,6 +147,9 @@ export function createHostLoop(fb, opts) {
     // Resume hand counter from stored pub (QA round-3 D) — do not reset to 0/1
     const storedHand = Number(room.pub?.handNo) || 0;
     if (storedHand > 0) engine.handNumber = storedHand;
+    // Stable stats handId: reuse published id across reconnect / host handoff
+    statsSession.restoreFromPub(room.pub);
+    if (room.pub?.handId) engine.handId = room.pub.handId;
     seatedAt = room.pub?.seatedAt ? [...room.pub.seatedAt] : seatedAt;
     away = { ...(room.pub?.away || {}) };
     topUpReqs = { ...(room.pub?.topUpReqs || {}) };
@@ -395,11 +410,35 @@ export function createHostLoop(fb, opts) {
   }
 
   function applyAndPublish(action, meta = {}) {
+    const prev = engine;
     try {
       engine = applyAction(engine, action, { now: Date.now() });
     } catch (e) {
       if (meta.uid) rejects[meta.uid] = String(e.message || e).slice(0, 40);
       return false;
+    }
+    // Stats observe / snapshot: never throw into betting or next-hand path
+    try {
+      if (action.type === 'VOID_HAND') {
+        statsSession.onVoid();
+      } else if (action.type === 'START_HAND') {
+        statsSession.onHandStarted(engine);
+      } else if (action.type === 'TOP_UP') {
+        statsSession.onTopUp(action.seat, action.amount);
+      } else {
+        statsSession.onAction(prev, action, engine);
+      }
+      // Snapshot only on transition into HAND_OVER (not ACK_HAND / linger).
+      if (
+        engine.phase === PHASE.HAND_OVER &&
+        prev?.phase !== PHASE.HAND_OVER &&
+        action.type !== 'VOID_HAND'
+      ) {
+        // Immutable snapshot + fire-and-forget pending enqueue (not on writeChain)
+        statsSession.onHandOver(engine);
+      }
+    } catch (e) {
+      console.warn('[host] stats', e);
     }
     if (action.type === 'VOID_HAND') pubVoided = true;
     else if (action.type === 'START_HAND' || action.type === 'ACK_HAND') {
@@ -779,6 +818,12 @@ export function createHostLoop(fb, opts) {
     }
     // Snapshot stacks BEFORE blinds (hand-start checkpoint = chipTotal)
     const stacks = engine.seats.map((p) => (p ? p.chips : 0));
+    const roomSeats = getRoom()?.seatUids || [];
+    try {
+      statsSession.onHandStarting(engine, roomSeats);
+    } catch (e) {
+      console.warn('[host] stats start', e);
+    }
     const ok = applyAndPublish({ type: 'START_HAND' });
     if (!ok) return false;
     writeHoles();
@@ -946,5 +991,9 @@ export function createHostLoop(fb, opts) {
     lastRoomWriteAt: () => lastWriteAt,
     getAway: () => ({ ...away }),
     getSeatedAt: () => [...seatedAt],
+    /** Phase A test/debug: stats pending queue + session (not for game flow). */
+    getStatsSession: () => statsSession,
+    getStatsQueue: () => statsQueue,
+    getStatsWriteChain: () => statsWriteChain,
   };
 }
