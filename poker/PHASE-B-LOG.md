@@ -166,3 +166,42 @@ M 級回歸：新增 unit 局部通過；既有 A/B 整組未完成；Rules emul
 4. 真Chromium本機診斷：雙分頁40筆不互蓋、reload保留40筆、有界拒新保留舊筆；填滿localStorage確實QuotaExceededError後queue保留原1筆並告警；offline->online喚醒1次、visible事件後2次、解除事件後不增加。證據 /workspace/pr49b-round4-browser{,-quota,-wake}.json。測試專用origin/context隨browser關閉，不寫真DB；不把Chrome配額當iPhone/Safari保證，storage.estimate也不當localStorage容量。
 5. Rules quota：實測6筆超過1000 expressions、2筆通過，並取得 /workspace/pr49b-round4-final-ruleCoverage.json。coverage是整套累積，不是每request精確expression或cached document reads；因此quota項仍部分完成，不捏造精確數字。跨host與wake仍欠正式host受控整合；真多瀏覽器/裝置及精確reads/quota尚待測。
 6. 未push/merge/deploy、不做C/UI、不改舊app。下一輪先讀本LOG與remote-pending.js、submission.js；估受控整合/精確quota另15–30分鐘，不含Safari/裝置測試，需另GO。無需PL重選產品定義；T0發版另定，技術兩筆上限為PM依量測制定。
+
+## Phase B ROUND5：實際 host 受控接線（2026-11-08）
+
+明確復工授權 implement-approved-spec／regression-check；僅 B，7 分鐘／25 shell calls。HEAD 2862004，任務分支 pm/pr49-b1；未 commit。PL v1.0 §5–7、§10有效；M級，無外觀／C改動，六人e2e依本輪豁免。
+
+驗收切片：既有 host start/stop、完手獨立 statsWriteChain 接上 bounded account+room local queue、server-only ACK remote pending、receipt submitter、online/visible wake。正式 STATS_ENABLED=false、STATS_T0=null，停用路徑不建立持久佇列／事件／DB操作；測試才注入 enabled/period/adapters。不將統計 Promise 接入遊戲 writeChain。房間遠端仍最多2筆／16384 serialized bytes，本機沿8192／524288 bytes，不新增TTL或淘汰。
+
+createHostStatsRuntime：wake併發合併，start冪等，stop永久撤銷該實例並解除事件；新host建立新實例。所有非同步queue/submit adapter操作前後檢查現任host及本次runtime仍有效；SDK transaction callback每次重試及讀取後再次檢查，batch提交前再次檢查。已送出的網路請求無法取消，仍依Rules判定；延遲ACK後失權不再進行下一步提交／清理。失權／失敗保留pending與錯誤回報。remote list仍只用getDocFromServer並拒絕cache/hasPendingWrites，沒有從舊host記憶體推算恢復。
+
+最小舊程式變動：host建立runtime並把recovery注入既有獨立鏈，start/stop接生命週期；mp-app四個host建立點提供即時帳號uid，帳號變更立即stop舊host。既有離桌tearDownRoom及hostUid更換分支沿用stop解除。未修舊base／Safari／手機。
+
+實際命令：
+- 初次新增ROUND5 unit：3 pass／1 fail，fixture缺room.config（不是產品錯誤）；補完整fixture，未修改引擎。
+- `node --test --test-isolation=none --test-timeout=10000 poker/test/personal-stats-phase-a.test.js poker/test/personal-stats-phase-b.test.js poker/test/personal-stats-phase-b-round2.test.js poker/test/personal-stats-phase-b-round4.test.js poker/test/personal-stats-phase-b-round5.test.js`：最後36/36 pass，0 fail/cancelled；/tmp/pr49b-round5-unit.tap。
+- `node --check poker/js/ui/mp-app.js`、`git diff --check`：exit 0。未執行完整unit／Rules／browser，遵守沙箱不可socket，不嘗試server。
+
+| M回歸項目 | 方法 | 結果 | 證據 |
+|---|---|---|---|
+| A/B既有身份、快照、獨立鏈、去重、quota/cleanup保留 | unit | PASS | /tmp/pr49b-round5-unit.tap |
+| 實際host startHand→FOLD→HAND_OVER→本機保存及補送 | 注入adapter unit | PASS | 同上ROUND5案例 |
+| ACK讀取中失權不提交／不清理、wake合併、stop解除、正式停用 | 注入adapter unit | PASS | 同上ROUND5案例 |
+| 帳號／離桌／host切換真瀏覽器、受影響M區域手動 | manual | 未執行，待coordinator | 不以unit代替 |
+| 六人e2e | manual | 本輪豁免 | 使用者指示 |
+
+Coverage實查：/workspace/pr49b-round4-final-ruleCoverage.json根鍵rules、report；report節點包含sourcePosition、values[].value/count、children。沒有request ID、文件access/cache計數或明確的每request expression總數。整套累積count不能當單次額度；即使樹狀count全加總也不能宣稱等於Rules內部1000 expressions計數（節點階層／內部計數語義未有對照）。
+
+提供coordinator隔離量測方法（未執行）：僅localhost/demo-poker，使用既有公開ruleCoverage JSON端點，先以Rules disabled管理context準備fixture並載入測試記憶體啟用Rules；取得baseline JSON；只送一個目標受保護請求（例如兩筆pending transaction，須明確記錄SDK是否重試及一個transaction可能含多個RPC），立即取得after JSON。按sourcePosition及value配對比較count差值，僅報「隔離操作期間各來源節點評估差值」，不要冒稱精確單RPC expression總數。批次提交、receipt get、remote get、pending transaction各分開在乾淨emulator／序列環境測，不能同時有其他Rules測試。成功只證明該fixture請求未超限，不給精確數字。若coordinator的公開emulator request trace有明列request關聯的expression／document access及cache資訊，才另依該證據報數；本JSON無此資料，精確每request expression及文件read/cache額度仍未量得。不用未文件化重設／debug API。
+
+變更精確路徑：poker/js/stats/host-runtime.js（新增）、poker/js/net/host.js、poker/js/ui/mp-app.js、poker/js/stats/remote-pending.js、poker/js/stats/firestore-adapter.js、poker/js/stats/submission.js（僅更新接線說明）、poker/test/personal-stats-phase-b-round5.test.js（新增unit，非regression script）、poker/PHASE-B-LOG.md。
+
+剩餘：coordinator完整unit與既有/B Rules、M受影響生命週期手動、隔離quota調查。正式DB接線保持停用，不宣稱產品已啟用或B驗收；只恢復已ACK遠端子集、遠端兩筆上限的涵蓋限制沿前輪。無新增依賴／regression scripts／部署／merge／push／commit／憑證／雲端代理／preview。預算到點停止；完整unit估1分鐘，手動與精確quota依環境無可靠估時，續輪需owner GO。
+
+## PM 第五輪獨立核實與停報（2026-11-08 09:18 台北時間）
+1. 宗良授權B接線與全測通過後一般推送。已接host start/stop、HAND_OVER獨立鏈、ACK pending恢復及online/visible wake；正式STATS_ENABLED=false/T0=null不變，不新增正式DB寫入。變更範圍只B必要接線。
+2. 獨立完整unit197/197、既有Rules142/142、B Rules15/15全通過，0fail/0cancel；六人沿核准豁免。證據 /workspace/pr49b-round5-final-unit.log、/workspace/pr49b-round5-rules.log，僅demo-poker localhost。受影響區域unit涵蓋真host開手/FOLD/完手、失權/stop/account檢查、wake合併；未做真瀏覽器帳號/離桌/host切換M手動，不冒稱整體B驗收。
+3. 配額調查：官方coverage JSON只有來源節點value/count/children，沒有每request ID、cached document reads或1000 expressions內部計數。官方限制亦說Requests Monitor不顯示依賴fetch：https://firebase.blog/posts/2021/08/firestore-emulator-requests-monitor/ 。因此精確quota仍部分完成，不虛報。
+4. 隔離單一成功三文件SDK batch前後coverage，來源節點累計差2364；成功請求卻大於1000，直接證明這個加總不能當額度expression。證據 /workspace/pr49b-round5-isolated-{before,after}.json、/workspace/pr49b-round5-isolated-quota.log。靜態未計cache保守上界：aggregate3、summary3、receipt4個文件存取函式呼叫，共10，單寫最多4；pending每次Rules只讀room一次。這是source上界，不是實測cache/billable reads。2筆pending成功、6筆撞1000的實測沿前輪；遠端cap2/16KiB、本機8KiB單筆/512KiB維持。
+5. 可交本輪受控接線的自測；整體B尚不可結案，欠真瀏覽器生命週期、多裝置/Safari/手機與精確quota可觀測性。額度工具不提供的數字不可用繼續堆coverage假裝量得；若要變更驗收方式請交上游確認。估手動整合自測15–30分鐘，Safari/手機另計。
+6. 不合併部署、不寫正式DB、不做C。不自動續輪；本輪核准一般推PR49，不動main、不強推，push前遠端必須仍2862004。

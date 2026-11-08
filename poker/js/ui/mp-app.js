@@ -698,6 +698,10 @@ export async function startMpApp() {
   }
 
   onUser(async (ev) => {
+    if (authState.user?.uid !== ev.user?.uid) {
+      hostLoop?.stop();
+      hostLoop = null;
+    }
     authState = ev;
     if (ev.status === 'signed-in' && ev.user) {
       const fb = getFirebase();
@@ -1462,6 +1466,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
     }
     if (room.hostUid === user.uid && !hostLoop) {
       hostLoop = createHostLoop(fb, {
+        getCurrentUid: () => getUser()?.uid,
         roomId: id,
         uid: user.uid,
         getRoom: () => room,
@@ -1627,6 +1632,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
 
         if (r.hostUid === user.uid) {
           hostLoop = createHostLoop(fb, {
+        getCurrentUid: () => getUser()?.uid,
             roomId: id,
             uid: user.uid,
             getRoom: () => room,
@@ -1705,6 +1711,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
         // host loop ownership
         if (r.hostUid === user.uid && !hostLoop) {
           hostLoop = createHostLoop(fb, {
+        getCurrentUid: () => getUser()?.uid,
             roomId: id,
             uid: user.uid,
             getRoom: () => room,

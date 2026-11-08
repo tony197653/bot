@@ -1,4 +1,4 @@
-// Phase B seam: deliberately not connected to production host/T0.
+// Phase B submission; production activation remains disabled.
 export const utf8Bytes = value => new TextEncoder().encode(JSON.stringify(value)).byteLength;
 // Escape the separator itself; no JS/Rules Unicode length dependency.
 const keyPart = value => value.replaceAll('%', '%25').replaceAll('_', '%5F');
@@ -74,7 +74,7 @@ export function createStatsRecovery({ queue, submit, now = Date.now, onStatus = 
   };
 }
 
-// Opt-in Phase B composition; never installed in the production host/T0.
+// Phase B composition, installed by the host runtime behind disabled activation.
 export function createStatsRoomRecovery({ queue, remoteQueue, submit, onStatus = () => {}, now = Date.now }) {
   const local = createStatsRecovery({ queue, submit, onStatus, now });
   const remote = createStatsRecovery({ queue: remoteQueue, submit, onStatus, now });

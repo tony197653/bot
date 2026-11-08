@@ -31,6 +31,8 @@ import {
   createStatsSession,
 } from '../stats/index.js';
 
+import { createHostStatsRuntime } from '../stats/host-runtime.js';
+
 const AWAY_UNSEAT_MS = 30 * 60_000;
 
 /**
@@ -76,8 +78,12 @@ export function createHostLoop(fb, opts) {
   let lastWriteAt = 0;
   let writeChain = Promise.resolve();
   /** Personal-stats chain: independent of writeChain; never awaited by game flow. */
-  const statsQueue = createMemoryPendingQueue();
-  const statsWriteChain = createStatsWriteChain({ queue: statsQueue });
+  const statsRuntime = createHostStatsRuntime({ ...opts.stats, fs, db, roomId, uid,
+    isCurrentHost: () => running && getRoom()?.hostUid === uid &&
+      (!opts.getCurrentUid || opts.getCurrentUid() === uid),
+  });
+  const statsQueue = statsRuntime.queue || createMemoryPendingQueue();
+  const statsWriteChain = createStatsWriteChain({ queue: statsQueue, recovery: statsRuntime.recovery });
   const statsSession = createStatsSession({
     roomId,
     writeChain: statsWriteChain,
@@ -931,6 +937,7 @@ export function createHostLoop(fb, opts) {
     running = true;
     const room = getRoom();
     ensureEngine(room);
+    statsRuntime.start();
 
     stopIntentListen = fs.onSnapshot(
       fs.collection(db, 'pokerRooms', roomId, 'intents'),
@@ -970,6 +977,7 @@ export function createHostLoop(fb, opts) {
 
   function stop() {
     running = false;
+    statsRuntime.stop();
     if (tickTimer) clearInterval(tickTimer);
     clearRevealTimer();
     clearNextHandTimer();
