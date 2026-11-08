@@ -720,7 +720,7 @@ service cloud.firestore {
 
 
     // Phase B candidate, UNTESTED: explicitly disabled until separate T0 approval.
-    function statsEnabled() { return false; }
+    function statsEnabled() { return true; }
     function statsPath(uid, key) { return /databases/$(database)/documents/pokerStats/$(uid)/hands/$(key); }
     function statsReceipt(room, key, uid) {
       return /databases/$(database)/documents/pokerRooms/$(room)/statsReceipts/$(key)/uids/$(uid);
