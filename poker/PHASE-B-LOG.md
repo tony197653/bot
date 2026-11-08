@@ -205,3 +205,17 @@ Coverage實查：/workspace/pr49b-round4-final-ruleCoverage.json根鍵rules、re
 4. 隔離單一成功三文件SDK batch前後coverage，來源節點累計差2364；成功請求卻大於1000，直接證明這個加總不能當額度expression。證據 /workspace/pr49b-round5-isolated-{before,after}.json、/workspace/pr49b-round5-isolated-quota.log。靜態未計cache保守上界：aggregate3、summary3、receipt4個文件存取函式呼叫，共10，單寫最多4；pending每次Rules只讀room一次。這是source上界，不是實測cache/billable reads。2筆pending成功、6筆撞1000的實測沿前輪；遠端cap2/16KiB、本機8KiB單筆/512KiB維持。
 5. 可交本輪受控接線的自測；整體B尚不可結案，欠真瀏覽器生命週期、多裝置/Safari/手機與精確quota可觀測性。額度工具不提供的數字不可用繼續堆coverage假裝量得；若要變更驗收方式請交上游確認。估手動整合自測15–30分鐘，Safari/手機另計。
 6. 不合併部署、不寫正式DB、不做C。不自動續輪；本輪核准一般推PR49，不動main、不強推，push前遠端必須仍2862004。
+
+## Phase B ROUND6 啟動受阻（2026-11-08，台北時間）
+
+已讀交接 LOG；本輪要求本機 demo-poker 真瀏覽器登入、離桌與換 host 自測，不推送。載入 code-changes 後，其規則要求任何非簡單 repo 行為調查交由 CloudAgent；工具探索 CloudAgent 無可用工具，故停止，未以本機腳本繞過。未啟動 emulator/browser、未執行案例、未修改產品或測試程式、未 commit/push/merge/deploy、未接正式 DB。所有案例及 M 回歸均未測；沒有截圖或 idle/read 數字。需主代理解決執行工具限制後續行，不得將本輪視為通過。
+
+## PM 第六輪真瀏覽器本機自測停報（2026-11-08 09:44 台北時間，約15分／22 calls）
+- 僅 localhost demo-poker emulator；Chromium headless 多 context。測試專用：mp-app 新增 `qaStatsOpts()`（僅 isEmuMode 且 window.__qaStats 才傳 stats），正式 STATS_ENABLED=false/T0=null 不變；Rules 以未提交副本 firebase/firestore.r6-test.rules（statsEnabled→true）+ firebase.r6-test.json 啟動。腳本 test/mp-r6-stats.mjs。
+- 第一次用正式 rules：本機 pending 有保存，遠端 statsPending 被拒（statsEnabled()=false，符合預期停用）。
+- S1 登入+3人4手：PASS。3 uid 各 hands 4/unique 4，validHands=4，無重複；host 本機 pending 清空。
+- S2 回大廳離桌：未通過/未測成。找不到「回大廳」按鈕（lobbyBtn=0），__qaShowLeaveConfirm 回 false，g2 未回大廳；收桌結算未測。需確認按鈕選擇器/顯示條件。
+- S3 換 host：接手成功（hostUid 換成 z03…），舊 host 關閉後無再寫；接手後第5手未在等待內打完（h5=false），新 host 寫入、跨 host ACK 恢復、離線/前景補送未得證據。統計維持4手、無重複。
+- 回歸：fold/check/call 實點 PASS；raise 只見按鈕存在；快捷/slider/−+/all-in/確認/取消/回大廳對話框未測。
+- idle10s：host repaints 0、emu requests 13；大廳 0/0；新 host 0/10。
+- 證據 /workspace/pr49b-r6/（r6-result.json、run1-3.log、截圖）。

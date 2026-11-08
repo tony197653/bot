@@ -110,6 +110,12 @@ let roomId = null;
 let stopRoom = null;
 /** @type {ReturnType<typeof createHostLoop>|null} */
 let hostLoop = null;
+/** Test-only: emulator pages may opt into stats via window.__qaStats; production never reads it. */
+function qaStatsOpts() {
+  if (!isEmuMode()) return undefined;
+  const o = globalThis.window?.__qaStats;
+  return o && o.enabled === true && Number.isSafeInteger(o.startedAt) ? { enabled: true, startedAt: o.startedAt } : undefined;
+}
 /** @type {ReturnType<typeof startPresence>|null} */
 let presence = null;
 /** @type {ReturnType<typeof createIntentSender>|null} */
@@ -1467,6 +1473,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
     if (room.hostUid === user.uid && !hostLoop) {
       hostLoop = createHostLoop(fb, {
         getCurrentUid: () => getUser()?.uid,
+        stats: qaStatsOpts(),
         roomId: id,
         uid: user.uid,
         getRoom: () => room,
@@ -1633,6 +1640,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
         if (r.hostUid === user.uid) {
           hostLoop = createHostLoop(fb, {
         getCurrentUid: () => getUser()?.uid,
+        stats: qaStatsOpts(),
             roomId: id,
             uid: user.uid,
             getRoom: () => room,
@@ -1712,6 +1720,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
         if (r.hostUid === user.uid && !hostLoop) {
           hostLoop = createHostLoop(fb, {
         getCurrentUid: () => getUser()?.uid,
+        stats: qaStatsOpts(),
             roomId: id,
             uid: user.uid,
             getRoom: () => room,
