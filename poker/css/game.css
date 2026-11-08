@@ -1056,7 +1056,7 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-table .num{text-align:right;font-variant-numeric:tabular-nums}
 .mp-tag{margin-left:6px;font-size:11px;color:var(--accent)}
 /* Above act / raise panel / hero plate — never sit in the bottom action band */
-.mp-toast{position:fixed;left:50%;top:max(72px,calc(var(--top-h) + 28px));bottom:auto;transform:translateX(-50%);z-index:80;background:color-mix(in srgb, var(--ink-solid) 88%, transparent);color:var(--paper);padding:10px 16px;border-radius:999px;font-size:14px;max-width:90vw;pointer-events:none}
+.mp-toast{position:fixed;left:max(12px,env(safe-area-inset-left));right:auto;top:max(calc(var(--top-h) + 4px),calc(var(--top-h) + env(safe-area-inset-top,0px) + 4px));bottom:auto;transform:none;z-index:80;background:color-mix(in srgb, var(--ink-solid) 88%, transparent);color:var(--paper);padding:5px 10px;border-radius:999px;font-size:12px;line-height:1.4;text-align:left;max-width:min(60vw,320px);pointer-events:none}
 .mp-banner{position:fixed;left:0;right:0;top:var(--top-h);z-index:40;background:#3a1d12ee;color:var(--ink);padding:10px 14px;font-size:13px;text-align:center;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center}
 .mp-banner[hidden]{display:none!important}
 .mp-banner-msg{flex:1 1 220px;line-height:1.45;text-align:center}
