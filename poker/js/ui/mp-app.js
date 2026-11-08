@@ -279,7 +279,22 @@ async function syncAfterRoomClosed() {
 
 /** Leave close-result without bouncing back into the closed table. */
 async function dismissCloseResultToLobby() {
-  if (closeInFlight) await closeInFlight.catch(() => {});
+  if (closeInFlight) {
+    // 0.2 秒回饋：先切大廳；收桌／結帳在背景跑完才拆 host loop
+    const pending = closeInFlight;
+    closeResultDismissedFor = roomId || room?.id || null;
+    hideCloseResultCard();
+    clearRoomUrlParams();
+    clearLastRoom();
+    autoResumeTried = true;
+    lobbyExitSuppressMine = true;
+    screen = 'lobby';
+    const back0 = $('#btnBackLobby');
+    if (back0) back0.hidden = true;
+    paint();
+    await pending.catch(() => {});
+    if (screen !== 'lobby') return;
+  }
   const closedId = roomId || room?.id || null;
   closeResultDismissedFor = closedId;
   hideCloseResultCard();
@@ -1046,7 +1061,10 @@ function paint() {
         await navigator.clipboard?.writeText(url);
         toast('已複製');
       },
-      onEnter: () => enterRoom(shareInfo.roomId, { asHostSit: true }),
+      onEnter: () => {
+        paintEnterShell(shareInfo?.name);
+        void enterRoom(shareInfo.roomId, { asHostSit: true });
+      },
       onLobby: () => {
         clearRoomUrlParams();
         screen = 'lobby';
@@ -1127,6 +1145,29 @@ function paint() {
     ensureMpMenu();
     paintTableChrome();
   }
+}
+
+/** 0.2 秒回饋：點「進入牌桌」立刻畫空牌桌＋自己的位子，讀取在背景完成（不畫空位／觀戰）。 */
+function paintEnterShell(name) {
+  room = null;
+  screen = 'table';
+  paint();
+  const user = getUser();
+  const me = nameOrStub(user?.uid, user?.displayName, '你');
+  const set = (sel, fn) => {
+    const el = $(sel);
+    if (el) fn(el);
+  };
+  set('#roomTitle', (el) => (el.textContent = name || '週五牌局'));
+  set('#roomMeta', (el) => (el.innerHTML = ''));
+  set('#seats', (el) => el.querySelectorAll('.mp-empty-seat, .seat:not(.hero)').forEach((n) => n.remove()));
+  set('#bets', (el) => (el.innerHTML = ''));
+  set('#board', (el) => (el.innerHTML = ''));
+  set('#heroHole', (el) => (el.innerHTML = ''));
+  set('#heroName', (el) => (el.textContent = me));
+  set('#heroChips', (el) => (el.textContent = fmtChips(Number(playerDoc?.bank) || 0)));
+  set('#heroAv', (el) => (el.innerHTML = `<span>${esc(me.slice(0, 1))}</span>`));
+  set('#btns', (el) => (el.innerHTML = ''));
 }
 
 function ensureOpenTablesListen() {
