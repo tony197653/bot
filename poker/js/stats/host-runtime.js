@@ -42,8 +42,11 @@ export function createHostStatsRuntime({ fs, db, roomId, uid, isCurrentHost,
       void recovery.wake();
     },
     /** Fire-and-forget after the HAND_OVER room write; failures only reported, never retried into game chain. */
-    syncChips({ seatUids, stacks }) {
+    async syncChips({ seatUids, stacks }) {
       if (!chipsAdapter?.writeChips || !allowed()) return Promise.resolve();
+      // The first stats submission creates the public doc needed by chips rules.
+      await recovery.wake();
+      if (!allowed()) return;
       return Promise.allSettled(seatUids.map((u, seat) => u ? chipsAdapter.writeChips({ uid: u, roomId, seat, stack: stacks[seat] }) : null))
         .then(rs => rs.forEach(r => r.status === 'rejected' && onStatus('chips', r.reason)));
     },

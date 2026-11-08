@@ -818,7 +818,10 @@ function maybeSyncOwnChips() {
   chipsSyncKey = key; chipsSyncStatus = 'pending';
   try { localStorage.setItem(CHIPS_PENDING_KEY(me.uid), '1'); } catch { /* optional */ }
   void createFirestoreStatsAdapter({ fs: fb.fs, db: fb.db }).writeChips({ uid: me.uid })
-    .then(() => { chipsSyncStatus = 'synced'; try { localStorage.removeItem(CHIPS_PENDING_KEY(me.uid)); } catch { /* optional */ } })
+    .then((total) => {
+      chipsSyncStatus = total === null ? 'idle' : 'synced';
+      try { localStorage.removeItem(CHIPS_PENDING_KEY(me.uid)); } catch { /* optional */ }
+    })
     .catch((e) => { chipsSyncStatus = 'pending'; console.warn('[stats] chips', e?.code || e); });
 }
 function openStatsFor(uid, name) {

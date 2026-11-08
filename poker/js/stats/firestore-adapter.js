@@ -5,13 +5,18 @@ export function createFirestoreStatsAdapter({ fs, db, assertAuthority = () => {}
     /** Public current-chips TOTAL (bank + seat stack at HAND_OVER). Separate write; never blocks game. */
     async writeChips({ uid, roomId = null, seat = null, stack = 0 }) {
       assertAuthority();
-      const p = await fs.getDoc(fs.doc(db, 'pokerPlayers', uid));
+      const publicRef = fs.doc(db, 'pokerStatsPublic', uid);
+      const [p, publicStats] = await Promise.all([
+        fs.getDoc(fs.doc(db, 'pokerPlayers', uid)),
+        fs.getDoc(publicRef),
+      ]);
+      if (!publicStats.exists()) return null;
       const bank = p.exists() ? p.data().bank : null;
       if (!Number.isInteger(bank) || !Number.isInteger(stack)) return false;
       assertAuthority();
       const batch = fs.writeBatch(db);
       batch.set(fs.doc(db, 'pokerStatsSeat', uid), { roomId, seat, at: fs.serverTimestamp() });
-      batch.update(fs.doc(db, 'pokerStatsPublic', uid), { currentChipsTotal: bank + (roomId ? stack : 0), chipsAt: fs.serverTimestamp() });
+      batch.update(publicRef, { currentChipsTotal: bank + (roomId ? stack : 0), chipsAt: fs.serverTimestamp() });
       await batch.commit();
       return bank + (roomId ? stack : 0);
     },
