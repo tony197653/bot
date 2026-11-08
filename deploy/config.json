@@ -9,7 +9,7 @@
       "enabled": false,
       "path": "/poker/js/ui/lobby.js",
       "forbiddenSubstring": "同一支手機輪流玩",
-      "note": "Example old-UI guard. Auxiliary only — never the sole promote gate. Flip enabled to true when this string must not ship."
+      "note": "Example old-UI guard. Auxiliary only — never the sole promote gate. Real adapter cannot fetch version file bytes; enable only with an injected content fetcher, or checks refuse as AUX_UNSUPPORTED / AUX_CONTENT_UNSUPPORTED."
     }
   ],
   "lockFile": "deploy/.promote.lock"

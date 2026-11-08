@@ -13,7 +13,7 @@ node scripts/generate-approval.mjs \
   --quote '<宗良核准原文>'
 ```
 
-核准 JSON 必須保留非空 `approvalRef`、核准文字、時間、來源版本、`expectedLiveVersion`、manifest、servingConfig 與完整 manifestDigest。核准卡片應引用這些確切版本與 artifact；不得用先前對可變 channel 的核准代替。
+核准 JSON 必須保留非空 `approvalRef`、核准文字、時間、來源不可變版本、`expectedLiveVersion`、manifest、servingConfig、完整 `manifestDigest`、以及對當時 live 的 `diffVsLive` / `reviewedDiffSummary`（產生器自動填，擁有者不用手填）。缺任一欄位即拒絕發布。核准卡片應引用這些確切版本與 artifact；不得用先前對可變 channel 的核准代替。
 
 正式操作前必須明確設定 `GOOGLE_APPLICATION_CREDENTIALS` 指向所選 ADC 憑證檔；REST 另需 `HOSTING_ACCESS_TOKEN`，由操作者為同一憑證明確取得的短期 OAuth2 access token，或由程式注入 `getAccessToken`。工具不呼叫 login:ci、不使用 FIREBASE_TOKEN 當 REST bearer，也不讀取 gcloud active account。不得提交憑證或 token。
 
@@ -23,7 +23,9 @@ node scripts/promote-live.mjs --approval deploy/approvals/<approval-id>.json
 
 工具以 `deploy/.promote.lock` 獨占鎖保護流程，finally 移除自己建立的鎖。必須已有 `deploy/releases.md` 的 DONE 或人工確認 BASELINE 紀錄，且符合核准的前版；空紀錄一律拒絕，不自動建立基準。來源須為 FINALIZED、fileCount 正確、path 無重複，檔案與 serving config 雜湊須完全相符。
 
-發布前先 fsync 寫入 PENDING，再立即重讀 live，符合核准前版才呼叫 release；事後驗證版本與完整 artifact，fsync 寫入 DONE 或 FAILED。各列包括版本、前版、approvalRef、雜湊、時間、rollback command。外部 Console/CLI 可繞過本地鎖，因此最後檢查與發布仍非伺服器端原子交易。程序中斷留下 PENDING 或鎖時，需人工核對遠端狀態後處理，不能猜測成功。
+發布前先 fsync 寫入 PENDING（含 rollback 版本指令），再立即重讀 live，符合核准前版才呼叫 release；事後驗證版本與完整 artifact，fsync 寫入 DONE 或 FAILED。各列包括版本、前版、approvalRef、雜湊、時間、rollback command。外部 Console/CLI 可繞過本地鎖與本腳本，因此並行發布仍可能競態——這是約定而非伺服器端原子交易。程序中斷留下 PENDING 或鎖時，需人工核對遠端狀態後處理，不能猜測成功。
+
+輔助字串檢查（如舊 UI 禁詞）預設關閉。真實 adapter **不支援**讀取 Hosting version 檔案內容（`getVersionFileText` 會明確丟 `AUX_CONTENT_UNSUPPORTED`）；啟用檢查卻沒有可讀內容的注入實作時，promote 會拒絕，絕不明示略過。
 
 實際發布命令維持：
 

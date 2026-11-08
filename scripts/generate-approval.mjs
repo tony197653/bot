@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
- * Generate an approval record JSON from a Hosting channel or immutable version.
- * Hashes/version ids are collected via the Firebase adapter — do not hand-type hashes.
+ * Generate an approval record bound to an IMMUTABLE Hosting version.
+ * Does not resolve mutable channels. Hashes/version ids collected via adapter.
  *
  * Usage:
  *   node scripts/generate-approval.mjs \
  *     --id 2026-11-08-a1 \
- *     --source tony-poker:main \
- *     --expected-live sites/tony-poker/versions/<currentLiveId> \
+ *     --source sites/tony-poker/versions/<VERSION_ID> \
+ *     --expected-live sites/tony-poker/versions/<CURRENT_LIVE_VERSION_ID> \
+ *     --approval-ref <approval-card-or-message-id> \
  *     --quote "Owner approval text..." \
  *     --out deploy/approvals/2026-11-08-a1.json
  *
- *   node scripts/generate-approval.mjs --id ... --source sites/tony-poker/versions/<id> ...
- *   node scripts/generate-approval.mjs --id ... --source tony-poker@<versionId> ...
+ * Record includes approvalRef, reviewedDiffSummary, and diffVsLive (vs current live).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -41,8 +41,8 @@ function usage() {
 Required:
   --id <id>
   --source <sites/tony-poker/versions/ID>
-  --expected-live <sites/.../versions/ID>
-  --approval-ref <宗良核准卡片參照>
+  --expected-live <sites/tony-poker/versions/ID>
+  --approval-ref <approval card/message id>
   --quote <approver quote text>
   --out <path>   (default deploy/approvals/<id>.json)`);
 }
@@ -68,7 +68,22 @@ async function main() {
       firebase,
     });
     writeApprovalRecord(outPath, record);
-    console.log(JSON.stringify({ ok: true, outPath, sourceVersion: record.sourceVersion, manifestDigest: record.manifestDigest, fileCount: Object.keys(record.manifest).length }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          ok: true,
+          outPath,
+          sourceVersion: record.sourceVersion,
+          expectedLiveVersion: record.expectedLiveVersion,
+          manifestDigest: record.manifestDigest,
+          approvalRef: record.approvalRef,
+          fileCount: Object.keys(record.manifest).length,
+          reviewedDiffSummary: record.reviewedDiffSummary,
+        },
+        null,
+        2,
+      ),
+    );
   } catch (e) {
     if (e instanceof PromoteError) {
       console.error(`FAILED [${e.code}]: ${e.message}`);
