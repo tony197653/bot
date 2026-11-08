@@ -776,6 +776,7 @@ function bindPersonalStatsEntry() {
 /** v1.0.5: after cash-out / leave, self re-syncs public chips total (= bank) and clears private seat map.
  * Triggered from lobby paint only when bank changed (no polling, no repaint); failures leave status pending. */
 let chipsSyncKey = '';
+let closedFallbackToastFor = null;
 export let chipsSyncStatus = 'idle';
 const CHIPS_PENDING_KEY = (uid) => `pokerStats.chipsPending.v1:${uid}`;
 if (typeof window !== 'undefined') {
@@ -814,7 +815,12 @@ function openStatsFor(uid, name) {
       },
       onClose: () => {
         // Source table closed while viewing → safe lobby fallback with short note (spec §2.2).
-        if (fromRoom && (!room || room.id !== fromRoom || room.status === 'closed') && !document.getElementById('mpCloseResult')?.offsetParent) {
+        // PL: same table + same close event already showing its close-result card → no extra toast.
+        if (!fromRoom || (room && room.id === fromRoom && room.status !== 'closed')) return;
+        if (closeResultShownFor === fromRoom || closeResultDismissedFor === fromRoom) return;
+        if (closedFallbackToastFor === fromRoom) return;
+        closedFallbackToastFor = fromRoom;
+        {
           screen = 'lobby'; paint(); toast('原牌桌已關閉，已回大廳');
         }
       },

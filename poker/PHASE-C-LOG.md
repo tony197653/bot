@@ -28,3 +28,11 @@
 4. idle10s（不含首次載入）：牌桌 0 重畫／2 請求（presence 心跳）；統計疊層 0/0；大廳 0/0。每手成本（源碼）：每在座玩家 統計 1 batch 4 寫＋讀 receipt 1；籌碼 1 batch 2 寫＋讀 pokerPlayers 1；Rules 內部讀另計。
 5. M 回歸（r8 腳本重跑）：raise 面板、±、slider、6 快捷、全下取消、確認、取消、check/call/fold、回大廳對話框、離桌、host 收桌 PASS；hands==unique 無重複。換 host 段沿用舊腳本計時（已知腳本因素），非本輪改動。
 測試：unit 201/201；Rules 142/142；B+C 25/25。證據 /workspace/pr49c-r4/。
+
+## C 第五輪（2026-11-08 12:49–13:03 台北時間，約13分）
+1. 去重（PL 原話）：同一張桌、同一次收桌事件，已有收桌結果卡顯示時，就不再跳『原牌桌已關閉，已回大廳』提示；保留結果卡與回大廳行為。若沒有結果卡可顯示，才用原提示補足原因。不要因任意其他卡片存在就抑制訊息，也不要改原本收桌結果內容。
+   實作：onClose 只看「該 fromRoom 的收桌結果卡已顯示／已關閉」(closeResultShownFor/closeResultDismissedFor)，不看其他卡；同房只提示一次(closedFallbackToastFor)。結果卡內容未改。
+   自測：有結果卡→卡 1、toast 0 PASS；重複開關→不重複 PASS；無結果卡分支未成功重現（admin 刪房間文件後 room 仍在記憶體，未觸發 fallback）→ 未驗證。
+2. main(3f6800e, PR#50) 試合併：git merge-tree 顯示 poker/js/ui/mp-app.js 內容衝突（兩邊都改收桌確認）；其他檔自動合併。未合併。
+3. 截圖 /workspace/pr49c-r5/{phone,desktop}-01..14-*.png。
+測試：見回報。
