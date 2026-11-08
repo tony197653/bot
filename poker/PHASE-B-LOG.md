@@ -71,3 +71,34 @@ M 級回歸：新增 unit 局部通過；既有 A/B 整組未完成；Rules emul
 4. 僅一局六人 demo e2e 嘗試，150秒逾時停於 sitGuest，未到攤牌，未重跑；無法判定是否既有問題。另 e2e/layout 會跑多手，依僅一局六人限制未跑。未合併部署、未寫正式 DB、未啟用 T0、未做 C，不推送。
 5. 剩餘：B capacity/Web Locks 停滯、六人 e2e、跨 host pending、前景/回線喚醒、真瀏覽器儲存與 Rules quota。估另 30–45分鐘及環境診斷，不自動續輪。
 6. 證據 /workspace/pr49b-round2-{unit-noisolation,targeted,b-rules,rules,6p}.log，基底 /workspace/pr49base-round2-unit.log。遠端仍 87014f6，原 985554e 保留；本次僅保存未驗收本機 checkpoint。
+
+## Phase B 第三輪：僅 capacity／quota 停滯修正（2026-11-08）
+
+依使用者明確復工授權，套用 implement-approved-spec／regression-check；M 級，PL v1.0，無 C/UI 變更。任務分支 pm/pr49-b1；本輪 HEAD a2002ff58d7adcaf083ee6b5418e5049db6017b6，未 commit。
+
+修改前先追根因：Node v24.22.1，原 capacity 案例用 `node --test --test-isolation=none --test-timeout=3000 --test-name-pattern='B capacity' test/personal-stats-phase-b.test.js` 重現 0 pass／0 fail／1 cancelled（3000ms timeout），證據 /tmp/pr49b-third-repro.tap。注入 Promise 鎖與 navigator.locks 最小比較顯示：兩者同步 throw 都會 reject 當次 request，並非當次 Promise 不回應；但原生鎖同步 throw 後下一次同名 request 超過 100ms 仍 pending，注入鎖可取得。改成 async throw 後，原生與注入鎖皆可再次取得。因此停滯發生在 quota 例外之後的 list，根因為原生鎖同步例外未釋放鎖。
+
+最小修正：bounded-queue.js 的鎖內 run callback 改為 async，讓 reload／operation 同步例外成為 Promise rejection，保留錯誤傳遞與舊 pending。新增一項 unit，對注入與原生鎖驗證 dequeue 配額失敗後 list 可返回且舊資料保留，恢復 storage 後可成功清理。未重構或新增腳本。
+
+實際命令／結果：
+- 最小比較：`node --input-type=module` heredoc（注入／原生、同步／async、再次取得同名鎖）；另 `node --test --test-isolation=none --test-timeout=3000 /tmp/pr49b-lock-repro.test.mjs` 確認 runner 內當次 reject，1 pass。/tmp 為一次性診斷，非 repo 回歸腳本。
+- 紅燈：`node --test --test-isolation=none --test-timeout=3000 --test-name-pattern='B quota rejection releases' test/personal-stats-phase-b-round2.test.js`，exit 1，0 pass／0 fail／1 cancelled（3000ms timeout），/tmp/pr49b-third-red.tap。
+- 綠燈：`node --test --test-isolation=none --test-timeout=3000 test/personal-stats-phase-a.test.js test/personal-stats-phase-b.test.js test/personal-stats-phase-b-round2.test.js`，exit 0，27 pass／0 fail／0 cancelled，/tmp/pr49b-third-green.tap。
+- 完整：`node --test --test-isolation=none --test-timeout=10000 test/*.test.js`，exit 1，188 tests／187 pass／1 fail／0 cancelled／0 skipped，/tmp/pr49b-third-full.tap。唯一失敗為 test/raise-confirm.test.js:87，listen EPERM 127.0.0.1（沙箱拒絕 socket），未重試，不宣稱全綠。
+- `git diff --check`：exit 0。
+
+| M 回歸項目 | 方法 | 結果 | 證據 |
+|---|---|---|---|
+| A 身分／快照／獨立鏈與 B 補送／容量／quota | unit | PASS 27/27 | /tmp/pr49b-third-green.tap |
+| 完整既有 unit | 既有命令 | FAIL：187 pass、1 EPERM fail | /tmp/pr49b-third-full.tap |
+| 受影響區域手動／六人 e2e | manual | 未執行，使用者指定 coordinator 執行 | 無手動通過證據 |
+
+僅變更 bounded-queue.js、round2 unit 與本 LOG。未連 production DB／網路、未動 Rules／C/UI／憑證，無 deploy／merge／push／commit／雲端代理，無 preview。剩餘：coordinator 在可監聽環境驗證完整 unit，依授權執行基底及 B 各一局六人；真瀏覽器配額／跨頁鎖、Rules quota、跨 host pending 等既有缺口不在本輪驗收。重跑 unit 估 1 分鐘內；瀏覽器／Rules／e2e 時間依 coordinator 環境，未估整體 B 完工。完成本輪後停止。
+
+## PM 第三輪獨立核實與停報（2026-11-08 08:53 台北時間）
+1. 宗良授權先修容量及六人一局。本輪容量根因及 red/green 見上段；獨立完整 unit（--test-isolation=none --test-timeout=10000）188/188 pass，0 fail/0 cancelled，證據 /workspace/pr49b-round3-unit.log。
+2. 鎖內 callback 改 async 是最小修正，保留 quota 失敗及既有 pending，不吞錯；新增原生/注入鎖 quota 後讀取/清理回歸。
+3. 六人情境各只試一次：未改基底87014f6於120秒 timeout，停 guestDiag；B於180秒 timeout，停 joinViaLink，兩者皆未攤牌。基底 firestore-debug.log 證實舊 room update L353 已碰1000 expressions上限，另有既有 player create/update evaluation errors及 emulator ArrayIndexOutOfBoundsException。這證明失敗非 B 才出現，未完全排除環境因素，不把單一 Rules 訊息冒稱唯一 e2e 根因。依授權不修既有 app/rules。
+4. 同輪既有 Rules142/142、新B Rules14/14（含父案例）皆pass；全部 localhost demo-poker，B只在測試記憶體啟用，正式statsEnabled/T0維持停用。證據 /workspace/pr49b-round3-rules.log；e2e證據 /workspace/pr49{base,b}-round3-6p.log。
+5. 六人未通過所以不push，不合併部署、不寫正式DB、不做C。遠端核實仍87014f6，原985554e保留。本輪只本機commit未驗收checkpoint。
+6. 接手：容量已解；先決策是否另案修基底六人Rules/環境。B仍欠跨host遠端pending、前景回線喚醒、真瀏覽器容量/多頁、Rules quota測量。估B另30–45分鐘，基底六人診斷另計；本輪完成即停，不自動續輪。

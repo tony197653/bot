@@ -11,7 +11,8 @@ export function createBoundedPendingQueue({ storage, storageKey, budget = BYTE_B
   }
   reload();
   function exclusive(operation) {
-    const run = () => { reload(); return operation(); };
+    // Async rejection also releases native Node Web Locks after storage errors.
+    const run = async () => { reload(); return operation(); };
     if (locks) return locks.request(`poker-stats:${storageKey}`, run);
     // Shared browser storage requires cross-tab exclusion; fail closed otherwise.
     if (typeof window !== 'undefined' && storage === window.localStorage) {

@@ -33,3 +33,19 @@ test('B exact UTF-8 entry bound rejects excess while retaining pending', async (
  assert.equal(await q.enqueue(e),'added'); assert.equal(await q.enqueue(entry('界界')),'rejected');
  assert.equal((await q.list()).length,1);
 });
+test('B quota rejection releases injected and native locks for subsequent queue operations', async () => {
+ for (const [name, locks] of [
+  ['injected', { request: (_, fn) => Promise.resolve().then(fn) }],
+  ['native', navigator.locks],
+ ]) {
+  const disk = storage(); const save = disk.setItem;
+  const q = createBoundedPendingQueue({ storage: disk, storageKey: `quota-release-${name}`, locks });
+  await q.enqueue(entry('retained'));
+  disk.setItem = () => { throw Error('QuotaExceededError'); };
+  await assert.rejects(q.dequeue('retained', 'u', 'r'), /QuotaExceededError/);
+  assert.deepEqual((await q.list()).map(e => e.handId), ['retained']);
+  disk.setItem = save;
+  await q.dequeue('retained', 'u', 'r');
+  assert.deepEqual(await q.list(), []);
+ }
+});
