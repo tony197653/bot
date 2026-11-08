@@ -242,3 +242,9 @@ Coverage實查：/workspace/pr49b-round4-final-ruleCoverage.json根鍵rules、re
 - 強制 pending：未成功。host 自己蓋牌後立刻斷線→該手未完成（host 動作需經線上），沒有統計產生；改為 guest 蓋牌、host 偵測完手（raf）立即斷線→統計已在斷線前寫入（2/2/2），本機 queue 為空。瀏覽器層無法可靠造出「已完手但未 ACK」狀態；需測試專用注入（例如 emu 下讓 adapter 第一次失敗）才可確定性驗證。
 - 重連/前景補送、跨 host 接續確認：無證據（無 pending 可補）。所有時點 hands==unique，無重複。2 人桌 host 關閉後 60 秒內未發生接手（3 人桌前輪可接手），原因未查。
 - 未全過→未推送、未 fetch。未改產品碼。證據 run1-3.log、r6-result.json、截圖。
+
+## PM 第十輪：兩人桌未接手原因（2026-11-08 10:47 台北時間，約6分／6 calls）
+- 已確認：測試腳本造成，非產品 bug、非 Rules 拒絕。接手條件（js/net/presence.js maybeTakeover）：guest 分頁 visible、已入座、距上次收到房間快照 ≥30s（+名次×3s）。mp-app.js:1532 每收到房間快照就重設 lastRecvAt。第九輪腳本每10秒用 emuBackdateHostGone 改寫 room.updatedAt，這個寫入本身觸發快照→計時歸零，永遠到不了30秒。
+- 重現（兩人桌、同步驟）：只回填一次→33秒接手；每10秒回填→70秒仍未接手。guest 皆 visible、不在牌局中。證據 /workspace/pr49b-r10/r6-result.json、run1.log、takeover-*.png；腳本 test/mp-r10-takeover.mjs。
+- 三人桌前輪看似成功，是因為之後的步驟（加入新玩家等）拖過30秒才查到，不是人數條件。
+- 與 Phase B 無關（計時邏輯在 presence/mp-app 舊碼），未在 87014f6 另跑。產品不需修；測試只回填一次並等 ≥35 秒。
