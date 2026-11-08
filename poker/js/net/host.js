@@ -15,7 +15,7 @@ import {
 } from '../engine/index.js';
 import { estimateMpDealTotalMs, MP_FX } from '../ui/fx-mp.js';
 import { DEAL_FX } from '../ui/fx.js';
-import { nightKeyOf, hostCashoutBatch } from './ledger.js';
+import { nightKeyOf, hostCashoutBatch, hostCloseAllBatch } from './ledger.js';
 import { recordWrite, hostMustStopNewHand } from './quota.js';
 import { listenPresence } from './presence.js';
 import {
@@ -943,9 +943,16 @@ export function createHostLoop(fb, opts) {
     await writeChain;
     const committed = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
     const current = committed.exists() ? committed.data() : null;
+    if (current?.status === 'closed') return current;
     if (!current || current.seatUids.some((u, i) => u &&
       !cashoutStateReady(current, engine, i, u))) throw new Error('Settlement not committed');
     return current;
+  }
+
+  async function closeAll(room) {
+    const result = await hostCloseAllBatch(fb, { hostUid: uid, roomId, room, displayNameOf });
+    if (!result.skipped) recordWrite();
+    return result.room || room;
   }
 
   function voidHand(stacks) {
@@ -1082,6 +1089,7 @@ export function createHostLoop(fb, opts) {
     denyTopUp,
     cashoutSeat,
     prepareClose,
+    closeAll,
     seatPlayer,
     getEngine: () => engine,
     lastRoomWriteAt: () => lastWriteAt,

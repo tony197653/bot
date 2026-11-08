@@ -195,6 +195,33 @@ service cloud.firestore {
     }
 
     match /pokerRooms/{roomId} {
+      // 整桌原子結算；每個非空座位都必須有本次請求的固定 cashout 帳本。
+      function closeAllEntryOk(roomId, r, i) {
+        return r.seatUids[i] == '' || closeAllLedgerOk(
+          getAfter(ledgerPath(r.seatUids[i], roomId + '_' + string(r.sess[i].sessionNo) + '_cashout')).data,
+          roomId, r, i);
+      }
+      function closeAllLedgerOk(e, roomId, r, i) {
+        return e.type == 'cashout' && e.amount == r.stacks[i] && e.seat == i
+          && e.roomId == roomId && e.by == request.auth.uid && e.at == request.time;
+      }
+      function isHostCloseAll() {
+        let r = resource.data;
+        let d = request.resource.data;
+        return request.auth.uid == r.hostUid && roomOpen(r.status)
+          && d.lastMoneyEvent == {'type': 'closeAll'}
+          && betweenHands(r.pub) && betweenHands(d.pub)
+          && d.status == 'closed' && d.rev == r.rev + 1 && d.updatedAt == request.time
+          && d.seatUids == ['', '', '', '', '', '']
+          && d.stacks == [0, 0, 0, 0, 0, 0] && d.chipTotal == 0
+          && d.sess == [null, null, null, null, null, null]
+          && d.deadlineAt == null
+          && d.diff(r).affectedKeys().hasOnly(['lastMoneyEvent', 'status', 'rev', 'updatedAt',
+                                             'seatUids', 'stacks', 'chipTotal', 'sess', 'deadlineAt'])
+          && closeAllEntryOk(roomId, r, 0) && closeAllEntryOk(roomId, r, 1)
+          && closeAllEntryOk(roomId, r, 2) && closeAllEntryOk(roomId, r, 3)
+          && closeAllEntryOk(roomId, r, 4) && closeAllEntryOk(roomId, r, 5);
+      }
       // 加入：只能把「自己」加進成員，其他欄位都不能動
       function isJoin() {
         let d = request.resource.data;
@@ -350,7 +377,9 @@ service cloud.firestore {
         && request.query.limit <= 20
         && resource.data.status in ['lobby', 'playing'];
       allow create: if signedIn() && (createLobbyRoomOk() || createLegacyOpenRoomOk());
-      allow update: if signedIn() && (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover() || isAutoClose());
+      allow update: if signedIn() && (request.resource.data.lastMoneyEvent == {'type': 'closeAll'}
+        ? isHostCloseAll()
+        : (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover() || isAutoClose()));
       allow delete: if false;
 
       // 動作意圖：每人一份，覆寫，seq 只能變大；turn＝送出時看到的 pub.actionSeq（房主用來去重）

@@ -3325,21 +3325,30 @@ async function performHostCloseRoomInner(opts = {}) {
   pendingCloseReturnChips = chips;
   if (room.hostUid === uid && closingLoop?.cashoutSeat) {
     const payoutRoom = await closingLoop.prepareClose();
-    const seats = [...payoutRoom.seatUids];
-    const stacks = [...payoutRoom.stacks];
-    for (let i = 0; i < seats.length; i++) {
-      const u = seats[i];
-      if (!u) continue;
-      const amt = Number(stacks[i]) || 0;
-      if (!await closingLoop.cashoutSeat(i, u, { room: payoutRoom })) throw new Error('結算尚未同步，請重試收桌');
-      if (u === uid) {
-        chips = amt;
-        opts.returnedChips = amt; // Preserve the committed payout if closing later needs a retry.
+    const ownSeat = payoutRoom.seatUids.indexOf(uid);
+    if (ownSeat >= 0) {
+      chips = Number(payoutRoom.stacks[ownSeat]) || 0;
+      opts.returnedChips = chips;
+    }
+    let closedRoom = null;
+    try {
+      closedRoom = await closingLoop.closeAll(payoutRoom);
+    } catch (e) {
+      if (e?.code !== 'permission-denied') throw e;
+      console.warn('[host] closeAll permission-denied; fallback to per-seat cashout', e);
+      for (let i = 0; i < payoutRoom.seatUids.length; i++) {
+        const u = payoutRoom.seatUids[i];
+        if (!u) continue;
+        if (!await closingLoop.cashoutSeat(i, u, { room: payoutRoom })) {
+          throw new Error('結算尚未同步，請重試收桌');
+        }
       }
     }
+    await closeRoom(fb, id, closedRoom ? { closedRoom } : {});
+  } else {
+    await closeRoom(fb, id);
   }
   pendingCloseReturnChips = chips;
-  await closeRoom(fb, id);
   clearLastRoom();
   try {
     playerDoc = (await getPlayer(fb, uid)) || playerDoc;

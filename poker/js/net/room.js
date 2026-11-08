@@ -515,21 +515,23 @@ export async function expireCodeNow(fb, code) {
   recordWrite();
 }
 
-export async function closeRoom(fb, roomId, { auto = false } = {}) {
+export async function closeRoom(fb, roomId, { auto = false, closedRoom = null } = {}) {
   const { db, fs } = fb;
   const ref = fs.doc(db, 'pokerRooms', roomId);
-  const snap = await fs.getDoc(ref);
+  const snap = closedRoom ? { exists: () => true, data: () => closedRoom } : await fs.getDoc(ref);
   if (!snap.exists()) {
     await deleteLobbyListing(fb, roomId);
     return;
   }
   const r = snap.data();
   // Always drop lobby listing — even if room was already closed by another path
-  if (r.status === 'closed') {
+  if (r.status === 'closed' && !closedRoom) {
     await deleteLobbyListing(fb, roomId);
     return;
   }
-  if (auto) {
+  if (closedRoom) {
+    // 整桌 batch 已原子關房；接續既有清理。
+  } else if (auto) {
     await fs.updateDoc(ref, {
       status: 'closed',
       closedBy: 'auto',

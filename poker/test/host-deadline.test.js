@@ -252,3 +252,75 @@ describe('收桌作廢未完成牌局', () => {
     assert.equal(engine.seats[1].folded, false);
   });
 });
+
+// 整桌批次 builder：以 SDK stub 驗證寫入內容、平行讀取與錯誤傳遞。
+describe('hostCloseAllBatch', () => {
+  async function fixture(n = 6, options = {}) {
+    const { hostCloseAllBatch } = await import('../js/net/ledger.js');
+    const writes = []; const reads = []; let commits = 0;
+    const room = { hostUid: 'H', status: 'lobby', rev: 5, pub: { phase: 'hand_over' },
+      seatUids: Array.from({ length: 6 }, (_, i) => i < n ? `u${i}` : ''),
+      stacks: [0, 100, 200, 300, 400, 500],
+      sess: Array.from({ length: 6 }, (_, i) => i < n ? {
+        sessionNo: i + 1, buyIn: 100, topUps: 2, topUpChips: 40, hands: 3, nightKey: '20261101',
+      } : null), ...options.room };
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const fs = {
+      doc: (_db, ...parts) => parts.join('/'), serverTimestamp: () => 'SERVER_TIME',
+      getDoc: async (path) => {
+        reads.push(path);
+        await gate;
+        const isNight = path.includes('/nights/');
+        return { exists: () => true, data: () => isNight
+          ? { buyIn: 10, cashOut: 20, topUps: 1, hands: 2, lastEntry: 'old' }
+          : { bank: 50, tableRoomId: options.skip ? null : 'R', sessionNo: Number(path.slice(-1)) + 1,
+            topUps: 4, topUpChips: 80, handsPlayed: 7 } };
+      },
+      writeBatch: () => ({ set: (path, data) => writes.push({ path, data }),
+        update: (path, data) => writes.push({ path, data }),
+        commit: async () => { commits++; if (options.error) throw options.error; } }),
+    };
+    const pending = hostCloseAllBatch({ db: {}, fs }, { hostUid: 'H', roomId: 'R', room, displayNameOf: () => '玩家甲' });
+    // 所有帳戶與 nights 都必須在第一筆讀取完成前送出。
+    assert.equal(reads.length, room.status === 'closed' ? 0 : n * 2);
+    release();
+    return { pending, writes, reads, commits: () => commits };
+  }
+  it('六席（含零籌碼）只提交一次；帳本、帳戶與累計 nights 內容正確', async () => {
+    const f = await fixture(); await f.pending;
+    assert.equal(f.commits(), 1); assert.equal(f.writes.length, 19);
+    const r = f.writes[0].data;
+    assert.equal(r.status, 'closed'); assert.equal(r.rev, 6); assert.equal(r.chipTotal, 0);
+    assert.deepEqual(r.seatUids, Array(6).fill('')); assert.deepEqual(r.stacks, Array(6).fill(0));
+    assert.deepEqual(r.sess, Array(6).fill(null));
+    for (let i = 0; i < 6; i++) {
+      const [ledger, player, night] = f.writes.slice(1 + i * 3, 4 + i * 3);
+      assert.equal(ledger.path, `pokerPlayers/u${i}/ledger/R_${i + 1}_cashout`);
+      assert.equal(ledger.data.amount, i * 100); assert.equal(ledger.data.by, 'H');
+      assert.equal(ledger.data.seat, i); assert.equal(ledger.data.at, 'SERVER_TIME');
+      assert.equal(player.data.bank, 50 + i * 100); assert.equal(player.data.total, player.data.bank);
+      assert.equal(player.data.tableRoomId, null); assert.equal(player.data.inPlay, 0);
+      assert.equal(player.data.topUps, 6); assert.equal(player.data.topUpChips, 120);
+      assert.equal(player.data.handsPlayed, 10);
+      assert.equal(night.data.buyIn, 150); assert.equal(night.data.cashOut, 20 + i * 100);
+      assert.equal(night.data.net, i * 100 - 130); assert.equal(night.data.topUps, 3);
+      assert.equal(night.data.hands, 5); assert.equal(night.data.name, '玩家甲');
+    }
+  });
+  it('略過已無綁定玩家的帳務寫入', async () => {
+    const f = await fixture(4, { skip: true }); await f.pending;
+    assert.equal(f.writes.length, 1); assert.equal(f.commits(), 1);
+  });
+  it('已關桌重試不讀取也不提交', async () => {
+    const f = await fixture(0, { room: { status: 'closed' } });
+    assert.deepEqual(await f.pending, { skipped: true }); assert.equal(f.commits(), 0);
+  });
+  it('permission-denied 與網路錯誤均交由呼叫端處理，不自行重複入帳', async () => {
+    for (const code of ['permission-denied', 'unavailable']) {
+      const error = Object.assign(new Error(code), { code });
+      const f = await fixture(4, { error });
+      await assert.rejects(f.pending, (e) => e === error); assert.equal(f.commits(), 1);
+    }
+  });
+});

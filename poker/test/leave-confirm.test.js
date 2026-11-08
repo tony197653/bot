@@ -123,7 +123,7 @@ describe('收桌即時回饋與單次讀取（source contracts）', () => {
     assert.match(perform, /finally\s*\{\s*closingLoop\?\.stop\(\)/);
     assert.doesNotMatch(app, /mpClosingNotice/);
   });
-  it('大廳摘要不重讀；收桌在 VOID 發布後只讀一次並逐席共用資料', () => {
+  it('大廳摘要不重讀；收桌讀一次並優先整桌結算，拒絕才逐席共用資料', () => {
     const refresh = section(host, 'async function refreshLobbySummary', 'function curStatus');
     assert.doesNotMatch(refresh, /getDoc/);
     const prepare = section(host, 'async function prepareClose', 'function voidHand');
@@ -136,7 +136,9 @@ describe('收桌即時回饋與單次讀取（source contracts）', () => {
     assert.match(close, /const payoutRoom = await closingLoop.prepareClose\(\)/);
     assert.match(close, /for \(let i[\s\S]*await closingLoop.cashoutSeat\(i, u, \{ room: payoutRoom \}\)/);
     assert.doesNotMatch(close, /Promise.all/);
-    assert.match(close, /await closingLoop.cashoutSeat[\s\S]*opts.returnedChips = amt/);
+    assert.match(close, /opts.returnedChips = chips[\s\S]*await closingLoop.closeAll\(payoutRoom\)/);
+    assert.match(close, /code !== 'permission-denied'\) throw e[\s\S]*console.warn[\s\S]*await closingLoop.cashoutSeat/);
+    assert.match(close, /await closeRoom\(fb, id, closedRoom \? \{ closedRoom \} : \{\}\)/);
   });
   it('開房不等待收桌；停止／關桌後不重排下一手或離座重試', () => {
     assert.doesNotMatch(section(app, 'async function doCreate', 'async function doJoin'), /closeInFlight|await.*[Ss]ettl/);
