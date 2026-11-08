@@ -37,7 +37,6 @@ import {
   SHOWDOWN_FX,
 } from './fx.js';
 import { startMpApp, setSoloOpener } from './mp-app.js';
-import { styledConfirm } from './confirm-dialog.js';
 
 /**
  * Single-device: other seats who don't tap → MUCK (not coin-flip).
@@ -2613,14 +2612,14 @@ $('#btnSummaryClose').onclick = () => {
   }
 };
 
-$('#btnLobby').onclick = async () => {
+$('#btnLobby').onclick = () => {
   closeMenu();
   if (
     state.phase !== PHASE.LOBBY &&
     state.phase !== PHASE.HAND_OVER &&
     state.phase !== PHASE.SESSION_OVER
   ) {
-    if (!(await styledConfirm({ title: '確定要離開這手牌、回到大廳？', okText: '確認離開' }))) return;
+    if (!confirm('確定要離開目前這手牌、回到大廳？')) return;
     state = createInitialState({
       roomName: state.room.name,
       bigBlind: state.config.bigBlind,

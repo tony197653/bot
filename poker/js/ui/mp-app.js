@@ -60,7 +60,6 @@ import {
   renderJoinCode,
 } from './lobby.js';
 import { renderStats } from './stats.js';
-import { styledConfirm } from './confirm-dialog.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
 import { cardHtml, cardBackPair, heroBackPair, fmtChips } from './cards-dom.js';
 import { mapSeatsClockwise } from './seating.js';
@@ -1569,11 +1568,10 @@ export function mpExtendCode() {
   extendCode(fb, room.code, getUser()?.uid).then(() => toast('房號延長 24 小時'));
 }
 
-export async function mpCloseRoom() {
-  if (!getFirebase() || !room) return;
-  const ok = await styledConfirm({ title: '確定收桌？玩家將結帳回帳戶。', okText: '確認收桌' });
+export function mpCloseRoom() {
   const fb = getFirebase();
-  if (!ok || !fb || !room) return;
+  if (!fb || !room) return;
+  if (!confirm('確定收桌？在座的人會結帳回帳戶。')) return;
   const id = room.id;
   closeRoom(fb, id)
     .then(() => {
