@@ -78,6 +78,8 @@ import {
   ensureLobbyNotify,
 } from './lobby.js';
 import { renderStats } from './stats.js';
+import { openPersonalStats } from './personal-stats.js';
+import { STATS_ENABLED } from '../stats/host-runtime.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
 import { cardHtml, cardBackPair, heroBackPair, fmtChips, paintBoardSlots, raisePresetsMarkup, raisePanelCopy } from './cards-dom.js';
 import { mapSeatsClockwise } from './seating.js';
@@ -756,7 +758,32 @@ export async function startMpApp() {
   }, 2000);
 }
 
+/** C1: existing seat avatar → that player's Page stats overlay (avatar hit area only). */
+function bindPersonalStatsEntry() {
+  if (document.body.dataset.psWired) return;
+  document.body.dataset.psWired = '1';
+  document.addEventListener('click', (e) => {
+    const av = e.target.closest?.('#seats .av[data-ps-uid]');
+    if (!av || !av.dataset.psUid) return;
+    const fb = getFirebase();
+    const me = getUser();
+    if (!fb || !me || me.isAnonymous) return;
+    e.stopPropagation();
+    openPersonalStats({
+      uid: av.dataset.psUid,
+      name: av.dataset.psName || '',
+      myUid: me.uid,
+      enabled: STATS_ENABLED || !!qaStatsOpts(),
+      load: async (uid) => {
+        const snap = await fb.fs.getDocFromServer(fb.fs.doc(fb.db, 'pokerStatsPublic', uid));
+        return snap.exists() ? snap.data() : null;
+      },
+    });
+  }, true);
+}
+
 function ensureMpRoot() {
+  bindPersonalStatsEntry();
   if ($('#mpRoot')) return;
   const el = document.createElement('div');
   el.id = 'mpRoot';
@@ -1895,7 +1922,7 @@ function renderSeatOverlays() {
     el.innerHTML = `
       ${reveal || backs}
       <div class="plate plateA">
-        <div class="av"><span>${esc(name.slice(0, 1))}</span></div>
+        <div class="av" data-ps-uid="${esc(room.seatUids[seat] || '')}" data-ps-name="${esc(name)}"><span>${esc(name.slice(0, 1))}</span></div>
         <div>
           <div class="nm">${esc(name)}${seat === room.seatUids.indexOf(room.hostUid) ? '<i class="mp-host-tag">房主</i>' : ''}${pending ? '<i class="mp-host-tag">排隊</i>' : ''}${stateTag}</div>
           <span class="ch st">${fmtChips(chips)}</span>
