@@ -183,6 +183,7 @@ export function publicState(state, extra = {}) {
     hostClockAt: extra.hostClockAt ?? null,
     pendingSeats: extra.pendingSeats ?? [],
     topUpReqs: extra.topUpReqs ?? {},
+    topUpDenied: extra.topUpDenied ?? {},
     rejects: extra.rejects ?? {},
   };
 }

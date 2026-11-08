@@ -5,10 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Auth module demo · §7 #17</title>
 <style>
-:root{--auth-bg:#13231a;--auth-ink:#f3ead2;--auth-accent:#e6bf5a;--auth-btn:#111;--auth-btn-ink:#fff;--auth-mute:#c9bf9f;--auth-warn:#ff4d3a;--tf:Georgia,serif}
+:root{--auth-bg:#13231a;--auth-ink:#f3ead2;--auth-accent:#e6bf5a;--auth-btn:#111;--auth-btn-ink:#fff;--auth-mute:#c9bf9f;--auth-warn:#ff7566;--tf:Georgia,serif}
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:#13231a;font-family:system-ui,sans-serif}
-/* 對齊元件庫 B 系列：重設 UA 按鈕邊框／字體（含「重試」） */
-button{border:0;font:inherit}
 #root{width:min(420px,92vw)}
 pre{color:#c9bf9f;font-size:12px;white-space:pre-wrap}
 </style>
@@ -18,14 +16,7 @@ pre{color:#c9bf9f;font-size:12px;white-space:pre-wrap}
 <pre id="log"></pre>
 <script type="module">
 import { initAuth, onUser, signIn, signOut, getFirebase } from './auth.js';
-import { renderAuthUi, AUTH_UI_CSS } from './auth-ui.js';
-
-if (!document.getElementById('auth-ui-css')) {
-  const s = document.createElement('style');
-  s.id = 'auth-ui-css';
-  s.textContent = AUTH_UI_CSS;
-  document.head.appendChild(s);
-}
+import { renderAuthUi } from './auth-ui.js';
 
 const cfg = {
   apiKey: 'AIzaSyAt35bQoP7z5_lDPF9bMbm5t8R5aJgBJQw',
@@ -39,40 +30,17 @@ const cfg = {
 const root = document.getElementById('root');
 const log = document.getElementById('log');
 
-/** ?state= 或 #state=loading|error|error-safari 可預覽次要細框鈕（略過 Firebase） */
-const preview =
-  new URLSearchParams(location.search).get('state') ||
-  new URLSearchParams(location.hash.replace(/^#/, '')).get('state');
-if (preview === 'loading' || preview === 'error' || preview === 'error-safari') {
-  if (preview === 'error-safari') {
-    Object.defineProperty(navigator, 'userAgent', {
-      get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
-    });
-    Object.defineProperty(navigator, 'standalone', { get: () => true });
+await initAuth({ firebaseConfig: cfg, mode: 'auto', sameDomainAuth: true });
+onUser((ev) => {
+  renderAuthUi(root, ev, { brand: 'Auth Demo', onRetry: () => signIn() });
+  log.textContent = JSON.stringify({ status: ev.status, user: ev.user, fromCache: ev.fromCache, error: ev.error, hasFb: !!getFirebase() }, null, 2);
+  if (ev.status === 'signed-in') {
+    const b = document.createElement('button');
+    b.textContent = '登出';
+    b.onclick = () => signOut();
+    root.appendChild(b);
   }
-  const status = preview.startsWith('error') ? 'error' : 'loading';
-  renderAuthUi(
-    root,
-    { status, user: null, error: status === 'error' ? { message: '請再試一次' } : null },
-    { brand: 'Auth Demo', onRetry: () => {} },
-  );
-  if (status === 'loading') {
-    root.querySelector('[data-act="retry"]')?.classList.remove('hidden');
-  }
-  log.textContent = JSON.stringify({ preview, status }, null, 2);
-} else {
-  await initAuth({ firebaseConfig: cfg, mode: 'auto', sameDomainAuth: true });
-  onUser((ev) => {
-    renderAuthUi(root, ev, { brand: 'Auth Demo', onRetry: () => signIn() });
-    log.textContent = JSON.stringify({ status: ev.status, user: ev.user, fromCache: ev.fromCache, error: ev.error, hasFb: !!getFirebase() }, null, 2);
-    if (ev.status === 'signed-in') {
-      const b = document.createElement('button');
-      b.textContent = '登出';
-      b.onclick = () => signOut();
-      root.appendChild(b);
-    }
-  });
-}
+});
 </script>
 </body>
 </html>

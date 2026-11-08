@@ -21,7 +21,25 @@
     }
     function hostKeys() {
       return ['pub', 'seatUids', 'status', 'rev', 'updatedAt', 'deadlineAt', 'hostUid', 'hostSince',
-              'stacks', 'chipTotal', 'sess', 'lastMoneyEvent'];
+              'stacks', 'chipTotal', 'sess', 'lastMoneyEvent', 'lobby'];
+    }
+    // lobby|playing = 新客戶端；open = 線上 tony-poker.web.app 舊客戶端（部署相容）
+    function roomOpen(s) {
+      return s in ['lobby', 'playing', 'open'];
+    }
+    // 大廳公開摘要（防 XSS）：型別與長度；hostPhoto 空／null 或 https（null＝舊寫入相容）
+    function lobbyOk(l) {
+      return l is map
+        && l.keys().hasOnly(['name', 'hostName', 'hostPhoto', 'blinds', 'seated'])
+        && l.name is string && l.name.size() > 0 && l.name.size() <= 20
+        && l.hostName is string && l.hostName.size() <= 60
+        && (l.hostPhoto == null || l.hostPhoto == ''
+            || (l.hostPhoto is string && l.hostPhoto.size() <= 500 && l.hostPhoto.matches('https://.+')))
+        && l.blinds is string && l.blinds.size() > 0 && l.blinds.size() <= 15
+        && l.seated is int && l.seated >= 0 && l.seated <= 6;
+    }
+    function codeDigitsOk(c) {
+      return c is string && (c.matches('[0-9]{3}') || c.matches('[0-9]{6}'));
     }
     // 席次 6 格，每格都是字串（空位 ''，有人＝uid）
     function seatUidsOk(s) {
@@ -120,8 +138,8 @@
       let money = d.lastMoneyEvent != resource.data.lastMoneyEvent;
       return d.rev == resource.data.rev + 1
         && d.updatedAt == request.time
-        && d.status in ['open', 'closed']
-        && (resource.data.status == 'open' || d.status == 'closed')
+        && d.status in ['lobby', 'playing', 'open', 'closed']
+        && (roomOpen(resource.data.status) || d.status == 'closed')
         // [FIX-3] 省運算式（上限 1000）：沒變的欄位先用整份相等短路
         && (d.seatUids == resource.data.seatUids || seatUidsOk(d.seatUids))
         && d.pub is map
@@ -129,6 +147,10 @@
         && d.diff(resource.data).affectedKeys().hasOnly(hostKeys())
         && stacksOk(d.stacks) && d.chipTotal is int && sumOf(d.stacks) == d.chipTotal
         && d.sess is list && d.sess.size() == 6
+        // lobby：帳務寫入禁止同批改 lobby（省 1000 運算式）；非帳務才做 lobbyOk
+        && (money
+            ? d.get('lobby', null) == resource.data.get('lobby', null)
+            : (d.get('lobby', null) == resource.data.get('lobby', null) || lobbyOk(d.lobby)))
         // [FIX-4] 有帳務事件時：除了事件那一格，其他格的 seatUids、sess 都要一模一樣（用切片一次比完）；
         //         沒有帳務事件時：seatUids 整份不變，sess 只能讓 hands 變多
         && (money
@@ -146,7 +168,7 @@
       // 加入：只能把「自己」加進成員，其他欄位都不能動
       function isJoin() {
         let d = request.resource.data;
-        return resource.data.status == 'open'
+        return roomOpen(resource.data.status)
           && !(request.auth.uid in resource.data.members)
           && d.diff(resource.data).affectedKeys().hasOnly(['members'])
           && d.members.hasAll(resource.data.members)
@@ -161,24 +183,13 @@
       function isHostPubWrite() {
         let d = request.resource.data;
         let r = resource.data;
+        // hasOnly 已保證未列欄位不變 → 省掉 seatUids/sess/身分欄位逐一相等（壓 1000 運算式）
         return request.auth.uid == r.hostUid
           && d.rev == r.rev + 1
           && d.updatedAt == request.time
           && d.pub is map
           && (d.deadlineAt == null || d.deadlineAt is int)
           && d.diff(r).affectedKeys().hasOnly(['pub', 'deadlineAt', 'rev', 'updatedAt', 'stacks'])
-          && d.seatUids == r.seatUids
-          && d.sess == r.sess
-          && d.chipTotal == r.chipTotal
-          && d.lastMoneyEvent == r.lastMoneyEvent
-          && d.status == r.status
-          && d.hostUid == r.hostUid
-          && d.hostSince == r.hostSince
-          && d.name == r.name
-          && d.code == r.code
-          && d.config == r.config
-          && d.members == r.members
-          && d.createdAt == r.createdAt
           && stacksOk(d.stacks) && sumOf(d.stacks) == d.chipTotal;
       }
       // 房主寫入；交棒只能交給在座的人。
@@ -200,7 +211,7 @@
         let d = request.resource.data;
         return request.auth.uid in resource.data.seatUids
           && request.auth.uid != resource.data.hostUid
-          && resource.data.status == 'open'
+          && roomOpen(resource.data.status)
           && request.time > resource.data.updatedAt + duration.value(30, 's')
           && (!exists(p) || request.time > get(p).data.beat + duration.value(30, 's'))
           && d.hostUid == request.auth.uid
@@ -209,38 +220,107 @@
           && d.lastMoneyEvent == resource.data.lastMoneyEvent
           && roomWriteOk(roomId);
       }
+      // 附錄 L4：updatedAt 與房主 presence 都超過 30 分鐘 → 任一成員可懶惰收桌
+      function isAutoClose() {
+        let d = request.resource.data;
+        let hp = presencePath(roomId, resource.data.hostUid);
+        return roomOpen(resource.data.status)
+          && request.auth.uid in resource.data.members
+          && request.time > resource.data.updatedAt + duration.value(30, 'm')
+          && (!exists(hp) || request.time > get(hp).data.beat + duration.value(30, 'm'))
+          && d.status == 'closed'
+          && d.closedBy == 'auto'
+          && d.closedAt == request.time
+          && d.diff(resource.data).affectedKeys().hasOnly(['status', 'closedBy', 'closedAt']);
+      }
+      // 新客戶端建房：status lobby、3 碼、lobby 摘要、同批寫 hostRoomId
+      function createLobbyRoomOk() {
+        let d = request.resource.data;
+        return d.keys().hasAll(['name', 'code', 'hostUid', 'hostSince', 'members', 'seatUids',
+             'status', 'config', 'rev', 'createdAt', 'updatedAt', 'pub', 'deadlineAt',
+             'stacks', 'chipTotal', 'sess', 'lastMoneyEvent', 'lobby'])
+          && d.keys().hasOnly(['name', 'code', 'hostUid', 'hostSince', 'members', 'seatUids',
+             'status', 'config', 'rev', 'createdAt', 'updatedAt', 'pub', 'deadlineAt',
+             'stacks', 'chipTotal', 'sess', 'lastMoneyEvent', 'lobby'])
+          && d.deadlineAt == null
+          && d.seatUids == ['', '', '', '', '', '']
+          && d.stacks == [0, 0, 0, 0, 0, 0]
+          && d.chipTotal == 0
+          && d.sess == [null, null, null, null, null, null]
+          && d.lastMoneyEvent == null
+          && d.hostUid == request.auth.uid
+          && d.members == [request.auth.uid]
+          && d.status == 'lobby'
+          && d.rev == 0
+          && d.createdAt == request.time
+          && d.updatedAt == request.time
+          && d.hostSince == request.time
+          && strOk(d.name, 20)
+          && d.code is string && d.code.matches('[0-9]{3}')
+          && lobbyOk(d.lobby)
+          && d.lobby.name == d.name
+          && d.lobby.seated == 0
+          && validConfig(d.config)
+          && betweenHands(d.pub)
+          && getAfter(/databases/$(database)/documents/pokerCodes/$(d.code)).data.roomId == roomId
+          && getAfter(playerPath(request.auth.uid)).data.hostRoomId == roomId;
+      }
+      // 舊客戶端無 hostRoomId：若 player 已指向自己開著的桌（hostRoomId 或 lastRoomId），拒第二桌
+      function hostHasOpenTable() {
+        let p = playerPath(request.auth.uid);
+        return exists(p) && (
+          (get(p).data.get('hostRoomId', null) != null
+            && exists(roomPath(get(p).data.hostRoomId))
+            && roomOpen(get(roomPath(get(p).data.hostRoomId)).data.status)
+            && get(roomPath(get(p).data.hostRoomId)).data.hostUid == request.auth.uid)
+          || (get(p).data.lastRoomId is string
+            && exists(roomPath(get(p).data.lastRoomId))
+            && roomOpen(get(roomPath(get(p).data.lastRoomId)).data.status)
+            && get(roomPath(get(p).data.lastRoomId)).data.hostUid == request.auth.uid)
+        );
+      }
+      // 線上舊客戶端建房：status open、6 碼、無 lobby／hostRoomId（部署相容，merge 後可刪）
+      function createLegacyOpenRoomOk() {
+        let d = request.resource.data;
+        return d.keys().hasAll(['name', 'code', 'hostUid', 'hostSince', 'members', 'seatUids',
+             'status', 'config', 'rev', 'createdAt', 'updatedAt', 'pub', 'deadlineAt',
+             'stacks', 'chipTotal', 'sess', 'lastMoneyEvent'])
+          && d.keys().hasOnly(['name', 'code', 'hostUid', 'hostSince', 'members', 'seatUids',
+             'status', 'config', 'rev', 'createdAt', 'updatedAt', 'pub', 'deadlineAt',
+             'stacks', 'chipTotal', 'sess', 'lastMoneyEvent'])
+          && d.deadlineAt == null
+          && d.seatUids == ['', '', '', '', '', '']
+          && d.stacks == [0, 0, 0, 0, 0, 0]
+          && d.chipTotal == 0
+          && d.sess == [null, null, null, null, null, null]
+          && d.lastMoneyEvent == null
+          && d.hostUid == request.auth.uid
+          && d.members == [request.auth.uid]
+          && d.status == 'open'
+          && d.rev == 0
+          && d.createdAt == request.time
+          && d.updatedAt == request.time
+          && d.hostSince == request.time
+          && strOk(d.name, 20)
+          && d.code is string && d.code.matches('[0-9]{6}')
+          && validConfig(d.config)
+          && betweenHands(d.pub)
+          && getAfter(/databases/$(database)/documents/pokerCodes/$(d.code)).data.roomId == roomId
+          && !hostHasOpenTable();
+      }
 
-      allow get: if signedIn() && request.auth.uid in resource.data.members;
-      allow list: if false;
-      // 欄位要剛好這幾個（hasAll＋hasOnly）；deadlineAt 一開始是 null，席次一開始 6 格空字串，
-      // 桌上籌碼全 0、chipTotal 0、sess 6 格 null、lastMoneyEvent null。
-      allow create: if signedIn()
-        && request.resource.data.keys().hasAll(['name', 'code', 'hostUid', 'hostSince', 'members', 'seatUids',
-             'status', 'config', 'rev', 'createdAt', 'updatedAt', 'pub', 'deadlineAt',
-             'stacks', 'chipTotal', 'sess', 'lastMoneyEvent'])
-        && request.resource.data.keys().hasOnly(['name', 'code', 'hostUid', 'hostSince', 'members', 'seatUids',
-             'status', 'config', 'rev', 'createdAt', 'updatedAt', 'pub', 'deadlineAt',
-             'stacks', 'chipTotal', 'sess', 'lastMoneyEvent'])
-        && request.resource.data.deadlineAt == null
-        && request.resource.data.seatUids == ['', '', '', '', '', '']
-        && request.resource.data.stacks == [0, 0, 0, 0, 0, 0]
-        && request.resource.data.chipTotal == 0
-        && request.resource.data.sess == [null, null, null, null, null, null]
-        && request.resource.data.lastMoneyEvent == null
-        && request.resource.data.hostUid == request.auth.uid
-        && request.resource.data.members == [request.auth.uid]
-        && request.resource.data.status == 'open'
-        && request.resource.data.rev == 0
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time
-        && request.resource.data.hostSince == request.time
-        && strOk(request.resource.data.name, 20)
-        && request.resource.data.code is string && request.resource.data.code.matches('[0-9]{6}')
-        && validConfig(request.resource.data.config)
-        && betweenHands(request.resource.data.pub)
-        // 房號文件必須在同一個 batch 指向這個房間
-        && getAfter(/databases/$(database)/documents/pokerCodes/$(request.resource.data.code)).data.roomId == roomId;
-      allow update: if signedIn() && (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover());
+      // 成員可讀任何狀態；非成員只能讀新版大廳桌（lobby|playing）。
+      // 舊式 status=open 維持僅成員可讀：線上 main joinByCode 靠「讀取被拒 → arrayUnion members」。
+      allow get: if signedIn() && (
+        request.auth.uid in resource.data.members
+        || resource.data.status in ['lobby', 'playing']
+      );
+      // 附錄 L7：限 20、只列 lobby|playing（與客戶端 query 一致）
+      allow list: if signedIn()
+        && request.query.limit <= 20
+        && resource.data.status in ['lobby', 'playing'];
+      allow create: if signedIn() && (createLobbyRoomOk() || createLegacyOpenRoomOk());
+      allow update: if signedIn() && (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover() || isAutoClose());
       allow delete: if false;
 
       // 動作意圖：每人一份，覆寫，seq 只能變大；turn＝送出時看到的 pub.actionSeq（房主用來去重）
@@ -289,29 +369,35 @@
       }
     }
 
-    // 房號：只能用號碼讀單筆，不能列出；過期可重用；房主收桌時立即失效；
-    // 房間還開著時，房主可以把期限延到「現在＋24 小時」（只能改 expiresAt）
+    // 房號：3 碼（新）或 6 碼（線上舊客戶端）；只能讀單筆不能列出；收桌／過期後可覆蓋重用
     match /pokerCodes/{code} {
       function codeOk() {
         let d = request.resource.data;
-        return code.matches('[0-9]{6}')
+        return codeDigitsOk(code)
           && d.keys().hasOnly(['roomId', 'hostUid', 'createdAt', 'expiresAt'])
           && d.roomId is string && d.roomId.size() <= 40
           && d.hostUid == request.auth.uid
           && d.createdAt == request.time
           && d.expiresAt >= request.time + duration.value(24, 'h') - duration.value(10, 'm')
           && d.expiresAt <= request.time + duration.value(24, 'h') + duration.value(10, 'm')
-          && getAfter(roomPath(d.roomId)).data.hostUid == request.auth.uid;
+          && getAfter(roomPath(d.roomId)).data.hostUid == request.auth.uid
+          // 房號文件 id 必須等於房間自己的 code（防一桌掛滿 1000 個碼）
+          && getAfter(roomPath(d.roomId)).data.code == code;
+      }
+      function codeReclaimable() {
+        return resource.data.expiresAt < request.time
+          || !exists(roomPath(resource.data.roomId))
+          || get(roomPath(resource.data.roomId)).data.status == 'closed';
       }
       allow get: if signedIn();
       allow list: if false;
       allow create: if signedIn() && codeOk();
       allow update: if signedIn() && (
-          (resource.data.expiresAt < request.time && codeOk())
+          (codeReclaimable() && codeOk())
           || (roomOf(resource.data.roomId).hostUid == request.auth.uid
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['expiresAt'])
               && (request.resource.data.expiresAt == request.time
-                  || (roomOf(resource.data.roomId).status == 'open'
+                  || (roomOpen(roomOf(resource.data.roomId).status)
                       && request.resource.data.expiresAt >= request.time + duration.value(24, 'h') - duration.value(10, 'm')
                       && request.resource.data.expiresAt <= request.time + duration.value(24, 'h') + duration.value(10, 'm')))));
       allow delete: if false;
@@ -323,18 +409,21 @@
     match /pokerPlayers/{uid} {
       function playerKeys() {
         return ['displayName', 'photoURL', 'bank', 'inPlay', 'total', 'tableRoomId', 'sessionNo',
-                'topUps', 'topUpChips', 'handsPlayed', 'lastRoomId', 'createdAt', 'updatedAt'];
+                'topUps', 'topUpChips', 'handsPlayed', 'lastRoomId', 'hostRoomId', 'createdAt', 'updatedAt'];
       }
       // 第一次來：bank＝這房的新玩家起始籌碼；同一個 batch 要有帳本 grant
+      // 可與建房同批：房間用 getAfter；當房主時允許 hostRoomId == lastRoomId
       function createOk() {
         let d = request.resource.data;
-        let r = roomOf(d.lastRoomId);
-        return d.keys().hasAll(playerKeys()) && d.keys().hasOnly(playerKeys())
+        let r = exists(roomPath(d.lastRoomId)) ? roomOf(d.lastRoomId) : getAfter(roomPath(d.lastRoomId)).data;
+        // hostRoomId 選填：線上 main ensurePlayerGrant 不寫此欄
+        return d.keys().hasAll(playerKeys().removeAll(['hostRoomId'])) && d.keys().hasOnly(playerKeys())
           && strOk(d.displayName, 60) && urlOk(d.get('photoURL', null))
           && d.lastRoomId is string && request.auth.uid in r.members
           && d.bank == r.config.newPlayerChips && d.inPlay == 0 && d.total == d.bank
           && d.tableRoomId == null && d.sessionNo == 0
           && d.topUps == 0 && d.topUpChips == 0 && d.handsPlayed == 0
+          && (d.get('hostRoomId', null) == null || d.hostRoomId == d.lastRoomId)
           && d.createdAt == request.time && d.updatedAt == request.time
           && existsAfter(ledgerPath(uid, d.lastRoomId + '_0_grant'));
       }
@@ -346,6 +435,33 @@
           && d.lastRoomId is string && d.lastRoomId.size() <= 40
           && d.updatedAt == request.time;
       }
+      // 附錄 L3：hostRoomId null→新房，或先前指向的房已 closed／不存在時可清掉／改指新房
+      function hostRoomPriorGone() {
+        let before = resource.data.get('hostRoomId', null);
+        return before != null
+          && (!exists(roomPath(before)) || get(roomPath(before)).data.status == 'closed');
+      }
+      function hostRoomIdSetOk() {
+        let d = request.resource.data;
+        let before = resource.data.get('hostRoomId', null);
+        return isSelf(uid)
+          && (before == null || hostRoomPriorGone())
+          && d.hostRoomId is string && d.hostRoomId.size() > 0 && d.hostRoomId.size() <= 40
+          && d.diff(resource.data).affectedKeys().hasOnly(['hostRoomId', 'updatedAt'])
+          && d.updatedAt == request.time
+          && getAfter(roomPath(d.hostRoomId)).data.hostUid == request.auth.uid
+          && roomOpen(getAfter(roomPath(d.hostRoomId)).data.status);
+      }
+      function hostRoomIdClearOk() {
+        let d = request.resource.data;
+        let before = resource.data.get('hostRoomId', null);
+        return isSelf(uid)
+          && before != null
+          && hostRoomPriorGone()
+          && d.hostRoomId == null
+          && d.diff(resource.data).affectedKeys().hasOnly(['hostRoomId', 'updatedAt'])
+          && d.updatedAt == request.time;
+      }
       // 本人帶入（整筆帶入）：bank 全部移到 inPlay；同一個 batch 要有帳本 buyin
       function buyinOk() {
         let d = request.resource.data;
@@ -353,7 +469,7 @@
         return d.diff(resource.data).affectedKeys().hasOnly(['bank', 'inPlay', 'tableRoomId', 'sessionNo', 'lastRoomId', 'updatedAt'])
           && resource.data.tableRoomId == null
           && d.tableRoomId is string && d.lastRoomId == d.tableRoomId
-          && request.auth.uid in r.members && r.status == 'open'
+          && request.auth.uid in r.members && roomOpen(r.status)
           && d.inPlay == resource.data.bank && d.bank == 0 && d.total == resource.data.total
           && d.sessionNo == resource.data.sessionNo + 1
           && d.updatedAt == request.time
@@ -364,19 +480,22 @@
         let d = request.resource.data;
         let e = getAfter(ledgerPath(uid, resource.data.tableRoomId + '_' + string(resource.data.sessionNo) + '_cashout')).data;
         return resource.data.tableRoomId != null
-          && d.diff(resource.data).affectedKeys().hasOnly(['bank', 'inPlay', 'total', 'tableRoomId', 'topUps', 'topUpChips', 'handsPlayed', 'updatedAt'])
+          && d.diff(resource.data).affectedKeys().hasOnly(['bank', 'inPlay', 'total', 'tableRoomId', 'topUps', 'topUpChips', 'handsPlayed', 'hostRoomId', 'updatedAt'])
           && e.type == 'cashout' && e.at == request.time && e.by == request.auth.uid
           && d.bank == resource.data.bank + e.amount && d.inPlay == 0 && d.total == d.bank
           && d.tableRoomId == null
           && d.topUps == resource.data.topUps + e.topUps
           && d.topUpChips == resource.data.topUpChips + e.topUpChips
           && d.handsPlayed == resource.data.handsPlayed + e.hands
+          // hostRoomId：不變，或僅在先前指向的房已 closed／不存在時可清掉（房仍開不可兑現順便清）
+          && (d.get('hostRoomId', null) == resource.data.get('hostRoomId', null)
+              || (d.hostRoomId == null && hostRoomPriorGone()))
           && d.updatedAt == request.time;
       }
       allow get: if signedIn();
       allow list: if signedIn() && request.query.limit <= 50;
       allow create: if isSelf(uid) && createOk();
-      allow update: if signedIn() && ((isSelf(uid) && (profileOk() || buyinOk())) || cashoutApplyOk());
+      allow update: if signedIn() && ((isSelf(uid) && (profileOk() || buyinOk() || hostRoomIdSetOk() || hostRoomIdClearOk())) || cashoutApplyOk());
       allow delete: if false;
 
       // 帳本（只新增）：編號固定＝冪等鍵
@@ -492,5 +611,49 @@
     // 戰績頁「某一晚」的集合群組查詢
     match /{path=**}/nights/{nightKey} {
       allow list: if signedIn() && request.query.limit <= 50;
+    }
+
+    // 大廳列表摘要（輕量）：僅 list 可見欄位；房主在 seated/status/name 等變更時寫入
+    function lobbyListingOk(d) {
+      return d.keys().hasOnly([
+          'name', 'code', 'blinds', 'seated', 'status',
+          'hostName', 'hostPhoto', 'hostUid', 'createdAt', 'updatedAt'
+        ])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 20
+        && codeDigitsOk(d.code)
+        && d.blinds is string && d.blinds.size() > 0 && d.blinds.size() <= 15
+        && d.seated is int && d.seated >= 0 && d.seated <= 6
+        && d.status in ['lobby', 'playing']
+        && d.hostName is string && d.hostName.size() <= 60
+        && (d.hostPhoto == '' || (d.hostPhoto is string && d.hostPhoto.size() <= 500
+            && d.hostPhoto.matches('https://.+')))
+        && d.hostUid is string && d.hostUid.size() > 0 && d.hostUid.size() <= 128
+        && d.createdAt is timestamp
+        && d.updatedAt is timestamp;
+    }
+    match /pokerLobby/{roomId} {
+      allow get: if signedIn();
+      allow list: if signedIn()
+        && request.query.limit <= 20
+        && resource.data.status in ['lobby', 'playing'];
+      allow create: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid
+        && lobbyListingOk(request.resource.data)
+        && existsAfter(roomPath(roomId))
+        && getAfter(roomPath(roomId)).data.hostUid == request.auth.uid;
+      allow update: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid
+        && lobbyListingOk(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && exists(roomPath(roomId))
+        && roomOf(roomId).hostUid == request.auth.uid
+        && roomOpen(roomOf(roomId).status);
+      allow delete: if signedIn() && (
+        resource.data.hostUid == request.auth.uid
+        || (exists(roomPath(roomId)) && (
+          roomOf(roomId).hostUid == request.auth.uid
+          || roomOf(roomId).status == 'closed'
+        ))
+      );
     }
     // ===== [/POKER] ===========================================================

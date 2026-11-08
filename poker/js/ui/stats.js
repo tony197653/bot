@@ -44,10 +44,19 @@ export function renderStats(root, vm) {
                       return `<tr class="${mine}"><td>${i + 1}</td><td>${esc(r.displayName)}${playing}</td><td class="num">${fmtChips(r.total)}</td><td></td></tr>`;
                     })
                     .join('')
-                : '<tr><td colspan="4">還沒有戰績</td></tr>'
+                : ''
             }
           </tbody>
-        </table>`
+        </table>
+        ${
+          rows.length
+            ? ''
+            : `<div class="mp-empty" data-e1>
+                <h3>還沒有戰績</h3>
+                <p>打完一手離座後就會出現。</p>
+                <button type="button" class="mp-btn-primary" data-act="back">回大廳</button>
+              </div>`
+        }`
       : `<div class="mp-night-pick">
           ${nights
             .map(
@@ -78,9 +87,9 @@ export function renderStats(root, vm) {
     <div class="mp-shell mp-stats">
       <header class="mp-top">
         <h1>戰績</h1>
-        <button type="button" class="mp-link" data-act="back">返回</button>
+        <button type="button" class="mp-btn-ghost" data-act="back">回大廳</button>
       </header>
-      ${offline ? '<p class="mp-offline">離線資料</p>' : ''}
+      ${offline ? '<p class="mp-offline">離線資料，連上網路後會更新</p>' : ''}
       <div class="mp-seg-row" role="tablist">
         <button type="button" class="mp-seg-item ${mode === 'total' ? 'is-on' : ''}" data-mode="total">總排行</button>
         <button type="button" class="mp-seg-item ${mode === 'night' ? 'is-on' : ''}" data-mode="night">每晚輸贏</button>
@@ -88,7 +97,9 @@ export function renderStats(root, vm) {
       ${body}
     </div>`;
 
-  root.querySelector('[data-act="back"]')?.addEventListener('click', onBack);
+  root.querySelectorAll('[data-act="back"]').forEach((el) =>
+    el.addEventListener('click', onBack),
+  );
   root.querySelectorAll('[data-mode]').forEach((el) => {
     el.addEventListener('click', () => onMode(el.getAttribute('data-mode')));
   });

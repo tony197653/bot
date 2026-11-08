@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#13231a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="週五牌局">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
@@ -29,6 +29,7 @@
 
 <div class="app hidden" id="app">
   <header class="top">
+    <button type="button" class="mp-table-back" id="btnBackLobby" aria-label="回大廳" hidden>‹ 大廳</button>
     <div class="room">
       <h1 id="roomTitle">週五牌局</h1>
       <p id="roomMeta"><span class="meta-a"><b>盲注 10／20</b></span><span class="meta-b">　第 0 手</span></p>
@@ -91,7 +92,7 @@
 <div class="raise-scrim" id="raiseScrim" hidden></div>
 <div class="raise-panel" id="raisePanel" hidden aria-label="加注">
   <div class="ph">
-    <b>加注到 <span class="big" id="raiseOut">0</span></b>
+    <b id="raiseTitle"><span id="raiseVerb">加注到</span> <span class="big" id="raiseOut">0</span></b>
     <span id="raiseHint">—</span>
   </div>
   <div class="raise" id="raiseWrap">
