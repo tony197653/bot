@@ -71,32 +71,27 @@ describe('‹ 大廳 leave confirm（source contracts）', () => {
     assert.match(app, /onBack:\s*\(\)\s*=>\s*\{[\s\S]*?screen = 'lobby'/);
   });
 
-  it('mid-hand: ‹ 大廳 toasts 這手打完才能離開 (host+guest); no dialog', () => {
+  it('mid-hand: ‹ 大廳 always shows confirm without a phase early return', () => {
     const app = read('js/ui/mp-app.js');
-    assert.match(app, /function isHandInProgress/);
-    assert.match(app, /這手打完才能離開/);
     const show = app.slice(
       app.indexOf('function showLeaveTableConfirm'),
-      app.indexOf('function showLeaveTableConfirm') + 900,
+      app.indexOf('let statsMode'),
     );
-    assert.match(show, /isHandInProgress\(\)/);
-    assert.match(show, /toastLeaveAfterHand|這手打完才能離開/);
-    // Must return before creating/showing dialog
-    assert.match(show, /isHandInProgress\(\)[\s\S]{0,200}return/);
+    assert.doesNotMatch(show, /isHandInProgress|toastLeaveAfterHand/);
+    assert.match(show, /el\.id = 'mpLeaveConfirm'/);
+    assert.match(show, /el\.hidden = false/);
+    assert.match(show, /void confirmLeaveTable\(\)/);
   });
 
-  it('race: 確認離開 re-checks phase; mid-hand closes dialog + same toast', () => {
+  it('race: 確認離開 reaches host close or guest LEAVE without a mid-hand abort', () => {
     const app = read('js/ui/mp-app.js');
     const fn = app.slice(
       app.indexOf('async function confirmLeaveTable'),
-      app.indexOf('async function confirmLeaveTable') + 900,
+      app.indexOf('function tearDownRoom'),
     );
-    assert.match(fn, /isHandInProgress\(\)/);
-    assert.match(fn, /mpLeaveConfirm[\s\S]{0,120}hidden = true/);
-    assert.match(fn, /toastLeaveAfterHand|這手打完才能離開/);
-    // Abort before cashout/close
-    const raceReturn = fn.indexOf('return');
-    const hostClose = fn.indexOf('performHostCloseRoom');
-    assert.ok(raceReturn > 0 && hostClose > raceReturn, 'race abort before host close');
+    assert.doesNotMatch(fn, /isHandInProgress|toastLeaveAfterHand|mpLeaveConfirm/);
+    assert.match(fn, /if \(isHost\)\s*\{\s*await performHostCloseRoom\(\{ showResultCard: false \}\)/);
+    assert.match(fn, /await requestLeave\(\)/);
+    assert.match(fn, /goLobbyClean\(\)/);
   });
 });
