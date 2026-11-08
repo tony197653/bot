@@ -228,3 +228,11 @@ Coverage實查：/workspace/pr49b-round4-final-ruleCoverage.json根鍵rules、re
 - host 確認收桌：未測（新 host 狀態不正確，對話框未出現，腳本逾時）。
 - unit 197/197 pass。Rules/B Rules 未重跑（時間不足）。未全過→未推送。
 - 證據 /workspace/pr49b-r7/（r6-result.json、run1.log、unit.tap、截圖）。下一輪：全下改在最後或用 cancel 不確認、補籌碼後再測 S3 與收桌。
+
+## PM 第八輪停報（2026-11-08 10:10 台北時間，約12分／4 calls；第二次瀏覽器跑7分超出預估）
+- 全下改為取消不送，確認改用最小加注：regression 全 PASS（+/−、slider、6快捷、全下取消、確認、取消、回大廳對話框）。
+- S2 非 host 離桌：PASS（等該手結束後「是否離開牌局？」取消留桌、確認回乾淨大廳；統計 3 手無重複）。
+- host 確認收桌：PASS。room status=closed，新 host 回大廳帳戶 2,080，可加入牌桌 0。
+- 換 host：PARTIAL。接手成功（hostUid 換人），新 host 時期寫入第4手（PXpPK 4/4、jkNkk 4/4、新玩家 1/1，hands==unique 無重複）。但 playOne 在新 host 下未於時限判定完手，離線時本機 pending 為空，跨 host ACK 恢復與離線/前景補送沒有直接證據。
+- Rules 142/B Rules 15 未跑（時間）；unit 未改產品碼，上輪 197/197。未全過→未推送、未 fetch。
+- 證據 /workspace/pr49b-r8/（r6-result.json、run1-2.log、截圖）。
