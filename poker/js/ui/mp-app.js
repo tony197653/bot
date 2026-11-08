@@ -78,7 +78,7 @@ import {
   ensureLobbyNotify,
 } from './lobby.js';
 import { renderStats } from './stats.js';
-import { openPersonalStats } from './personal-stats.js';
+import { openPersonalStats, shouldToastClosedFallback } from './personal-stats.js';
 import { STATS_ENABLED } from '../stats/host-runtime.js';
 import { createFirestoreStatsAdapter } from '../stats/firestore-adapter.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
@@ -777,6 +777,7 @@ function bindPersonalStatsEntry() {
  * Triggered from lobby paint only when bank changed (no polling, no repaint); failures leave status pending. */
 let chipsSyncKey = '';
 let closedFallbackToastFor = null;
+let roomGoneFor = null;
 export let chipsSyncStatus = 'idle';
 const CHIPS_PENDING_KEY = (uid) => `pokerStats.chipsPending.v1:${uid}`;
 if (typeof window !== 'undefined') {
@@ -816,12 +817,12 @@ function openStatsFor(uid, name) {
       onClose: () => {
         // Source table closed while viewing → safe lobby fallback with short note (spec §2.2).
         // PL: same table + same close event already showing its close-result card → no extra toast.
-        if (!fromRoom || (room && room.id === fromRoom && room.status !== 'closed')) return;
-        if (closeResultShownFor === fromRoom || closeResultDismissedFor === fromRoom) return;
-        if (closedFallbackToastFor === fromRoom) return;
+        if (!shouldToastClosedFallback({ fromRoom, roomId: room?.id || null, status: room?.status,
+          gone: roomGoneFor === fromRoom, cardShownFor: closeResultShownFor,
+          cardDismissedFor: closeResultDismissedFor, toastedFor: closedFallbackToastFor })) return;
         closedFallbackToastFor = fromRoom;
         {
-          screen = 'lobby'; paint(); toast('原牌桌已關閉，已回大廳');
+          goLobbyClean(); toast('原牌桌已關閉，已回大廳');
         }
       },
     });
@@ -1837,6 +1838,9 @@ async function enterRoom(id, { asHostSit = false } = {}) {
     },
     (err) => {
       console.warn(err);
+      roomGoneFor = id;
+      // Stats overlay open over this table: let its close run the lobby fallback (no card possible).
+      if (document.getElementById('psHost')) return;
       joinEnded = true;
       screen = 'join';
       paint();

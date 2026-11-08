@@ -25,3 +25,16 @@ test('C3 offline cache key isolates viewer and target uid', () => {
   assert.notEqual(cacheKey('a', 'b'), cacheKey('b', 'a'));
   assert.notEqual(cacheKey('a', 'b'), cacheKey('a', 'c'));
 });
+import { shouldToastClosedFallback as f } from '../js/ui/personal-stats.js';
+test('C6 closed-table fallback: toast only when no close-result card for that table, once', () => {
+  const base = { fromRoom: 'r1', roomId: 'r1', status: 'playing', gone: false, cardShownFor: null, cardDismissedFor: null, toastedFor: null };
+  assert.equal(f(base), false, 'still open → no toast');
+  assert.equal(f({ ...base, fromRoom: null }), false, 'not opened from table');
+  assert.equal(f({ ...base, gone: true }), true, 'room deleted/inaccessible, no card → toast');
+  assert.equal(f({ ...base, status: 'closed' }), true, 'closed but card not shown → toast');
+  assert.equal(f({ ...base, roomId: null }), true, 'room cleared → toast');
+  assert.equal(f({ ...base, status: 'closed', cardShownFor: 'r1' }), false, 'same table card shown → dedup');
+  assert.equal(f({ ...base, status: 'closed', cardDismissedFor: 'r1' }), false, 'same table card dismissed → dedup');
+  assert.equal(f({ ...base, status: 'closed', cardShownFor: 'other' }), true, 'other table card does not suppress');
+  assert.equal(f({ ...base, gone: true, toastedFor: 'r1' }), false, 'no repeat');
+});

@@ -98,3 +98,12 @@ export function openPersonalStats({ uid, name, myUid, enabled, load, chips = nul
   render(); void fetchOnce();
   return close;
 }
+
+/** PL rule: same table + same close event with its result card shown/dismissed → no toast; otherwise toast once. */
+export function shouldToastClosedFallback({ fromRoom, roomId, status, gone, cardShownFor, cardDismissedFor, toastedFor }) {
+  if (!fromRoom) return false;
+  const ended = gone || !roomId || roomId !== fromRoom || status === 'closed';
+  if (!ended) return false;
+  if (cardShownFor === fromRoom || cardDismissedFor === fromRoom) return false;
+  return toastedFor !== fromRoom;
+}

@@ -36,3 +36,9 @@
 2. main(3f6800e, PR#50) 試合併：git merge-tree 顯示 poker/js/ui/mp-app.js 內容衝突（兩邊都改收桌確認）；其他檔自動合併。未合併。
 3. 截圖 /workspace/pr49c-r5/{phone,desktop}-01..14-*.png。
 測試：見回報。
+
+## Round 6 (2026-11-08)
+- Fallback toast: added shouldToastClosedFallback() + roomGoneFor (listenRoom onErr while overlay open defers to overlay close → goLobbyClean + toast). Unit TDD test C6 (fail→pass).
+- Shot 07 retaken: other player (阿明) from leaderboard. With-card dedup: card 1, toast 0.
+- Browser no-card check NOT completed (script hit 420s timeout during second-table join); pending.
+- merge-tree vs pm/live-styled-confirm b5b4f4f: 1 conflict, mp-app.js L~3154, comment-only (showCloseRoomConfirm docstring). app.js auto-merges.
