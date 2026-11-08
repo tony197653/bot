@@ -77,64 +77,6 @@ async function* parseOpenAiSse(
   yield { type: "done", truncated };
 }
 
-async function* parseWorkersAi(
-  body: ReadableStream<Uint8Array>,
-): AsyncGenerator<StreamChunk> {
-  // Workers AI 可能回 OpenAI SSE 或 newline JSON
-  const reader = body.getReader();
-  const dec = new TextDecoder();
-  let buf = "";
-  let truncated = false;
-  let sawSse = false;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      if (buf.includes("data:")) sawSse = true;
-      if (sawSse) {
-        const parts = buf.split("\n");
-        buf = parts.pop() || "";
-        for (const raw of parts) {
-          const line = raw.trim();
-          if (!line.startsWith("data:")) continue;
-          const data = line.slice(5).trim();
-          if (data === "[DONE]") {
-            yield { type: "done", truncated };
-            return;
-          }
-          try {
-            const json = JSON.parse(data) as {
-              response?: string;
-              choices?: Array<{ delta?: { content?: string } }>;
-            };
-            const t = json.response ?? json.choices?.[0]?.delta?.content;
-            if (t) yield { type: "text", text: t };
-          } catch {
-            /* ignore */
-          }
-        }
-      } else {
-        const parts = buf.split("\n");
-        buf = parts.pop() || "";
-        for (const raw of parts) {
-          const line = raw.trim();
-          if (!line) continue;
-          try {
-            const json = JSON.parse(line) as { response?: string };
-            if (json.response) yield { type: "text", text: json.response };
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-  yield { type: "done", truncated };
-}
-
 async function* parseGeminiSse(
   body: ReadableStream<Uint8Array>,
 ): AsyncGenerator<StreamChunk> {
@@ -180,49 +122,6 @@ function classifyHttp(status: number): FailKind {
   if (status === 429 || status === 402) return "quota";
   if (status >= 500) return "retry";
   return "retry";
-}
-
-async function streamWorkersAi(
-  env: Env,
-  messages: ChatMessage[],
-): Promise<AsyncGenerator<StreamChunk>> {
-  const model = env.WORKERS_AI_MODEL || "@cf/openai/gpt-oss-20b";
-  try {
-    const res = (await env.AI.run(model as keyof AiModels, {
-      messages: openaiMessages(messages),
-      max_tokens: MAX_TOKENS,
-      temperature: 0.5,
-      stream: true,
-    } as never)) as ReadableStream<Uint8Array> | { response?: string };
-
-    if (res && typeof res === "object" && "getReader" in res) {
-      return parseWorkersAi(res);
-    }
-    // 非串流後援
-    const text = (res as { response?: string })?.response || "";
-    return (async function* () {
-      if (text) yield { type: "text" as const, text };
-      yield { type: "done" as const, truncated: false };
-    })();
-  } catch (e) {
-    const msg = String(e);
-    if (/429|quota|rate/i.test(msg)) throw new ProviderError("workers-ai", "quota");
-    // 試 fallback 模型
-    try {
-      const fb = env.WORKERS_AI_FALLBACK_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8-fast";
-      const res = (await env.AI.run(fb as keyof AiModels, {
-        messages: openaiMessages(messages),
-        max_tokens: MAX_TOKENS,
-        temperature: 0.5,
-        stream: true,
-      } as never)) as ReadableStream<Uint8Array>;
-      return parseWorkersAi(res);
-    } catch (e2) {
-      const msg2 = String(e2);
-      if (/429|quota|rate/i.test(msg2)) throw new ProviderError("workers-ai", "quota");
-      throw new ProviderError("workers-ai", "retry");
-    }
-  }
 }
 
 async function streamGroq(
@@ -350,11 +249,6 @@ interface ProviderSlot {
 }
 
 const REAL_PROVIDERS: ProviderSlot[] = [
-  {
-    name: "workers-ai",
-    available: () => true,
-    run: streamWorkersAi,
-  },
   {
     name: "groq",
     available: (env) => !!env.GROQ_API_KEY,
@@ -498,7 +392,7 @@ export async function* runMockFallbackChain(
   sequence: Array<"ok" | "quota" | "busy" | "retry">,
   text = "備援成功",
 ): AsyncGenerator<StreamChunk & { provider?: ProviderName }> {
-  const names: ProviderName[] = ["workers-ai", "groq", "gemini", "openrouter"];
+  const names: ProviderName[] = ["groq", "gemini", "openrouter"];
   for (let i = 0; i < sequence.length; i++) {
     const s = sequence[i];
     const name = names[i] || "mock";

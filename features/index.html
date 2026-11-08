@@ -71,13 +71,12 @@ th{font-weight:500;text-align:left;white-space:nowrap}
 .skill::before{content:"技能 ";font-family:var(--font);color:var(--mute)}
 .t1 td.c-status{white-space:nowrap;min-width:190px}
 
-/* 連結：B5 文字底線 */
+/* 連結：不用底線，滑過只出淡底（文字底線樣式已停用） */
 .opt + .opt{margin-top:10px}
-.lnk{position:relative;display:inline;color:var(--ink);font-weight:500;text-decoration:none;transition:color .2s}
-.lnk::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:1px;background:currentColor;transform:scaleX(.35);transform-origin:left;transition:transform .35s var(--ease)}
-.lnk:hover{color:var(--rose)}
-.lnk:hover::after{transform:scaleX(1)}
-.lnk:active{opacity:.7}
+.lnk{display:inline;padding:2px 5px;margin:0 -5px;border-radius:var(--r-xs);color:var(--ink);font-weight:500;text-decoration:none;-webkit-box-decoration-break:clone;box-decoration-break:clone;transition:background-color .2s var(--ease)}
+@media (hover:hover) and (pointer:fine){.lnk:hover{background:var(--sage-soft)}}
+.lnk:active{background:#D2D9CB}
+.lnk:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
 .src{margin-left:6px;font-size:11.5px;color:var(--mute);white-space:nowrap}
 .why{display:block;color:var(--mute);font-size:13px;margin-top:2px}
 

@@ -34,4 +34,8 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-截圖輸出到 `/opt/cursor/artifacts/screenshots/`。
+截圖預設輸出到 `ask/test-results/screenshots/`（已列入 `.gitignore`）。可用環境變數覆寫：
+
+```bash
+ASK_E2E_ARTIFACTS=/path/to/dir npm run test:e2e
+```
