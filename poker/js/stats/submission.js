@@ -73,3 +73,35 @@ export function createStatsRecovery({ queue, submit, now = Date.now, onStatus = 
     },
   };
 }
+
+// Opt-in Phase B composition; never installed in the production host/T0.
+export function createStatsRoomRecovery({ queue, remoteQueue, submit, onStatus = () => {}, now = Date.now }) {
+  const local = createStatsRecovery({ queue, submit, onStatus, now });
+  const remote = createStatsRecovery({ queue: remoteQueue, submit, onStatus, now });
+  let chain = Promise.resolve();
+  return { wake() {
+    chain = chain.then(async () => {
+      for (const entry of (await queue.list()).slice(0, 6)) {
+        try {
+          const result = await remoteQueue.enqueue(entry);
+          if (result === 'rejected') onStatus('統計尚未完整保存，牌局不受影響');
+          else onStatus('remotely-confirmed');
+        } catch (error) { onStatus('pending', error); }
+      }
+      await remote.wake();
+      await local.wake();
+    }).catch(error => onStatus('pending', error));
+    return chain;
+  } };
+}
+
+export function bindStatsWake({ recovery, windowTarget = globalThis.window, documentTarget = globalThis.document, onError = () => {} }) {
+  const wake = () => { Promise.resolve().then(() => recovery.wake()).catch(onError); };
+  const foreground = () => { if (documentTarget.visibilityState === 'visible') wake(); };
+  windowTarget.addEventListener('online', wake);
+  documentTarget.addEventListener('visibilitychange', foreground);
+  return () => {
+    windowTarget.removeEventListener('online', wake);
+    documentTarget.removeEventListener('visibilitychange', foreground);
+  };
+}

@@ -102,3 +102,67 @@ M 級回歸：新增 unit 局部通過；既有 A/B 整組未完成；Rules emul
 4. 同輪既有 Rules142/142、新B Rules14/14（含父案例）皆pass；全部 localhost demo-poker，B只在測試記憶體啟用，正式statsEnabled/T0維持停用。證據 /workspace/pr49b-round3-rules.log；e2e證據 /workspace/pr49{base,b}-round3-6p.log。
 5. 六人未通過所以不push，不合併部署、不寫正式DB、不做C。遠端核實仍87014f6，原985554e保留。本輪只本機commit未驗收checkpoint。
 6. 接手：容量已解；先決策是否另案修基底六人Rules/環境。B仍欠跨host遠端pending、前景回線喚醒、真瀏覽器容量/多頁、Rules quota測量。估B另30–45分鐘，基底六人診斷另計；本輪完成即停，不自動續輪。
+
+## Phase B ROUND4 檢查點（2026-11-08）
+
+使用者明確 GO／implement-approved-spec／regression-check；本輪上限 8 分鐘／30 shell calls。HEAD 2835d8d，分支 pm/pr49-b1，未 commit。PL v1.0 §5–7、§10；M 級，BD 無視覺變更，本輪不做 C/UI。六人 e2e 使用者豁免；不修改舊 app。
+
+### 四項狀態（候選實作，不代表 QA 或整體 B 驗收）
+1. **跨 host pending：部分完成。** 新增 opt-in createRoomPendingQueue／createStatsRoomRecovery；pokerRooms/{room}/statsPending/queue 每房間單文件，最多六 uid entries、序列化上限 16,384 bytes。transaction ACK 後才標 remotely-confirmed；恢復只用 getDocFromServer 並拒絕 cache／pending writes。遠端失敗保留本機；滿額拒新留舊、無 TTL。逐 uid receipt／提交確認後才清理。現任 host 明確 get/create/update 權限，禁止 list/delete；owner／member／外人／舊 host 無權讀寫 pending。僅允許最小結算白名單，不含私牌／流水，host 仍無私人 pokerStats 讀權。新增 emulator assertions 尚未執行，因此隔離與六 entry expression budget 未核實。這是停用中的 B 接口，不接正式 host。
+2. **前景／回線：部分完成。** bindStatsWake 監聽 online、visible 的 visibilitychange，microtask 呼叫獨立 recovery，提供解除監聽；無 timer／輪詢，既有 backoff 保留。unit 驗證事件同步返回、hidden 忽略、解除；未接正式 host，沒有真瀏覽器事件證據。
+3. **真瀏覽器 localStorage：待 coordinator。** 遵守已知 socket 禁止，不嘗試啟動瀏覽器／server。一次性診斷 /tmp/pr49b-round4-browser.mjs（未納 repo、非回歸腳本）已 node --check；Playwright route 攔截所有請求，只供虛擬 localhost 靜態來源，不開 server／不連 DB。檢查雙頁 Web Locks enqueue、reload、帳號 key 分區，以及實際 QuotaExceededError 保留原 pending。未執行，不宣稱真瀏覽器通過或真實配額數字。
+4. **Rules read／expression quota：待 coordinator。** 未啟動 emulator、未量測，不能以 unit／靜態推算宣稱通過。新增六 entry Rules assertion；下載 coverage 後需檢視 evaluated expression 次數及 request trace 文件存取，與讀寫估算分列。coverage 若未提供可對帳的文件存取總數，該項仍未量得，不能宣稱低於 20。現有正常逐 uid receipt server read + 三文件 batch 是程式路徑估計，不是 Rules access quota 實測；remote enqueue 另有 transaction read/write、restore 一次 server read、cleanup transaction read/write（重試另計）。
+
+### payload 與容量證據
+
+/tmp/pr49b-round4-unit.tap：六 uid、128 字元 Unicode hand/uid 與安全整數邊界的遠端文件 8,473 UTF-8 bytes；40 字元 Unicode room 9,901 bytes；控制字元 JSON 跳脫極端樣本 18,265 bytes。16,384 是技術候選序列化預算，極端樣本須提早拒收，unit 已驗證未達六 slot 也可 byte-full 並保留所有舊待送。最初 8,192 假設造成測試 30 pass/1 fail，依 payload 實測改正後通過。不是保證六人所有合法邊界一定存得下。Rules 強制六 entry／欄位／長度結構上界，沒有 JSON UTF-8 長度原語；16KiB 由 adapter 強制，不能宣稱 Rules 精確強制 16KiB。Firestore 編碼／索引／SDK metadata 與多份成本未測；不冒稱此為實際儲存帳單或瀏覽器 quota。
+
+### 實際執行與 M 回歸
+
+| 項目 | 方法 | 結果／證據 |
+|---|---|---|
+| A 身分／快照／獨立鏈，B 既有補送／容量／鎖，ROUND4 ACK／滿額／喚醒 | unit：`node --test --test-isolation=none --test-timeout=10000 poker/test/personal-stats-phase-a.test.js poker/test/personal-stats-phase-b.test.js poker/test/personal-stats-phase-b-round2.test.js poker/test/personal-stats-phase-b-round4.test.js` | PASS 32/32，0 cancelled；/tmp/pr49b-round4-unit.tap |
+| 新 B emulator assertions | `node --check poker/firebase/stats-phase-b.test.mjs` | 語法 PASS；Rules 執行 UNTESTED |
+| 真瀏覽器診斷 | `node --check /tmp/pr49b-round4-browser.mjs` | 語法 PASS；瀏覽器 UNTESTED |
+| diff 空白檢查 | `git diff --check` | PASS |
+| 完整 unit／既有 Rules／B Rules | coordinator 獨立執行 | 本輪未執行 |
+| M 受影響區手動端到端 | manual | 未執行，不能用 unit 替代 |
+| 六人 e2e | manual | 本輪依使用者明確豁免，未執行 |
+
+### Coordinator 精確本機命令（此處列出不代表已跑）
+
+1. `cd /workspace/pr49b/poker && node --test --test-isolation=none --test-timeout=10000 test/*.test.js`
+2. 在可監聽環境終端 A：`cd /workspace/pr49b/poker/firebase && PATH=/home/box/.local/jdk/bin:$PATH ../node_modules/.bin/firebase emulators:start --only firestore --project demo-poker`（既有設定 127.0.0.1:8195；不可連真實 DB）。
+3. 終端 B 依序、不可並行覆寫 Rules：`cd /workspace/pr49b/poker && FIRESTORE_EMULATOR_HOST=127.0.0.1:8195 node --test --test-isolation=none --test-timeout=10000 firebase/rules.test.mjs`；之後 `FIRESTORE_EMULATOR_HOST=127.0.0.1:8195 node --test --test-isolation=none --test-timeout=10000 firebase/stats-phase-b.test.mjs`。既有 Rules runner 另有 RULES/STARTAT 參數需求時沿用既有 runner，勿改正式 Rules 啟用常數。
+4. B 測試後、停 emulator 前：`curl --fail http://127.0.0.1:8195/emulator/v1/projects/demo-poker:ruleCoverage -o /tmp/pr49b-round4-ruleCoverage.json`；HTML：`curl --fail http://127.0.0.1:8195/emulator/v1/projects/demo-poker:ruleCoverage.html -o /tmp/pr49b-round4-ruleCoverage.html`。搭配 firestore-debug.log／emulator request trace，量測成功三文件 batch、六 pending entry、並發／失權各路徑；coverage 的評估總次數不能冒稱單次 request 最大 expression 或讀取次數。
+5. `node /tmp/pr49b-round4-browser.mjs`；不啟 app server、不連 DB。若環境禁止 Chromium 啟動，回報原錯誤，不連續重試。
+
+變更檔案：js/stats/remote-pending.js、js/stats/submission.js、test/personal-stats-phase-b-round4.test.js、firebase/firestore.rules、firebase/stats-phase-b.test.mjs、本 LOG。沒有新增 repo regression script／依賴，未接 production／啟用 statsEnabled 或 T0，無 commit／push／merge／deploy／雲端代理／憑證／preview。本輪停止。剩餘需 coordinator 真瀏覽器／Rules quota／完整測試及手動驗證；本機測試估數分鐘，額度與環境問題無可靠完成估計，續輪需 owner GO。
+
+
+## ROUND4 最小後續：遠端上限兩筆（2026-11-08）
+
+使用者明確復工並指定 implement-approved-spec／regression-check；M 級、PL v1.0，BD 無外觀變更。本輪 2 分鐘／8 shell calls；HEAD 2835d8d，任務分支 pm/pr49-b1，未 commit。前段六筆上限與待測狀態為歷史候選，以下取代該遠端上限。
+
+量測來源：coordinator 的 /workspace/pr49b-round4-rules.log:179–186，六筆 pending 寫入 L728 PERMISSION_DENIED，超過 1,000 expressions。依使用者授權採最小保守修改：adapter 與 B pending Rules 一致限制每房間單文件 **2 筆 handId＋uid entries**；每筆原有完整白名單／型別／數值驗證保留，現任 host 隔離及禁止 list/delete 不變。未優化或放寬授權，未動舊 app/rules。兩筆成功與 expression/access coverage **PENDING coordinator verification**，不得當成實測通過。
+
+涵蓋／吞吐限制：同時至多兩筆遠端 ACK，包含跨手累積，不保證六人一手全員都有遠端備份；須逐 uid 提交確認並清理才釋放 slot，後續 wake 再嘗試，沒有固定吞吐保證。host 在此之前死亡，新 host 只能恢復已 ACK 子集；未 ACK 的本機待送全部保留，不靜默淘汰、不等待或阻擋牌局。裝置副本若消失仍可能缺紀錄，沿用已接受限制。16,384 serialized-byte 上限保留；先前六筆 bytes 量測僅歷史 payload 樣本，不再表示可接收六筆。
+
+修改檔案：js/stats/remote-pending.js、firebase/firestore.rules（僅 B pending）、test/personal-stats-phase-b-round4.test.js、firebase/stats-phase-b.test.mjs、本 LOG。測試斷言 cap=2、第三筆拒絕且原內容不變、六筆本機待送在 remote-full／提交失敗後全數保留；Rules 原現任／舊 host／成員／外人隔離案例保留，新增兩筆接受／三筆拒絕與 adapter 滿額保留斷言。
+
+| M 回歸項目 | 方法 | 結果 | 證據 |
+|---|---|---|---|
+| A/B 身分、獨立鏈、補送、容量、鎖、ACK、滿額與喚醒 | unit | 本輪 32/32 pass，0 fail/cancelled | /tmp/pr49b-round4-followup-unit.tap |
+| B Rules assertions | node --check | 語法通過；emulator 未執行，較小 cap 成功待核實 | firebase/stats-phase-b.test.mjs |
+| 完整 unit／既有 Rules | coordinator 前次結果（本輪修改前） | 使用者回報 193/193、142/142；本輪未重跑 | 使用者本輪指示 |
+| M 受影響區手動端到端 | manual | 未執行；不能以 unit 替代 | 待 coordinator |
+
+實際執行：上述 A/B 四檔 `node --test --test-isolation=none --test-timeout=10000`（修改後重跑）；`node --check poker/firebase/stats-phase-b.test.mjs`；`git diff --check`。未執行完整 unit／Rules／server／emulator，無 production／T0／C/UI／commit／push／deploy／preview。本輪完成後停止；剩餘 coordinator 重跑 B Rules（含兩筆成功與三筆拒絕）、量測 coverage/access 與 M 手動項目；Rules 重跑估數分鐘，quota 實測依環境無可靠估時。
+
+## PM 第四輪獨立核實與停報（2026-11-08 09:07 台北時間）
+1. 宗良 go 接續 B；本輪明確不推送。基底本機及遠端2835d8d。跨host ACK pending與online/foreground喚醒以opt-in介面實作，尚未掛正式host/T0，不視為產品端到端完成。
+2. 原6筆remote pending Rules實跑命中1000 expressions，保留完整驗證、改每房間最多2筆/16384 serialized bytes；滿額拒新、既有本機待送不覆蓋，不阻擋牌局。兩筆最長4byte Unicode合法ID及安全整數邊界實測4217 UTF-8 bytes，Firestore encoding/index成本仍非此值。host消失前可能只有部分uid遠端ACK，未ACK者仍無跨裝置保證。
+3. 最終獨立unit193/193、既有Rules142/142、B Rules15/15（含父案例）全通過，0fail/0cancel；證據 /workspace/pr49b-round4-final-{unit,rules}.log。全DB測試localhost/demo-poker；正式statsEnabled=false/T0保持停用，未跑已豁免六人。
+4. 真Chromium本機診斷：雙分頁40筆不互蓋、reload保留40筆、有界拒新保留舊筆；填滿localStorage確實QuotaExceededError後queue保留原1筆並告警；offline->online喚醒1次、visible事件後2次、解除事件後不增加。證據 /workspace/pr49b-round4-browser{,-quota,-wake}.json。測試專用origin/context隨browser關閉，不寫真DB；不把Chrome配額當iPhone/Safari保證，storage.estimate也不當localStorage容量。
+5. Rules quota：實測6筆超過1000 expressions、2筆通過，並取得 /workspace/pr49b-round4-final-ruleCoverage.json。coverage是整套累積，不是每request精確expression或cached document reads；因此quota項仍部分完成，不捏造精確數字。跨host與wake仍欠正式host受控整合；真多瀏覽器/裝置及精確reads/quota尚待測。
+6. 未push/merge/deploy、不做C/UI、不改舊app。下一輪先讀本LOG與remote-pending.js、submission.js；估受控整合/精確quota另15–30分鐘，不含Safari/裝置測試，需另GO。無需PL重選產品定義；T0發版另定，技術兩筆上限為PM依量測制定。

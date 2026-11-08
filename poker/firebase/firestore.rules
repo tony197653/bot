@@ -697,6 +697,33 @@ service cloud.firestore {
       return /databases/$(database)/documents/pokerRooms/$(room)/statsReceipts/$(key)/uids/$(uid);
     }
     function statsHost(room) { return signedIn() && roomOf(room).hostUid == request.auth.uid; }
+    // Only the current host can restore the room's acknowledged minimal queue.
+    match /pokerRooms/{room}/statsPending/{queueId} {
+      function pendingEntry(e) {
+        let d = e.summary;
+        return e.keys().hasAll(['roomId','handId','uid','summary'])
+          && e.keys().hasOnly(['roomId','handId','uid','summary'])
+          && e.roomId == room && strOk(e.handId, 128) && strOk(e.uid, 128)
+          && d.keys().hasAll(['roomId','handId','schemaVersion','handStartedAt','wonAnyPot','vpipOpp','vpip','pfrOpp','pfr','threeBetOpp','threeBet','netDelta'])
+          && d.keys().hasOnly(['roomId','handId','schemaVersion','handStartedAt','wonAnyPot','vpipOpp','vpip','pfrOpp','pfr','threeBetOpp','threeBet','netDelta'])
+          && strOk(room, 40) && d.roomId == room && d.handId == e.handId
+          && d.schemaVersion == 1 && d.handStartedAt is int && d.handStartedAt > 0
+          && d.netDelta is int && d.netDelta >= -9007199254740991 && d.netDelta <= 9007199254740991
+          && d.wonAnyPot is bool && d.vpipOpp is bool && d.vpip is bool
+          && d.pfrOpp is bool && d.pfr is bool && d.threeBetOpp is bool && d.threeBet is bool
+          && (!d.vpip || d.vpipOpp) && (!d.pfr || d.pfrOpp) && (!d.threeBet || d.threeBetOpp);
+      }
+      function pendingOk() {
+        let d = request.resource.data;
+        let a = d.entries;
+        return d.keys().hasOnly(['entries']) && a is list && a.size() <= 2
+          && (a.size() < 1 || pendingEntry(a[0]))
+          && (a.size() < 2 || pendingEntry(a[1]));
+      }
+      allow get: if statsEnabled() && queueId == 'queue' && statsHost(room);
+      allow create, update: if statsEnabled() && queueId == 'queue' && statsHost(room) && pendingOk();
+      allow list, delete: if false;
+    }
     match /pokerStats/{uid} {
       function aggregateOk(base) {
         let d = request.resource.data;

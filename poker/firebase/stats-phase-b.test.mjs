@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import * as fs from 'firebase/firestore';
 import { handKey, personalSummary, counters } from '../js/stats/submission.js';
+import { createRoomPendingQueue, REMOTE_ENTRY_CAP } from '../js/stats/remote-pending.js';
 import { createFirestoreStatsAdapter } from '../js/stats/firestore-adapter.js';
 
 const endpoint = process.env.FIRESTORE_EMULATOR_HOST;
@@ -99,6 +100,35 @@ test('B Rules isolation / atomicity / bounds (demo-poker only)', async t => {
     await seed(); const p = payload(); Object.assign(p.summary, change);
     await assertFails(commit('host',p));
    }
+  });
+  await t.test('room pending: current host only, replacement continuation, minimal bounded payload', async () => {
+   await seed();
+   const q = uid => createRoomPendingQueue({ fs, db: db(uid), roomId: 'r', startedAt: 1 });
+   await assertSucceeds(q('host').enqueue(entry()));
+   for (const uid of ['owner','member','outsider']) {
+    await assertFails(q(uid).list()); await assertFails(q(uid).enqueue(entry('r','other')));
+   }
+   await env.withSecurityRulesDisabled(c => fs.updateDoc(fs.doc(c.firestore(), 'pokerRooms','r'), { hostUid: 'replacement' }));
+   await assertFails(q('host').list()); await assertFails(q('host').enqueue(entry('r','other')));
+   assert.equal((await assertSucceeds(q('replacement').list())).length, 1);
+   await assertSucceeds(commit('replacement'));
+   await assertSucceeds(q('replacement').dequeue('h','owner','r'));
+   assert.equal((await q('replacement').list()).length, 0);
+   const ref = fs.doc(db('replacement'),'pokerRooms','r','statsPending','queue');
+   const clean = { ...entry(), summary: personalSummary(entry(),1) };
+   await assertFails(fs.setDoc(ref, { entries: [{ ...clean, hole: ['As'] }] }));
+   await assertFails(fs.setDoc(ref, { entries: [{ ...clean, roomId: 'other' }] }));
+   await assertFails(fs.setDoc(ref, { entries: Array(7).fill(clean) }));
+   assert.equal(REMOTE_ENTRY_CAP, 2);
+   const bounded = Array.from({ length: REMOTE_ENTRY_CAP }, (_, i) => ({ ...clean, uid: '界'.repeat(127)+i }));
+   await assertSucceeds(fs.setDoc(ref, { entries: bounded }));
+   await assertFails(fs.setDoc(ref, { entries: [...bounded, clean] }));
+   const before = await q('replacement').list();
+   assert.equal(await assertSucceeds(q('replacement').enqueue(entry('r','overflow'))), 'rejected');
+   assert.deepEqual(await q('replacement').list(), before);
+   await assertFails(fs.getDocs(fs.collection(db('replacement'),'pokerRooms','r','statsPending')));
+   await assertFails(fs.deleteDoc(ref));
+   await assertFails(fs.getDoc(summaryRef(db('replacement'))));
   });
   await t.test('success without opportunity is denied', async () => {
    await seed(); const p = payload(); p.summary.vpipOpp = false; p.increments.vpipOppHands = 0;
