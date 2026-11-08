@@ -20,3 +20,11 @@
 4. 離線快取：按 [viewer,target] uid 隔離 localStorage；讀取失敗時顯示快取並標「連線中斷／統計讀取失敗・顯示最後更新 HH:MM 的資料」；無快取顯示錯誤＋重試。
 5. 排行榜對象核對：點 阿明(wXSOOu) → 畫面 33.3%/3手/0/66.7%/2,000 與 DB pokerStatsPublic [3,1,0,2,2000] 一致，正確。第二輪兩人相同屬資料巧合（當時 DB 未留存，無法回查）。
 測試：unit 201/201；Rules 142/142；B+C 24/24。證據 /workspace/pr49c-r3/。
+
+## C 第四輪（2026-11-08 12:13–12:26 台北時間，約12分）
+1. 補碼：approveTopUp 成功後 host 立即只同步該座位 currentChipsTotal（bank+新 stack），fire-and-forget。Rules 測：房間 stack 增加後舊總額拒、新總額成功。
+2. 結帳同步重試：失敗保留 localStorage 旗標→顯示「本裝置待送」；online 事件或下次啟動回大廳時重送（無輪詢）。
+3. 真瀏覽器：離線開已看過的人→快取＋「連線中斷・顯示最後更新 12:16 的資料」；離線開未快取→「統計讀取失敗，請重試」＋重試，回線按重試成功。看統計中房間被收桌→關閉後回大廳並 toast「原牌桌已關閉，已回大廳」（同時也出現既有收桌結果卡，兩則提示並存，待 PL 決定）。
+4. idle10s（不含首次載入）：牌桌 0 重畫／2 請求（presence 心跳）；統計疊層 0/0；大廳 0/0。每手成本（源碼）：每在座玩家 統計 1 batch 4 寫＋讀 receipt 1；籌碼 1 batch 2 寫＋讀 pokerPlayers 1；Rules 內部讀另計。
+5. M 回歸（r8 腳本重跑）：raise 面板、±、slider、6 快捷、全下取消、確認、取消、check/call/fold、回大廳對話框、離桌、host 收桌 PASS；hands==unique 無重複。換 host 段沿用舊腳本計時（已知腳本因素），非本輪改動。
+測試：unit 201/201；Rules 142/142；B+C 25/25。證據 /workspace/pr49c-r4/。
