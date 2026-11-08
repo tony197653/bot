@@ -219,3 +219,12 @@ Coverage實查：/workspace/pr49b-round4-final-ruleCoverage.json根鍵rules、re
 - 回歸：fold/check/call 實點 PASS；raise 只見按鈕存在；快捷/slider/−+/all-in/確認/取消/回大廳對話框未測。
 - idle10s：host repaints 0、emu requests 13；大廳 0/0；新 host 0/10。
 - 證據 /workspace/pr49b-r6/（r6-result.json、run1-3.log、截圖）。
+
+## PM 第七輪補測停報（2026-11-08 09:57 台北時間，約11分／15 calls）
+- 回大廳找不到：測試選擇器錯，非產品 bug。真實入口為頂部 #btnBackLobby（‹ 大廳）；牌局中依設計只 toast「這手打完才能離開」。
+- S2 非 host 離桌：PASS。對話框「是否離開牌局？確認離開/取消」；取消留桌、確認回乾淨大廳（狀態在大廳、帳戶結算），離桌前後統計不變無重複。
+- 回歸 PASS：raise 面板、+/−（60→80→60）、slider 最大 2,000、6 個快捷鍵、全下=2,000、取消關閉、確認送出；fold/check/call 前輪已過。
+- S3 換 host：接手成功（hostUid 換人），但測試設計缺陷：第1手全下使兩位玩家籌碼歸零，之後新 host 無法打完一手，故新 host 寫入、跨 host ACK、離線/前景補送仍無證據。舊 host 關閉後無寫入、無重複。
+- host 確認收桌：未測（新 host 狀態不正確，對話框未出現，腳本逾時）。
+- unit 197/197 pass。Rules/B Rules 未重跑（時間不足）。未全過→未推送。
+- 證據 /workspace/pr49b-r7/（r6-result.json、run1.log、unit.tap、截圖）。下一輪：全下改在最後或用 cancel 不確認、補籌碼後再測 S3 與收桌。
