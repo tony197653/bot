@@ -68,7 +68,7 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
 
     const show = app.slice(
       app.indexOf('function showCloseResultCard'),
-      app.indexOf('function showCloseResultCard') + 2200,
+      app.indexOf('function showHostAloneLeaveDialog'),
     );
     assert.match(show, /dismissCloseResultToLobby/);
     assert.match(show, /dismissCloseResultToStats/);
@@ -467,6 +467,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       });
       await page.click('#mpCloseConfirmOk');
       await page.waitForSelector('#mpCloseResult', { timeout: 20000 });
+      await page.waitForSelector('#mpCloseResult[data-state="done"]', { timeout: 20000 });
       const dialogText = await page.innerText('#mpCloseResult');
       assert.match(
         dialogText,

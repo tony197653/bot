@@ -127,6 +127,15 @@ export function createHostLoop(fb, opts) {
   let revealTimer = null;
   /** @type {ReturnType<typeof setTimeout>|null} */
   let nextHandTimer = null;
+  let flushTimer = null;
+  const delayedTimers = new Set();
+  function delayHost(fn, ms) {
+    const timer = setTimeout(() => {
+      delayedTimers.delete(timer);
+      if (running && !closing && getRoom()?.status !== 'closed') fn();
+    }, ms);
+    delayedTimers.add(timer);
+  }
   let lastHandsBumpHandNo = 0;
   let pubVoided = false;
 
@@ -185,7 +194,7 @@ export function createHostLoop(fb, opts) {
     // Spec §6.8: deck only in host memory — mid-hand refresh/handoff voids then reshuffles
     const phase = room.pub?.phase;
     if (phase && phase !== PHASE.LOBBY && phase !== PHASE.HAND_OVER) {
-      setTimeout(() => {
+      delayHost(() => {
         if (!running || !engine) return;
         voidHand([...room.stacks]);
       }, 0);
@@ -222,20 +231,20 @@ export function createHostLoop(fb, opts) {
   function queueWrite(patchFn) {
     writeChain = writeChain.then(async () => {
       const room = getRoom();
-      if (!room || room.hostUid !== uid) return;
+      if ((!running && !closing) || !room || room.status === 'closed' || room.hostUid !== uid) return;
       if (document.visibilityState !== 'visible') return;
 
       // coalesce 250ms
       await new Promise((r) => {
         pendingFlush = r;
-        setTimeout(r, 250);
+        flushTimer = setTimeout(() => { flushTimer = null; pendingFlush = null; r(); }, 250);
       });
       if (pendingFlush !== arguments[0] && false) {
         /* noop — simple delay coalesce */
       }
 
       const latest = getRoom();
-      if (!latest || latest.hostUid !== uid) return;
+      if ((!running && !closing) || !latest || latest.status === 'closed' || latest.hostUid !== uid) return;
 
       const between =
         engine.phase === PHASE.LOBBY || engine.phase === PHASE.HAND_OVER;
@@ -330,7 +339,7 @@ export function createHostLoop(fb, opts) {
 
   /** Non-money follow-up: refresh public lobby summary after seat/cashout. */
   async function refreshLobbySummary(roomLike) {
-    const latest = getRoom() || roomLike;
+    const latest = roomLike || getRoom();
     if (!latest || latest.hostUid !== uid) return;
     const seatUids = roomLike?.seatUids || latest.seatUids;
     const hostUid = roomLike?.hostUid || latest.hostUid;
@@ -344,10 +353,8 @@ export function createHostLoop(fb, opts) {
     );
     const listStatus = roomLike?.status || curStatus(latest) || 'lobby';
     try {
-      const committed = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
-      const cur = committed.exists() ? committed.data() : latest;
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), {
-        rev: (cur.rev || 0) + 1,
+        rev: (latest.rev || 0) + 1,
         updatedAt: fs.serverTimestamp(),
         lobby,
         status: listStatus,
@@ -382,11 +389,11 @@ export function createHostLoop(fb, opts) {
   }
 
   function scheduleNextHand(ms) {
-    if (closing) return;
+    if (closing || !running || getRoom()?.status === 'closed') return;
     clearNextHandTimer();
     nextHandTimer = setTimeout(() => {
       nextHandTimer = null;
-      if (!running || !engine) return;
+      if (!running || !engine || getRoom()?.status === 'closed') return;
       if (engine.phase !== PHASE.HAND_OVER || closing) return;
       if (draining || leaveQueue.length) {
         void drainSitLeave();
@@ -489,7 +496,7 @@ export function createHostLoop(fb, opts) {
   }
 
   async function processIntent(intentUid, data) {
-    if (closing) return;
+    if (closing || !running || getRoom()?.status === 'closed') return;
     const room = getRoom();
     if (!room || room.hostUid !== uid) return;
     if (!engine) ensureEngine(room);
@@ -587,7 +594,7 @@ export function createHostLoop(fb, opts) {
   }
 
   async function drainSitLeave() {
-    if (closing || draining) return;
+    if (closing || !running || getRoom()?.status === 'closed' || draining) return;
     draining = true;
     try { await drainSitLeaveInner(); }
     catch (e) { console.warn('[host] drain', e); }
@@ -615,7 +622,7 @@ export function createHostLoop(fb, opts) {
         // wait until hand over
         continue;
       }
-      if (closing) return;
+      if (closing || !running || getRoom()?.status === 'closed') return;
       if (!await cashoutSeat(seat, item.uid)) return;
       leaveQueue.splice(leaveQueue.indexOf(item), 1);
     }
@@ -703,10 +710,14 @@ export function createHostLoop(fb, opts) {
     await refreshLobbySummary({ ...nextRoom, rev: room.rev + 1, status: 'lobby' });
   }
 
-  async function cashoutSeat(seat, playerUid, { handOffTo } = {}) {
+  async function cashoutSeat(seat, playerUid, opts = {}) {
+    const { handOffTo } = opts;
     await writeChain;
-    const snap = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
-    const room = snap.exists() ? snap.data() : null;
+    let room = opts.room;
+    if (!room) {
+      const snap = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
+      room = snap.exists() ? snap.data() : null;
+    }
     if (!cashoutStateReady(room, engine, seat, playerUid)) return false;
     const sessRow = room.sess[seat];
     if (!sessRow) return;
@@ -772,15 +783,11 @@ export function createHostLoop(fb, opts) {
       engine = beforeCashout;
       throw e;
     }
+    Object.assign(room, roomPatch);
     delete awaySince[seat];
     lastWriteAt = Date.now();
     onLocalState?.(engine);
-    await refreshLobbySummary({
-      ...nextRoom,
-      rev: room.rev + 1,
-      status: 'lobby',
-      hostUid: nextHost,
-    });
+    if (!closing) await refreshLobbySummary(room);
     return true;
   }
 
@@ -855,7 +862,7 @@ export function createHostLoop(fb, opts) {
   }
 
   function startHand() {
-    if (closing) return false;
+    if (closing || !running || getRoom()?.status === 'closed') return false;
     if (hostMustStopNewHand(true)) {
       quotaStop = true;
       queueWrite();
@@ -885,8 +892,8 @@ export function createHostLoop(fb, opts) {
     writeHoles();
     const n = engine.seats.filter((p) => p && p.hasHole).length;
     const dealMs = estimateMpDealTotalMs(DEAL_FX, n);
-    setTimeout(() => {
-      if (closing) return;
+    delayHost(() => {
+      if (closing || !running || getRoom()?.status === 'closed') return;
       const now = Date.now();
       engine = applyAction(engine, { type: 'ARM_DEADLINE' }, { now });
       syncDeadlineFromEngine();
@@ -923,26 +930,29 @@ export function createHostLoop(fb, opts) {
     clearNextHandTimer();
     clearRevealTimer();
     await writeChain;
-    const snap = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
-    if (!snap.exists()) throw new Error('Room missing');
-    const saved = snap.data();
+    const saved = getRoom();
+    if (!saved) throw new Error('Room missing');
     if (![PHASE.LOBBY, PHASE.HAND_OVER].includes(engine.phase)) {
       if (!applyAndPublish({ type: 'VOID_HAND', stacks: saved.stacks })) {
         throw new Error('VOID_HAND failed');
       }
+    } else if (pubVoided && saved.pub?.phase !== PHASE.HAND_OVER) {
+      // A previous VOID write may have failed; retry publishing without restarting timers.
+      queueWrite();
     }
     await writeChain;
     const committed = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
     const current = committed.exists() ? committed.data() : null;
     if (!current || current.seatUids.some((u, i) => u &&
       !cashoutStateReady(current, engine, i, u))) throw new Error('Settlement not committed');
+    return current;
   }
 
   function voidHand(stacks) {
     applyAndPublish({ type: 'VOID_HAND', stacks });
     hostClockAt = null;
     deadlineLocal = null;
-    setTimeout(() => startHand(), 3000);
+    delayHost(() => startHand(), 3000);
   }
 
   function onTick() {
@@ -1049,6 +1059,12 @@ export function createHostLoop(fb, opts) {
   function stop() {
     running = false;
     statsRuntime.stop();
+    for (const timer of delayedTimers) clearTimeout(timer);
+    delayedTimers.clear();
+    if (flushTimer) clearTimeout(flushTimer);
+    flushTimer = null;
+    pendingFlush?.();
+    pendingFlush = null;
     if (tickTimer) clearInterval(tickTimer);
     clearRevealTimer();
     clearNextHandTimer();

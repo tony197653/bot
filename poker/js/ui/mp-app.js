@@ -301,7 +301,7 @@ async function dismissCloseResultToLobby() {
     const back0 = $('#btnBackLobby');
     if (back0) back0.hidden = true;
     paint();
-    await pending.catch(() => {});
+    try { await pending; } catch { return; }
     if (screen !== 'lobby') return;
   }
   const closedId = roomId || room?.id || null;
@@ -335,14 +335,16 @@ async function dismissCloseResultToStats() {
 }
 
 /** M2 #5: stay on table with result card; do not auto-kick. */
-function showCloseResultCard({ chips = 0, auto = false } = {}) {
+function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry } = {}) {
   const rid = roomId || room?.id || null;
   // User already chose 回大廳／看戰績 — late closed snapshots must not re-open the card
   if (rid && closeResultDismissedFor === rid) return;
-  if (screen !== 'table' && screen !== 'linking') return;
+  if (screen !== 'table' && screen !== 'linking' && state === 'done') return;
+  const existing = document.getElementById('mpCloseResult');
+  if (state === 'done' && existing?.dataset.state === 'pending' && closeInFlight) return;
   const n = Number(chips) || 0;
   // Already showing: never let a later 0 clobber a real return; upgrade if better
-  if (rid && closeResultShownFor === rid && document.getElementById('mpCloseResult')) {
+  if (state === 'done' && rid && closeResultShownFor === rid && existing?.dataset.state === 'done') {
     if (n > closeResultChipsShown) {
       closeResultChipsShown = n;
       const title = document.getElementById('mpCloseResultT');
@@ -368,13 +370,28 @@ function showCloseResultCard({ chips = 0, auto = false } = {}) {
   const autoLine = auto
     ? '<p class="mp-close-result-d">沒人在線 30 分鐘，已自動收桌</p>'
     : '';
+  el.dataset.state = state;
   el.innerHTML = `
     <div class="mp-close-result-card">
-      <h2 id="mpCloseResultT">牌桌已收桌，你帶回 ${n.toLocaleString('en-US')} 籌碼</h2>
+      <h2 id="mpCloseResultT">${state === 'pending' ? '結算中…' : state === 'failed' ? '結算沒有完成，請再按一次收桌' : `牌桌已收桌，你帶回 ${n.toLocaleString('en-US')} 籌碼`}</h2>
       ${autoLine}
       <button type="button" class="mp-btn-primary" id="mpCloseLobby">回大廳</button>
       <button type="button" class="mp-b2" id="mpCloseStats">看戰績</button>
     </div>`;
+  if (state !== 'done') {
+    $('#mpCloseLobby', el)?.remove();
+    $('#mpCloseStats', el)?.remove();
+    if (state === 'failed') {
+      const card = el.querySelector('.mp-close-result-card');
+      card.insertAdjacentHTML('beforeend', '<button type="button" class="mp-btn-primary" id="mpCloseRetry">重試</button><button type="button" class="mp-b2" id="mpCloseBack">回牌桌</button>');
+      $('#mpCloseRetry', el)?.addEventListener('click', retry);
+      $('#mpCloseBack', el)?.addEventListener('click', () => {
+        hideCloseResultCard();
+        screen = 'table';
+        paint();
+      });
+    }
+  }
   el.hidden = false;
   el.removeAttribute('aria-hidden');
   $('#mpCloseLobby', el)?.addEventListener('click', () => {
@@ -3054,9 +3071,10 @@ async function confirmLeaveTable() {
     if (isHost) {
       // Mid-hand: 結算中 → result card. Between hands: unchanged (clean lobby).
       const hostMidHand = isHandInProgress();
-      await performHostCloseRoom({ showResultCard: hostMidHand });
-      await syncAfterRoomClosed();
-      if (!hostMidHand) goLobbyClean();
+      // performHostCloseRoom starts synchronously inside this click handler.
+      const pending = startHostClose({ showResultCard: hostMidHand });
+      if (!hostMidHand) void dismissCloseResultToLobby();
+      await pending;
       return;
     }
     // Spectator: just leave the room shell
@@ -3097,6 +3115,7 @@ async function confirmLeaveTable() {
     }
     goLobbyClean();
   } catch (e) {
+    if (isHost) return; // startHostClose already rendered the retry card.
     lobbyExitSuppressMine = false;
     toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
   }
@@ -3256,41 +3275,67 @@ export function mpExtendCode() {
  */
 async function performHostCloseRoom(opts = {}) {
   closingFreeze = true;
-  showSettlementNotice('mpClosingNotice', '結算中…');
+  const closingLoop = hostLoop;
   try {
     return await performHostCloseRoomInner(opts);
-  } catch (e) {
-    closingFreeze = false;
-    paintTableChrome();
-    throw e;
   } finally {
-    document.getElementById('mpClosingNotice')?.remove();
+    closingLoop?.stop();
   }
 }
 
-async function performHostCloseRoomInner({ showResultCard = true } = {}) {
+function startHostClose(opts = {}) {
+  if (closeInFlight) return closeInFlight;
+  closeResultDismissedFor = null;
+  showCloseResultCard({ state: 'pending' });
+  closeInFlight = performHostCloseRoom(opts);
+  const pending = closeInFlight;
+  void pending.then((chips) => {
+    closeInFlight = null;
+    if (opts.showResultCard !== false) showCloseResultCard({ chips });
+    else if (screen === 'lobby') goLobbyClean();
+  }, () => {
+    closeInFlight = null;
+    closingFreeze = false;
+    pendingCloseReturnChips = null;
+    closeResultDismissedFor = null;
+    showCloseResultCard({ state: 'failed', retry: () => startHostClose(opts) });
+    const btn = document.getElementById('mpBtnCloseRoom');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '收桌';
+    }
+  });
+  return pending;
+}
+
+async function performHostCloseRoomInner(opts = {}) {
+  const { showResultCard = true } = opts;
   const fb = getFirebase();
   const uid = getUser()?.uid;
   if (!fb || !room || !uid) return 0;
+  const closingLoop = hostLoop;
   const id = room.id;
   const mySeat = room.seatUids?.indexOf(uid) ?? -1;
-  let chips =
+  let chips = opts.returnedChips ?? (
     mySeat >= 0
       ? Number(room.stacks?.[mySeat]) || 0
       : playerDoc?.tableRoomId === id
         ? Number(playerDoc?.inPlay) || 0
-        : 0;
+        : 0);
   pendingCloseReturnChips = chips;
-  if (room.hostUid === uid && hostLoop?.cashoutSeat) {
-    await hostLoop.prepareClose();
-    const seats = [...(room.seatUids || [])];
-    const stacks = hostLoop.getEngine().seats.map((p) => p?.chips || 0);
+  if (room.hostUid === uid && closingLoop?.cashoutSeat) {
+    const payoutRoom = await closingLoop.prepareClose();
+    const seats = [...payoutRoom.seatUids];
+    const stacks = [...payoutRoom.stacks];
     for (let i = 0; i < seats.length; i++) {
       const u = seats[i];
       if (!u) continue;
       const amt = Number(stacks[i]) || 0;
-      if (!await hostLoop.cashoutSeat(i, u)) throw new Error('結算尚未同步，請重試收桌');
-      if (u === uid) chips = amt;
+      if (!await closingLoop.cashoutSeat(i, u, { room: payoutRoom })) throw new Error('結算尚未同步，請重試收桌');
+      if (u === uid) {
+        chips = amt;
+        opts.returnedChips = amt; // Preserve the committed payout if closing later needs a retry.
+      }
     }
   }
   pendingCloseReturnChips = chips;
@@ -3359,22 +3404,5 @@ function doCloseRoom() {
     btn.disabled = true;
     btn.textContent = '收桌中…';
   }
-  // performHostCloseRoom synchronously shows the pending settlement card.
-  closeInFlight = performHostCloseRoom({ showResultCard: true });
-  void (async () => {
-    try {
-      await closeInFlight;
-      closeInFlight = null;
-    } catch (e) {
-      closeInFlight = null;
-      closeResultShownFor = null;
-      hideCloseResultCard();
-      pendingCloseReturnChips = null;
-      toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = '收桌';
-      }
-    }
-  })();
+  void startHostClose({ showResultCard: true });
 }

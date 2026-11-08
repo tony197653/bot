@@ -92,8 +92,60 @@ describe('‹ 大廳 leave confirm（source contracts）', () => {
     assert.doesNotMatch(fn, /toastLeaveAfterHand|mpLeaveConfirm/);
     assert.match(fn, /const midHand = isHandInProgress\(\)/);
     assert.match(fn, /if \(midHand\)\s*\{\s*goLobbyClean\(\);\s*watchLeaveSettlement\(fb, uid, leavingRoomId\);\s*return;/);
-    assert.match(fn, /if \(isHost\)\s*\{[\s\S]{0,160}const hostMidHand = isHandInProgress\(\);\s*await performHostCloseRoom\(\{ showResultCard: hostMidHand \}\)/);
+    assert.match(fn, /if \(isHost\)\s*\{[\s\S]{0,160}const hostMidHand = isHandInProgress\(\);[\s\S]*startHostClose\(\{ showResultCard: hostMidHand \}\)/);
     assert.match(fn, /await requestLeave\(\)/);
     assert.match(fn, /goLobbyClean\(\)/);
+  });
+});
+
+
+describe('收桌即時回饋與單次讀取（source contracts）', () => {
+  const app = read('js/ui/mp-app.js');
+  const host = read('js/net/host.js');
+  const section = (src, start, end) => src.slice(src.indexOf(start), src.indexOf(end, src.indexOf(start)));
+  it('同步顯示 pending 卡，再啟動背景收桌；完成才顯示金額', () => {
+    const start = section(app, 'function startHostClose', 'async function performHostCloseRoomInner');
+    assert.match(start, /showCloseResultCard\(\{ state: 'pending' \}\);\s*closeInFlight = performHostCloseRoom/);
+    assert.match(start, /pending.then\(\(chips\) => \{[\s\S]*closeInFlight = null;[\s\S]*showCloseResultCard\(\{ chips \}\)/);
+    const card = section(app, 'function showCloseResultCard', 'function showHostAloneLeaveDialog');
+    assert.match(card, /state === 'pending' \? '結算中…'/);
+    assert.match(card, /state !== 'done'[\s\S]*mpCloseLobby[\s\S]*remove\(\)/);
+    assert.match(app, /void startHostClose\(\{ showResultCard: true \}\)/);
+    const leave = section(app, 'async function confirmLeaveTable', 'function tearDownRoom');
+    assert.match(leave, /startHostClose[\s\S]*if \(!hostMidHand\) void dismissCloseResultToLobby\(\);\s*await pending/);
+  });
+  it('失敗保留同一卡，提供重試與回牌桌，且停止 host loop', () => {
+    assert.match(app, /結算沒有完成，請再按一次收桌/);
+    assert.match(app, /id="mpCloseRetry">重試/);
+    assert.match(app, /id="mpCloseBack">回牌桌/);
+    assert.match(app, /state: 'failed', retry: \(\) => startHostClose\(opts\)/);
+    const perform = section(app, 'async function performHostCloseRoom(opts', 'function startHostClose');
+    assert.match(perform, /finally\s*\{\s*closingLoop\?\.stop\(\)/);
+    assert.doesNotMatch(app, /mpClosingNotice/);
+  });
+  it('大廳摘要不重讀；收桌在 VOID 發布後只讀一次並逐席共用資料', () => {
+    const refresh = section(host, 'async function refreshLobbySummary', 'function curStatus');
+    assert.doesNotMatch(refresh, /getDoc/);
+    const prepare = section(host, 'async function prepareClose', 'function voidHand');
+    assert.equal((prepare.match(/fs.getDoc/g) || []).length, 1);
+    assert.match(prepare, /VOID_HAND[\s\S]*await writeChain;[\s\S]*fs.getDoc[\s\S]*return current/);
+    const cashout = section(host, 'async function cashoutSeat', 'async function approveTopUp');
+    assert.match(cashout, /let room = opts.room;\s*if \(!room\) \{[\s\S]*fs.getDoc/);
+    assert.match(cashout, /await hostCashoutBatch[\s\S]*Object.assign\(room, roomPatch\)/);
+    const close = section(app, 'async function performHostCloseRoomInner', 'function showCloseRoomConfirm');
+    assert.match(close, /const payoutRoom = await closingLoop.prepareClose\(\)/);
+    assert.match(close, /for \(let i[\s\S]*await closingLoop.cashoutSeat\(i, u, \{ room: payoutRoom \}\)/);
+    assert.doesNotMatch(close, /Promise.all/);
+    assert.match(close, /await closingLoop.cashoutSeat[\s\S]*opts.returnedChips = amt/);
+  });
+  it('開房不等待收桌；停止／關桌後不重排下一手或離座重試', () => {
+    assert.doesNotMatch(section(app, 'async function doCreate', 'async function doJoin'), /closeInFlight|await.*[Ss]ettl/);
+    for (const [start, end] of [['function scheduleNextHand', 'function afterEngineChange'], ['async function drainSitLeave()', 'async function drainSitLeaveInner']]) {
+      assert.match(section(host, start, end), /closing \|\| !running \|\| getRoom\(\)\?\.status === 'closed'/);
+    }
+    const stop = section(host, 'function stop()', '\n  return {');
+    assert.match(stop, /clearInterval\(tickTimer\)/);
+    assert.match(stop, /clearNextHandTimer\(\)/);
+    assert.match(stop, /clearTimeout\(timer\)/);
   });
 });

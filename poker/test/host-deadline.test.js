@@ -228,8 +228,9 @@ describe('離桌結帳的已提交狀態保護', () => {
     const prepare = host.slice(host.indexOf('  async function prepareClose'), host.indexOf('  function voidHand'));
     assert.match(prepare, /closing = true;[\s\S]*clearNextHandTimer[\s\S]*VOID_HAND[\s\S]*await writeChain;[\s\S]*await fs.getDoc[\s\S]*cashoutStateReady/);
     const close = app.slice(app.indexOf('async function performHostCloseRoomInner'), app.indexOf('function showCloseRoomConfirm'));
-    assert.match(close, /await hostLoop.prepareClose\(\);[\s\S]*await hostLoop.cashoutSeat[\s\S]*await closeRoom/);
-    assert.match(app, /showSettlementNotice\('mpClosingNotice', '結算中…'\);[\s\S]*return await performHostCloseRoomInner/);
+    assert.match(close, /await closingLoop.prepareClose\(\);[\s\S]*await closingLoop.cashoutSeat[\s\S]*await closeRoom/);
+    assert.match(app, /showCloseResultCard\(\{ state: 'pending' \}\);[\s\S]*closeInFlight = performHostCloseRoom/);
+    assert.doesNotMatch(app, /mpClosingNotice/);
   });
 });
 
