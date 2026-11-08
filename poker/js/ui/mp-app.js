@@ -3112,10 +3112,43 @@ async function performHostCloseRoom({ showResultCard = true } = {}) {
   return chips;
 }
 
+/** Styled second confirm for 收桌 (same component as 「是否離開牌局？」); replaces native confirm(). */
+function showCloseRoomConfirm(onOk) {
+  let el = document.getElementById('mpCloseConfirm');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'mpCloseConfirm';
+    el.className = 'mp-close-result';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'mpCloseConfirmT');
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `
+    <div class="mp-close-result-card">
+      <h2 id="mpCloseConfirmT">確定收桌？在座的人會結帳回帳戶。</h2>
+      <button type="button" class="mp-btn-primary" id="mpCloseConfirmOk">確認收桌</button>
+      <button type="button" class="mp-btn-ghost" id="mpCloseConfirmCancel">取消</button>
+    </div>`;
+  el.hidden = false;
+  $('#mpCloseConfirmCancel', el)?.addEventListener('click', () => {
+    el.hidden = true;
+  });
+  $('#mpCloseConfirmOk', el)?.addEventListener('click', () => {
+    el.hidden = true;
+    onOk();
+  });
+}
+
 export function mpCloseRoom() {
   const fb = getFirebase();
   if (!fb || !room) return;
-  if (!confirm('確定收桌？在座的人會結帳回帳戶。')) return;
+  showCloseRoomConfirm(() => doCloseRoom());
+}
+
+function doCloseRoom() {
+  const fb = getFirebase();
+  if (!fb || !room) return;
   const btn = document.getElementById('mpBtnCloseRoom');
   if (btn) {
     btn.disabled = true;
