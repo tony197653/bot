@@ -1,6 +1,8 @@
 // Phase B seam: deliberately not connected to production host/T0.
 export const utf8Bytes = value => new TextEncoder().encode(JSON.stringify(value)).byteLength;
-export const handKey = (roomId, handId) => `${roomId.length}_${roomId}${handId}`;
+// Escape the separator itself; no JS/Rules Unicode length dependency.
+const keyPart = value => value.replaceAll('%', '%25').replaceAll('_', '%5F');
+export const handKey = (roomId, handId) => `${keyPart(roomId)}_${keyPart(handId)}`;
 export const counters = {
   validHands: null, wonHands: 'wonAnyPot', vpipOppHands: 'vpipOpp', vpipHands: 'vpip',
   pfrOppHands: 'pfrOpp', pfrHands: 'pfr', threeBetOppHands: 'threeBetOpp', threeBetHands: 'threeBet',

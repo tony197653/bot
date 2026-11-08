@@ -735,7 +735,7 @@ service cloud.firestore {
             && d.keys().hasOnly(['roomId','handId','schemaVersion','handStartedAt','wonAnyPot',
               'vpipOpp','vpip','pfrOpp','pfr','threeBetOpp','threeBet','netDelta','settledAt'])
             && strOk(d.roomId, 40) && strOk(d.handId, 128)
-            && key == string(d.roomId.size()) + '_' + d.roomId + d.handId
+            && key == d.roomId.replace('%', '%25').replace('_', '%5F') + '_' + d.handId.replace('%', '%25').replace('_', '%5F')
             && d.schemaVersion == 1 && d.handStartedAt is int
             && d.handStartedAt >= a.startedAt && d.netDelta is int
             && d.wonAnyPot is bool && d.vpipOpp is bool && d.vpip is bool

@@ -45,3 +45,29 @@ localStorage UTF-16、JSON 副本、交易暫存預估至少 2–4 倍序列化�
 4. 不合併、不部署、不連真實 DB、不啟用 T0、不做 C/UI；無 firebase CLI、Java，不以 production fallback。
 5. 未完成：Rules 隔離及 quota、固定 T0 規則、回線/前景喚醒、跨 host 遠端 pending、真瀏覽器配額/儲存成本與最大合法 ID 邊界確認。注意目前 handKey 用 JS length、Rules size，Unicode 長度一致性待測；localStorage 多分頁競爭亦未驗證。
 6. 接手先讀此 LOG、spec v1.0、submission.js/bounded-queue.js/firestore-adapter.js；下一輪先補隔離環境依賴，勿直接推本檢查點。遠端核實仍為 87014f6。估剩餘 B 約 30–45 分鐘另含環境準備，分輪另授權。
+
+## Phase B 第二輪檢查點（2026-11-08）
+
+基底仍為 ed88b0e，pm/pr49-b1；未 commit。使用者明確授權本輪 NEW unit/emulator assertions；未新增回歸腳本或修改既有測試。BD 版本仍未記載，本輪不涉及外觀。
+
+變更：handKey 對 %／_ 做可逆跳脫後組合，Rules 使用同一算法，移除 JS length／Rules size 的身分依賴。佇列每次操作重新讀取儲存，瀏覽器透過 Web Locks 序列化讀改寫；無 Web Locks 的 shared localStorage 拒絕操作，不冒險覆寫。fake lock／兩佇列實例測試通過，真多分頁瀏覽器尚未測。
+
+新增 test/personal-stats-phase-b-round2.test.js 四項測試；firebase/stats-phase-b.test.mjs 十三項子案例（owner 私人讀、host 三文件寫、非 host／外人拒絕、host 被替換後拒絕、create-only／並發去重、缺 aggregate／receipt 原子拒絕、偽造增量／receipt、Unicode／跳脫、長度／額外欄位、無機會成功拒絕）。僅 demo-poker，要求明確 localhost FIRESTORE_EMULATOR_HOST，僅在記憶體將 statsEnabled false 換為 true；正式檔案仍 false，未啟用 T0。
+
+實際命令／證據：
+- `node --test --test-isolation=none poker/test/personal-stats-phase-b-round2.test.js`：4 tests／4 pass／0 fail（本輪新跑）。
+- A+B+新 unit（含 isolation=none 版本）：尚未完成，輸出停在既有 B capacity 案例之前；不能報整組通過。證據 /tmp/pr49b-round2-unit.tap、/tmp/pr49b-round2-unit-direct.tap、/tmp/pr49b-round2-b-only.tap。容量案例單跑亦未完成，停止重試。
+- 以 PATH 前置 /home/box/.local/jdk/bin 的 Java jar 啟動 localhost:8296／demo-poker emulator：失敗，SocketException Operation not permitted（沙箱禁止 socket）；證據 /tmp/pr49b-round2-emulator.log。未連任何真實 DB。
+- `git diff --check`、`node --check poker/firebase/stats-phase-b.test.mjs`：exit 0。
+
+M 級回歸：新增 unit 局部通過；既有 A/B 整組未完成；Rules emulator 未執行；受影響區域手動端到端未執行。不是 QA／驗收通過。Rules reads／expressions 預算未量測；Unicode Rules replace／size 必須由 coordinator 實跑確認。失權案例定義為 hostUid 被替換，未加入新租約／過期政策。跨 host 遠端 pending、真瀏覽器容量與成本等前輪缺口仍保留。coordinator 啟動 demo-poker 本機 emulator 後可執行 `FIRESTORE_EMULATOR_HOST=127.0.0.1:<port> node --test firebase/stats-phase-b.test.mjs`（poker 目錄）；不與其他 Rules 測試同時覆寫同個 emulator 的 Rules。
+
+依本輪 7 分鐘上限停報；剩餘為 coordinator 完整 unit／Rules／e2e、定位既有 capacity 停滯，以及上述手動／額度實證，無可靠驗收工時估計。產物僅 /tmp，未加入版本控制；無 preview，未部署／merge／push／commit，未動 C/UI／正式啟用常數。
+
+## PM 第二輪停報（2026-11-08 08:45 台北時間）
+1. 免費工具完成：Temurin JRE 21.0.13、firebase-tools 13.35.1（既有 runner 固定使用 13.20.2）、Playwright 1.49.0/Chromium 131；本 worktree 獨立 npm install，未動 pr43 依賴。apt HTTP 來源失敗，改使用原核准官方 Temurin 下載。
+2. B 新增 Unicode handKey 與 Web Locks 候選、4 unit、13 Rules 子案例；既有 Rules 142/142、新 B Rules 14/14（含父案例）通過，僅 demo-poker localhost。
+3. 完整單元 187 項：108 pass、0 assertion fail、79 cancelled，於 B capacity/quota 案例卡住後由 120 秒 timeout 停止；A/B targeted 26 項：23 pass、3 cancelled。基底 87014f6 同命令 177/177 pass，所以不能歸咎既有基底，B 新增停滯未解。Codex、完整及 targeted 均遇同處停滯，遵守三次同錯停止，不再重試或修改。
+4. 僅一局六人 demo e2e 嘗試，150秒逾時停於 sitGuest，未到攤牌，未重跑；無法判定是否既有問題。另 e2e/layout 會跑多手，依僅一局六人限制未跑。未合併部署、未寫正式 DB、未啟用 T0、未做 C，不推送。
+5. 剩餘：B capacity/Web Locks 停滯、六人 e2e、跨 host pending、前景/回線喚醒、真瀏覽器儲存與 Rules quota。估另 30–45分鐘及環境診斷，不自動續輪。
+6. 證據 /workspace/pr49b-round2-{unit-noisolation,targeted,b-rules,rules,6p}.log，基底 /workspace/pr49base-round2-unit.log。遠端仍 87014f6，原 985554e 保留；本次僅保存未驗收本機 checkpoint。
