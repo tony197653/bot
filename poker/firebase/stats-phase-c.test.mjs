@@ -72,15 +72,36 @@ test('C Rules public aggregate read matrix (demo-poker only)', async t => {
    b.set(pubRef(hd), { schemaVersion: 1, startedAt: 1, validHands: 50, updatedAt: fs.serverTimestamp() }, { merge: true });
    await assertFails(b.commit());
   });
-  await t.test('chips total: host writes bank+stack; forged / non-host / wrong seat denied', async () => {
-   const chips = (uid, total, seat = 1, room = 'r') => fs.updateDoc(pubRef(db(uid)), { currentChipsTotal: total, chipsAt: fs.serverTimestamp(), chipsRoomId: room, chipsSeat: seat });
-   await assertFails(chips('host', 9999));
-   await assertFails(chips('owner', 1800));
-   await assertFails(chips('reader', 1800));
-   await assertFails(chips('host', 1300, 0));
-   await assertSucceeds(createFirestoreStatsAdapter({ fs, db: db('host') }).writeChips({ uid: 'owner', roomId: 'r', seat: 1, stack: 1500 }));
-   assert.equal((await fs.getDoc(pubRef(db('reader', 'anonymous')))).data().currentChipsTotal, 1800);
-   await assertFails(fs.updateDoc(pubRef(db('host')), { currentChipsTotal: 1800, validHands: 9, chipsAt: fs.serverTimestamp(), chipsRoomId: 'r', chipsSeat: 1 }));
+  await t.test('chips total: private mapping, host bank+stack ok; forged / non-host / wrong seat / public mapping denied', async () => {
+   const ad = (uid) => createFirestoreStatsAdapter({ fs, db: db(uid) });
+   const forge = async (uid, total, seat = 1, roomId = 'r') => { const d = db(uid); const b = fs.writeBatch(d);
+     b.set(fs.doc(d, 'pokerStatsSeat', 'owner'), { roomId, seat, at: fs.serverTimestamp() });
+     b.update(fs.doc(d, 'pokerStatsPublic', 'owner'), { currentChipsTotal: total, chipsAt: fs.serverTimestamp() }); return b.commit(); };
+   await assertFails(forge('host', 9999));
+   await assertFails(forge('owner', 1800));
+   await assertFails(forge('reader', 1800));
+   await assertFails(forge('host', 1300, 0));
+   await assertFails(fs.updateDoc(pubRef(db('host')), { currentChipsTotal: 1800, chipsAt: fs.serverTimestamp() }));
+   await assertFails(fs.updateDoc(pubRef(db('host')), { currentChipsTotal: 1800, chipsAt: fs.serverTimestamp(), chipsRoomId: 'r', chipsSeat: 1 }));
+   assert.equal(await ad('host').writeChips({ uid: 'owner', roomId: 'r', seat: 1, stack: 1500 }), 1800);
+   const pub = (await fs.getDoc(pubRef(db('reader', 'anonymous')))).data();
+   assert.equal(pub.currentChipsTotal, 1800); assert.equal('chipsRoomId' in pub || 'chipsSeat' in pub, false);
+   await assertFails(fs.getDoc(fs.doc(db('reader'), 'pokerStatsSeat', 'owner')));
+   await assertFails(fs.getDoc(fs.doc(db('host'), 'pokerStatsSeat', 'owner')));
+   await assertSucceeds(fs.getDoc(fs.doc(db('owner'), 'pokerStatsSeat', 'owner')));
+  });
+  await t.test('cash-out: self clears mapping, total == bank; seated or wrong total denied', async () => {
+   const ad = (uid) => createFirestoreStatsAdapter({ fs, db: db(uid) });
+   await env.withSecurityRulesDisabled(c => fs.setDoc(fs.doc(c.firestore(), 'pokerPlayers', 'owner'), { bank: 300, tableRoomId: 'r' }));
+   await assertFails(ad('owner').writeChips({ uid: 'owner' }));
+   await env.withSecurityRulesDisabled(c => fs.setDoc(fs.doc(c.firestore(), 'pokerPlayers', 'owner'), { bank: 1800, tableRoomId: null }));
+   await assertFails(ad('reader').writeChips({ uid: 'owner' }));
+   assert.equal(await ad('owner').writeChips({ uid: 'owner' }), 1800);
+   assert.equal((await fs.getDoc(pubRef(db('reader')))).data().currentChipsTotal, 1800);
+   const d = db('owner'); const b = fs.writeBatch(d);
+   b.set(fs.doc(d, 'pokerStatsSeat', 'owner'), { roomId: null, seat: null, at: fs.serverTimestamp() });
+   b.update(fs.doc(d, 'pokerStatsPublic', 'owner'), { currentChipsTotal: 99999, chipsAt: fs.serverTimestamp() });
+   await assertFails(b.commit());
   });
   await t.test('legit host resubmit of new hand ok; duplicate rejected', async () => {
    await assertSucceeds(commit('host', payload(entry('r', 'h2'))));

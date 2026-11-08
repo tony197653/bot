@@ -80,6 +80,7 @@ import {
 import { renderStats } from './stats.js';
 import { openPersonalStats } from './personal-stats.js';
 import { STATS_ENABLED } from '../stats/host-runtime.js';
+import { createFirestoreStatsAdapter } from '../stats/firestore-adapter.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
 import { cardHtml, cardBackPair, heroBackPair, fmtChips, paintBoardSlots, raisePresetsMarkup, raisePanelCopy } from './cards-dom.js';
 import { mapSeatsClockwise } from './seating.js';
@@ -772,7 +773,22 @@ function bindPersonalStatsEntry() {
     openStatsFor(av.dataset.psUid, av.dataset.psName || '');
   }, true);
 }
+/** v1.0.5: after cash-out / leave, self re-syncs public chips total (= bank) and clears private seat map.
+ * Triggered from lobby paint only when bank changed (no polling, no repaint); failures leave status pending. */
+let chipsSyncKey = '';
+export let chipsSyncStatus = 'idle';
+function maybeSyncOwnChips() {
+  const fb = getFirebase(); const me = getUser();
+  if (!fb || !me || !playerDoc || playerDoc.tableRoomId || !(STATS_ENABLED || qaStatsOpts())) return;
+  const key = `${me.uid}:${playerDoc.bank}`;
+  if (key === chipsSyncKey) return;
+  chipsSyncKey = key; chipsSyncStatus = 'pending';
+  void createFirestoreStatsAdapter({ fs: fb.fs, db: fb.db }).writeChips({ uid: me.uid })
+    .then(() => { chipsSyncStatus = 'synced'; })
+    .catch((e) => { chipsSyncStatus = 'pending'; console.warn('[stats] chips', e?.code || e); });
+}
 function openStatsFor(uid, name) {
+    const fromRoom = screen === 'table' ? room?.id : null;
     const fb = getFirebase();
     const me = getUser();
     if (!fb || !me || !uid) return;
@@ -786,6 +802,13 @@ function openStatsFor(uid, name) {
         return snap.exists() ? snap.data() : null;
       },
       chipsOf: (agg) => agg?.currentChipsTotal,
+      syncHint: () => (chipsSyncStatus === 'pending' ? '本裝置待送' : ''),
+      onClose: () => {
+        // Source table closed while viewing → safe lobby fallback with short note (spec §2.2).
+        if (fromRoom && (!room || room.id !== fromRoom || room.status === 'closed') && !document.getElementById('mpCloseResult')?.offsetParent) {
+          screen = 'lobby'; paint(); toast('原牌桌已關閉，已回大廳');
+        }
+      },
     });
 }
 
@@ -863,6 +886,7 @@ function paint() {
   }
 
   if (screen === 'lobby') {
+    maybeSyncOwnChips();
     root.hidden = false;
     root.classList.remove('mp-root-table');
     if (app) app.classList.add('hidden');

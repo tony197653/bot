@@ -724,6 +724,24 @@ service cloud.firestore {
       allow create, update: if statsEnabled() && queueId == 'queue' && statsHost(room) && pendingOk();
       allow list, delete: if false;
     }
+    function seatMapPath(uid) { return /databases/$(database)/documents/pokerStatsSeat/$(uid); }
+    // Private chips verification mapping: owner-only read; never public.
+    match /pokerStatsSeat/{uid} {
+      function mapOk() {
+        let d = request.resource.data;
+        let pub = getAfter(/databases/$(database)/documents/pokerStatsPublic/$(uid)).data;
+        return statsEnabled() && d.keys().hasOnly(['roomId','seat','at']) && d.at == request.time
+          && pub.chipsAt == request.time
+          && (d.roomId == null
+            ? d.seat == null && isSelf(uid)
+            : strOk(d.roomId, 40) && d.seat is int && d.seat >= 0 && d.seat < 6
+              && signedIn() && roomOf(d.roomId).hostUid == request.auth.uid
+              && roomOf(d.roomId).seatUids[d.seat] == uid);
+      }
+      allow get: if isSelf(uid);
+      allow list, delete: if false;
+      allow create, update: if mapOk();
+    }
     // C: Page-only public aggregate projection. Readable by registered (non-anonymous) players;
     // private summaries / lastHandKey / pending / ledger stay in owner-only paths.
     function publicStatsPath(uid) { return /databases/$(database)/documents/pokerStatsPublic/$(uid); }
@@ -734,8 +752,8 @@ service cloud.firestore {
         return statsEnabled()
           && d.keys().hasOnly(['schemaVersion','startedAt','validHands','wonHands',
             'vpipOppHands','vpipHands','pfrOppHands','pfrHands','threeBetOppHands','threeBetHands',
-            'netChips','updatedAt','currentChipsTotal','chipsAt','chipsRoomId','chipsSeat'])
-          && (resource == null ? !d.keys().hasAny(['currentChipsTotal','chipsAt','chipsRoomId','chipsSeat'])
+            'netChips','updatedAt','currentChipsTotal','chipsAt'])
+          && (resource == null ? !d.keys().hasAny(['currentChipsTotal','chipsAt'])
               : d.diff(resource.data).affectedKeys().hasOnly(['schemaVersion','startedAt','validHands','wonHands',
                 'vpipOppHands','vpipHands','pfrOppHands','pfrHands','threeBetOppHands','threeBetHands','netChips','updatedAt']))
           && p.updatedAt == request.time && d.updatedAt == request.time
@@ -749,18 +767,19 @@ service cloud.firestore {
       // v1.0.4: aligned with leaderboard pokerPlayers get (signedIn incl. anonymous; auth null denied).
       allow get: if signedIn();
       allow list, delete: if false;
-      // Current chips TOTAL only (B+S at HAND_OVER, U=0): current host, seat bound to uid,
-      // total must equal that player's bank + the room's stored stack for that seat.
+      // Current chips TOTAL only (v1.0.5): seat/room verification lives in private pokerStatsSeat/{uid}.
+      // Mode A (host, HAND_OVER): total == bank + room.stacks[seat], private mapping written in the same batch.
+      // Mode B (self, after cash-out / leave): mapping cleared, not seated anywhere, total == bank.
       function chipsOk() {
         let d = request.resource.data;
-        let r = roomOf(d.chipsRoomId);
-        return statsEnabled() && resource != null
-          && d.diff(resource.data).affectedKeys().hasOnly(['currentChipsTotal','chipsAt','chipsRoomId','chipsSeat'])
-          && strOk(d.chipsRoomId, 40) && d.chipsSeat is int && d.chipsSeat >= 0 && d.chipsSeat < 6
-          && signedIn() && r.hostUid == request.auth.uid && r.seatUids[d.chipsSeat] == uid
-          && d.currentChipsTotal is int
-          && d.currentChipsTotal == get(playerPath(uid)).data.bank + r.stacks[d.chipsSeat]
-          && d.chipsAt == request.time;
+        let m = getAfter(seatMapPath(uid)).data;
+        let bank = get(playerPath(uid)).data.bank;
+        return statsEnabled() && resource != null && signedIn()
+          && d.diff(resource.data).affectedKeys().hasOnly(['currentChipsTotal','chipsAt'])
+          && d.currentChipsTotal is int && d.chipsAt == request.time && m.at == request.time
+          && (m.roomId == null
+            ? isSelf(uid) && get(playerPath(uid)).data.tableRoomId == null && d.currentChipsTotal == bank
+            : d.currentChipsTotal == bank + roomOf(m.roomId).stacks[m.seat]);
       }
       allow create: if publicOk();
       allow update: if publicOk() || chipsOk();

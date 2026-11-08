@@ -20,3 +20,8 @@ test('C1 html: other player has no 我的/本人 label, shows name; dash for unk
 test('C1 html escapes names', () => {
   assert.doesNotMatch(personalStatsHtml({ name: '<img onerror=1>', isMe: false, view: { state: 'missing' } }), /<img onerror/);
 });
+import { cacheKey } from '../js/ui/personal-stats.js';
+test('C3 offline cache key isolates viewer and target uid', () => {
+  assert.notEqual(cacheKey('a', 'b'), cacheKey('b', 'a'));
+  assert.notEqual(cacheKey('a', 'b'), cacheKey('a', 'c'));
+});

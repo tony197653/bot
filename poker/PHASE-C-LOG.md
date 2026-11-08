@@ -12,3 +12,11 @@
 1. Rules：pokerStatsPublic get=signedIn()（含匿名、不需本人pokerPlayers；auth null 拒）；list/delete 拒。新增 currentChipsTotal/chipsAt/chipsRoomId/chipsSeat：僅現任 host、room.seatUids[chipsSeat]==uid、總額==pokerPlayers/{uid}.bank+room.stacks[seat]、只能改這4欄、需已存在公開文件。統計批次不能順便改籌碼欄。host 於 HAND_OVER 房間寫入後 fire-and-forget（每手一次，不進 writeChain）；成本：每在座玩家 +1 讀 pokerPlayers、+1 寫。
 2. 入口：大廳 ⋯ 選單新增「我的戰績」；本人頭像原行為（開戰績排行）不變；桌主頭像不變；排行榜每列加頭像按鈕（只頭像開統計）；牌桌本人 #heroAv 與他人座位頭像。疊層不卸載來源→捲動/分頁/同房座位保留，瀏覽器返回一致。
 3. 測試：unit 200/200；既有 Rules 142/142；B+C Rules 23/23（--test-concurrency=1）。真瀏覽器 6 項入口+返回全過；證據 /workspace/pr49c-r2/{phone,desktop}-0[1-6]-*.png、r6-result.json。
+
+## C 第三輪（2026-11-08 12:06–12:13 台北時間，約7分）依 v1.0.5
+1. 位置驗證私有化：chipsRoomId/chipsSeat 移出公開文件 → 私有 pokerStatsSeat/{uid}{roomId,seat,at}（只本人 get；list/delete 拒）。公開只剩 currentChipsTotal/chipsAt。Rules 以 getAfter(私有映射) 驗：host 模式 總額==bank+room.stacks[seat]；結帳模式 本人、tableRoomId==null、映射清空、總額==bank。私有映射寫入須同批公開 chipsAt==request.time。每次籌碼同步 1 batch 2 寫；Rules 讀 room/player/映射各 1。
+2. 結帳／離桌：回大廳 paint 時若 bank 變動且不在桌 → 本人送一次（無輪詢、無重畫）；失敗標「本裝置待送」，不阻擋遊戲。帶入=轉移不變（下一手 host 依 bank+stack）；補碼於下一 HAND_OVER 反映（未即時）。
+3. 原桌已關閉：從牌桌開統計後若房間已不在/closed，關閉時回大廳並提示「原牌桌已關閉，已回大廳」。直接開網址：無統計 URL 路由，維持大廳。
+4. 離線快取：按 [viewer,target] uid 隔離 localStorage；讀取失敗時顯示快取並標「連線中斷／統計讀取失敗・顯示最後更新 HH:MM 的資料」；無快取顯示錯誤＋重試。
+5. 排行榜對象核對：點 阿明(wXSOOu) → 畫面 33.3%/3手/0/66.7%/2,000 與 DB pokerStatsPublic [3,1,0,2,2000] 一致，正確。第二輪兩人相同屬資料巧合（當時 DB 未留存，無法回查）。
+測試：unit 201/201；Rules 142/142；B+C 24/24。證據 /workspace/pr49c-r3/。

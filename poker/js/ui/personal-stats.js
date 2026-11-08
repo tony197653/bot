@@ -21,7 +21,7 @@ function ring(v, { size, r, w, color, cy, label }) {
     ${d > 0 ? `<circle cx="${cx}" cy="${y}" r="${r}" fill="none" stroke="${color}" stroke-width="${w}" pathLength="100" stroke-dasharray="${d} ${100 - d}" transform="rotate(-90 ${cx} ${y})"/>` : ''}
     <text x="${cx}" y="${y}" text-anchor="middle" dominant-baseline="central" class="ps-rv">${pctTxt(v)}</text>`;
 }
-export function personalStatsHtml({ name, isMe, view, chips }) {
+export function personalStatsHtml({ name, isMe, view, chips, note = '' }) {
   const title = isMe ? `${esc(name)}（你）` : esc(name);
   const msg = { loading: '讀取中…', error: '統計讀取失敗，請重試', disabled: '尚未開始記錄', missing: '資料尚未完整' }[view.state];
   const v = view.state === 'ok' ? view : {};
@@ -30,6 +30,7 @@ export function personalStatsHtml({ name, isMe, view, chips }) {
   <section class="ps-sheet" role="dialog" aria-modal="true" aria-label="${title}的統計">
     <header class="ps-head"><div class="ps-id"><span class="ps-av" aria-hidden="true">${esc((name || '?')[0])}</span><h2 class="ps-title">${title}</h2></div>
       <button type="button" class="mp-btn-ghost" data-ps="back">返回</button></header>
+    ${note ? `<p class="ps-msg" role="status">${esc(note)}</p>` : ''}
     ${msg ? `<p class="ps-msg" role="status">${msg}${view.state === 'error' ? ' <button type="button" class="mp-btn-ghost" data-ps="retry">重試</button>' : ''}</p>` : ''}
     <div class="ps-r1"><div><div class="ps-l">勝率</div><svg viewBox="0 0 132 132" width="132" height="132" role="img" aria-label="勝率 ${pctTxt(v.win)}">${ring(v.win, { size: 132, r: 58, w: 16, color: '#60BF88' }).replace('class="ps-rv"', 'class="ps-rv ps-big"')}</svg></div>
       <div><div class="ps-l">總手數</div><div class="ps-n ps-big">${fmt(v.hands)}</div></div></div>
@@ -51,18 +52,33 @@ const CSS = `.ps-host{position:fixed;inset:0;z-index:60}.ps-scrim{position:absol
  * Open overlay for uid. load(): Promise<agg|null>. Returns close().
  * Browser back closes the overlay (one history entry per open; replaced, never stacked on refresh).
  */
-export function openPersonalStats({ uid, name, myUid, enabled, load, chips = null, chipsOf = null, doc = document, win = window }) {
+const hhmm = (t) => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+/** Offline cache isolated per viewer uid + target uid (spec §2.3); never mixes accounts. */
+export function cacheKey(myUid, uid) { return `pokerStats.view.v1:${JSON.stringify([myUid, uid])}`; }
+export function openPersonalStats({ uid, name, myUid, enabled, load, chips = null, chipsOf = null, doc = document, win = window,
+  storage = globalThis.localStorage, syncHint = () => '', onClose = () => {} }) {
   if (!uid) return () => {};
   doc.getElementById('psHost')?.remove();
   if (!doc.getElementById('psCss')) { const st = doc.createElement('style'); st.id = 'psCss'; st.textContent = CSS; doc.head.appendChild(st); }
   const host = doc.createElement('div'); host.id = 'psHost'; host.className = 'ps-host'; doc.body.appendChild(host);
   const focusBack = doc.activeElement;
   let closed = false; let view = { state: enabled ? 'loading' : 'disabled' };
-  const render = () => { if (!closed) host.innerHTML = personalStatsHtml({ name, isMe: uid === myUid, view, chips }); };
+  let note = '';
+  const render = () => { if (!closed) host.innerHTML = personalStatsHtml({ name, isMe: uid === myUid, view, chips, note }); };
   const fetchOnce = async () => {
     if (!enabled) return;
     view = { state: 'loading' }; render();
-    try { const agg = await load(uid); view = statsView(agg, { enabled }); if (chipsOf) chips = chipsOf(agg) ?? null; } catch { view = { state: 'error' }; }
+    const key = cacheKey(myUid, uid);
+    try {
+      const agg = await load(uid); view = statsView(agg, { enabled }); if (chipsOf) chips = chipsOf(agg) ?? null;
+      note = (uid === myUid && syncHint()) || '';
+      try { if (agg) storage?.setItem(key, JSON.stringify({ agg, at: Date.now() })); } catch { /* quota: cache is optional */ }
+    } catch {
+      let cached = null; try { cached = JSON.parse(storage?.getItem(key) || 'null'); } catch { cached = null; }
+      if (cached?.agg) { view = statsView(cached.agg, { enabled }); if (chipsOf) chips = chipsOf(cached.agg) ?? null;
+        note = `${win.navigator?.onLine === false ? '連線中斷' : '統計讀取失敗'}・顯示最後更新 ${hhmm(cached.at)} 的資料`; }
+      else view = { state: 'error' };
+    }
     render();
   };
   const onPop = () => close(true);
@@ -70,6 +86,7 @@ export function openPersonalStats({ uid, name, myUid, enabled, load, chips = nul
     if (closed) return; closed = true; host.remove(); win.removeEventListener('popstate', onPop);
     if (!fromPop && win.history?.state?.ps) win.history.back();
     focusBack?.focus?.();
+    onClose();
   }
   host.addEventListener('click', (e) => {
     const act = e.target.closest?.('[data-ps]')?.dataset.ps;
