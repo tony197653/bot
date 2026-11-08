@@ -42,3 +42,9 @@
 - Shot 07 retaken: other player (阿明) from leaderboard. With-card dedup: card 1, toast 0.
 - Browser no-card check NOT completed (script hit 420s timeout during second-table join); pending.
 - merge-tree vs pm/live-styled-confirm b5b4f4f: 1 conflict, mp-app.js L~3154, comment-only (showCloseRoomConfirm docstring). app.js auto-merges.
+
+## Round 7 (2026-11-08)
+- Ring: gray track drawn only on the uncovered remainder (pathLength 100, dasharray 100-d d, dashoffset -d, rotate -90; omitted at d=100). Unit test C7. Before/after shots in /workspace/pr49c-r7.
+- No-card toast (mp-c7-nocard.mjs): card 0, toast 原牌桌已關閉，已回大廳 visible, lobby 1; repeat → no new toast. Shot 15 taken.
+- Unit 203/203, B+C 25/25, Rules 138/142 (failing 4 not identified this round). Betting/raise regression + leave + close dialogs ok (r8 script ended early at extra hand 4, fatal after checks).
+- Idle 10s: table 0 repaints/2 req, overlay 0/2, lobby 0/0.
