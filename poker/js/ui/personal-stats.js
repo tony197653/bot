@@ -17,7 +17,7 @@ function ring(v, { size, r, w, color, cy, label }) {
   const d = v == null ? 0 : Math.max(0, Math.min(100, v));
   const cx = size / 2; const y = cy ?? cx;
   return `${label ? `<text x="${cx}" y="12" text-anchor="middle" dominant-baseline="central" class="ps-rl">${esc(label)}</text>` : ''}
-    <circle cx="${cx}" cy="${y}" r="${r}" fill="none" stroke="#4B505C" stroke-width="${w}"/>
+    ${d < 100 ? `<circle cx="${cx}" cy="${y}" r="${r}" fill="none" stroke="#4B505C" stroke-width="${w}" pathLength="100" stroke-dasharray="${100 - d} ${d}" stroke-dashoffset="${-d}" transform="rotate(-90 ${cx} ${y})" data-ps-track/>` : ''}
     ${d > 0 ? `<circle cx="${cx}" cy="${y}" r="${r}" fill="none" stroke="${color}" stroke-width="${w}" pathLength="100" stroke-dasharray="${d} ${100 - d}" transform="rotate(-90 ${cx} ${y})"/>` : ''}
     <text x="${cx}" y="${y}" text-anchor="middle" dominant-baseline="central" class="ps-rv">${pctTxt(v)}</text>`;
 }

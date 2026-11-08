@@ -38,3 +38,14 @@ test('C6 closed-table fallback: toast only when no close-result card for that ta
   assert.equal(f({ ...base, status: 'closed', cardShownFor: 'other' }), true, 'other table card does not suppress');
   assert.equal(f({ ...base, gone: true, toastedFor: 'r1' }), false, 'no repeat');
 });
+
+test('C7 ring track covers only the uncovered remainder (no overlap)', async () => {
+  const { personalStatsHtml } = await import('../js/ui/personal-stats.js');
+  const h = (vpip) => personalStatsHtml({ name: 'x', isMe: false, chips: 0, view: { state: 'ok', win: 0, hands: 1, net: 0, vpip, pfr: 0, tb: null } });
+  const track = (html) => [...html.matchAll(/<circle[^>]*#4B505C[^>]*>/g)].map((m) => m[0]);
+  const t = track(h(30));
+  assert.ok(t.some((c) => c.includes('stroke-dasharray="70 30"') && c.includes('stroke-dashoffset="-30"') && c.includes('rotate(-90')));
+  assert.ok(track(h(0)).some((c) => c.includes('stroke-dasharray="100 0"')));
+  assert.equal(track(h(100)).length, track(h(0)).length - 1);
+  assert.ok(!t.some((c) => !c.includes('pathLength="100"')));
+});
