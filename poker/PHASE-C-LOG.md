@@ -48,3 +48,8 @@
 - No-card toast (mp-c7-nocard.mjs): card 0, toast 原牌桌已關閉，已回大廳 visible, lobby 1; repeat → no new toast. Shot 15 taken.
 - Unit 203/203, B+C 25/25, Rules 138/142 (failing 4 not identified this round). Betting/raise regression + leave + close dialogs ok (r8 script ended early at extra hand 4, fatal after checks).
 - Idle 10s: table 0 repaints/2 req, overlay 0/2, lobby 0/0.
+
+## Round 8 (2026-11-08)
+- Rules 4 failures (r7 138/142) = env: STARTAT was passed a numeric timestamp, harness only honors 'ts' → serverTimestamp() in arrays (#4 x2, moneyOk, worst). With STARTAT=ts: 142/142. Harness now exits 2 on invalid STARTAT.
+- Fold/bet: mp-c8-foldbet.mjs — host call, guest check, flop guest bet 20 (panel 下注), pot 40→60, host sees 跟注 20, host fold, hand over, guest 2,020.
+- r8 regression rerun to completion (no fatal; r7 fatal was outer timeout SIGTERM). But takeover leg: newHost null, h3/h4 false — needs a look.

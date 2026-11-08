@@ -50,6 +50,7 @@ const roomRef = (d) => doc(d, 'pokerRooms', R);
 const hostUpd = async (d, room, ch) => updateDoc(roomRef(d), { rev: room.rev + 1, updatedAt: serverTimestamp(), ...ch });
 
 // ---- 帳務 batch 產生器 ----
+if (process.env.STARTAT && process.env.STARTAT !== 'ts') { console.error(`STARTAT must be 'ts' (got ${process.env.STARTAT}); serverTimestamp() inside arrays fails 4 tests`); process.exit(2); }
 const START_AT = () => (process.env.STARTAT === 'ts' ? Timestamp.now() : serverTimestamp());
 async function buyinBatch(uid, roomId = R, o = {}) {
   const d = db(uid); const p = await curP(uid); const no = p.sessionNo + 1;
