@@ -236,3 +236,9 @@ Coverage實查：/workspace/pr49b-round4-final-ruleCoverage.json根鍵rules、re
 - 換 host：PARTIAL。接手成功（hostUid 換人），新 host 時期寫入第4手（PXpPK 4/4、jkNkk 4/4、新玩家 1/1，hands==unique 無重複）。但 playOne 在新 host 下未於時限判定完手，離線時本機 pending 為空，跨 host ACK 恢復與離線/前景補送沒有直接證據。
 - Rules 142/B Rules 15 未跑（時間）；unit 未改產品碼，上輪 197/197。未全過→未推送、未 fetch。
 - 證據 /workspace/pr49b-r8/（r6-result.json、run1-2.log、截圖）。
+
+## PM 第九輪停報（2026-11-08 10:19 台北時間，約9分／10 calls）
+- Rules 142/142 PASS（0 FAIL），B Rules 15/15 PASS；只用正式 firestore.rules（statsEnabled=false）於 demo-poker。證據 /workspace/pr49b-r9/rules.log、results.json。
+- 強制 pending：未成功。host 自己蓋牌後立刻斷線→該手未完成（host 動作需經線上），沒有統計產生；改為 guest 蓋牌、host 偵測完手（raf）立即斷線→統計已在斷線前寫入（2/2/2），本機 queue 為空。瀏覽器層無法可靠造出「已完手但未 ACK」狀態；需測試專用注入（例如 emu 下讓 adapter 第一次失敗）才可確定性驗證。
+- 重連/前景補送、跨 host 接續確認：無證據（無 pending 可補）。所有時點 hands==unique，無重複。2 人桌 host 關閉後 60 秒內未發生接手（3 人桌前輪可接手），原因未查。
+- 未全過→未推送、未 fetch。未改產品碼。證據 run1-3.log、r6-result.json、截圖。
