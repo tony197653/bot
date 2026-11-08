@@ -690,6 +690,77 @@ service cloud.firestore {
 
 
 
+    // Phase B candidate, UNTESTED: explicitly disabled until separate T0 approval.
+    function statsEnabled() { return false; }
+    function statsPath(uid, key) { return /databases/$(database)/documents/pokerStats/$(uid)/hands/$(key); }
+    function statsReceipt(room, key, uid) {
+      return /databases/$(database)/documents/pokerRooms/$(room)/statsReceipts/$(key)/uids/$(uid);
+    }
+    function statsHost(room) { return signedIn() && roomOf(room).hostUid == request.auth.uid; }
+    match /pokerStats/{uid} {
+      function aggregateOk(base) {
+        let d = request.resource.data;
+        let h = getAfter(statsPath(uid, d.lastHandKey)).data;
+        return statsEnabled() && statsHost(h.roomId)
+          && !exists(statsPath(uid, d.lastHandKey))
+          && h.settledAt == request.time
+          && d.keys().hasOnly(['schemaVersion','startedAt','validHands','wonHands',
+            'vpipOppHands','vpipHands','pfrOppHands','pfrHands','threeBetOppHands','threeBetHands',
+            'netChips','updatedAt','lastHandKey'])
+          && d.schemaVersion == 1 && d.startedAt is int && d.startedAt > 0
+          && d.startedAt == base.get('startedAt', d.startedAt)
+          && h.handStartedAt >= d.startedAt && d.updatedAt == request.time
+          && d.validHands is int && d.validHands == base.get('validHands', 0) + 1
+          && d.wonHands is int && d.wonHands == base.get('wonHands', 0) + (h.wonAnyPot ? 1 : 0)
+          && d.vpipOppHands is int && d.vpipOppHands == base.get('vpipOppHands', 0) + (h.vpipOpp ? 1 : 0)
+          && d.vpipHands is int && d.vpipHands == base.get('vpipHands', 0) + (h.vpip ? 1 : 0)
+          && d.pfrOppHands is int && d.pfrOppHands == base.get('pfrOppHands', 0) + (h.pfrOpp ? 1 : 0)
+          && d.pfrHands is int && d.pfrHands == base.get('pfrHands', 0) + (h.pfr ? 1 : 0)
+          && d.threeBetOppHands is int && d.threeBetOppHands == base.get('threeBetOppHands', 0) + (h.threeBetOpp ? 1 : 0)
+          && d.threeBetHands is int && d.threeBetHands == base.get('threeBetHands', 0) + (h.threeBet ? 1 : 0)
+          && d.netChips is int && d.netChips == base.get('netChips', 0) + h.netDelta;
+      }
+      allow get: if isSelf(uid);
+      allow list: if false;
+      allow create: if aggregateOk({});
+      allow update: if aggregateOk(resource.data);
+      allow delete: if false;
+      match /hands/{key} {
+        function summaryOk() {
+          let d = request.resource.data;
+          let a = getAfter(/databases/$(database)/documents/pokerStats/$(uid)).data;
+          return statsEnabled() && statsHost(d.roomId)
+            && d.keys().hasAll(['roomId','handId','schemaVersion','handStartedAt','wonAnyPot',
+              'vpipOpp','vpip','pfrOpp','pfr','threeBetOpp','threeBet','netDelta','settledAt'])
+            && d.keys().hasOnly(['roomId','handId','schemaVersion','handStartedAt','wonAnyPot',
+              'vpipOpp','vpip','pfrOpp','pfr','threeBetOpp','threeBet','netDelta','settledAt'])
+            && strOk(d.roomId, 40) && strOk(d.handId, 128)
+            && key == string(d.roomId.size()) + '_' + d.roomId + d.handId
+            && d.schemaVersion == 1 && d.handStartedAt is int
+            && d.handStartedAt >= a.startedAt && d.netDelta is int
+            && d.wonAnyPot is bool && d.vpipOpp is bool && d.vpip is bool
+            && d.pfrOpp is bool && d.pfr is bool && d.threeBetOpp is bool && d.threeBet is bool
+            && (!d.vpip || d.vpipOpp) && (!d.pfr || d.pfrOpp) && (!d.threeBet || d.threeBetOpp)
+            && d.settledAt == request.time && a.updatedAt == request.time && a.lastHandKey == key
+            && existsAfter(statsReceipt(d.roomId, key, uid));
+        }
+        allow get, list: if isSelf(uid);
+        allow create: if summaryOk();
+        allow update, delete: if false;
+      }
+    }
+    // Receipt contains identity only, never private counters/net/flags. No list.
+    match /pokerRooms/{room}/statsReceipts/{key}/uids/{uid} {
+      allow get: if statsEnabled() && (isSelf(uid) || statsHost(room));
+      allow list, update, delete: if false;
+      allow create: if statsEnabled() && statsHost(room)
+        && request.resource.data.keys().hasOnly(['uid','handKey'])
+        && request.resource.data.uid == uid && request.resource.data.handKey == key
+        && !exists(statsPath(uid, key))
+        && getAfter(statsPath(uid, key)).data.roomId == room
+        && getAfter(statsPath(uid, key)).data.settledAt == request.time;
+    }
+
     // 其他路徑一律拒絕（預設就是拒絕，這裡寫明）
     match /{document=**} {
       allow read, write: if false;

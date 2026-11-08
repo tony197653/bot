@@ -47,7 +47,7 @@ export function createStatsWriteChain(opts = {}) {
     run(async () => {
       const at = Date.now();
       for (const seat of snapshot.seats || []) {
-        await queue.enqueue({
+        const saved = await queue.enqueue({
           handId: snapshot.handId,
           uid: seat.uid,
           roomId: snapshot.roomId,
@@ -58,7 +58,10 @@ export function createStatsWriteChain(opts = {}) {
           },
           enqueuedAt: at,
         });
+        if (saved === 'rejected') throw new Error('統計尚未完整保存，牌局不受影響');
       }
+      // Optional Phase B recovery stays independent of the game chain.
+      opts.recovery?.wake();
     });
   }
 
