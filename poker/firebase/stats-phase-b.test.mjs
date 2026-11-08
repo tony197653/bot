@@ -15,7 +15,8 @@ if (!endpoint || !/^(127\.0\.0\.1|localhost):\d+$/.test(endpoint)) {
 const [host, port] = endpoint.split(':');
 const source = readFileSync(new URL('./firestore.rules', import.meta.url), 'utf8');
 const disabled = 'function statsEnabled() { return false; }';
-assert.equal(source.split(disabled).length, 2, 'production B must remain disabled');
+const enabled = 'function statsEnabled() { return true; }';
+assert.equal(source.split(disabled).length + source.split(enabled).length, 3, 'exactly one statsEnabled() switch (prod enabled since 2026-11-08)');
 const rules = source.replace(disabled, 'function statsEnabled() { return true; }');
 fs.setLogLevel('silent');
 const entry = (roomId = 'r', handId = 'h') => ({ roomId, handId, uid: 'owner', summary: {
