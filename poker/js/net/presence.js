@@ -13,22 +13,29 @@ const TAKEOVER_STAGGER_MS = 3_000;
  * @param {{ db:any, fs:any }} fb
  * @param {string} roomId
  * @param {string} uid
- * @param {{ isHost: () => boolean, lastRoomWriteAt: () => number }} opts
+ * @param {{ isHost: () => boolean, lastRoomWriteAt: () => number, now?: () => number, setInterval?: Function, clearInterval?: Function, document?: Document }} opts
  */
 export function startPresence(fb, roomId, uid, opts) {
   const { db, fs } = fb;
+  const now = opts.now || Date.now;
+  const doc = opts.document || document;
+  const schedule = opts.setInterval || setInterval;
+  const cancel = opts.clearInterval || clearInterval;
   const ref = fs.doc(db, 'pokerRooms', roomId, 'presence', uid);
   let stopped = false;
   let timer = null;
+  let lastBeatAt = -Infinity;
+  let lastPlayerTickAt = now();
 
   async function beat(vis) {
     if (stopped) return;
     if (opts.isHost()) {
-      const idle = Date.now() - (opts.lastRoomWriteAt() || 0);
+      const idle = now() - (opts.lastRoomWriteAt() || 0);
       if (idle < HOST_IDLE_BEAT_MS) return;
     }
     try {
       await fs.setDoc(ref, { beat: fs.serverTimestamp(), vis: !!vis });
+      lastBeatAt = now();
       recordWrite();
     } catch {
       /* ignore transient */
@@ -36,23 +43,29 @@ export function startPresence(fb, roomId, uid, opts) {
   }
 
   const onVis = () => {
-    const vis = document.visibilityState === 'visible';
+    const vis = doc.visibilityState === 'visible';
     beat(vis);
   };
 
-  document.addEventListener('visibilitychange', onVis);
-  beat(document.visibilityState === 'visible');
-  timer = setInterval(() => {
-    if (document.visibilityState === 'visible') beat(true);
-  }, PLAYER_BEAT_MS);
+  doc.addEventListener('visibilitychange', onVis);
+  beat(doc.visibilityState === 'visible');
+  timer = schedule(() => {
+    if (doc.visibilityState !== 'visible') return;
+    if (opts.isHost()) {
+      if (now() - lastBeatAt >= 1.5 * HOST_IDLE_BEAT_MS) beat(true); // 15s threshold on a 10s tick → beats every ~20s even with setDoc latency
+    } else if (now() - lastPlayerTickAt >= PLAYER_BEAT_MS) {
+      lastPlayerTickAt = now();
+      beat(true);
+    }
+  }, HOST_IDLE_BEAT_MS);
 
   return {
     stop() {
       stopped = true;
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVis);
+      cancel(timer);
+      doc.removeEventListener('visibilitychange', onVis);
     },
-    beatNow: () => beat(document.visibilityState === 'visible'),
+    beatNow: () => beat(doc.visibilityState === 'visible'),
   };
 }
 
