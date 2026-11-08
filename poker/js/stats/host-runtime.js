@@ -19,12 +19,13 @@ export function createHostStatsRuntime({ fs, db, roomId, uid, isCurrentHost,
   const guard = target => Object.fromEntries(Object.entries(target).filter(([, v]) => typeof v === 'function').map(([key, fn]) => [key, async (...args) => {
     check(); const result = await fn(...args); check(); return result;
   }]));
-  let queue = null, worker = null;
+  let queue = null, worker = null, chipsAdapter = null;
   if (enabled && Number.isSafeInteger(startedAt) && startedAt > 0) {
     queue = injectedQueue || createBoundedPendingQueue({ storage: storage || globalThis.localStorage,
       storageKey: `pokerStats.pending.v1:${JSON.stringify([uid, roomId])}`, onStatus });
     const remoteQueue = guard(injectedRemote || createRoomPendingQueue({ fs, db, roomId, startedAt, assertAuthority: check }));
     const adapter = guard(injectedAdapter || createFirestoreStatsAdapter({ fs, db, assertAuthority: check }));
+    chipsAdapter = adapter;
     worker = createStatsRoomRecovery({ queue: guard(queue), remoteQueue,
       submit: guard({ submit: createStatsSubmitter({ adapter, startedAt }) }).submit, onStatus });
   }
@@ -39,6 +40,12 @@ export function createHostStatsRuntime({ fs, db, roomId, uid, isCurrentHost,
       active = true;
       unbind = bindStatsWake({ recovery, windowTarget, documentTarget, onError: e => onStatus('pending', e) });
       void recovery.wake();
+    },
+    /** Fire-and-forget after the HAND_OVER room write; failures only reported, never retried into game chain. */
+    syncChips({ seatUids, stacks }) {
+      if (!chipsAdapter?.writeChips || !allowed()) return Promise.resolve();
+      return Promise.allSettled(seatUids.map((u, seat) => u ? chipsAdapter.writeChips({ uid: u, roomId, seat, stack: stacks[seat] }) : null))
+        .then(rs => rs.forEach(r => r.status === 'rejected' && onStatus('chips', r.reason)));
     },
     stop() { disposed = true; active = false; unbind?.(); unbind = null; },
   };

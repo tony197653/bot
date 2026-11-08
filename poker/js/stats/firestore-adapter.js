@@ -2,6 +2,17 @@
 export function createFirestoreStatsAdapter({ fs, db, assertAuthority = () => {} }) {
   const receiptRef = id => fs.doc(db, 'pokerRooms', id.roomId, 'statsReceipts', id.handKey, 'uids', id.uid);
   return {
+    /** Public current-chips TOTAL (bank + seat stack at HAND_OVER). Separate write; never blocks game. */
+    async writeChips({ uid, roomId, seat, stack }) {
+      assertAuthority();
+      const p = await fs.getDoc(fs.doc(db, 'pokerPlayers', uid));
+      const bank = p.exists() ? p.data().bank : null;
+      if (!Number.isInteger(bank) || !Number.isInteger(stack)) return false;
+      assertAuthority();
+      await fs.updateDoc(fs.doc(db, 'pokerStatsPublic', uid), { currentChipsTotal: bank + stack,
+        chipsAt: fs.serverTimestamp(), chipsRoomId: roomId, chipsSeat: seat });
+      return true;
+    },
     async readReceipt(id) {
       assertAuthority();
       const snap = await fs.getDocFromServer(receiptRef(id));

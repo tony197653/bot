@@ -734,7 +734,10 @@ service cloud.firestore {
         return statsEnabled()
           && d.keys().hasOnly(['schemaVersion','startedAt','validHands','wonHands',
             'vpipOppHands','vpipHands','pfrOppHands','pfrHands','threeBetOppHands','threeBetHands',
-            'netChips','updatedAt'])
+            'netChips','updatedAt','currentChipsTotal','chipsAt','chipsRoomId','chipsSeat'])
+          && (resource == null ? !d.keys().hasAny(['currentChipsTotal','chipsAt','chipsRoomId','chipsSeat'])
+              : d.diff(resource.data).affectedKeys().hasOnly(['schemaVersion','startedAt','validHands','wonHands',
+                'vpipOppHands','vpipHands','pfrOppHands','pfrHands','threeBetOppHands','threeBetHands','netChips','updatedAt']))
           && p.updatedAt == request.time && d.updatedAt == request.time
           && d.schemaVersion == p.schemaVersion && d.startedAt == p.startedAt
           && d.validHands == p.validHands && d.wonHands == p.wonHands
@@ -743,10 +746,24 @@ service cloud.firestore {
           && d.threeBetOppHands == p.threeBetOppHands && d.threeBetHands == p.threeBetHands
           && d.netChips == p.netChips;
       }
-      allow get: if signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'
-        && exists(playerPath(request.auth.uid));
+      // v1.0.4: aligned with leaderboard pokerPlayers get (signedIn incl. anonymous; auth null denied).
+      allow get: if signedIn();
       allow list, delete: if false;
-      allow create, update: if publicOk();
+      // Current chips TOTAL only (B+S at HAND_OVER, U=0): current host, seat bound to uid,
+      // total must equal that player's bank + the room's stored stack for that seat.
+      function chipsOk() {
+        let d = request.resource.data;
+        let r = roomOf(d.chipsRoomId);
+        return statsEnabled() && resource != null
+          && d.diff(resource.data).affectedKeys().hasOnly(['currentChipsTotal','chipsAt','chipsRoomId','chipsSeat'])
+          && strOk(d.chipsRoomId, 40) && d.chipsSeat is int && d.chipsSeat >= 0 && d.chipsSeat < 6
+          && signedIn() && r.hostUid == request.auth.uid && r.seatUids[d.chipsSeat] == uid
+          && d.currentChipsTotal is int
+          && d.currentChipsTotal == get(playerPath(uid)).data.bank + r.stacks[d.chipsSeat]
+          && d.chipsAt == request.time;
+      }
+      allow create: if publicOk();
+      allow update: if publicOk() || chipsOk();
     }
     match /pokerStats/{uid} {
       function aggregateOk(base) {

@@ -41,7 +41,7 @@ export function renderStats(root, vm) {
                     .map((r, i) => {
                       const mine = r.uid === myUid ? ' is-me' : '';
                       const playing = r.tableRoomId ? '<span class="mp-tag">牌桌中</span>' : '';
-                      return `<tr class="${mine}"><td>${i + 1}</td><td>${esc(r.displayName)}${playing}</td><td class="num">${fmtChips(r.total)}</td><td></td></tr>`;
+                      return `<tr class="${mine}"><td>${i + 1}</td><td><button type="button" class="mp-lb-av" data-ps-uid="${esc(r.uid || '')}" data-ps-name="${esc(r.name || r.displayName || '')}" aria-label="看${esc(r.name || r.displayName || '')}的統計">${esc(String(r.name || r.displayName || '?')[0])}</button>${esc(r.displayName)}${playing}</td><td class="num">${fmtChips(r.total)}</td><td></td></tr>`;
                     })
                     .join('')
                 : ''
@@ -74,7 +74,7 @@ export function renderStats(root, vm) {
                     .map((r, i) => {
                       const mine = r.uid === myUid ? ' is-me' : '';
                       const net = r.net ?? 0;
-                      return `<tr class="${mine}"><td>${i + 1}</td><td>${esc(r.name || r.displayName)}</td><td class="num">${net >= 0 ? '+' : ''}${fmtChips(net)}</td><td class="num">${r.topUps || 0}</td></tr>`;
+                      return `<tr class="${mine}"><td>${i + 1}</td><td><button type="button" class="mp-lb-av" data-ps-uid="${esc(r.uid || '')}" data-ps-name="${esc(r.name || r.displayName || '')}" aria-label="看${esc(r.name || r.displayName || '')}的統計">${esc(String(r.name || r.displayName || '?')[0])}</button>${esc(r.name || r.displayName)}</td><td class="num">${net >= 0 ? '+' : ''}${fmtChips(net)}</td><td class="num">${r.topUps || 0}</td></tr>`;
                     })
                     .join('')
                 : '<tr><td colspan="4">這一晚還沒有戰績</td></tr>'

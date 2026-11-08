@@ -37,8 +37,8 @@ test('C Rules public aggregate read matrix (demo-poker only)', async t => {
    await env.clearFirestore();
    await env.withSecurityRulesDisabled(async c => {
      const f = c.firestore();
-     await fs.setDoc(fs.doc(f, 'pokerRooms', 'r'), { hostUid: 'host', members: ['host','owner','member'], status: 'playing' });
-     for (const u of ['host','owner','member','reader']) await fs.setDoc(fs.doc(f, 'pokerPlayers', u), { bank: 0 });
+     await fs.setDoc(fs.doc(f, 'pokerRooms', 'r'), { hostUid: 'host', members: ['host','owner','member'], status: 'playing', seatUids: ['host','owner',null,null,null,null], stacks: [1000, 1500, 0, 0, 0, 0] });
+     for (const u of ['host','owner','member']) await fs.setDoc(fs.doc(f, 'pokerPlayers', u), { bank: 300 });
    });
  };
  try {
@@ -51,10 +51,10 @@ test('C Rules public aggregate read matrix (demo-poker only)', async t => {
    await assertSucceeds(fs.getDoc(pubRef(db('reader'))));
    await assertSucceeds(fs.getDoc(pubRef(db('owner'))));
   });
-  await t.test('guest / anonymous / unregistered denied', async () => {
+  await t.test('unauthenticated denied; anonymous / no own pokerPlayers allowed (v1.0.4 signedIn)', async () => {
    await assertFails(fs.getDoc(pubRef(env.unauthenticatedContext().firestore())));
-   await assertFails(fs.getDoc(pubRef(db('reader', 'anonymous'))));
-   await assertFails(fs.getDoc(pubRef(db('stranger'))));
+   await assertSucceeds(fs.getDoc(pubRef(db('reader', 'anonymous'))));
+   await assertSucceeds(fs.getDoc(pubRef(db('stranger'))));
    await assertFails(fs.getDocs(fs.collection(db('reader'), 'pokerStatsPublic')));
   });
   await t.test('other player private data still denied', async () => {
@@ -71,6 +71,16 @@ test('C Rules public aggregate read matrix (demo-poker only)', async t => {
    const hd = db('host'); const b = fs.writeBatch(hd);
    b.set(pubRef(hd), { schemaVersion: 1, startedAt: 1, validHands: 50, updatedAt: fs.serverTimestamp() }, { merge: true });
    await assertFails(b.commit());
+  });
+  await t.test('chips total: host writes bank+stack; forged / non-host / wrong seat denied', async () => {
+   const chips = (uid, total, seat = 1, room = 'r') => fs.updateDoc(pubRef(db(uid)), { currentChipsTotal: total, chipsAt: fs.serverTimestamp(), chipsRoomId: room, chipsSeat: seat });
+   await assertFails(chips('host', 9999));
+   await assertFails(chips('owner', 1800));
+   await assertFails(chips('reader', 1800));
+   await assertFails(chips('host', 1300, 0));
+   await assertSucceeds(createFirestoreStatsAdapter({ fs, db: db('host') }).writeChips({ uid: 'owner', roomId: 'r', seat: 1, stack: 1500 }));
+   assert.equal((await fs.getDoc(pubRef(db('reader', 'anonymous')))).data().currentChipsTotal, 1800);
+   await assertFails(fs.updateDoc(pubRef(db('host')), { currentChipsTotal: 1800, validHands: 9, chipsAt: fs.serverTimestamp(), chipsRoomId: 'r', chipsSeat: 1 }));
   });
   await t.test('legit host resubmit of new hand ok; duplicate rejected', async () => {
    await assertSucceeds(commit('host', payload(entry('r', 'h2'))));

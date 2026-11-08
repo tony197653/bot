@@ -83,6 +83,7 @@ export function createHostLoop(fb, opts) {
       (!opts.getCurrentUid || opts.getCurrentUid() === uid),
   });
   const statsQueue = statsRuntime.queue || createMemoryPendingQueue();
+  let lastChipsHandNo = -1;
   const statsWriteChain = createStatsWriteChain({ queue: statsQueue, recovery: statsRuntime.recovery });
   const statsSession = createStatsSession({
     roomId,
@@ -280,6 +281,7 @@ export function createHostLoop(fb, opts) {
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), patch);
       lastWriteAt = Date.now();
       recordWrite();
+      if (engine.phase === PHASE.HAND_OVER && engine.handNumber !== lastChipsHandNo) lastChipsHandNo = engine.handNumber, void statsRuntime.syncChips?.({ seatUids: patch.seatUids, stacks: patch.stacks });
       await syncLobbyListingDoc({
         ...latest,
         seatUids: patch.seatUids || latest.seatUids,

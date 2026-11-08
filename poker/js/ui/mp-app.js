@@ -763,23 +763,30 @@ function bindPersonalStatsEntry() {
   if (document.body.dataset.psWired) return;
   document.body.dataset.psWired = '1';
   document.addEventListener('click', (e) => {
-    const av = e.target.closest?.('#seats .av[data-ps-uid]');
+    const av = e.target.closest?.('#seats .av[data-ps-uid], #heroAv[data-ps-uid], .mp-lb-av[data-ps-uid]');
     if (!av || !av.dataset.psUid) return;
     const fb = getFirebase();
     const me = getUser();
-    if (!fb || !me || me.isAnonymous) return;
+    if (!fb || !me) return;
     e.stopPropagation();
+    openStatsFor(av.dataset.psUid, av.dataset.psName || '');
+  }, true);
+}
+function openStatsFor(uid, name) {
+    const fb = getFirebase();
+    const me = getUser();
+    if (!fb || !me || !uid) return;
     openPersonalStats({
-      uid: av.dataset.psUid,
-      name: av.dataset.psName || '',
+      uid,
+      name,
       myUid: me.uid,
       enabled: STATS_ENABLED || !!qaStatsOpts(),
       load: async (uid) => {
         const snap = await fb.fs.getDocFromServer(fb.fs.doc(fb.db, 'pokerStatsPublic', uid));
         return snap.exists() ? snap.data() : null;
       },
+      chipsOf: (agg) => agg?.currentChipsTotal,
     });
-  }, true);
 }
 
 function ensureMpRoot() {
@@ -1025,6 +1032,7 @@ function paint() {
       },
       onOpenTable: (rid) => enterOpenTable(rid),
       onStats: () => openStats(),
+      onMyStats: () => { const u = getUser(); if (u) openStatsFor(u.uid, u.displayName || '玩家'); },
       onSignOut: () => signOut(),
       onRescue: () => doRescue(),
       onAvatar: () => openStats(),
@@ -1977,7 +1985,7 @@ function renderSeatOverlays() {
       : (ps?.chips ?? room.stacks[mySeat] ?? 0);
     if (heroName) heroName.textContent = name;
     if (heroChips) heroChips.textContent = fmtChips(chips);
-    if (heroAv) heroAv.innerHTML = `<span>${esc(name.slice(0, 1))}</span>`;
+    if (heroAv) { heroAv.innerHTML = `<span>${esc(name.slice(0, 1))}</span>`; heroAv.dataset.psUid = room.seatUids[mySeat] || ''; heroAv.dataset.psName = name; }
     if (heroHole) {
       const keys = myHole?.cards;
       if (!between && keys?.length === 2) {

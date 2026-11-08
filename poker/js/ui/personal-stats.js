@@ -45,12 +45,13 @@ const CSS = `.ps-host{position:fixed;inset:0;z-index:60}.ps-scrim{position:absol
 .ps-msg{color:#c9bf9f;margin:0 0 8px}.ps-r1,.ps-r2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;text-align:center;align-items:center}.ps-r1{height:164px}.ps-r2{height:96px;padding:24px 0}
 .ps-r1>*,.ps-r2>*,.ps-r3>*{min-width:0}.ps-r1 svg{display:block;margin:0 auto}.ps-l{font-size:17px;line-height:24px;color:#c9bf9f;margin-bottom:8px}.ps-r2 .ps-l{margin:0}
 .ps-n{font-size:1.25rem;line-height:24px;font-weight:600;white-space:nowrap}.ps-big{font-size:28px;line-height:36px}.ps-neg{color:#ff7566}
-.ps-r3{height:132px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;justify-items:center}.ps-rl{fill:#f3ead2;font-size:17px}.ps-rv{fill:#f3ead2;font-size:20px;font-weight:600}.ps-rv.ps-big{font-size:28px}`;
+.ps-r3{height:132px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;justify-items:center}.ps-rl{fill:#f3ead2;font-size:17px}.ps-rv{fill:#f3ead2;font-size:20px;font-weight:600}.ps-rv.ps-big{font-size:28px}
+.mp-lb-av{width:28px;height:28px;min-height:0;padding:0;margin-right:8px;border-radius:50%;border:0;background:#21392c;color:#f3ead2;font:inherit;font-size:14px;cursor:pointer;vertical-align:middle}`;
 /**
  * Open overlay for uid. load(): Promise<agg|null>. Returns close().
  * Browser back closes the overlay (one history entry per open; replaced, never stacked on refresh).
  */
-export function openPersonalStats({ uid, name, myUid, enabled, load, chips = null, doc = document, win = window }) {
+export function openPersonalStats({ uid, name, myUid, enabled, load, chips = null, chipsOf = null, doc = document, win = window }) {
   if (!uid) return () => {};
   doc.getElementById('psHost')?.remove();
   if (!doc.getElementById('psCss')) { const st = doc.createElement('style'); st.id = 'psCss'; st.textContent = CSS; doc.head.appendChild(st); }
@@ -61,7 +62,7 @@ export function openPersonalStats({ uid, name, myUid, enabled, load, chips = nul
   const fetchOnce = async () => {
     if (!enabled) return;
     view = { state: 'loading' }; render();
-    try { const agg = await load(uid); view = statsView(agg, { enabled }); } catch { view = { state: 'error' }; }
+    try { const agg = await load(uid); view = statsView(agg, { enabled }); if (chipsOf) chips = chipsOf(agg) ?? null; } catch { view = { state: 'error' }; }
     render();
   };
   const onPop = () => close(true);
