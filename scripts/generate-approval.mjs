@@ -36,19 +36,20 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  console.log(`Generate deploy/approvals/<id>.json from a channel or version.
+  console.log(`Generate deploy/approvals/<id>.json from an immutable version.
 
 Required:
   --id <id>
-  --source <sites/.../versions/ID | site@versionId | site:channel>
+  --source <sites/tony-poker/versions/ID>
   --expected-live <sites/.../versions/ID>
+  --approval-ref <宗良核准卡片參照>
   --quote <approver quote text>
   --out <path>   (default deploy/approvals/<id>.json)`);
 }
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (!args.id || !args.source || !args['expected-live'] || !args.quote) {
+  if (!args.id || !args.source || !args['expected-live'] || !args.quote || !args['approval-ref']) {
     usage();
     process.exit(2);
   }
@@ -60,6 +61,7 @@ async function main() {
     const record = await buildApprovalRecord({
       id: args.id,
       approverQuote: args.quote,
+      approvalRef: args['approval-ref'],
       source: args.source,
       expectedLiveVersion: args['expected-live'],
       siteId: config.siteId,

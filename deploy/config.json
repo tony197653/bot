@@ -11,5 +11,6 @@
       "forbiddenSubstring": "同一支手機輪流玩",
       "note": "Example old-UI guard. Auxiliary only — never the sole promote gate. Flip enabled to true when this string must not ship."
     }
-  ]
+  ],
+  "lockFile": "deploy/.promote.lock"
 }

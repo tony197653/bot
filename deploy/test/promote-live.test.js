@@ -1,3 +1,16 @@
+import http from 'node:http';
+import https from 'node:https';
+import net from 'node:net';
+import childProcess from 'node:child_process';
+import { syncBuiltinESMExports } from 'node:module';
+let forbiddenCalls = 0;
+const deny = () => { forbiddenCalls++; const error = new Error('NETWORK_OR_PROCESS_FORBIDDEN'); fs.writeSync(2, error.stack + '\n'); throw error; };
+globalThis.fetch = deny;
+for (const mod of [http, https]) for (const key of ['request','get']) mod[key] = deny;
+for (const key of ['connect','createConnection']) net[key] = deny;
+for (const key of ['spawn','exec','execFile','execSync','spawnSync','execFileSync']) childProcess[key] = deny;
+syncBuiltinESMExports();
+const { createFirebaseAdapter, firebaseCommand, cloneArguments } = await import('../../scripts/promote/firebase-adapter.mjs');
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,6 +24,8 @@ import {
   canonicalizeManifest,
   PromoteError,
   VERSION_NAME_RE,
+  validateApprovalRecord,
+  assertImmutableVersionName,
 } from '../../scripts/promote/lib.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +46,9 @@ function makeMockFirebase(state) {
       state.calls.push(['getChannelVersionName', siteId, channelId]);
       if (state.network) throw new Error('NETWORK_FORBIDDEN');
       return state.channels[`${siteId}:${channelId}`] ?? null;
+    },
+    async getVersion(versionName) {
+      return {name:versionName, status:state.status ?? 'FINALIZED', fileCount:state.fileCount ?? state.files[versionName].length, config:state.servingConfig ?? {}};
     },
     async listVersionFiles(versionName) {
       state.calls.push(['listVersionFiles', versionName]);
@@ -107,7 +125,7 @@ describe('promoteLive (mocked Firebase)', () => {
   beforeEach(() => {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'promote-'));
     releasesLog = path.join(tmp, 'releases.md');
-    fs.writeFileSync(releasesLog, '| time | approval | new | prev |\n| --- | --- | --- | --- |\n');
+    fs.writeFileSync(releasesLog, `| 2026-11-08 | BASELINE | initial | ${LIVE_V} | | | | |\n`);
     state = baseState();
     firebase = makeMockFirebase(state);
   });
@@ -115,6 +133,8 @@ describe('promoteLive (mocked Firebase)', () => {
   function approval(extra = {}) {
     return {
       id: 'test-allow',
+      approvalRef: '宗良/card/123',
+      servingConfig: {},
       approverQuote: 'Ship the preview we just checked.',
       approvedAt: '2026-11-08T00:00:00.000Z',
       sourceVersion: SRC_V,
@@ -125,6 +145,68 @@ describe('promoteLive (mocked Firebase)', () => {
     };
   }
 
+  async function run(extra = {}) {
+    return promoteLive({approvalPath:writeRecord(tmp, approval(extra)), releasesLogPath:releasesLog, siteId:SITE, firebase});
+  }
+  it('refuses absent recorded baseline', async () => {
+    fs.writeFileSync(releasesLog, '# Empty log\n');
+    await assert.rejects(() => run(), e => e.code === 'NO_BASELINE');
+    assert.equal(state.calls.length, 0);
+  });
+  it('refuses missing approvalRef', async () => {
+    await assert.rejects(() => run({approvalRef:''}), PromoteError);
+    assert.equal(state.calls.length, 0);
+  });
+  it('refuses missing or mismatched full manifest hash', async () => {
+    for (const manifestDigest of [undefined, 'bad']) await assert.rejects(() => run({manifestDigest}), PromoteError);
+    assert.equal(state.calls.length, 0);
+  });
+  it('serving config is bound to approval', async () => {
+    state.servingConfig = {redirects:[{glob:'/', location:'/other'}]};
+    await assert.rejects(() => run(), e => e.code === 'MANIFEST_MISMATCH');
+  });
+  it('rejects version not FINALIZED', async () => {
+    state.status = 'CREATED';
+    await assert.rejects(() => run(), e => e.code === 'INVALID_VERSION_STATUS');
+  });
+  it('rejects fileCount mismatch', async () => {
+    state.fileCount = 3;
+    await assert.rejects(() => run(), e => e.code === 'FILE_COUNT_MISMATCH');
+  });
+  it('refuses held lock without removing it', async () => {
+    const lock = path.join(tmp, '.promote.lock');
+    fs.writeFileSync(lock, 'held');
+    await assert.rejects(() => run(), e => e.code === 'LOCKED');
+    assert.equal(fs.readFileSync(lock, 'utf8'), 'held');
+    assert.equal(state.calls.length, 0);
+  });
+  it('rechecks live immediately before release and logs FAILED on drift', async () => {
+    let count = 0;
+    const original = firebase.getChannelVersionName;
+    firebase.getChannelVersionName = async (...args) => {
+      if (++count === 2) state.channels[`${SITE}:live`] = `sites/${SITE}/versions/changed`;
+      return original(...args);
+    };
+    await assert.rejects(() => run(), e => e.code === 'LIVE_DRIFT');
+    assert.equal(state.calls.some(c => c[0] === 'releaseVersionToLive'), false);
+    assert.match(fs.readFileSync(releasesLog,'utf8'), /PENDING[^]*FAILED/);
+    assert.equal(fs.existsSync(path.join(tmp,'.promote.lock')), false);
+  });
+  it('release error logs durable PENDING then FAILED and releases lock', async () => {
+    state.failRelease = true;
+    const original = firebase.releaseVersionToLive;
+    firebase.releaseVersionToLive = async (...args) => {
+      assert.match(fs.readFileSync(releasesLog,'utf8'), /PENDING/);
+      return original(...args);
+    };
+    await assert.rejects(() => run(), /release failed/);
+    const log = fs.readFileSync(releasesLog,'utf8');
+    assert.match(log, /PENDING[^]*FAILED/);
+    assert.match(log, /宗良\/card\/123/);
+    assert.match(log, /firebase hosting:clone tony-poker@livebase001 tony-poker:live/);
+    assert.ok(log.includes(state.digest));
+    assert.equal(fs.existsSync(path.join(tmp,'.promote.lock')), false);
+  });
   it('allow path: releases approved version, verifies, appends release log', async () => {
     const approvalPath = writeRecord(tmp, approval());
     const before = fs.readdirSync(tmp);
@@ -305,13 +387,14 @@ describe('promoteLive (mocked Firebase)', () => {
 });
 
 describe('buildApprovalRecord helper', () => {
-  it('resolves channel source to immutable version and fills manifest', async () => {
+  it('binds immutable source and fills manifest', async () => {
     const state = baseState();
     const firebase = makeMockFirebase(state);
     const record = await buildApprovalRecord({
       id: 'gen-1',
       approverQuote: 'ok',
-      source: `${SITE}:main`,
+      source: SRC_V,
+      approvalRef: '宗良/card/123',
       expectedLiveVersion: LIVE_V,
       siteId: SITE,
       firebase,
@@ -357,5 +440,54 @@ describe('isolation', () => {
         }),
       (e) => e.code === 'NO_RECORD',
     );
+  });
+});
+
+describe('guards and adapter helpers with injected execution only', () => {
+  it('duplicate normalized paths throw', () => {
+    assert.throws(() => canonicalizeManifest([{path:'x',hash:'a'},{path:'/x',hash:'a'}]), e => e.code === 'DUPLICATE_PATH');
+  });
+  it('bad types throw PromoteError', async () => {
+    for (const bad of [null, 1, {}, [], 'channel']) assert.throws(() => assertImmutableVersionName(bad), PromoteError);
+    for (const bad of [null, 1, [{path:1,hash:'a'}], [{path:'x',hash:null}]]) assert.throws(() => canonicalizeManifest(bad), PromoteError);
+    assert.throws(() => validateApprovalRecord(null), PromoteError);
+    await assert.rejects(() => buildApprovalRecord({source:12}), PromoteError);
+    assert.throws(() => cloneArguments(null, SRC_V), PromoteError);
+  });
+  it('hash uses sorted paths/config keys and changes with config', () => {
+    assert.equal(canonicalizeManifest(FILES,{b:2,a:1}).digest, canonicalizeManifest([...FILES].reverse(),{a:1,b:2}).digest);
+    assert.notEqual(canonicalizeManifest(FILES,{}).digest, canonicalizeManifest(FILES,{headers:[]}).digest);
+  });
+  it('approval generation refuses mutable channel', async () => {
+    await assert.rejects(() => buildApprovalRecord({source:`${SITE}:main`}), PromoteError);
+  });
+  it('builds clone source and config/cwd without spawning', async () => {
+    const calls = [];
+    const adapter = createFirebaseAdapter({projectId:SITE, env:{GOOGLE_APPLICATION_CREDENTIALS:'/explicit/adc.json'}, run:(...args) => {calls.push(args);return {status:0,stdout:'{}'};}});
+    await adapter.releaseVersionToLive(SITE, SRC_V);
+    assert.deepEqual(calls[0][1], ['hosting:clone','tony-poker@srcgood001','tony-poker:live','--project',SITE,'--config','poker/firebase/firebase.json']);
+    assert.equal(calls[0][2].cwd, ROOT);
+    assert.equal(calls[0][2].env.FIREBASE_TOKEN, undefined);
+    assert.equal(JSON.stringify(calls).includes('login:ci'), false);
+    assert.equal(firebaseCommand(SITE,[]).cwd, ROOT);
+  });
+  it('explicit credentials required; FIREBASE_TOKEN alone never used', async () => {
+    const adapter = createFirebaseAdapter({projectId:SITE, env:{FIREBASE_TOKEN:'not-oauth'}, run:() => {throw new Error('unexpected exec');}});
+    await assert.rejects(() => adapter.getVersion(SRC_V), PromoteError);
+    await assert.rejects(() => adapter.releaseVersionToLive(SITE,SRC_V), PromoteError);
+    const noToken = createFirebaseAdapter({projectId:SITE, env:{GOOGLE_APPLICATION_CREDENTIALS:'/adc',FIREBASE_TOKEN:'bad'}});
+    await assert.rejects(() => noToken.getVersion(SRC_V), PromoteError);
+  });
+  it('adapter malformed channel throws instead of returning null', async () => {
+    const adapter = createFirebaseAdapter({projectId:SITE,env:{GOOGLE_APPLICATION_CREDENTIALS:'/adc'},run:() => ({status:0,stdout:'{"channels":[]}'})});
+    await assert.rejects(() => adapter.getChannelVersionName(SITE,'live'), PromoteError);
+  });
+  it('adapter validates duplicate paths across REST pages using injected fetch', async () => {
+    let page = 0;
+    const adapter = createFirebaseAdapter({projectId:SITE,env:{GOOGLE_APPLICATION_CREDENTIALS:'/adc',HOSTING_ACCESS_TOKEN:'oauth'},fetchImpl:async () => ({ok:true,json:async () => ++page === 1 ? {files:[FILES[0]],nextPageToken:'next'} : {files:[FILES[0]]}})});
+    await assert.rejects(() => adapter.listVersionFiles(SRC_V), e => e.code === 'DUPLICATE_PATH');
+  });
+  it('real network/process adapter transports were never invoked', () => {
+    assert.equal(forbiddenCalls, 0);
   });
 });

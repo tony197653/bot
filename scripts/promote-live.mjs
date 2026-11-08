@@ -5,7 +5,7 @@
  *   node scripts/promote-live.mjs --approval deploy/approvals/<id>.json
  *   node scripts/promote-live.mjs --approval-id <id>
  *
- * Never auto-writes a baseline. Refusals leave deploy/ unchanged aside from stdout.
+ * Never auto-writes a baseline. Release attempts durably log PENDING and DONE/FAILED.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -62,6 +62,7 @@ async function main() {
     const result = await promoteLive({
       approvalPath,
       releasesLogPath: path.join(ROOT, config.releasesLog),
+      lockPath: path.join(ROOT, config.lockFile),
       siteId: config.siteId,
       liveChannel: config.liveChannel,
       firebase,
