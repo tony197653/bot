@@ -470,6 +470,9 @@ let autoResumeTried = false;
 let closeResultDismissedFor = null;
 /** Room id currently showing (or shown) close-result — avoid listenRoom clobbering with 0. */
 let closeResultShownFor = null;
+/** No-flash: hide spectator UI until host auto-sit lands; freeze table while closing. */
+let hostSitPending = false;
+let closingFreeze = false;
 /** Chips amount currently shown on the close-result card (upgrade if a better value arrives). */
 let closeResultChipsShown = 0;
 /** Soft-leave lobby: one live refresh per closed room id (no paint loop). */
@@ -1433,6 +1436,8 @@ async function enterRoom(id, { asHostSit = false } = {}) {
   const fb = getFirebase();
   const user = getUser();
   if (!fb || !user) return;
+  closingFreeze = false;
+  hostSitPending = false;
   // New/resumed table — allow a future close-result for this (or another) room
   if (closeResultDismissedFor && closeResultDismissedFor !== id) {
     lobbyClosedSynced.delete(closeResultDismissedFor);
@@ -1665,16 +1670,22 @@ async function enterRoom(id, { asHostSit = false } = {}) {
           paintTableChrome();
         });
 
+        const needHostSit =
+          asHostSit && r.hostUid === user.uid && !r.seatUids.includes(user.uid);
+        hostSitPending = needHostSit;
         screen = 'table';
         paint();
 
-        if (asHostSit && r.hostUid === user.uid && !r.seatUids.includes(user.uid)) {
+        if (needHostSit) {
           try {
             await buyinAll(fb, user.uid, id);
             await hostLoop?.seatPlayer(0, user.uid);
           } catch (e) {
             console.warn('host sit', e);
             toast(friendlyError(e, '入座失敗，請點空位再試一次'));
+          } finally {
+            hostSitPending = false;
+            paintTableChrome();
           }
         }
         // L3: ensure hostRoomId points at this table (replace only if prior gone/closed/null)
@@ -1761,6 +1772,8 @@ function paintTableChrome() {
     if (back) back.hidden = true;
     return;
   }
+  // 收桌中：保留最後一格正常牌桌，結果卡蓋在上面
+  if (closingFreeze) return;
   if (back) back.hidden = false;
   const user = getUser();
   const title = $('#roomTitle');
@@ -1897,7 +1910,7 @@ function renderSeatOverlays() {
   }
 
   // Empty-seat hit targets on the felt (spectators only — no duplicate bottom strip)
-  if (mySeat < 0) {
+  if (mySeat < 0 && !hostSitPending) {
     for (let i = 0; i < 6; i++) {
       if (room.seatUids[i]) continue;
       const pos = SLOT_FALLBACK(i, viewer);
@@ -1954,7 +1967,7 @@ function renderSeatOverlays() {
       }
     }
   } else {
-    if (heroName) heroName.textContent = '觀戰';
+    if (heroName) heroName.textContent = hostSitPending ? '' : '觀戰';
     if (heroChips) heroChips.textContent = '';
     if (heroHole) heroHole.innerHTML = '';
   }
@@ -2119,6 +2132,10 @@ function renderActBar() {
     lockMpRaisePanel();
   }
 
+  if (mySeat < 0 && hostSitPending) {
+    btns.innerHTML = '';
+    return;
+  }
   if (mySeat < 0) {
     // PL: soft leave via top 「‹ 大廳」only — no bottom 回大廳
     btns.innerHTML = `<div class="mp-spec">你正在觀戰，點牌桌上的空位就坐下<br><small>坐下時整筆帶入你的帳戶 ${fmtChips(playerDoc?.bank || 0)}</small></div>`;
@@ -2861,6 +2878,8 @@ async function confirmLeaveTable() {
 }
 
 function tearDownRoom() {
+  closingFreeze = false;
+  hostSitPending = false;
   stopRoom?.();
   stopRoom = null;
   stopHole?.();
@@ -3010,7 +3029,18 @@ export function mpExtendCode() {
  * @param {{ showResultCard?: boolean }} opt showResultCard=false → caller goes clean lobby
  * @returns {Promise<number>} chips returned for this host
  */
-async function performHostCloseRoom({ showResultCard = true } = {}) {
+async function performHostCloseRoom(opts = {}) {
+  closingFreeze = true;
+  try {
+    return await performHostCloseRoomInner(opts);
+  } catch (e) {
+    closingFreeze = false;
+    paintTableChrome();
+    throw e;
+  }
+}
+
+async function performHostCloseRoomInner({ showResultCard = true } = {}) {
   const fb = getFirebase();
   const uid = getUser()?.uid;
   if (!fb || !room || !uid) return 0;
@@ -3098,6 +3128,7 @@ export function mpCloseRoom() {
 function doCloseRoom() {
   const fb = getFirebase();
   if (!fb || !room) return;
+  closingFreeze = true;
   const btn = document.getElementById('mpBtnCloseRoom');
   if (btn) {
     btn.disabled = true;
