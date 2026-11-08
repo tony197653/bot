@@ -3,6 +3,7 @@
  * Ledger ids are fixed → idempotent (permission-denied + exists = success).
  */
 
+import { assertMinimumBuyin } from './buyin-policy.js';
 import { LS_PREFIX } from './firebase-config.js';
 import { deleteLobbyListing } from './room.js';
 
@@ -92,19 +93,20 @@ export async function ensurePlayerGrant(fb, uid, roomId, n, profile) {
 /**
  * Whole-bank buy-in (§6.10 scheme ①).
  */
-export async function buyinAll(fb, uid, roomId) {
+export async function buyinAll(fb, uid, roomId, bb) {
   const { db, fs } = fb;
   const pref = fs.doc(db, 'pokerPlayers', uid);
   const snap = await fs.getDoc(pref);
   if (!snap.exists()) throw new Error('還沒有帳戶');
   const p = snap.data();
   if (p.tableRoomId === roomId) {
+    assertMinimumBuyin(p.inPlay, bb);
     return { skipped: true, amount: p.inPlay, sessionNo: p.sessionNo };
   }
   if (p.tableRoomId != null) throw new Error('你還在別桌，請先結帳離開');
 
   const no = p.sessionNo + 1;
-  const amount = p.bank;
+  const amount = assertMinimumBuyin(p.bank, bb);
   const id = `${roomId}_${no}_buyin`;
   const batch = fs.writeBatch(db);
   batch.update(pref, {

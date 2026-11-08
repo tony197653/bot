@@ -2,6 +2,7 @@
  * Create / join / extend / close rooms (§9.2 + 附錄 L3/L4/L7).
  */
 
+import { DEFAULT_NEW_PLAYER_CHIPS } from './buyin-policy.js';
 import { LS_PREFIX } from './firebase-config.js';
 import { recordWrite } from './quota.js';
 
@@ -196,7 +197,7 @@ export async function createRoom(fb, opts) {
   const config = {
     sb: opts.sb,
     bb: opts.bb,
-    newPlayerChips: opts.newPlayerChips,
+    newPlayerChips: opts.newPlayerChips ?? DEFAULT_NEW_PLAYER_CHIPS,
     actionMs: 30000,
     topUpAmount: 2000,
   };

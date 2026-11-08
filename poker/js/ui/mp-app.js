@@ -50,6 +50,7 @@ import {
   nightKeyOf,
   readCachedPlayer,
 } from '../net/ledger.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, assertMinimumBuyin, wholeBalance, buyinLabel } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
 import {
   createIntentSender,
@@ -136,7 +137,7 @@ let joining = false;
 let joinError = '';
 let joinEnded = false;
 /** Persist create-form draft across re-renders (UI/UX #11). */
-let createDraft = { name: '', sb: 10, chips: 2000 };
+let createDraft = { name: '', sb: 10, chips: DEFAULT_NEW_PLAYER_CHIPS };
 let sittingBusy = false;
 let openJoinBusy = false;
 let rescueBusy = false;
@@ -1490,7 +1491,7 @@ async function doCreate(data) {
       return;
     }
     shareInfo = res;
-    createDraft = { name: '', sb: 10, chips: 2000 };
+    createDraft = { name: '', sb: 10, chips: DEFAULT_NEW_PLAYER_CHIPS };
     // createRoom writes hostRoomId in the same txn; refresh local player doc
     try {
       playerDoc = await getPlayer(fb, user.uid);
@@ -1819,7 +1820,9 @@ async function enterRoom(id, { asHostSit = false } = {}) {
 
         if (needHostSit) {
           try {
-            await buyinAll(fb, user.uid, id);
+            assertMinimumBuyin(wholeBalance(playerDoc, id), r.config.bb);
+            await buyinAll(fb, user.uid, id, r.config.bb);
+            playerDoc = await getPlayer(fb, user.uid);
             await hostLoop?.seatPlayer(0, user.uid);
           } catch (e) {
             console.warn('host sit', e);
@@ -1928,7 +1931,9 @@ function paintTableChrome() {
   if (meta) {
     const spec = room.seatUids.filter((u) => u).length;
     const watch = Math.max(0, (room.members?.length || 0) - spec);
-    meta.innerHTML = `<span class="meta-a"><b>${esc(room.config.sb)}／${esc(room.config.bb)}</b></span><span class="meta-b">　房號 ${esc(formatCode(room.code))}　觀戰 ${esc(watch)}</span>`;
+    const selfSeat = room.seatUids.indexOf(user?.uid);
+    const buyin = buyinLabel(playerDoc, roomId, selfSeat >= 0 ? room.sess?.[selfSeat] : null);
+    meta.innerHTML = `<span class="meta-a"><b>${esc(room.config.sb)}／${esc(room.config.bb)}</b>　${esc(buyin)}</span><span class="meta-b">　房號 ${esc(formatCode(room.code))}　觀戰 ${esc(watch)}</span>`;
   }
 
   // Empty seats / sit affordance via seats container overlay labels
@@ -2292,7 +2297,7 @@ function renderActBar() {
   }
   if (mySeat < 0) {
     // PL: soft leave via top 「‹ 大廳」only — no bottom 回大廳
-    btns.innerHTML = `<div class="mp-spec">你正在觀戰，點牌桌上的空位就坐下<br><small>坐下時整筆帶入你的帳戶 ${fmtChips(playerDoc?.bank || 0)}</small></div>`;
+    btns.innerHTML = `<div class="mp-spec">你正在觀戰，點牌桌上的空位就坐下<br><small>${esc(buyinLabel(playerDoc, roomId))}；最低 ${fmtChips(50 * room.config.bb)}（50 大盲）</small></div>`;
     return;
   }
 
@@ -2713,11 +2718,17 @@ async function sitDown(seat) {
     toast('你已入座，要換位請先離座');
     return;
   }
+  try {
+    assertMinimumBuyin(wholeBalance(playerDoc, roomId), room.config.bb);
+  } catch (e) {
+    toast(e.message);
+    return;
+  }
   sittingBusy = true;
   toast('入座中…');
   try {
     if (playerDoc?.tableRoomId !== roomId) {
-      await buyinAll(fb, user.uid, roomId);
+      await buyinAll(fb, user.uid, roomId, room.config.bb);
       playerDoc = await getPlayer(fb, user.uid);
     }
     const pub = room.pub || {};
