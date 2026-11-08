@@ -62,9 +62,18 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 .nw{white-space:nowrap}
 .lic.tool{border:1px solid var(--line);color:var(--sand);line-height:18px}
 .note{margin:0 0 10px;font-size:14px;line-height:1.65;flex:1}
-.links{margin:0;display:flex;gap:18px;font-size:14px}
-.links a{color:var(--sage);text-decoration:none;border-bottom:1px solid currentColor;padding:6px 0 1px}
-.links a:hover{color:var(--ink)}
+.links{margin:0;display:flex;flex-wrap:wrap;gap:8px;font-size:14px}
+/* 連結改用元件庫 B2 細框鈕（文字底線樣式已停用） */
+.links a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font-weight:500;text-decoration:none;-webkit-tap-highlight-color:transparent;transition:background-color .18s cubic-bezier(.2,.7,.2,1),border-color .18s cubic-bezier(.2,.7,.2,1)}
+@media (hover:hover) and (pointer:fine){.links a:hover{background:#fff;border-color:#BFC3B8}}
+.links a:active{background:var(--sage-soft)}
+.links a:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+/* 開發中：元件庫 L2 細框圓點 */
+.l2{display:inline-flex;align-items:center;gap:6px;font-size:12px;line-height:18px;padding:0 8px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink)}
+.l2 i{width:7px;height:7px;border-radius:50%;background:#6E9A5F;flex:none}
+@media (prefers-reduced-motion:no-preference){.l2.live i{box-shadow:0 0 0 0 rgba(110,154,95,.5);animation:l2pulse 2s infinite}}
+@keyframes l2pulse{70%{box-shadow:0 0 0 6px rgba(110,154,95,0)}100%{box-shadow:0 0 0 0 rgba(110,154,95,0)}}
+.pending{display:inline-flex;align-items:center;min-height:44px;font-size:14px;color:var(--mute)}
 .legend{margin:36px 0 0;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--mute);display:grid;gap:4px}
 .legend p{margin:0}
 @media (max-width:980px){.grid{grid-template-columns:repeat(2,1fr)}}
@@ -89,7 +98,7 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
   h3{font-size:15px}
   .src{margin:0 0 6px;font-size:12px}
   .note{font-size:13.5px;line-height:1.6;margin-bottom:6px}
-  .links a{padding:9px 0 1px}
+  .links a{padding:0 14px}
 }
 @media (max-width:350px){[role=tab]{font-size:14px}}
 @media (prefers-reduced-motion:no-preference){
@@ -102,12 +111,12 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 <body>
 <header class="wrap">
 <h1>我喜歡的網頁模板</h1>
-<p class="intro">先是你最愛的 7 個，再按 11 種網頁類型各挑 3 個，一共 40 個，每個都有編號。以後要做新網頁時，直接說<b>「照 D1 的樣子做」</b>就行。最後兩頁另有 31 個 Aura 精選和 23 個 <span style="white-space:nowrap">Webnode 精選。</span></p>
+<p class="intro">先是你最愛的 7 個，再按 11 種網頁類型各挑 3 個，測驗另加 3 個自製的，一共 43 個，每個都有編號。以後要做新網頁時，直接說<b>「照 D1 的樣子做」</b>就行。最後兩頁另有 31 個 Aura 精選和 23 個 <span style="white-space:nowrap">Webnode 精選。</span></p>
 <ul class="taste" aria-label="我的喜好">
 <li>A 極簡留白</li><li>G 日系清新</li><li>H 資訊密集</li><li>莫蘭迪大地色</li><li>真實照片</li><li>動態輕微</li><li class="no">不要新粗野風</li>
 </ul>
 </header>
-<nav><div class="wrap"><div role="tablist" aria-label="模板分類"><button role="tab" id="t-fav" data-p="fav" aria-controls="p-fav" aria-selected="true"><span class="t2">我的</span>最愛<span class="n">7</span></button><button role="tab" id="t-content" data-p="content" aria-controls="p-content" aria-selected="false" tabindex=-1>內容<span class="t2">展示</span><span class="n">12</span></button><button role="tab" id="t-biz" data-p="biz" aria-controls="p-biz" aria-selected="false" tabindex=-1>商業<span class="t2">品牌</span><span class="n">9</span></button><button role="tab" id="t-tool" data-p="tool" aria-controls="p-tool" aria-selected="false" tabindex=-1>工具<span class="t2">學習</span><span class="n">12</span></button><button role="tab" id="t-aura" data-p="aura" aria-controls="p-aura" aria-selected="false" tabindex=-1>Aura<span class="t2"> 精選</span><span class="n">31</span></button><button role="tab" id="t-webnode" data-p="webnode" aria-controls="p-webnode" aria-selected="false" tabindex=-1>Webnode<span class="t2"> 精選</span><span class="n">23</span></button></div></div></nav>
+<nav><div class="wrap"><div role="tablist" aria-label="模板分類"><button role="tab" id="t-fav" data-p="fav" aria-controls="p-fav" aria-selected="true"><span class="t2">我的</span>最愛<span class="n">7</span></button><button role="tab" id="t-content" data-p="content" aria-controls="p-content" aria-selected="false" tabindex=-1>內容<span class="t2">展示</span><span class="n">12</span></button><button role="tab" id="t-biz" data-p="biz" aria-controls="p-biz" aria-selected="false" tabindex=-1>商業<span class="t2">品牌</span><span class="n">9</span></button><button role="tab" id="t-tool" data-p="tool" aria-controls="p-tool" aria-selected="false" tabindex=-1>工具<span class="t2">學習</span><span class="n">15</span></button><button role="tab" id="t-aura" data-p="aura" aria-controls="p-aura" aria-selected="false" tabindex=-1>Aura<span class="t2"> 精選</span><span class="n">31</span></button><button role="tab" id="t-webnode" data-p="webnode" aria-controls="p-webnode" aria-selected="false" tabindex=-1>Webnode<span class="t2"> 精選</span><span class="n">23</span></button></div></div></nav>
 <main class="wrap">
 <section class="panel" id="p-fav" role="tabpanel" aria-labelledby="t-fav"><h2>我的最愛</h2><p class="lead">你最喜歡的 7 個：極簡版面加有質感的真實照片。之後的挑選都以這 7 個為標準。</p><div class="grid"><article class="card" id="m1">
 <a class="th" href="https://astro-nano-demo.vercel.app/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
@@ -236,7 +245,19 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 <a class="th" href="https://dribbble.com/shots/26790826-Crescite-Beauty-Skincare-Quiz-Page-Redesign" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">Q3</span><h3>Crescite 膚質測驗</h3></div>
 <p class="src">Dribbble · Designkast</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">「第 1 題 / 共 4 題」加一張柔光人像，選項是圓角列表，<span class="nw">乾淨好點。</span></p><p class="links"><a href="https://dribbble.com/shots/26790826-Crescite-Beauty-Skincare-Quiz-Page-Redesign" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="cat" id="c-e" aria-labelledby="h-e"><h3 class="cath" id="h-e"><span class="ck">E</span>學習／課程</h3><div class="grid"><article class="card" id="e1">
+<p class="note">「第 1 題 / 共 4 題」加一張柔光人像，選項是圓角列表，<span class="nw">乾淨好點。</span></p><p class="links"><a href="https://dribbble.com/shots/26790826-Crescite-Beauty-Skincare-Quiz-Page-Redesign" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="q4">
+<a class="th" href="https://tony197653.github.io/bot/jev-quiz/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">Q4</span><h3>JEV 判斷模型小測驗</h3></div>
+<p class="src">自製 · tony197653/bot</p><div class="tags"><span class="st st-a">A</span><span class="lic open">自製可直接改</span></div>
+<p class="note">會考答案卡風：一題一頁四選一，答完馬上看對錯和解說，做完看分數，可只<span class="nw">重練錯題。</span></p><p class="links"><a href="https://tony197653.github.io/bot/jev-quiz/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/tony197653/bot/tree/main/jev-quiz" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="q5">
+<a class="th" href="https://cursor.com/canvas/store-f23b2ebf-25d9-443d-a233-907a3ad03ea0/83f926ea-730e-4030-a6bd-86b4911af8c4" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
+<div class="body"><div class="row1"><span class="code">Q5</span><h3>羽蕎會考診斷測驗</h3></div>
+<p class="src">自製 · TU 的 Canvas</p><div class="tags"><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
+<p class="note">整份寫完才交卷，交卷後看各單元強弱表和詳解。題目是私人資料，只借版型，縮圖<span class="nw">是示意。</span></p><p class="links"><a href="https://cursor.com/canvas/store-f23b2ebf-25d9-443d-a233-907a3ad03ea0/83f926ea-730e-4030-a6bd-86b4911af8c4" target="_blank" rel="noopener">看 Canvas（要登入）</a></p></div></article><article class="card" id="q6">
+<div class="th"><img src="thumbs/q6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></div>
+<div class="body"><div class="row1"><span class="code">Q6</span><h3>參考書轉數位考題網</h3></div>
+<p class="src">自製 · PL 規劃中</p><div class="tags"><span class="st st-a">A</span><span class="l2 live"><i></i>開發中</span></div>
+<p class="note">把參考書題目轉成線上題庫，樣式走 B 安靜高級，縮圖是樣式 B 樣張。預定網址 <span class="nw">/bot/quiz-bank/</span></p><p class="links"><span class="pending">上線後補連結</span></p></div></article></div></section><section class="cat" id="c-e" aria-labelledby="h-e"><h3 class="cath" id="h-e"><span class="ck">E</span>學習／課程</h3><div class="grid"><article class="card" id="e1">
 <a class="th" href="https://dribbble.com/shots/26630396--EduVerse-Online-Course-Website" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">E1</span><h3>EduVerse 線上課程</h3></div>
 <p class="src">Dribbble · Attractive UI</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
@@ -492,9 +513,9 @@ h3{font-size:16px;font-weight:600;margin:0;line-height:1.4;min-width:0}
 <p class="src">Webnode · 網球學院模板</p><div class="tags"><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
 <p class="note">紅土球場的動態照片，孩童、成人、一對一課程與價格<span class="nw">一目了然。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/e6hszl/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-e6hszl-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section></section>
 <footer class="legend">
-<p>A、G、H 是你問卷裡的風格代號。「開源」可以直接拿原始碼來改；「僅參考視覺」是設計稿，只借它的長相；「Webnode 可套用」在 Webnode 裡直接選用。</p>
+<p>A、G、H 是你問卷裡的風格代號。「開源」可以直接拿原始碼來改；「僅參考視覺」是設計稿，只借它的長相；「Webnode 可套用」在 Webnode 裡直接選用；「自製可直接改」是我們自己做的頁面；「開發中」還沒上線，上線後再補連結。</p>
 <p>編號第一個字母代表類型：P 攝影、B 部落格、N 新聞、T 旅遊、L 產品、R 餐廳、C 公司、Q 測驗、E 課程、D 儀表板、S 登入；M 是你的最愛。A 開頭是 Aura 精選，第二個字母同樣代表類型，AX 是吸睛特區。「Aura 免費 Remix」可在 Aura 上複製改用（一般要先登入）；「Aura PRO」要付費會員或單買。W 開頭是 Webnode 精選，第二個字母也代表類型；「Webnode 免費套用」在 Webnode 免費方案就能選，「商店功能需付費」是要真的賣東西時得升級網路商店方案。</p>
-<p>來源：GitHub、Dribbble、Behance、Webnode、Aura（aura.build）。整理於 2026 年 10 月。</p>
+<p>來源：GitHub、Dribbble、Behance、Webnode、Aura（aura.build）。整理於 2026 年 10 月，Q4–Q6 於 11 月加入。</p>
 </footer>
 </main>
 <script>

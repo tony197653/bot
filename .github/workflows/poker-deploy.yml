@@ -1,17 +1,17 @@
 name: Deploy poker to Firebase Hosting
 
+# Previews only. Live is never released from GitHub Actions.
+# Release live only via scripts/promote-live.mjs (see deploy/README.md).
 on:
   pull_request:
     paths:
       - 'poker/**'
       - 'lib/**'
-      - '.github/workflows/poker-deploy.yml'
   push:
     branches: [main]
     paths:
       - 'poker/**'
       - 'lib/**'
-      - '.github/workflows/poker-deploy.yml'
 
 permissions:
   checks: write
@@ -37,7 +37,8 @@ jobs:
           entryPoint: poker/firebase
           expires: 7d
 
-      - name: Deploy live (main)
+      # Tip-of-main preview only (channel "main"). Not live.
+      - name: Deploy main preview channel
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
@@ -45,4 +46,5 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TONY_POKER }}
           projectId: tony-poker
           entryPoint: poker/firebase
-          channelId: live
+          channelId: main
+          expires: 30d

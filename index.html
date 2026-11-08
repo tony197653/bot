@@ -45,13 +45,17 @@
   }
   a {
     display: block;
-    padding: 14px 0;
+    padding: 14px 12px;
+    margin: 0 -12px;
+    border-radius: 8px;
     color: var(--accent);
     font-weight: 700;
     text-decoration: none;
   }
-  a:hover {
-    text-decoration: underline;
+  @media (hover: hover) and (pointer: fine) {
+    a:hover {
+      background: rgba(14, 110, 108, .08);
+    }
   }
   a:focus-visible {
     outline: 3px solid var(--accent);

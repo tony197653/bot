@@ -288,6 +288,22 @@ async function syncAfterRoomClosed() {
 
 /** Leave close-result without bouncing back into the closed table. */
 async function dismissCloseResultToLobby() {
+  if (closeInFlight) {
+    // 0.2 秒回饋：先切大廳；收桌／結帳在背景跑完才拆 host loop
+    const pending = closeInFlight;
+    closeResultDismissedFor = roomId || room?.id || null;
+    hideCloseResultCard();
+    clearRoomUrlParams();
+    clearLastRoom();
+    autoResumeTried = true;
+    lobbyExitSuppressMine = true;
+    screen = 'lobby';
+    const back0 = $('#btnBackLobby');
+    if (back0) back0.hidden = true;
+    paint();
+    await pending.catch(() => {});
+    if (screen !== 'lobby') return;
+  }
   const closedId = roomId || room?.id || null;
   closeResultDismissedFor = closedId;
   hideCloseResultCard();
@@ -295,15 +311,18 @@ async function dismissCloseResultToLobby() {
   clearLastRoom();
   // Intentional exit — must NOT clear autoResumeTried (that re-enterRoom'd the table)
   autoResumeTried = true;
-  await syncAfterRoomClosed();
   tearDownRoom();
   screen = 'lobby';
   const back = $('#btnBackLobby');
   if (back) back.hidden = true;
   paint();
+  // 結帳同步在背景跑，完成後若仍在大廳再刷新一次
+  await syncAfterRoomClosed();
+  if (screen === 'lobby') paint();
 }
 
 async function dismissCloseResultToStats() {
+  if (closeInFlight) await closeInFlight.catch(() => {});
   const closedId = roomId || room?.id || null;
   closeResultDismissedFor = closedId;
   hideCloseResultCard();
@@ -479,6 +498,11 @@ let autoResumeTried = false;
 let closeResultDismissedFor = null;
 /** Room id currently showing (or shown) close-result — avoid listenRoom clobbering with 0. */
 let closeResultShownFor = null;
+/** No-flash: hide spectator UI until host auto-sit lands; freeze table while closing. */
+let hostSitPending = false;
+let closingFreeze = false;
+/** Pending host close (card shows immediately; 回大廳／看戰績 wait for it). */
+let closeInFlight = null;
 /** Chips amount currently shown on the close-result card (upgrade if a better value arrives). */
 let closeResultChipsShown = 0;
 /** Soft-leave lobby: one live refresh per closed room id (no paint loop). */
@@ -1122,7 +1146,10 @@ function paint() {
         await navigator.clipboard?.writeText(url);
         toast('已複製');
       },
-      onEnter: () => enterRoom(shareInfo.roomId, { asHostSit: true }),
+      onEnter: () => {
+        paintEnterShell(shareInfo?.name);
+        void enterRoom(shareInfo.roomId, { asHostSit: true });
+      },
       onLobby: () => {
         clearRoomUrlParams();
         screen = 'lobby';
@@ -1203,6 +1230,29 @@ function paint() {
     ensureMpMenu();
     paintTableChrome();
   }
+}
+
+/** 0.2 秒回饋：點「進入牌桌」立刻畫空牌桌＋自己的位子，讀取在背景完成（不畫空位／觀戰）。 */
+function paintEnterShell(name) {
+  room = null;
+  screen = 'table';
+  paint();
+  const user = getUser();
+  const me = nameOrStub(user?.uid, user?.displayName, '你');
+  const set = (sel, fn) => {
+    const el = $(sel);
+    if (el) fn(el);
+  };
+  set('#roomTitle', (el) => (el.textContent = name || '週五牌局'));
+  set('#roomMeta', (el) => (el.innerHTML = ''));
+  set('#seats', (el) => el.querySelectorAll('.mp-empty-seat, .seat:not(.hero)').forEach((n) => n.remove()));
+  set('#bets', (el) => (el.innerHTML = ''));
+  set('#board', (el) => (el.innerHTML = ''));
+  set('#heroHole', (el) => (el.innerHTML = ''));
+  set('#heroName', (el) => (el.textContent = me));
+  set('#heroChips', (el) => (el.textContent = fmtChips(Number(playerDoc?.bank) || 0)));
+  set('#heroAv', (el) => (el.innerHTML = `<span>${esc(me.slice(0, 1))}</span>`));
+  set('#btns', (el) => (el.innerHTML = ''));
 }
 
 function ensureOpenTablesListen() {
@@ -1518,6 +1568,8 @@ async function enterRoom(id, { asHostSit = false } = {}) {
   const fb = getFirebase();
   const user = getUser();
   if (!fb || !user) return;
+  closingFreeze = false;
+  hostSitPending = false;
   // New/resumed table — allow a future close-result for this (or another) room
   if (closeResultDismissedFor && closeResultDismissedFor !== id) {
     lobbyClosedSynced.delete(closeResultDismissedFor);
@@ -1754,16 +1806,22 @@ async function enterRoom(id, { asHostSit = false } = {}) {
           paintTableChrome();
         });
 
+        const needHostSit =
+          asHostSit && r.hostUid === user.uid && !r.seatUids.includes(user.uid);
+        hostSitPending = needHostSit;
         screen = 'table';
         paint();
 
-        if (asHostSit && r.hostUid === user.uid && !r.seatUids.includes(user.uid)) {
+        if (needHostSit) {
           try {
             await buyinAll(fb, user.uid, id);
             await hostLoop?.seatPlayer(0, user.uid);
           } catch (e) {
             console.warn('host sit', e);
             toast(friendlyError(e, '入座失敗，請點空位再試一次'));
+          } finally {
+            hostSitPending = false;
+            paintTableChrome();
           }
         }
         // L3: ensure hostRoomId points at this table (replace only if prior gone/closed/null)
@@ -1855,6 +1913,8 @@ function paintTableChrome() {
     if (back) back.hidden = true;
     return;
   }
+  // 收桌中：保留最後一格正常牌桌，結果卡蓋在上面
+  if (closingFreeze) return;
   if (back) back.hidden = false;
   const user = getUser();
   const title = $('#roomTitle');
@@ -1991,7 +2051,7 @@ function renderSeatOverlays() {
   }
 
   // Empty-seat hit targets on the felt (spectators only — no duplicate bottom strip)
-  if (mySeat < 0) {
+  if (mySeat < 0 && !hostSitPending) {
     for (let i = 0; i < 6; i++) {
       if (room.seatUids[i]) continue;
       const pos = SLOT_FALLBACK(i, viewer);
@@ -2048,8 +2108,16 @@ function renderSeatOverlays() {
       }
     }
   } else {
-    if (heroName) heroName.textContent = '觀戰';
-    if (heroChips) heroChips.textContent = '';
+    if (hostSitPending) {
+      // 入座中：先畫自己的位子（名字＋帳戶籌碼），寫入在背景完成
+      const name = nameOrStub(user.uid, user.displayName, '你');
+      if (heroName) heroName.textContent = name;
+      if (heroChips) heroChips.textContent = fmtChips(Number(playerDoc?.bank) || 0);
+      if (heroAv) heroAv.innerHTML = `<span>${esc(name.slice(0, 1))}</span>`;
+    } else {
+      if (heroName) heroName.textContent = '觀戰';
+      if (heroChips) heroChips.textContent = '';
+    }
     if (heroHole) heroHole.innerHTML = '';
   }
 
@@ -2213,6 +2281,10 @@ function renderActBar() {
     lockMpRaisePanel();
   }
 
+  if (mySeat < 0 && hostSitPending) {
+    btns.innerHTML = '';
+    return;
+  }
   if (mySeat < 0) {
     // PL: soft leave via top 「‹ 大廳」only — no bottom 回大廳
     btns.innerHTML = `<div class="mp-spec">你正在觀戰，點牌桌上的空位就坐下<br><small>坐下時整筆帶入你的帳戶 ${fmtChips(playerDoc?.bank || 0)}</small></div>`;
@@ -2955,6 +3027,8 @@ async function confirmLeaveTable() {
 }
 
 function tearDownRoom() {
+  closingFreeze = false;
+  hostSitPending = false;
   stopRoom?.();
   stopRoom = null;
   stopHole?.();
@@ -3104,7 +3178,18 @@ export function mpExtendCode() {
  * @param {{ showResultCard?: boolean }} opt showResultCard=false → caller goes clean lobby
  * @returns {Promise<number>} chips returned for this host
  */
-async function performHostCloseRoom({ showResultCard = true } = {}) {
+async function performHostCloseRoom(opts = {}) {
+  closingFreeze = true;
+  try {
+    return await performHostCloseRoomInner(opts);
+  } catch (e) {
+    closingFreeze = false;
+    paintTableChrome();
+    throw e;
+  }
+}
+
+async function performHostCloseRoomInner({ showResultCard = true } = {}) {
   const fb = getFirebase();
   const uid = getUser()?.uid;
   if (!fb || !room || !uid) return 0;
@@ -3155,7 +3240,7 @@ async function performHostCloseRoom({ showResultCard = true } = {}) {
   return chips;
 }
 
-/** Styled second confirm for 收桌 (same component as 「是否離開牌局？」); replaces native confirm(). */
+/** Styled second confirm for 收桌 (same component as 「是否離開牌局？」); replaces the browser-native dialog. */
 function showCloseRoomConfirm(onOk) {
   let el = document.getElementById('mpCloseConfirm');
   if (!el) {
@@ -3192,15 +3277,26 @@ export function mpCloseRoom() {
 function doCloseRoom() {
   const fb = getFirebase();
   if (!fb || !room) return;
+  closingFreeze = true;
   const btn = document.getElementById('mpBtnCloseRoom');
   if (btn) {
     btn.disabled = true;
     btn.textContent = '收桌中…';
   }
+  const uid0 = getUser()?.uid;
+  const seat0 = room.seatUids?.indexOf(uid0) ?? -1;
+  const est = seat0 >= 0 ? Number(room.stacks?.[seat0]) || 0 : 0;
+  // 0.2 秒內回饋：結果卡先出來，寫入在背景完成
+  showCloseResultCard({ chips: est, auto: false });
+  closeInFlight = performHostCloseRoom({ showResultCard: true });
   void (async () => {
     try {
-      await performHostCloseRoom({ showResultCard: true });
+      await closeInFlight;
+      closeInFlight = null;
     } catch (e) {
+      closeInFlight = null;
+      closeResultShownFor = null;
+      hideCloseResultCard();
       pendingCloseReturnChips = null;
       toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
       if (btn) {

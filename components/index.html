@@ -112,13 +112,6 @@ section.cat{padding:64px 0 8px}
 .b4:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
 .b4:disabled{background:#ECEEF0;color:#A7AEB6}
 
-.b5{background:none;color:var(--ink);padding:0 4px;border-radius:var(--r-sm);font-weight:500;transition:color .18s var(--ease),opacity .18s var(--ease),transform .12s var(--ease)}
-.b5::after{content:"";position:absolute;left:4px;right:4px;bottom:9px;height:1px;background:currentColor;transform:scaleX(.35);transform-origin:left;transition:transform .22s var(--ease)}
-@media (hover:hover) and (pointer:fine){.b5:hover{color:var(--rose)}}
-@media (hover:hover) and (pointer:fine){.b5:hover::after{transform:scaleX(1)}}
-.b5:active{opacity:.7;transform:scale(.97)}
-.b5:disabled{color:#AEB0A9}
-.b5:disabled::after{transform:scaleX(0)}
 
 
 /* ========== 表格 ========== */
@@ -514,7 +507,9 @@ dialog.dlg:not([open]){display:none}
 .acc-i.open .acc-tx{opacity:1;transform:none;transition:opacity .35s var(--ease-out) .06s,transform .4s var(--ease-out) .06s}
 .a1 .acc-i{border-bottom:1px solid var(--line)}
 .a1 .acc-i:first-child{border-top:1px solid var(--line)}
-@media (hover:hover){.a1 .acc-b:not(:disabled):hover .t{text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:5px}}
+.a1 .acc-b{position:relative;isolation:isolate}
+.a1 .acc-b::before{content:"";position:absolute;z-index:-1;inset:3px -8px;border-radius:var(--r-sm);background:var(--line-soft);opacity:0;transition:opacity .22s var(--ease);pointer-events:none}
+@media (hover:hover) and (pointer:fine){.a1 .acc-b:not(:disabled):hover::before{opacity:1}}
 .a1 .acc-b:focus-visible{outline-offset:-2px;border-radius:var(--r-sm)}
 .a3 .acc-i{border-bottom:1px dashed var(--line)}
 .a3 .acc-b{align-items:flex-start;padding:16px 4px}
@@ -563,6 +558,22 @@ dialog.dlg:not([open]){display:none}
 .p3 [data-state=done] .lab{color:var(--ink)}
 .stp-ctl{display:flex;justify-content:center;gap:10px;margin-top:22px}
 .stp-msg{text-align:center;font-size:13px;color:var(--mute);margin-top:14px;min-height:1.65em}
+/* P3／P4 上一步・下一步：兩顆同為圓角矩形、同寬同高、位置固定；按下只變底色、不縮放；只過渡底色和透明度，不閃 */
+.stp-nav{display:grid;grid-template-columns:repeat(2,112px);justify-content:center;gap:10px;-webkit-user-select:none;user-select:none}
+.stp-nav .btn{width:112px;height:44px;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:var(--r-sm);transform:none;transition:background-color .22s var(--ease),opacity .22s var(--ease)}
+.stp-nav .btn:active{transform:none}
+.stp-nav .b1{background:var(--sage-deep);color:#fff}
+.stp-nav .b2{background:#fff;color:var(--ink);border-color:#A9ADA3}
+@media (hover:hover) and (pointer:fine){.stp-nav .b1:not(:disabled):hover{background:#454F40}.stp-nav .b2:not(:disabled):hover{background:var(--bg);border-color:#A9ADA3}}
+.stp-nav .b1:not(:disabled):active{background:#3B4436}
+.stp-nav .b2:not(:disabled):active{background:var(--sage-soft)}
+.stp-nav .btn:disabled{opacity:.55;cursor:not-allowed}
+.stp-nav .b1:disabled{background:var(--sage-deep);color:#fff}
+.stp-nav .b2:disabled{background:#fff;color:var(--ink);border-color:#A9ADA3}
+.stp-nav .btn:focus:not(:focus-visible){outline:none}
+.stp-nav .b1:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.stp-nav .b2:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.p4 .hd{min-height:24px;font-variant-numeric:tabular-nums}
 .p4 .hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;font-size:13px;color:var(--mute)}
 .p4 .hd b{color:var(--ink);font-size:15px;font-weight:600}
 .p4 ol{display:flex}
@@ -703,6 +714,46 @@ dialog.dlg:not([open]){display:none}
   .p5.p5b .pt i{bottom:50%;margin-bottom:-3.5px}
   [data-state=current] > .sd .glow i{animation:none!important} /* 減少動態：四層光圈直接靜態顯示 */
 }
+
+/* ================================================================
+   M6 三線變叉・M7 ⋯ 三點（功能清單鈕，2026-11-02 新增）
+   兩款只差圖示效果：同一個 44×44 按鈕、同一個淡入淡出選單。
+   宗良不喜歡縮放與抖動：按下只加深底色（底色層改透明度），不用 scale。
+   只動 transform 與 opacity，.22s var(--ease)；減少動態時由全域規則改成瞬間切換。
+   ================================================================ */
+.mbar{position:relative;width:100%;max-width:300px;height:56px;display:flex;align-items:center;gap:6px;padding:0 6px;background:#fff;border:1px solid var(--line-soft);border-radius:var(--r)}
+.mbar .brand{font-size:15px;font-weight:600;letter-spacing:.02em;color:var(--ink);padding:0 6px}
+.mbar .sp{flex:1}
+.mbw{position:relative;flex:none}
+.mbtn{position:relative;width:44px;height:44px;display:grid;place-items:center;padding:0;border:0;border-radius:var(--r-sm);background:transparent;color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.mbtn::before{content:"";position:absolute;inset:0;border-radius:inherit;background:#E8E9E3;opacity:0;transition:opacity .22s var(--ease)}
+.mbtn svg{position:relative;width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;overflow:visible}
+@media (hover:hover) and (pointer:fine){.mbtn:hover::before{opacity:.6}}
+.mbtn[aria-expanded=true]::before{opacity:.75}
+.mbtn:active::before{opacity:1;transition-duration:.06s}
+.mbtn:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+/* M6：上下兩線移到中間各轉 ±45°、中線淡出；以 24×24 畫布中心為軸，交叉點不晃 */
+.m6 line{transform-box:view-box;transform-origin:12px 12px;transition:transform .22s var(--ease),opacity .22s var(--ease)}
+.m6[aria-expanded=true] .l1{transform:translateY(5px) rotate(45deg)}
+.m6[aria-expanded=true] .l2{opacity:0}
+.m6[aria-expanded=true] .l3{transform:translateY(-5px) rotate(-45deg)}
+/* M7：三點用實心圓，不變形，只有底色層回饋 */
+.m7 svg{fill:currentColor;stroke:none}
+.menu.mbp{position:absolute;z-index:15;margin:0;top:calc(100% + 6px);left:auto;right:auto;width:208px;background:#fff;border:1px solid var(--line-soft);border-radius:var(--r);box-shadow:var(--pop-shadow);padding:4px;opacity:0;visibility:hidden;transition:opacity .22s var(--ease),visibility 0s linear .22s}
+.menu.mbp.is-open{opacity:1;visibility:visible;transition:opacity .22s var(--ease),visibility 0s}
+.menu.mbp.l{left:0}.menu.mbp.r{right:0}
+.menu.mbp:focus{outline:none}
+/* M8 網站名稱／回首頁 */
+.mbar.m8bar{gap:4px;container-type:inline-size}
+.blink{position:relative;display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 10px;border-radius:var(--r-sm);color:var(--ink);text-decoration:none;white-space:nowrap;min-width:0;flex:0 1 auto;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.blink::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--bg);opacity:0;transition:opacity .22s var(--ease)}
+@media (hover:hover) and (pointer:fine){.blink:hover::before{opacity:1}}
+.blink:active::before{opacity:1;background:var(--line-soft);transition-duration:.06s}
+.blink:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
+.blink .bmark{position:relative;flex:none;width:24px;height:24px;display:grid;place-items:center;border-radius:var(--r-xs);background:var(--ink);color:#fff;font-size:13px;font-weight:700;line-height:1}
+.blink .bname{position:relative;font-size:17px;font-weight:600;color:var(--ink);line-height:1;overflow:hidden;text-overflow:clip}
+@container (max-width:200px){.blink .bname{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}}
+.mav{flex:none;width:32px;height:32px;margin-right:6px;border-radius:50%;display:grid;place-items:center;background:var(--sage-soft);color:var(--sage-deep);font-size:13px;font-weight:600}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -741,7 +792,7 @@ dialog.dlg:not([open]){display:none}
   <div class="wrap">
     <h1>元件風格庫</h1>
     <p class="lead">每個元件都有編號，滑過、按下、用 Tab 鍵移動都能看到真實效果。挑好後，之後做網頁就能直接說「按鈕用 B1、表格用 T1」。</p>
-    <div class="meta"><span>共 <b>14 類 44 個</b>（第一批 6 類 23 個＋第二批 8 類 20 個＋輸入框 I6）</span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
+    <div class="meta"><span>共 <b>14 類 46 個</b>（第一批 6 類 22 個＋第二批 8 類 20 個＋輸入框 I6＋功能清單鈕 M6、M7＋回首頁站名 M8）</span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
   </div>
 </header>
 
@@ -776,8 +827,6 @@ dialog.dlg:not([open]){display:none}
       <div class="stage"><button class="btn b2 js-load"><span class="lbl"><span class="lbl-idle">儲存草稿</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>儲存中</span></span></button><button class="btn b2" disabled>無法匯出</button></div></article>
     <article class="spec"><div class="spec-head"><span class="code">B4</span><div><h3>淡底填色</h3><p>仿 Apple 的淡色底深色字，柔和但看得出能按；按下底色加深。</p></div></div>
       <div class="stage"><button class="btn b4 js-load"><span class="lbl"><span class="lbl-idle">加入收藏</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>處理中</span></span></button><button class="btn b4" disabled>已收藏</button></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">B5</span><div><h3>文字底線</h3><p>雜誌感的純文字鈕，滑過底線從短變長、字轉為玫瑰灰。</p></div></div>
-      <div class="stage"><button class="btn b5 js-load"><span class="lbl"><span class="lbl-idle">看全部作品</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>載入中</span></span></button><button class="btn b5" disabled>沒有更多</button></div></article>
   </div>
 </section>
 
@@ -1006,6 +1055,39 @@ dialog.dlg:not([open]){display:none}
         </div>
       </div><p class="out" id="m3-out"></p></div></article>
 
+    <article class="spec"><div class="spec-head"><span class="code">M6</span><div><h3>三線變叉</h3><p>功能清單鈕。點了三條線變成 ✕（上下兩條轉 45°、中間那條淡出），再點一次變回來；選單淡入淡出。</p></div></div>
+      <div class="stage mid"><div class="mbar"><div class="mbw js-mbtn" data-out="m6-out">
+        <button type="button" class="mbtn m6" aria-label="開啟選單" aria-haspopup="menu" aria-expanded="false" aria-controls="m6-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><line class="l1" x1="5" y1="7" x2="19" y2="7"/><line class="l2" x1="5" y1="12" x2="19" y2="12"/><line class="l3" x1="5" y1="17" x2="19" y2="17"/></svg></button>
+        <div class="menu mbp l" role="menu" id="m6-menu" aria-label="功能清單">
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-home"/></svg>首頁</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-vase"/></svg>作品</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-box"/></svg>訂單</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-gear"/></svg>設定</button>
+        </div>
+      </div><span class="brand">小森陶房</span></div><p class="out" id="m6-out"></p></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">M7</span><div><h3>⋯ 三點</h3><p>功能清單鈕。橫向三個點，放在標題列右側收次要功能；圖示不變形，只有底色回饋，選單同 M6。</p></div></div>
+      <div class="stage mid"><div class="mbar"><span class="brand">小森陶房</span><span class="sp"></span><div class="mbw js-mbtn" data-out="m7-out">
+        <button type="button" class="mbtn m7" aria-label="開啟選單" aria-haspopup="menu" aria-expanded="false" aria-controls="m7-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5.5" cy="12" r="1.75"/><circle cx="12" cy="12" r="1.75"/><circle cx="18.5" cy="12" r="1.75"/></svg></button>
+        <div class="menu mbp r" role="menu" id="m7-menu" aria-label="功能清單">
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-home"/></svg>首頁</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-vase"/></svg>作品</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-box"/></svg>訂單</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-gear"/></svg>設定</button>
+        </div>
+      </div></div><p class="out" id="m7-out"></p></div></article>
+
+    <article class="spec"><div class="spec-head"><span class="code">M8</span><div><h3>網站名稱／回首頁</h3><p>標題列左上的站名連結，緊貼 M6 右邊，點了回首頁。只有淡底回饋、不縮放；太窄時只留字母方塊。</p></div></div>
+      <div class="stage mid"><div class="mbar m8bar"><div class="mbw js-mbtn" data-out="m8-out">
+        <button type="button" class="mbtn m6" aria-label="開啟選單" aria-haspopup="menu" aria-expanded="false" aria-controls="m8-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><line class="l1" x1="5" y1="7" x2="19" y2="7"/><line class="l2" x1="5" y1="12" x2="19" y2="12"/><line class="l3" x1="5" y1="17" x2="19" y2="17"/></svg></button>
+        <div class="menu mbp l" role="menu" id="m8-menu" aria-label="功能清單">
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-home"/></svg>首頁</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-vase"/></svg>作品</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-box"/></svg>訂單</button>
+          <button class="mi" role="menuitem" tabindex="-1"><svg class="ico"><use href="#i-gear"/></svg>設定</button>
+        </div>
+      </div><a class="blink js-blink" href="./" aria-label="小森陶房 首頁" data-out="m8-out"><span class="bmark" aria-hidden="true">森</span><span class="bname" aria-hidden="true">小森陶房</span></a><span class="sp"></span><span class="mav" role="img" aria-label="會員頭像">林</span></div><p class="out" id="m8-out"></p></div></article>
+
   </div>
 </section>
 
@@ -1041,7 +1123,7 @@ dialog.dlg:not([open]){display:none}
         <div class="lm-grid" aria-hidden="true"></div>
         <div class="meterx"><i></i></div>
         <p class="cap" aria-live="polite"></p>
-        <div class="btns"><button class="btn b2 js-more-btn"><span class="lbl"><span class="lbl-idle">載入更多</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>載入中</span></span></button><button class="btn b5 js-more-reset" hidden>回到開頭</button></div>
+        <div class="btns"><button class="btn b2 js-more-btn"><span class="lbl"><span class="lbl-idle">載入更多</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>載入中</span></span></button><button class="btn b2 js-more-reset" hidden>回到開頭</button></div>
       </div></div></article>
 
     <article class="spec"><div class="spec-head"><span class="code">P3</span><div><h3>圓點步驟條</h3><p>仿 coss ui Stepper，完成的步驟變綠並打勾、連線往前推；點已完成的圓點可以回去改。</p></div></div>
@@ -1052,7 +1134,7 @@ dialog.dlg:not([open]){display:none}
           <li><button class="sd" aria-label="第 3 步：付款"><span class="sn">3</span><svg class="ico"><use href="#i-check"/></svg></button><span class="lab">付款</span></li>
           <li><button class="sd" aria-label="第 4 步：完成"><span class="sn">4</span><svg class="ico"><use href="#i-check"/></svg></button><span class="lab">完成</span></li>
         </ol>
-        <div class="stp-ctl"><button class="btn b2" data-step="prev">上一步</button><button class="btn b1" data-step="next">下一步</button></div>
+        <div class="stp-ctl stp-nav"><button class="btn b2" data-step="prev">上一步</button><button class="btn b1" data-step="next">下一步</button></div>
         <p class="stp-msg" aria-live="polite"></p>
       </div></div></article>
 
@@ -1065,7 +1147,7 @@ dialog.dlg:not([open]){display:none}
           <li><span class="sn">3</span><svg class="ico"><use href="#i-check"/></svg><span class="lt">送出申請</span><span class="ls">送出</span></li>
           <li><span class="sn">4</span><svg class="ico"><use href="#i-check"/></svg><span class="lt">完成</span><span class="ls">完成</span></li>
         </ol>
-        <div class="stp-ctl"><button class="btn b2" data-step="prev">上一步</button><button class="btn b1" data-step="next">下一步</button></div>
+        <div class="stp-ctl stp-nav"><button class="btn b2" data-step="prev">上一步</button><button class="btn b1" data-step="next">下一步</button></div>
         <p class="stp-msg" aria-live="polite"></p>
       </div></div></article>
 
@@ -1079,7 +1161,7 @@ dialog.dlg:not([open]){display:none}
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">已出貨</span><time>11/22 16:40</time><span class="ds">黑貓宅急便，單號會簡訊通知。</span></li>
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><i></i></span><span class="tt">已送達</span><time>11/24 11:15</time><span class="ds">簽收後 7 天內可退換。</span></li>
         </ol>
-        <div class="stp-ctl"><button class="btn b5" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
+        <div class="stp-ctl"><button class="btn b2" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
       </div></div>
         <div class="p5-v"><p class="p5-lab"><span class="sc">P5-B</span>底弧滾動</p><div class="stp p5 p5b js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達">
         <ol aria-label="訂單 #1046 進度（B 底弧滾動）">
@@ -1089,7 +1171,7 @@ dialog.dlg:not([open]){display:none}
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">已出貨</span><time>11/22 16:40</time><span class="ds">黑貓宅急便，單號會簡訊通知。</span></li>
           <li><span class="pt"><svg class="ico"><use href="#i-check"/></svg><span class="arm"><i></i></span></span><span class="tt">已送達</span><time>11/24 11:15</time><span class="ds">簽收後 7 天內可退換。</span></li>
         </ol>
-        <div class="stp-ctl"><button class="btn b5" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
+        <div class="stp-ctl"><button class="btn b2" data-step="reset">重設</button><button class="btn b2" data-step="next">模擬下一步</button></div>
       </div></div>
       </div></div></article>
   </div>
@@ -1115,7 +1197,7 @@ dialog.dlg:not([open]){display:none}
         </div>
         <div class="got e1-full" hidden>
           <div class="mini-card"><span class="th"><svg class="ico"><use href="#i-vase"/></svg></span><span><b>秋日灰釉盤</b><small>剛剛新增・草稿</small></span></div>
-          <button class="btn b5 js-e1-clear">清空，回到空狀態</button>
+          <button class="btn b2 js-e1-clear">清空，回到空狀態</button>
         </div>
       </div></article>
 
@@ -1128,7 +1210,7 @@ dialog.dlg:not([open]){display:none}
           <h4>找不到「<span class="js-term"></span>」</h4>
           <p>試試看其他系列名稱：</p>
           <div class="sugg"><button class="tag l2" data-q="青瓷">青瓷</button><button class="tag l2" data-q="灰釉">灰釉</button><button class="tag l2" data-q="柴燒">柴燒</button></div>
-          <div class="btns" style="margin-top:6px"><button class="btn b5 js-e2-clear">清除搜尋</button></div>
+          <div class="btns" style="margin-top:6px"><button class="btn b2 js-e2-clear">清除搜尋</button></div>
         </div>
       </div></article>
 
@@ -1563,6 +1645,34 @@ $$('.js-menu').forEach(root=>{
   outside.push(e=>{if(open&&!root.contains(e.target))hide()});
 });
 
+/* ================= M6 M7 功能清單鈕（開合同 M3／撲克大廳 ⋯ 選單：只淡入淡出、方向鍵與 Home／End、Esc 關閉並回到按鈕、點外面收起） ================= */
+$$('.js-mbtn').forEach(root=>{
+  const btn=$('.mbtn',root), menu=$('[role=menu]',root), items=$$('[role=menuitem]',menu), out=$('#'+root.dataset.out);
+  let open=false; menu.tabIndex=-1;
+  function set(o){open=o;menu.classList.toggle('is-open',o);btn.setAttribute('aria-expanded',o);btn.setAttribute('aria-label',o?'關閉選單':'開啟選單')}
+  function show(i){set(true);(i==null?menu:(i<0?items[items.length-1]:items[i])).focus({preventScroll:true})}
+  function hide(f){if(!open)return;set(false);if(f)btn.focus({preventScroll:true})}
+  btn.addEventListener('click',e=>open?hide(true):show(e.detail===0?0:null));
+  btn.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();show(0)}else if(e.key==='ArrowUp'){e.preventDefault();show(-1)}});
+  root.addEventListener('keydown',e=>{
+    if(!open)return;
+    if(e.key==='Escape'){e.preventDefault();e.stopPropagation();hide(true);return}
+    if(!menu.contains(e.target))return;
+    const i=items.indexOf(document.activeElement); let j=null;
+    if(e.key==='ArrowDown')j=i<0?0:(i+1)%items.length; else if(e.key==='ArrowUp')j=i<0?items.length-1:(i-1+items.length)%items.length;
+    else if(e.key==='Home')j=0; else if(e.key==='End')j=items.length-1;
+    else if(e.key==='Tab'){e.preventDefault();hide(true);return}
+    if(j!==null){e.preventDefault();items[j].focus()}
+  });
+  items.forEach(it=>{
+    it.addEventListener('pointermove',()=>{if(document.activeElement!==it)it.focus({preventScroll:true})});
+    it.addEventListener('click',()=>{hide(true);out.innerHTML=`已選擇：<b>${esc(it.textContent.trim())}</b>（示範，不會換頁）`});
+  });
+  outside.push(e=>{if(open&&!root.contains(e.target))hide()});
+});
+
+/* M8 回首頁（示範不換頁） */
+$$('.js-blink').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();const o=$('#'+a.dataset.out);if(o)o.innerHTML='回首頁（示範）';}));
 /* ================= A 手風琴（grid-template-rows 0fr→1fr 平滑展開；結構參考 Radix Accordion，MIT，自行改寫） ================= */
 $$('.acc').forEach(acc=>{
   const multi=acc.hasAttribute('data-multi'), its=$$('.acc-i',acc);
