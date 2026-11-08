@@ -1,0 +1,15 @@
+{
+  "projectId": "tony-poker",
+  "siteId": "tony-poker",
+  "liveChannel": "live",
+  "approvalsDir": "deploy/approvals",
+  "releasesLog": "deploy/releases.md",
+  "auxiliaryContentChecks": [
+    {
+      "enabled": false,
+      "path": "/poker/js/ui/lobby.js",
+      "forbiddenSubstring": "同一支手機輪流玩",
+      "note": "Example old-UI guard. Auxiliary only — never the sole promote gate. Flip enabled to true when this string must not ship."
+    }
+  ]
+}
