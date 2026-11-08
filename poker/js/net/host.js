@@ -786,6 +786,8 @@ export function createHostLoop(fb, opts) {
     await batch.commit();
     lastWriteAt = Date.now();
     recordWrite();
+    // v1.0.5: top-up is a real asset change → refresh this seat's public total now (fire-and-forget).
+    void statsRuntime.syncChips?.({ seatUids: room.seatUids.map((u, i) => (i === seat ? u : null)), stacks });
     onLocalState?.(engine);
   }
 

@@ -90,6 +90,16 @@ test('C Rules public aggregate read matrix (demo-poker only)', async t => {
    await assertFails(fs.getDoc(fs.doc(db('host'), 'pokerStatsSeat', 'owner')));
    await assertSucceeds(fs.getDoc(fs.doc(db('owner'), 'pokerStatsSeat', 'owner')));
   });
+  await t.test('top-up: host refreshes total after room stack grows; stale total denied', async () => {
+   const ad = (uid) => createFirestoreStatsAdapter({ fs, db: db(uid) });
+   await env.withSecurityRulesDisabled(c => fs.updateDoc(fs.doc(c.firestore(), 'pokerRooms', 'r'), { stacks: [1000, 2500, 0, 0, 0, 0] }));
+   const d = db('host'); const b = fs.writeBatch(d);
+   b.set(fs.doc(d, 'pokerStatsSeat', 'owner'), { roomId: 'r', seat: 1, at: fs.serverTimestamp() });
+   b.update(fs.doc(d, 'pokerStatsPublic', 'owner'), { currentChipsTotal: 1800, chipsAt: fs.serverTimestamp() });
+   await assertFails(b.commit());
+   assert.equal(await ad('host').writeChips({ uid: 'owner', roomId: 'r', seat: 1, stack: 2500 }), 2800);
+   assert.equal((await fs.getDoc(pubRef(db('reader')))).data().currentChipsTotal, 2800);
+  });
   await t.test('cash-out: self clears mapping, total == bank; seated or wrong total denied', async () => {
    const ad = (uid) => createFirestoreStatsAdapter({ fs, db: db(uid) });
    await env.withSecurityRulesDisabled(c => fs.setDoc(fs.doc(c.firestore(), 'pokerPlayers', 'owner'), { bank: 300, tableRoomId: 'r' }));

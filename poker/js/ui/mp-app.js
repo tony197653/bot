@@ -777,14 +777,20 @@ function bindPersonalStatsEntry() {
  * Triggered from lobby paint only when bank changed (no polling, no repaint); failures leave status pending. */
 let chipsSyncKey = '';
 export let chipsSyncStatus = 'idle';
+const CHIPS_PENDING_KEY = (uid) => `pokerStats.chipsPending.v1:${uid}`;
+if (typeof window !== 'undefined') {
+  // Retry a failed cash-out sync on reconnect (event-driven, no polling).
+  window.addEventListener('online', () => { if (chipsSyncStatus === 'pending') { chipsSyncKey = ''; maybeSyncOwnChips(); } });
+}
 function maybeSyncOwnChips() {
   const fb = getFirebase(); const me = getUser();
   if (!fb || !me || !playerDoc || playerDoc.tableRoomId || !(STATS_ENABLED || qaStatsOpts())) return;
   const key = `${me.uid}:${playerDoc.bank}`;
   if (key === chipsSyncKey) return;
   chipsSyncKey = key; chipsSyncStatus = 'pending';
+  try { localStorage.setItem(CHIPS_PENDING_KEY(me.uid), '1'); } catch { /* optional */ }
   void createFirestoreStatsAdapter({ fs: fb.fs, db: fb.db }).writeChips({ uid: me.uid })
-    .then(() => { chipsSyncStatus = 'synced'; })
+    .then(() => { chipsSyncStatus = 'synced'; try { localStorage.removeItem(CHIPS_PENDING_KEY(me.uid)); } catch { /* optional */ } })
     .catch((e) => { chipsSyncStatus = 'pending'; console.warn('[stats] chips', e?.code || e); });
 }
 function openStatsFor(uid, name) {
@@ -802,7 +808,10 @@ function openStatsFor(uid, name) {
         return snap.exists() ? snap.data() : null;
       },
       chipsOf: (agg) => agg?.currentChipsTotal,
-      syncHint: () => (chipsSyncStatus === 'pending' ? '本裝置待送' : ''),
+      syncHint: () => {
+        let flag = null; try { flag = localStorage.getItem(CHIPS_PENDING_KEY(me.uid)); } catch { flag = null; }
+        return chipsSyncStatus === 'pending' || (flag && chipsSyncStatus !== 'synced') ? '本裝置待送' : '';
+      },
       onClose: () => {
         // Source table closed while viewing → safe lobby fallback with short note (spec §2.2).
         if (fromRoom && (!room || room.id !== fromRoom || room.status === 'closed') && !document.getElementById('mpCloseResult')?.offsetParent) {
