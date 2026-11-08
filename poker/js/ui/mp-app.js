@@ -3159,7 +3159,7 @@ function showCloseRoomConfirm(onOk) {
   }
   el.innerHTML = `
     <div class="mp-close-result-card">
-      <h2 id="mpCloseConfirmT">確定收桌？在座的人會結帳回帳戶。</h2>
+      <h2 id="mpCloseConfirmT">確定收桌？玩家將結帳回帳戶。</h2>
       <button type="button" class="mp-btn-primary" id="mpCloseConfirmOk">確認收桌</button>
       <button type="button" class="mp-btn-ghost" id="mpCloseConfirmCancel">取消</button>
     </div>`;
