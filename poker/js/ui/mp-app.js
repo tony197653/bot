@@ -1571,7 +1571,7 @@ export function mpExtendCode() {
 
 export async function mpCloseRoom() {
   if (!getFirebase() || !room) return;
-  const ok = await styledConfirm({ title: '確定收桌？在座的人會結帳回帳戶。', okText: '確認收桌' });
+  const ok = await styledConfirm({ title: '確定收桌？玩家將結帳回帳戶。', okText: '確認收桌' });
   const fb = getFirebase();
   if (!ok || !fb || !room) return;
   const id = room.id;

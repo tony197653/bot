@@ -2620,7 +2620,7 @@ $('#btnLobby').onclick = async () => {
     state.phase !== PHASE.HAND_OVER &&
     state.phase !== PHASE.SESSION_OVER
   ) {
-    if (!(await styledConfirm({ title: '確定要離開目前這手牌、回到大廳？', okText: '確認離開' }))) return;
+    if (!(await styledConfirm({ title: '確定要離開這手牌、回到大廳？', okText: '確認離開' }))) return;
     state = createInitialState({
       roomName: state.room.name,
       bigBlind: state.config.bigBlind,
