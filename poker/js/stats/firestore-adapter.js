@@ -16,6 +16,8 @@ export function createFirestoreStatsAdapter({ fs, db, assertAuthority = () => {}
       batch.set(fs.doc(db, 'pokerStats', data.uid, 'hands', data.handKey),
         { ...data.summary, settledAt: fs.serverTimestamp() });
       batch.set(fs.doc(db, 'pokerStats', data.uid), aggregate, { merge: true });
+      const { lastHandKey, ...publicAggregate } = aggregate; // Page projection only
+      batch.set(fs.doc(db, 'pokerStatsPublic', data.uid), publicAggregate, { merge: true });
       batch.set(receiptRef(data), { uid: data.uid, handKey: data.handKey });
       assertAuthority();
       await batch.commit();

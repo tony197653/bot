@@ -51,15 +51,17 @@ test('B capacity and quota failure preserve unsent entries, cleanup cannot silen
  disk.setItem = original; await q.dequeue('h','u','r'); assert.equal((await q.list()).length, 0);
  assert.ok(statuses.includes('統計尚未完整保存，牌局不受影響'));
 });
-test('B injected SDK: three writes in one batch, increments, server-only receipt read', async () => {
+test('B/C injected SDK: four writes in one batch (summary, private agg, public agg, receipt), increments, server-only receipt read', async () => {
  const writes = []; let committed = false;
  const fs = { doc: (_, ...parts) => parts.join('/'), serverTimestamp: () => 'SERVER', increment: n => ({ increment: n }),
  getDocFromServer: async ref => { assert.match(ref,/statsReceipts/); return { exists: () => false }; },
  writeBatch: () => ({ set: (...args) => writes.push(args), commit: async () => { committed = true; } }) };
  await createStatsSubmitter({ startedAt: 1, adapter: createFirestoreStatsAdapter({ fs, db: {} }) })(entry());
- assert.equal(writes.length, 3); assert.ok(committed);
+ assert.equal(writes.length, 4); assert.ok(committed);
  assert.deepEqual(writes[1][1].validHands, { increment: 1 });
- assert.deepEqual(writes[2][1], { uid: 'u', handKey: handKey('r','h') });
+ assert.match(writes[2][0], /^pokerStatsPublic\//); assert.equal('lastHandKey' in writes[2][1], false);
+ assert.deepEqual(writes[2][1].validHands, { increment: 1 });
+ assert.deepEqual(writes[3][1], { uid: 'u', handKey: handKey('r','h') });
 });
 test('B actual UTF-8 boundary payload measurement', () => {
  const rows = Array.from({ length: 6 }, (_, i) => {
