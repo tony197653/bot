@@ -57,6 +57,7 @@ export function createPreflopFlagTracker() {
     const type = action?.type;
     if (
       type !== 'FOLD' &&
+      type !== 'LEAVE_FOLD' &&
       type !== 'CHECK' &&
       type !== 'CALL' &&
       type !== 'BET_RAISE' &&
@@ -170,7 +171,7 @@ export function isFullRaise(prev, next, _seat) {
  */
 function resolveActionKind(prev, action, next, seat) {
   const type = action.type;
-  if (type === 'FOLD') return 'fold';
+  if (type === 'FOLD' || type === 'LEAVE_FOLD') return 'fold';
   if (type === 'CHECK') return 'check';
   if (type === 'CALL') return 'call';
   if (type === 'TIMEOUT') {

@@ -2947,8 +2947,97 @@ function leaveToLobby() {
   goLobbyClean();
 }
 
+function showSettlementNotice(id, message, done = false) {
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = id;
+    el.className = 'mp-close-result';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    document.body.appendChild(el);
+  }
+  el.replaceChildren();
+  const card = document.createElement('div');
+  card.className = 'mp-close-result-card';
+  const title = document.createElement('h2');
+  title.textContent = message;
+  card.appendChild(title);
+  if (done) {
+    const button = document.createElement('button');
+    button.className = 'mp-btn-primary';
+    button.textContent = '知道了';
+    button.addEventListener('click', () => el.remove());
+    card.appendChild(button);
+  }
+  el.appendChild(card);
+  el.hidden = false;
+}
+
+let stopLeaveSettlement = null;
+
+/** Watch deferred host cashout after a mid-hand guest exit, for at most 3 minutes. */
+function watchLeaveSettlement(fb, uid, leavingRoomId) {
+  stopLeaveSettlement?.();
+  const bankBefore = Number(playerDoc?.bank) || 0;
+  const sessionNo = playerDoc?.sessionNo;
+  showSettlementNotice('mpLeaveSettle', '結算中…這手已蓋牌，打完會把剩下的籌碼結帳');
+  let stopped = false;
+  let timer;
+  const stop = () => {
+    stopped = true;
+    clearTimeout(timer);
+    clearTimeout(expiry);
+    if (stopLeaveSettlement === stop) stopLeaveSettlement = null;
+  };
+  const expiry = setTimeout(stop, 3 * 60 * 1000);
+  stopLeaveSettlement = stop;
+  async function check() {
+    if (stopped) return;
+    if (getUser()?.uid !== uid) return stop();
+    try {
+      const player = await getPlayer(fb, uid);
+      if (stopped || getUser()?.uid !== uid) return stop();
+      if (player?.tableRoomId && player.tableRoomId !== leavingRoomId) return stop();
+      let settled = !!player && !player.tableRoomId;
+      if (!settled) {
+        const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', leavingRoomId));
+        if (stopped || getUser()?.uid !== uid) return stop();
+        if (!snap.exists() || snap.data()?.status === 'closed') {
+          await silentlySettleClosedBinding();
+          settled = true;
+        }
+      }
+      if (settled) {
+        const refreshed = await getPlayer(fb, uid);
+        if (stopped || getUser()?.uid !== uid) return stop();
+        if (!refreshed || refreshed.tableRoomId) {
+          if (!stopped) timer = setTimeout(check, 2000);
+          return;
+        }
+        let amount = (Number(refreshed.bank) || 0) - bankBefore;
+        if (sessionNo != null) {
+          const ledger = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerPlayers', uid,
+            'ledger', `${leavingRoomId}_${sessionNo}_cashout`));
+          if (ledger.exists()) amount = Number(ledger.data().amount);
+        }
+        if (stopped || getUser()?.uid !== uid) return stop();
+        showSettlementNotice('mpLeaveSettle', `已結算，你帶回 ${amount.toLocaleString('en-US')} 籌碼`, true);
+        playerDoc = refreshed || playerDoc;
+        stop();
+        if (screen === 'lobby') paint();
+        return;
+      }
+    } catch {
+      /* Retry transient read failures within the bounded window. */
+    }
+    if (!stopped) timer = setTimeout(check, 2000);
+  }
+  timer = setTimeout(check, 2000);
+}
+
 /**
- * Confirmed ‹ 大廳: host closes table (like 收桌); guest leaves+cashout (like 離座).
+ * Confirmed ‹ 大廳: host closes table; guest leaves, with cashout between hands.
  * Then clean lobby — no 我的牌桌 card.
  */
 async function confirmLeaveTable() {
@@ -2963,9 +3052,11 @@ async function confirmLeaveTable() {
   const isHost = room.hostUid === uid;
   try {
     if (isHost) {
-      await performHostCloseRoom({ showResultCard: false });
+      // Mid-hand: 結算中 → result card. Between hands: unchanged (clean lobby).
+      const hostMidHand = isHandInProgress();
+      await performHostCloseRoom({ showResultCard: hostMidHand });
       await syncAfterRoomClosed();
-      goLobbyClean();
+      if (!hostMidHand) goLobbyClean();
       return;
     }
     // Spectator: just leave the room shell
@@ -2975,7 +3066,14 @@ async function confirmLeaveTable() {
       return;
     }
     // Same path as 離座: LEAVE intent (mid-hand folds first; host cashout between hands)
+    const midHand = isHandInProgress();
+    const leavingRoomId = roomId;
     await requestLeave();
+    if (midHand) {
+      goLobbyClean();
+      watchLeaveSettlement(fb, uid, leavingRoomId);
+      return;
+    }
     // Wait until chips settled / bind cleared (host processes LEAVE)
     for (let i = 0; i < 80; i++) {
       try {
@@ -3158,12 +3256,15 @@ export function mpExtendCode() {
  */
 async function performHostCloseRoom(opts = {}) {
   closingFreeze = true;
+  showSettlementNotice('mpClosingNotice', '結算中…');
   try {
     return await performHostCloseRoomInner(opts);
   } catch (e) {
     closingFreeze = false;
     paintTableChrome();
     throw e;
+  } finally {
+    document.getElementById('mpClosingNotice')?.remove();
   }
 }
 
@@ -3181,18 +3282,15 @@ async function performHostCloseRoomInner({ showResultCard = true } = {}) {
         : 0;
   pendingCloseReturnChips = chips;
   if (room.hostUid === uid && hostLoop?.cashoutSeat) {
+    await hostLoop.prepareClose();
     const seats = [...(room.seatUids || [])];
-    const stacks = [...(room.stacks || [])];
+    const stacks = hostLoop.getEngine().seats.map((p) => p?.chips || 0);
     for (let i = 0; i < seats.length; i++) {
       const u = seats[i];
       if (!u) continue;
       const amt = Number(stacks[i]) || 0;
-      try {
-        await hostLoop.cashoutSeat(i, u);
-        if (u === uid) chips = amt;
-      } catch (e) {
-        console.warn('close cashout seat', i, e);
-      }
+      if (!await hostLoop.cashoutSeat(i, u)) throw new Error('結算尚未同步，請重試收桌');
+      if (u === uid) chips = amt;
     }
   }
   pendingCloseReturnChips = chips;
@@ -3261,11 +3359,7 @@ function doCloseRoom() {
     btn.disabled = true;
     btn.textContent = '收桌中…';
   }
-  const uid0 = getUser()?.uid;
-  const seat0 = room.seatUids?.indexOf(uid0) ?? -1;
-  const est = seat0 >= 0 ? Number(room.stacks?.[seat0]) || 0 : 0;
-  // 0.2 秒內回饋：結果卡先出來，寫入在背景完成
-  showCloseResultCard({ chips: est, auto: false });
+  // performHostCloseRoom synchronously shows the pending settlement card.
   closeInFlight = performHostCloseRoom({ showResultCard: true });
   void (async () => {
     try {

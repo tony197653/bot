@@ -115,6 +115,7 @@ export function createInitialState(opts = {}) {
  * @property {{r:number,s:number}[]|null} hole
  * @property {number} bet
  * @property {number} contributed
+ * @property {boolean} leftHand
  * @property {boolean} folded
  * @property {boolean} allIn
  * @property {string|null} lastAction
@@ -150,6 +151,8 @@ export function applyAction(state, action, env = {}) {
       return startHand(s, env);
     case 'FOLD':
       return doPlayerAction(s, action.seat, 'fold', 0, now, env);
+    case 'LEAVE_FOLD':
+      return doLeaveFold(s, action.seat, now, env);
     case 'CHECK':
       return doPlayerAction(s, action.seat, 'check', 0, now, env);
     case 'CALL':
@@ -282,6 +285,7 @@ function startHand(s, env) {
     p.hole = null;
     p.bet = 0;
     p.contributed = 0;
+    p.leftHand = false;
     p.folded = false;
     p.allIn = false;
     p.lastAction = null;
@@ -536,6 +540,23 @@ function applyRaiseTo(s, seat, raiseTo, env, isAllInBtn) {
   }
 
   return afterAction(s, env);
+}
+
+function doLeaveFold(s, seat, now, env) {
+  assertInHand(s);
+  const p = s.seats[seat];
+  if (!p || p.sittingOut || !p.hole) throw err('無法行動');
+  if (p.allIn) return s;
+  p.leftHand = true;
+  if (p.folded) return s;
+  if (s.actor === seat) return doPlayerAction(s, seat, 'fold', 0, now, env);
+  p.folded = true;
+  p.lastAction = '蓋牌';
+  pushLog(s, 'action', `${p.name} 蓋牌`);
+  rebuildPots(s);
+  const contenders = livePlayers(s).filter((player) => !player.folded);
+  if (contenders.length === 1) return awardUncontested(s, contenders[0].seat);
+  return s;
 }
 
 function doTimeout(s, seat, now, env) {
@@ -1004,19 +1025,25 @@ function doSetAway(s, action) {
 }
 
 /**
- * Void current hand: restore per-seat chips from stacks snapshot, clear pot/board,
+ * Void current hand: refund hand-start stacks, sharing left-folded commitments
+ * among remaining seated players, then clear pot/board,
  * phase → HAND_OVER, button does NOT advance; handNumber still +1 for reshuffle. §6.8
  * @param {object} action { stacks: number[6] }
  */
 function doVoidHand(s, action) {
   const stacks = action.stacks;
   if (!Array.isArray(stacks) || stacks.length !== 6) throw err('stacks 無效');
+  const remaining = s.seats.filter((p) => p && !p.leftHand).map((p) => p.seat);
+  const forfeited = s.seats.reduce((sum, p) => sum + (p?.leftHand ? p.contributed : 0), 0);
+  if (forfeited > 0 && remaining.length === 0) throw err('無在座玩家可分配籌碼');
+  const payouts = splitPot(forfeited, remaining, s.button, s.seats.length);
   for (let i = 0; i < 6; i++) {
     const n = stacks[i];
     if (!Number.isInteger(n) || n < 0) throw err('stacks 無效');
     const p = s.seats[i];
     if (p) {
-      p.chips = n;
+      p.chips = n - (p.leftHand ? p.contributed : 0) + (payouts.get(i) || 0);
+      p.leftHand = false;
       p.bet = 0;
       p.contributed = 0;
       p.folded = false;

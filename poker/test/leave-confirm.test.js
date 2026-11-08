@@ -50,7 +50,7 @@ describe('‹ 大廳 leave confirm（source contracts）', () => {
       app.indexOf('async function confirmLeaveTable') + 2200,
     );
     assert.match(fn, /performHostCloseRoom/);
-    assert.match(fn, /showResultCard:\s*false/);
+    assert.match(fn, /showResultCard: hostMidHand/);
     assert.match(fn, /requestLeave/);
     assert.match(fn, /goLobbyClean/);
     assert.match(fn, /lobbyExitSuppressMine\s*=\s*true/);
@@ -89,8 +89,10 @@ describe('‹ 大廳 leave confirm（source contracts）', () => {
       app.indexOf('async function confirmLeaveTable'),
       app.indexOf('function tearDownRoom'),
     );
-    assert.doesNotMatch(fn, /isHandInProgress|toastLeaveAfterHand|mpLeaveConfirm/);
-    assert.match(fn, /if \(isHost\)\s*\{\s*await performHostCloseRoom\(\{ showResultCard: false \}\)/);
+    assert.doesNotMatch(fn, /toastLeaveAfterHand|mpLeaveConfirm/);
+    assert.match(fn, /const midHand = isHandInProgress\(\)/);
+    assert.match(fn, /if \(midHand\)\s*\{\s*goLobbyClean\(\);\s*watchLeaveSettlement\(fb, uid, leavingRoomId\);\s*return;/);
+    assert.match(fn, /if \(isHost\)\s*\{[\s\S]{0,160}const hostMidHand = isHandInProgress\(\);\s*await performHostCloseRoom\(\{ showResultCard: hostMidHand \}\)/);
     assert.match(fn, /await requestLeave\(\)/);
     assert.match(fn, /goLobbyClean\(\)/);
   });
