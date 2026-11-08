@@ -2644,6 +2644,29 @@ $('#btnSummaryClose').onclick = () => {
   }
 };
 
+/** Styled confirm for solo 大廳 (same component as 「是否離開牌局？」); replaces the browser-native dialog. */
+function showSoloLobbyConfirm(onOk) {
+  let el = document.getElementById('soloLobbyConfirm');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'soloLobbyConfirm';
+    el.className = 'mp-close-result';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'soloLobbyConfirmT');
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `
+    <div class="mp-close-result-card">
+      <h2 id="soloLobbyConfirmT">確定要離開這手牌、回到大廳？</h2>
+      <button type="button" class="mp-btn-primary" id="soloLobbyConfirmOk">確認離開</button>
+      <button type="button" class="mp-btn-ghost" id="soloLobbyConfirmCancel">取消</button>
+    </div>`;
+  el.hidden = false;
+  el.querySelector('#soloLobbyConfirmCancel').addEventListener('click', () => { el.hidden = true; });
+  el.querySelector('#soloLobbyConfirmOk').addEventListener('click', () => { el.hidden = true; onOk(); });
+}
+
 $('#btnLobby').onclick = () => {
   closeMenu();
   if (
@@ -2651,13 +2674,16 @@ $('#btnLobby').onclick = () => {
     state.phase !== PHASE.HAND_OVER &&
     state.phase !== PHASE.SESSION_OVER
   ) {
-    if (!confirm('確定要離開目前這手牌、回到大廳？')) return;
-    state = createInitialState({
-      roomName: state.room.name,
-      bigBlind: state.config.bigBlind,
-      startingStack: state.config.startingStack,
-      timerEnabled: false,
+    showSoloLobbyConfirm(() => {
+      state = createInitialState({
+        roomName: state.room.name,
+        bigBlind: state.config.bigBlind,
+        startingStack: state.config.startingStack,
+        timerEnabled: false,
+      });
+      openLobby();
     });
+    return;
   }
   openLobby();
 };

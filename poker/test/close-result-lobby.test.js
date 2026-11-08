@@ -465,6 +465,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
         document.getElementById('btnMenu')?.click();
         document.getElementById('mpBtnCloseRoom')?.click();
       });
+      await page.click('#mpCloseConfirmOk');
       await page.waitForSelector('#mpCloseResult', { timeout: 20000 });
       const dialogText = await page.innerText('#mpCloseResult');
       assert.match(

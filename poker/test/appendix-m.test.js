@@ -145,7 +145,7 @@ describe('附錄 M5 — M29～M34 契約', () => {
     const app = read('js/ui/mp-app.js');
     assert.match(app, /showCloseResultCard/);
     assert.doesNotMatch(
-      app.slice(app.indexOf('export function mpCloseRoom'), app.indexOf('export function mpCloseRoom') + 900),
+      app.slice(app.indexOf('export function mpCloseRoom'), app.indexOf('function doCloseRoom') + 1400),
       /leaveToLobby\(\)/,
     );
     assert.match(app, /mpCloseLobby/);
