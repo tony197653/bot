@@ -95,7 +95,7 @@ function harness(fb) {
       playerName: () => 'Host', curStatus: () => 'lobby',
       syncLobbyListingDoc: async (r, lobby, status) => roomNet.upsertLobbyListing(fb, opts.roomId, roomNet.buildLobbyListing(r, lobby, status)),
     });
-    vm.runInContext(section(host, '  async function refreshLobbySummary(', '\n  function curStatus(') + section(host, '  function seatPlayer(', '\n  async function cashoutSeat('), hostCtx);
+    vm.runInContext(section(host, '  let lobbyHostUid =', '\n  function ensureEngine(') + section(host, '  async function refreshLobbySummary(', '\n  function curStatus(') + section(host, '  function seatPlayer(', '\n  async function cashoutSeat('), hostCtx);
     return { start: noop, seatPlayer: async (...args) => { await hostCtx.seatPlayer(...args); ctx.seatedAtRoundTrips = fb.calls.length; } };
   };
   vm.runInContext(section(app, 'async function onCreateTable()', '\nasync function doJoin(') + section(app, 'async function enterRoom(', '\nfunction paintTableChrome('), ctx);

@@ -1660,7 +1660,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
     } else {
       presence.beatNow?.();
     }
-    if (!intents) intents = createIntentSender(fb, id, user.uid);
+    if (!intents) intents = createIntentSender(fb, id, user.uid, () => screen === 'table' && roomId === id);
     screen = 'table';
     paint();
     return;
@@ -1791,7 +1791,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
           getRoom: () => room,
           lastRoomWriteAt: () => hostLoop?.lastRoomWriteAt?.() || 0,
         });
-        intents = createIntentSender(fb, id, user.uid);
+        intents = createIntentSender(fb, id, user.uid, () => screen === 'table' && roomId === id);
         stopHole = listenHole(fb, id, user.uid, (h) => {
           myHole = h;
           paintTableChrome();
@@ -2286,8 +2286,10 @@ function renderActBar() {
           handNo: (Number(pub.handNo) || 0) | 0,
           turn: (Number(pub.actionSeq) || 0) | 0,
         };
+        const sentRoomId = roomId;
         intents?.send(payload, {
           onFail: () => {
+            if (screen !== 'table' || roomId !== sentRoomId) return;
             toast('沒送到，再按一次');
             paintTableChrome();
           },
@@ -2355,13 +2357,17 @@ function renderActBar() {
       turn: (Number(pub.actionSeq) || 0) | 0,
     };
     if (amount != null) payload.amount = Math.floor(Number(amount));
+    const sentRoomId = roomId;
     // Host applies locally; still write intent for audit / takeover handoff
     if (isHost) {
       hostLoop?.hostAction({ type, amount: payload.amount, seat: mySeat });
     }
     intents?.send(payload, {
-      onPending: () => toast('送出中…'),
+      onPending: () => {
+        if (screen === 'table' && roomId === sentRoomId) toast('送出中…');
+      },
       onFail: () => {
+        if (screen !== 'table' || roomId !== sentRoomId) return;
         if (!isHost) {
           toast('沒送到，再按一次');
           paintTableChrome();
@@ -3158,6 +3164,7 @@ function tearDownRoom() {
   presence = null;
   hostLoop?.stop();
   hostLoop = null;
+  intents?.clearResend();
   intents = null;
   animQ?.clear();
   animQ = null;

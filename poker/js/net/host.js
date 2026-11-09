@@ -150,6 +150,19 @@ export function createHostLoop(fb, opts) {
     return n || fallback || uid.slice(0, 8);
   }
 
+  // lobby 摘要不允許 hostUid；用既有公開列表確認名稱／照片的擁有者。
+  let lobbyHostUid = null;
+  function lobbyHostProfile(room) {
+    const hostUid = room.hostUid;
+    const seat = room.seatUids.indexOf(hostUid);
+    const seatName = [engine?.seats?.[seat]?.name, room.pub?.seats?.[seat]?.name]
+      .find(name => name && name !== hostUid && name !== hostUid.slice(0, 8));
+    return {
+      hostName: playerName(hostUid, seatName),
+      hostPhoto: lobbyHostUid === hostUid ? room.lobby?.hostPhoto || '' : '',
+    };
+  }
+
   function ensureEngine(room) {
     if (engine) return engine;
     engine = createInitialState({
@@ -304,8 +317,7 @@ export function createHostLoop(fb, opts) {
       const lobby = buildLobbySummary(
         { ...latest, name: latest.name, config: latest.config, seatUids: latest.seatUids },
         {
-          hostName: playerName(latest.hostUid, latest.lobby?.hostName),
-          hostPhoto: latest.lobby?.hostPhoto || '',
+          ...lobbyHostProfile(latest),
         },
       );
       const patch = {
@@ -323,6 +335,7 @@ export function createHostLoop(fb, opts) {
       };
 
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), patch);
+      lobbyHostUid = latest.hostUid;
       lastWriteAt = Date.now();
       recordWrite();
       if (engine.phase === PHASE.HAND_OVER && engine.handNumber !== lastChipsHandNo) lastChipsHandNo = engine.handNumber, void statsRuntime.syncChips?.({ seatUids: patch.seatUids, stacks: patch.stacks });
@@ -364,9 +377,7 @@ export function createHostLoop(fb, opts) {
     const lobby = buildLobbySummary(
       { ...latest, seatUids, hostUid },
       {
-        hostName: playerName(hostUid, latest.lobby?.hostName),
-        hostPhoto:
-          hostUid === latest.hostUid ? latest.lobby?.hostPhoto || '' : '',
+        ...lobbyHostProfile({ ...latest, seatUids, hostUid }),
       },
     );
     const listStatus = roomLike?.status || curStatus(latest) || 'lobby';
@@ -377,6 +388,7 @@ export function createHostLoop(fb, opts) {
         lobby,
         status: listStatus,
       });
+      lobbyHostUid = hostUid;
       lastWriteAt = Date.now();
       recordWrite();
       await syncLobbyListingDoc(
@@ -1060,9 +1072,24 @@ export function createHostLoop(fb, opts) {
     ensureEngine(room);
     statsRuntime.start();
     // 帳務批次不能改 lobby；交棒後由現任房主透過既有非帳務寫入補齊摘要與列表。
-    if (room?.lobby && room.lobby.seated !== room.seatUids.filter(Boolean).length) {
-      writeChain = writeChain.then(() => {
-        if (running && getRoom()?.status !== 'closed') return refreshLobbySummary();
+    if (room?.lobby) {
+      writeChain = writeChain.then(async () => {
+        // 舊摘要沒有身分欄位；接管時即使人數相同也需核對列表房主。
+        let listedHostName;
+        try {
+          const listing = await fs.getDoc(fs.doc(db, 'pokerLobby', roomId));
+          const data = listing.exists() ? listing.data() : null;
+          lobbyHostUid = data?.hostUid;
+          listedHostName = data?.hostName;
+        } catch { lobbyHostUid = null; }
+        const latest = getRoom();
+        if (!running || !latest || latest.status === 'closed') return;
+        const profile = lobbyHostProfile(latest);
+        if (lobbyHostUid !== latest.hostUid || listedHostName !== profile.hostName ||
+            latest.lobby?.seated !== latest.seatUids.filter(Boolean).length ||
+            latest.lobby?.hostName !== profile.hostName) {
+          return refreshLobbySummary();
+        }
       });
     }
 
