@@ -748,7 +748,7 @@ export async function startMpApp() {
       } else {
         playerDoc = readCachedPlayer(ev.user.uid);
       }
-      // Resolve closed bindings before the first lobby paint can auto-resume.
+      // Resolve closed bindings before the first lobby paint.
       if (playerDoc?.tableRoomId || playerDoc?.hostRoomId) {
         await silentlySettleClosedBinding();
       }
@@ -980,17 +980,7 @@ function paint() {
         : playerDoc?.hostRoomId && !rescueOk
           ? playerDoc.hostRoomId
           : null;
-    // Auto-resume after refresh only (not after intentional 回大廳／收桌結果)
-    if (
-      continueId &&
-      playerDoc?.tableRoomId === continueId &&
-      !rescueOk &&
-      !autoResumeTried
-    ) {
-      autoResumeTried = true;
-      enterRoom(continueId);
-      return;
-    }
+    // Stay in the lobby after load/sign-in; enter only through 我的牌桌／繼續.
     // Soft-leave live close still comes from listenRoom → silentlySettle + paint.
     // This getDoc path is only for lobby-entry / bind change / ~30s idle-close.
     if (lobbyIdleCheckNeeded() && !lobbyIdleCheckInflight) {

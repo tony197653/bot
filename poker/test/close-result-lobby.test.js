@@ -54,6 +54,20 @@ function read(rel) {
 }
 
 describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
+  it('載入／登入先留在大廳；保留綁定牌桌與手動繼續入口', () => {
+    const app = read('js/ui/mp-app.js');
+    const paintStart = app.indexOf('function paint()');
+    const lobbyStart = app.indexOf("if (screen === 'lobby') {", paintStart);
+    const lobbyEnd = app.indexOf("if (screen === 'create') {", lobbyStart);
+    assert.ok(paintStart >= 0 && lobbyStart > paintStart && lobbyEnd > lobbyStart);
+    const lobby = app.slice(lobbyStart, lobbyEnd);
+    assert.doesNotMatch(lobby, /enterRoom\(\s*continueId\s*\)/);
+    assert.doesNotMatch(lobby, /!autoResumeTried/);
+    assert.match(lobby, /const continueId =[\s\S]*playerDoc\?\.tableRoomId[\s\S]*playerDoc\?\.hostRoomId/);
+    assert.match(lobby, /const myTable =[\s\S]*roomId: continueId/);
+    assert.match(lobby, /onContinue:\s*\(\) => myTable && enterRoom\(myTable\.roomId\)/);
+  });
+
   it('回大廳／看戰績 走 dismiss helpers；不得再把 autoResumeTried 清成 false', () => {
     const app = read('js/ui/mp-app.js');
     assert.match(app, /async function dismissCloseResultToLobby/);
