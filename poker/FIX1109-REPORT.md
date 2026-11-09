@@ -157,3 +157,34 @@ A/B/C/D：**1／4／2／10**（0ms 與 2ms 注入延遲皆相同）。A 為開�
 本輪修改：`poker/js/net/room.js`、`poker/test/ui-response.test.js`、`poker/test/open-speed.test.js`、`poker/firebase/fix1109.rules.test.mjs`、本報告。
 
 回歸範圍 M：已執行指定全套單元及受影響開桌／加入／選位／入座／收桌單元；未做桌機／手機手動端到端，未自行驗收。Preview URL：無。既有 24h 到期風險仍在：若開放桌無 listing 且其房間無法讀取，過期鎖可由規則允許回收；固定碼是本用戶端的交易協調，不是 Rules 對所有舊用戶端施加全站唯一限制。剩餘為 PM／QA 本機 emulator 與手動端到端驗證，估 15–25 分鐘；本輪程式與指定測試更新已完成。
+
+## 第五輪：iPhone 回報四項
+
+本輪依宗良回報與使用者明確授權，於 `pm/fix-1109-trial`（基底 `0a3b8a9`）僅做本機修改；未 commit、push、部署、安裝依賴或修改 Rules／憑證，未使用外部網路。`PROD-EVIDENCE-930.md`、`test/_reg1109.local.mjs` 均未修改。
+
+### 1. 大廳本人頭像與個人紀錄
+
+- 已核對實際路徑：`renderMpLobby()` 的唯一可見 `.mp-av[data-act="avatar"]` → `wire()` 對該 button 註冊 click → `avatar: onAvatar` → `mp-app.js` 傳入 `onAvatar: openStats`。名稱及傳參正確；不是漏接 handler。`wire()` 是逐元素 click 綁定，只有進桌清單另外使用事件委派。
+- 可由原碼與測試確認的根因：`openStats()` 先把狀態設成 stats，卻等 `loadStats()` 的 Firestore 查詢結束才 `paint()`；查詢未返回時，畫面仍是大廳，點擊看起來無效。另外 `ensureOpenTablesListen()` 每筆快照都整頁 `paint()`，重建包含頭像的 DOM；若發生在手機按下與 click 之間，原點擊節點會被替換。現在進入 stats 立即繪製，資料回來僅在仍是 stats 時更新；一般清單快照改用既有 `patchOpenTables()`，保留頭像節點。單桌由無到有／有到無仍完整更新，以同步既有開桌入口。
+- `openStats()` 無 early return；清單快照本來就有 `screen !== 'lobby'` 保護，沒有把 stats 設回 lobby。已驗證點擊後接快照及實際 `paint()` 仍維持 stats。沒有把此問題誤改成 `openStatsFor()`：前者是「個人紀錄」，後者是「我的戰績」浮層。他人頭像開對方浮層的既有行為保留。
+- 原碼檢查：頭像在 header grid 第一欄、選單按鈕在第五欄；選單預設 hidden 且 visibility:hidden，未找到重複主頭像、覆蓋頭像的定位規則、或吞掉該頭像 click 的 touch/preventDefault handler。這些是原碼檢查，未在 owner 的 iPhone Safari 上量測 hit-test，也沒有該次實機事件 trace；不宣稱已證實那一次實機點擊的確切時序。
+
+### 2–4. 分享頁與牌桌選單
+
+- 分享頁移除大房號框與「或在大廳輸入房號。房號 24 小時有效。」；保留既有「點連結加入」、分享／複製連結與進桌操作，無新增文案。
+- 牌桌選單移除「延長房號 24 小時」、「複製房號連結」，連同 `mpExtendCode`、兩個 click handler 與不再使用的 import 一併移除。
+- 房主沿用 presence 既有計時器，進桌立即檢查，之後最多每分鐘讀取一次房號效期；距到期不足 12 小時時，使用既有 `extendCode()` 更新至目前時間加 24 小時。檢查目前房主身分、房間仍開放、code 指向同一房間；讀寫失敗不打斷牌局，下次檢查再試。沒有新增 UI 或計時器，沒有修改 Rules。
+- `createSingleTable()` 既有交易外房間檢查已不受 code 效期影響：即使 000 過期，只要鎖指向房間仍開放就加入，不回收。本輪新增執行測試固定此契約，未改動已正確的建立流程。
+- 剩餘風險：房主缺席、裝置休眠／背景被 Safari 暫停、離線或續期寫入遭拒超過 24 小時，無法由房主客戶端保證續期。此時房號連結可能判定過期；本版開桌流程仍會加入開放中的鎖，但既有 Rules 允許回收過期碼，其他舊版客戶端仍有覆寫風險。
+
+### 檔案與實際驗證
+
+修改 `js/ui/lobby.js`、`js/ui/mp-app.js`、`js/net/presence.js`、本報告；新增 `test/fix1109-round5.test.js`。未新增回歸腳本；依本輪明確要求新增既有 node:test 格式測試。
+
+- `cd poker && node --test --test-isolation=none test/fix1109-round5.test.js`：4/4 通過。涵蓋實際 renderer 產生的主頭像及實際 click handler、網路未返回立即繪製、後續快照／paint 維持 stats、刪除 UI／文字、房主進桌及週期續期／非房主／收桌不續期、過期但開放的 000 鎖加入而不建立。
+- `cd poker && node --test --test-isolation=none test/*.test.js`：292 項，286 通過、6 失敗；6 項全部為 `listen EPERM: operation not permitted 127.0.0.1`（收桌瀏覽器 4 項、大廳 idle 瀏覽器 1 項、raise-confirm 1 項）。無程式斷言失敗。日誌 `/tmp/fix1109-round5-tests.log`。
+- `cd poker && env -u FIRESTORE_EMULATOR_HOST node --test --test-isolation=none test/*.test.js`：287 項，286 通過、1 失敗；剩 raise-confirm 的相同 `listen EPERM`。日誌 `/tmp/fix1109-round5-noemu.log`。
+- `cd poker && env -u FIRESTORE_EMULATOR_HOST node --test --test-isolation=none --test-skip-pattern='solo: 點確認加注後引擎收到 BET_RAISE' test/*.test.js`：可執行範圍 286 通過、0 失敗，略過沙箱不能執行的 raise-confirm 案；emulator 瀏覽器群組未執行。日誌 `/tmp/fix1109-round5-available.log`。不將排除環境阻擋後的結果宣稱為完整全綠。
+- `git diff --check`：通過。`git diff -- poker/firebase/firestore.rules`：空白。
+
+回歸範圍：以 M 級受影響區域（大廳入口、個人紀錄、他人戰績入口、分享、牌桌選單、presence、單桌建立／加入）執行既有全套可用單元測試；未完成 iPhone Safari 手動端到端、瀏覽器／emulator 與 Rules 驗證，不代表 QA 驗收。未建立 preview URL。待 PM／owner 於既有 preview 複驗四項與他人頭像；本輪沒有自行審核或核准上線。
