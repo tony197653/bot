@@ -308,9 +308,10 @@ describe('hostCloseAllBatch', () => {
       assert.equal(night.data.hands, 5); assert.equal(night.data.name, '玩家甲');
     }
   });
-  it('略過已無綁定玩家的帳務寫入', async () => {
-    const f = await fixture(4, { skip: true }); await f.pending;
-    assert.equal(f.writes.length, 1); assert.equal(f.commits(), 1);
+  it('仍佔座但帳戶無綁定：禁止漏寫 Rules 必要帳本', async () => {
+    const f = await fixture(4, { skip: true });
+    await assert.rejects(f.pending, /玩家帳戶與座位帳不同步/);
+    assert.equal(f.commits(), 0);
   });
   it('已關桌重試不讀取也不提交', async () => {
     const f = await fixture(0, { room: { status: 'closed' } });

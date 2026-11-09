@@ -233,7 +233,7 @@ function openRowLabel(t, seated, full) {
   const host = rowHostName(t);
   const blinds = rowBlinds(t);
   const code = formatCode(t.code || '');
-  return `${name}，房主 ${host}，盲注 ${blinds}，${seated} / 6 人，房號 ${code}${full ? '，已滿，可觀戰' : ''}`;
+  return `${name}，房主 ${host}，盲注 ${blinds}，${seated} / 6 人，房號 ${code}${full ? '，已滿' : ''}`;
 }
 
 function hostAvHtml(hostName, hostPhoto) {
@@ -261,16 +261,16 @@ export function openRowHtml(t) {
   const code = formatCode(t.code || '');
   return `<li>
     <button type="button" class="mp-row${full ? ' full' : ''}" data-act="open-table" data-rid="${esc(t.id)}"
-      aria-label="${esc(openRowLabel(t, seated, full))}">
+      ${full ? 'disabled' : ''} aria-label="${esc(openRowLabel(t, seated, full))}">
       ${hostAvHtml(hostName, rowHostPhoto(t))}
       <span class="mp-txt" aria-hidden="true">
-        <span class="mp-l1"><b>${esc(name)}</b><span class="mp-tag">已滿，可觀戰</span></span>
+        <span class="mp-l1"><b>${esc(name)}</b><span class="mp-tag">已滿</span></span>
         <em>${esc(hostName)} 開桌 · 房號 ${esc(code)}</em>
       </span>
       <span class="mp-row-side" aria-hidden="true">
         <span class="mp-blinds"><small>盲注</small>${esc(blinds)}</span>
         <span class="mp-seats"><span class="mp-pips">${pipsHtml(seated)}</span><span class="mp-n">${esc(seated)}/6</span></span>
-        <span class="mp-go">${full ? '觀戰' : '加入'}${CHEV_SVG}</span>
+        <span class="mp-go">${full ? '已滿' : '加入'}${CHEV_SVG}</span>
       </span>
     </button>
   </li>`;
@@ -284,6 +284,7 @@ function patchOneOpenRow(row, t) {
   const name = rowName(t);
   const code = formatCode(t.code || '');
   row.classList.toggle('full', full);
+  row.disabled = full;
   row.setAttribute('aria-label', openRowLabel(t, seated, full));
   const bName = row.querySelector('.mp-l1 b');
   if (bName && bName.textContent !== name) bName.textContent = name;
@@ -296,7 +297,7 @@ function patchOneOpenRow(row, t) {
   }
   const go = row.querySelector('.mp-go');
   if (go) {
-    const label = full ? '觀戰' : '加入';
+    const label = full ? '已滿' : '加入';
     if (!go.textContent.startsWith(label)) {
       go.innerHTML = `${label}${CHEV_SVG}`;
     }

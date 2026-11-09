@@ -245,7 +245,6 @@ export async function hostCloseAllBatch(fb, { hostUid, roomId, room, displayName
     const [pSnap, nSnap] = await Promise.all([fs.getDoc(pref), fs.getDoc(nref)]);
     const p = pSnap.data();
     if (!p) throw new Error('玩家帳戶缺失');
-    if (p.tableRoomId == null) return null;
     if (p.tableRoomId !== roomId || p.sessionNo !== sessRow.sessionNo) {
       throw new Error('玩家帳戶與座位帳不同步');
     }

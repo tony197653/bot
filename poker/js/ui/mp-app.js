@@ -1411,6 +1411,7 @@ async function onCreateTable() {
   const user = getUser();
   const hid = playerDoc?.hostRoomId;
   if (hid && fb && user) {
+    toast('正在確認牌桌…');
     try {
       const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', hid));
       if (snap.exists() && isRoomOpenStatus(snap.data()?.status)) {
@@ -1492,12 +1493,13 @@ async function doCreate(data) {
     }
     shareInfo = res;
     createDraft = { name: '', sb: 10, chips: DEFAULT_NEW_PLAYER_CHIPS };
-    // createRoom writes hostRoomId in the same txn; refresh local player doc
-    try {
-      playerDoc = await getPlayer(fb, user.uid);
-    } catch (e) {
-      console.warn('hostRoomId refresh', e);
-    }
+    // 分享畫面不等待帳戶重讀；已有的本機帳戶先同步已提交的指標。
+    if (playerDoc) playerDoc = { ...playerDoc, hostRoomId: res.roomId };
+    else void getPlayer(fb, user.uid).then((p) => {
+      if (getUser()?.uid !== user.uid) return;
+      playerDoc = p;
+      if (screen === 'lobby') paint();
+    }).catch((e) => console.warn('hostRoomId refresh', e));
     screen = 'share';
   } catch (e) {
     console.error(e);
@@ -1639,6 +1641,8 @@ async function enterRoom(id, { asHostSit = false } = {}) {
   lastKnownSelfTableChips = 0;
   lobbyClosedSynced.delete(id);
 
+  paintEnterShell(getLastRoom()?.name);
+
   // Ensure membership: try read; on permission-denied, need code path from lastRoom / URL
   try {
     await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', id));
@@ -1722,8 +1726,15 @@ async function enterRoom(id, { asHostSit = false } = {}) {
         return;
       }
 
+      if (!r.seatUids.includes(user.uid) && r.seatUids.filter(Boolean).length >= 6) {
+        goLobbyClean();
+        toast('這桌已滿，請選其他牌桌');
+        return;
+      }
       // First visit: grant + optional host sit
       if (first) {
+        hostSitPending = asHostSit && r.hostUid === user.uid && !r.seatUids.includes(user.uid);
+        paintTableChrome();
         try {
           const g = await ensurePlayerGrant(
             fb,
@@ -1735,7 +1746,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
           if (g.created) {
             toast(`第一次來，送你 ${r.config.newPlayerChips.toLocaleString('en-US')} 籌碼`);
           }
-          playerDoc = await getPlayer(fb, user.uid);
+          playerDoc = g.player;
         } catch (e) {
           console.warn('grant', e);
         }
@@ -1929,11 +1940,9 @@ function paintTableChrome() {
   if (title) title.textContent = room.name || '週五牌局';
   const meta = $('#roomMeta');
   if (meta) {
-    const spec = room.seatUids.filter((u) => u).length;
-    const watch = Math.max(0, (room.members?.length || 0) - spec);
     const selfSeat = room.seatUids.indexOf(user?.uid);
     const buyin = buyinLabel(playerDoc, roomId, selfSeat >= 0 ? room.sess?.[selfSeat] : null);
-    meta.innerHTML = `<span class="meta-a"><b>${esc(room.config.sb)}／${esc(room.config.bb)}</b>　${esc(buyin)}</span><span class="meta-b">　房號 ${esc(formatCode(room.code))}　觀戰 ${esc(watch)}</span>`;
+    meta.innerHTML = `<span class="meta-a"><b>${esc(room.config.sb)}／${esc(room.config.bb)}</b>　${esc(buyin)}</span><span class="meta-b">　房號 ${esc(formatCode(room.code))}</span>`;
   }
 
   // Empty seats / sit affordance via seats container overlay labels
@@ -2060,7 +2069,7 @@ function renderSeatOverlays() {
     }
   }
 
-  // Empty-seat hit targets on the felt (spectators only — no duplicate bottom strip)
+  // Empty-seat hit targets on the felt (unseated players only)
   if (mySeat < 0 && !hostSitPending) {
     for (let i = 0; i < 6; i++) {
       if (room.seatUids[i]) continue;
@@ -2125,7 +2134,7 @@ function renderSeatOverlays() {
       if (heroChips) heroChips.textContent = fmtChips(Number(playerDoc?.bank) || 0);
       if (heroAv) heroAv.innerHTML = `<span>${esc(name.slice(0, 1))}</span>`;
     } else {
-      if (heroName) heroName.textContent = '觀戰';
+      if (heroName) heroName.textContent = '請選位子';
       if (heroChips) heroChips.textContent = '';
     }
     if (heroHole) heroHole.innerHTML = '';
@@ -2297,7 +2306,7 @@ function renderActBar() {
   }
   if (mySeat < 0) {
     // PL: soft leave via top 「‹ 大廳」only — no bottom 回大廳
-    btns.innerHTML = `<div class="mp-spec">你正在觀戰，點牌桌上的空位就坐下<br><small>${esc(buyinLabel(playerDoc, roomId))}；最低 ${fmtChips(50 * room.config.bb)}（50 大盲）</small></div>`;
+    btns.innerHTML = `<div class="mp-spec">請選位子，點牌桌上的空位入座<br><small>${esc(buyinLabel(playerDoc, roomId))}；最低 ${fmtChips(50 * room.config.bb)}（50 大盲）</small></div>`;
     return;
   }
 
@@ -2731,8 +2740,9 @@ async function sitDown(seat) {
       await buyinAll(fb, user.uid, roomId, room.config.bb);
       playerDoc = await getPlayer(fb, user.uid);
     }
+    if (!intents) throw new Error('連線準備中，請再點一次空位');
     const pub = room.pub || {};
-    await intents?.send({
+    await intents.send({
       type: 'SIT',
       seat,
       handNo: (Number(pub.handNo) || 0) | 0,
@@ -3254,7 +3264,7 @@ function renderMembersPanel() {
   const rows = (room.members || []).map((uid) => {
     const seat = room.seatUids.indexOf(uid);
     const role =
-      uid === room.hostUid ? '房主' : seat >= 0 ? `座位 ${seat + 1}` : '觀戰';
+      uid === room.hostUid ? '房主' : seat >= 0 ? `座位 ${seat + 1}` : '尚未入座';
     return `<li><b>${esc(displayNameOf(uid))}</b><span>${role}</span></li>`;
   });
   panel.innerHTML = `<h3>成員（${rows.length}）</h3><ul>${rows.join('')}</ul>`;

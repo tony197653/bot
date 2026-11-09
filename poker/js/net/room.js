@@ -433,6 +433,9 @@ export async function joinByCode(fb, code, uid, expectedRoomId = null) {
       if (room.status === 'closed') {
         return { roomId, ended: true, error: '牌桌已結束' };
       }
+      if (room.seatUids?.filter(Boolean).length >= 6 && !room.seatUids.includes(uid)) {
+        return { roomId, error: '這桌已滿，請選其他牌桌' };
+      }
       if (room.members?.includes(uid)) {
         rememberLastRoom(roomId, digits, { name: room.name });
         return { roomId, room };
@@ -464,7 +467,7 @@ export async function joinByCode(fb, code, uid, expectedRoomId = null) {
   return { roomId, room: { id: roomId, ...roomSnap.data() } };
 }
 
-/** Join open room by id (list row → spectator). */
+/** 加入牌桌後選擇座位；滿桌僅允許原在座玩家重連。 */
 export async function joinByRoomId(fb, roomId, uid) {
   const { db, fs } = fb;
   const ref = fs.doc(db, 'pokerRooms', roomId);
@@ -473,6 +476,9 @@ export async function joinByRoomId(fb, roomId, uid) {
     return { roomId, ended: true, error: '牌桌已結束' };
   }
   const room = { id: roomId, ...snap.data() };
+  if (room.seatUids?.filter(Boolean).length >= 6 && !room.seatUids.includes(uid)) {
+    return { roomId, error: '這桌已滿，請選其他牌桌' };
+  }
   if (!room.members?.includes(uid)) {
     try {
       await fs.updateDoc(ref, { members: fs.arrayUnion(uid) });
