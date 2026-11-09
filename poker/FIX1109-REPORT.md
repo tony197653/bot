@@ -236,3 +236,34 @@ A/B/C/D：**1／4／2／10**（0ms 與 2ms 注入延遲皆相同）。A 為開�
 - 實際執行 `node --check poker/firebase/stacks-sim.rules.test.mjs`、`node --check poker/firebase/rules.test.mjs`、`git diff --check`：通過。Rules 測試未執行，不宣稱 ALLOWED／DENIED 已由 emulator 證實。
 - M 級受影響區域：連續開手／結算／sess 計數／拒絕重試與既有完整單元測試。未完成桌機／手機人工端到端或 QA 驗收；沒有 preview URL。
 - PM 待辦：在既有 emulator 設定下執行 `cd poker && RULES_PROJECT=demo-fix1109 node --test firebase/stacks-sim.rules.test.mjs`，以及 `cd poker/firebase && node rules.test.mjs`（後者沿用既有 8195／demo-poker 設定），再重跑原四人瀏覽器 e2e，核對 room.sess、cashout 帳本、玩家 handsPlayed 及夜間 hands。若舊 bump 仍可重現拒絕，保留首次拒絕的 emulator 評估錯誤以確認起因。斷線／接手跨程序的持久去重不在本輪新增設計範圍；沿用現有記憶體標記模型。
+
+## 第八輪：房主獨坐 30 分自動收桌
+
+本輪依 owner 明確核准的新功能；分支 `pm/fix-stacks-rules`、基底 `a39d416`。未 commit／push／merge／deploy，未連網、安裝依賴或修改 firestore.rules；指定未追蹤檔未碰觸。
+
+### 實作與選擇
+
+- `js/net/room.js`：匯出 `HOST_ALONE_CLOSE_MS = 30 * 60_000`。僅 000、房主在座且無其他在座者適用。`hostAloneSince`／`hostHadOtherSeats` 保存於既有 pub，首次無其他人入座時以建立時間起算，其他人入座清空，再次獨坐重新計時；房主重新載入可沿用已保存時間。
+- `js/net/host.js`：使用既有一秒 tick 與可注入 now，僅房間與引擎都在 lobby／hand_over 才觸發 callback；寫入 pub.autoClosed 後交給既有 prepareClose → closeAll。prepareClose 等待寫入鏈後再次檢查座位與階段，避免已經有其他玩家入座仍自動收桌。收桌失敗沿用既有失敗卡與停止 loop 行為。
+- `js/ui/mp-app.js`：三個建立 host loop 的位置均接回既有 startHostClose；自動收桌結果使用既有 auto 卡、回大廳按鈕與結帳行為。未加畫面、按鈕或動畫。大廳開桌入口先檢查 000；`createSingleTable` 的 listing 與 code-lock 路徑亦先檢查，關閉成功才重新建立／回收碼。
+- 房主客戶端關閉時，非房主先以既有加入流程成為成員，再讀 presence；須房間 updatedAt 與房主心跳均嚴格超過 30 分鐘、只有房主在座且手間，才呼叫既有 auto close。000 不因未入座成員的心跳新鮮而阻擋。非房主不接任房主、不寫任何 bank／inPlay／帳本；closeRoom 原有清理他人 hostRoomId／到期碼的嘗試可能遭規則拒絕，既有 catch 保留，實際回收依已關閉房間判斷。
+- 房主籌碼留在舊 room.stacks／sess 與本人 inPlay，之後 `silentlySettleClosedBinding` → `settleClosedRoomBinding` → `selfRescueCashout` 以固定 cashout 帳本 ID 自行結算，並清除綁定；不以新開桌者代領。原始碼可確認路徑不區分手動或 auto 關房，實際規則守恆測試待執行。
+
+### 規則核對（原檔未修改）
+
+- `firebase/firestore.rules:246–260`：isHostCloseAll 限現任 host、手間、逐席對應同批帳本、清空座位與 stacks；`446–453` 分流 host closeAll。
+- `263–271`：非成員只能把自己加入 members，不得修改其他欄位；`491–498`：presence 限成員讀。因此須先加入，不能直接以陌生訪客收桌。
+- `346–356`：isAutoClose 限成員、updatedAt 與房主 presence 逾 30 分鐘，只能改 status／closedBy／closedAt；不是 takeover。`331–343` 的 takeover 另要求非房主在座，本功能不走此路。
+- `516–528`：舊 room 已 closed 可回收 pokerCodes，非房主不用成功改 expiresAt。
+- `608–627`：cashoutApplyOk 以同批本人帳本核對 bank 增額、inPlay 歸零及解除綁定；`670–675` closed 即符合 hostGone，`688–706` 本人可按舊座位 stacks／sess 結算。新開桌者不可移動房主的錢。
+
+### 實際驗證與剩餘
+
+- 新增 `test/host-alone-close.test.js`：3/3 通過。注入時間／fake timers 覆蓋建立起算、其他人在座清除與重新起算、30 分鐘前不關、牌局中有其他人不關、手間只觸發一次，以及 stale／fresh presence 的關房差異與不寫玩家帳戶。
+- `test/leave-confirm.test.js`：既有完成卡 source contract 更新為包含 auto 參數；既有收桌與大廳路徑測試保留。
+- `firebase/fix1109.rules.test.mjs` 新增兩案：非房主關閉 stale 000 後建立新桌、房主稍後本人結算且重送不重複／2000 守恆／非房主移錢遭拒；fresh host presence 則加入原桌。保留 RULES_PROJECT。未設定本機 emulator，且本輪禁止連線，故未執行，不宣稱規則 ALLOWED／DENIED 已實證。
+- 實際執行 `cd poker && node --test --test-isolation=none test/*.test.js`：293 項，292 通過、1 失敗。唯一失敗 `raise-confirm.test.js:87`：沙箱禁止監聽 `127.0.0.1`，`listen EPERM`。日誌 `/tmp/fix1109-round8-tests.log`。
+- 實際執行 `node --check poker/js/net/host.js`、`node --check poker/js/net/room.js`、`node --check poker/js/ui/mp-app.js`、`node --check poker/firebase/fix1109.rules.test.mjs` 與 `git diff --check`，通過。
+- 修改檔案：上述三個正式 JS、兩個單元測試、一個 Rules 測試與本報告，共七檔。
+- M 級受影響範圍：單桌建立／加入／回收、host tick、入座、收桌、本人閉桌結算。已跑單元；未做桌機／手機人工端到端，亦未做「真 host closeAll → 點結果卡回大廳」完整整合實測，不將 callback 測試當作驗收。無 preview URL。
+- 待 PM：執行新增 Rules emulator 案例，以及 host 開啟／關閉兩種情況的人工端到端與籌碼核對，估 15–25 分鐘。依本輪 15 分鐘限制停止，不自行 QA、合併或部署。

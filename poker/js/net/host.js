@@ -19,6 +19,9 @@ import { nightKeyOf, hostCashoutBatch, hostCloseAllBatch } from './ledger.js';
 import { recordWrite, hostMustStopNewHand } from './quota.js';
 import { listenPresence } from './presence.js';
 import {
+  HOST_ALONE_CLOSE_MS,
+  hostAloneSince,
+  hostIsOnlySeated,
   buildLobbySummary,
   buildLobbyListing,
   lobbyListingKey,
@@ -75,6 +78,7 @@ export function createHostLoop(fb, opts) {
 
   /** @type {object|null} */
   let engine = null;
+  let autoClosing = false;
   let actionSeq = 0;
   /** @type {Record<string, number>} last seen presence change (local clock) */
   const presenceSeen = {};
@@ -224,6 +228,12 @@ export function createHostLoop(fb, opts) {
       rejects: { ...rejects },
     });
     if (pubVoided || extra.voided) pub.voided = true;
+    if (room.code === '000') {
+      pub.hostHadOtherSeats = !!room.pub?.hostHadOtherSeats ||
+        room.seatUids.some(u => u && u !== room.hostUid);
+      pub.hostAloneSince = hostAloneSince(room, opts.now?.() ?? Date.now());
+      if (autoClosing) pub.autoClosed = true;
+    }
     if (quotaStop) pub.quotaStop = true;
     return pub;
   }
@@ -975,6 +985,12 @@ export function createHostLoop(fb, opts) {
     await writeChain;
     const saved = getRoom();
     if (!saved) throw new Error('Room missing');
+    if (autoClosing && (!hostIsOnlySeated(saved) ||
+        ![PHASE.LOBBY, PHASE.HAND_OVER].includes(saved.pub?.phase))) {
+      autoClosing = false;
+      closing = false;
+      throw new Error('牌桌狀態已變更，已取消自動收桌');
+    }
     if (![PHASE.LOBBY, PHASE.HAND_OVER].includes(engine.phase)) {
       if (!applyAndPublish({ type: 'VOID_HAND', stacks: saved.stacks })) {
         throw new Error('VOID_HAND failed');
@@ -987,6 +1003,11 @@ export function createHostLoop(fb, opts) {
     const committed = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
     const current = committed.exists() ? committed.data() : null;
     if (current?.status === 'closed') return current;
+    if (autoClosing && !hostIsOnlySeated(current)) {
+      autoClosing = false;
+      closing = false;
+      throw new Error('已有其他玩家入座，已取消自動收桌');
+    }
     if (!current || current.seatUids.some((u, i) => u &&
       !cashoutStateReady(current, engine, i, u))) throw new Error('Settlement not committed');
     return current;
@@ -1007,9 +1028,21 @@ export function createHostLoop(fb, opts) {
 
   function onTick() {
     if (!running || !engine || closing) return;
-    if (document.visibilityState !== 'visible') return;
     const room = getRoom();
     if (!room || room.hostUid !== uid) return;
+
+    const now = opts.now?.() ?? Date.now();
+    const since = hostAloneSince(room, now);
+    if (since !== (room.pub?.hostAloneSince ?? null)) queueWrite();
+    if (!autoClosing && since != null && now - since >= HOST_ALONE_CLOSE_MS &&
+        [PHASE.LOBBY, PHASE.HAND_OVER].includes(engine.phase) &&
+        [PHASE.LOBBY, PHASE.HAND_OVER].includes(room.pub?.phase) && opts.onHostAloneClose) {
+      autoClosing = true;
+      queueWrite();
+      void opts.onHostAloneClose();
+      return;
+    }
+    if (document.visibilityState !== 'visible') return;
 
     // Away detection from presenceSeen
     for (let i = 0; i < 6; i++) {

@@ -1418,7 +1418,7 @@ async function onCreateTable() {
   toast('正在確認牌桌…');
   if (!fb || !user) return;
   try {
-    const existing = await findOpenTable(fb);
+    const existing = await findOpenTable(fb, user.uid);
     if (existing) {
       await enterOpenTable(existing.id);
       return;
@@ -1619,6 +1619,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
     }
     if (room.hostUid === user.uid && !hostLoop) {
       hostLoop = createHostLoop(fb, {
+        onHostAloneClose: () => startHostClose({ showResultCard: true, auto: true }),
         getCurrentUid: () => getUser()?.uid,
         stats: qaStatsOpts(),
         roomId: id,
@@ -1697,7 +1698,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
           return;
         }
         const auto =
-          !!(r.lobby?.autoClosed || r.autoClosed) || r.closedBy === 'auto';
+          !!(r.lobby?.autoClosed || r.autoClosed || r.pub?.autoClosed) || r.closedBy === 'auto';
         // Prefer pending / settle / last-known stack (never show 0 after a real return)
         let chips =
           pendingCloseReturnChips != null
@@ -1781,6 +1782,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
 
         if (r.hostUid === user.uid) {
           hostLoop = createHostLoop(fb, {
+        onHostAloneClose: () => startHostClose({ showResultCard: true, auto: true }),
         getCurrentUid: () => getUser()?.uid,
         stats: qaStatsOpts(),
             roomId: id,
@@ -1869,6 +1871,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         // host loop ownership
         if (r.hostUid === user.uid && !hostLoop) {
           hostLoop = createHostLoop(fb, {
+        onHostAloneClose: () => startHostClose({ showResultCard: true, auto: true }),
         getCurrentUid: () => getUser()?.uid,
         stats: qaStatsOpts(),
             roomId: id,
@@ -3309,7 +3312,7 @@ function startHostClose(opts = {}) {
   const pending = closeInFlight;
   void pending.then((chips) => {
     closeInFlight = null;
-    if (opts.showResultCard !== false) showCloseResultCard({ chips });
+    if (opts.showResultCard !== false) showCloseResultCard({ chips, auto: !!opts.auto });
     else if (screen === 'lobby') goLobbyClean();
   }, () => {
     closeInFlight = null;
@@ -3380,7 +3383,7 @@ async function performHostCloseRoomInner(opts = {}) {
     await silentlySettleClosedBinding();
   }
   if (showResultCard && closeResultDismissedFor !== id) {
-    showCloseResultCard({ chips, auto: false });
+    showCloseResultCard({ chips, auto: !!opts.auto });
   } else if (!showResultCard) {
     closeResultDismissedFor = id;
   }

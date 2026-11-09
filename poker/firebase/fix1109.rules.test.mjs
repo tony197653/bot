@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import * as fs from 'firebase/firestore';
-import { hostCloseAllBatch, buyinAll, ensurePlayerGrant } from '../js/net/ledger.js';
+import { hostCloseAllBatch, buyinAll, ensurePlayerGrant, settleClosedRoomBinding } from '../js/net/ledger.js';
 import { createSingleTable, closeRoom } from '../js/net/room.js';
 import { createHostLoop } from '../js/net/host.js';
 
@@ -51,6 +51,68 @@ test('fix1109：零手數收桌／第三人入座／禁止房主任意移錢', a
     return room;
   };
   try {
+    await t.test('房主離線獨坐：非房主懶惰收桌回收 000，本人稍後結算守恆且不重複', async () => {
+      const original = await seed();
+      const stale = fs.Timestamp.fromMillis(Date.now() - 31 * 60_000);
+      await env.withSecurityRulesDisabled(async c => {
+        const d = c.firestore();
+        await fs.updateDoc(roomRef(d), {
+          code: '000', members: ['host'], updatedAt: stale,
+          seatUids: ['host', '', '', '', '', ''], stacks: [2000, 0, 0, 0, 0, 0],
+          chipTotal: 2000, sess: [original.sess[0], null, null, null, null, null],
+        });
+        await fs.setDoc(fs.doc(d, 'pokerRooms', roomId, 'presence', 'host'), { beat: stale, vis: false });
+        await fs.setDoc(fs.doc(d, 'pokerCodes', '000'), {
+          roomId, hostUid: 'host', createdAt: stale, expiresAt: fs.Timestamp.fromMillis(Date.now() + 86400000),
+        });
+        await fs.setDoc(fs.doc(d, 'pokerLobby', roomId), {
+          ...original.lobby, code: '000', hostUid: 'host', status: 'lobby', createdAt: stale,
+        });
+      });
+      const opener = { fs, db: db('third') };
+      await assertFails(fs.updateDoc(fs.doc(db('third'), 'pokerPlayers', 'host'), {
+        bank: 2000, inPlay: 0, total: 2000, tableRoomId: null, updatedAt: fs.serverTimestamp(),
+      }));
+      const created = await assertSucceeds(createSingleTable(opener, {
+        uid: 'third', name: '牌桌', displayName: '新房主', sb: 10, bb: 20, newPlayerChips: 2000,
+      }));
+      assert.notEqual(created.roomId, roomId);
+      assert.equal(created.code, '000');
+      const closed = (await fs.getDoc(roomRef(db('host')))).data();
+      assert.equal(closed.status, 'closed');
+      assert.equal(closed.closedBy, 'auto');
+      assert.equal(closed.stacks[0], 2000);
+      let player = (await fs.getDoc(fs.doc(db('host'), 'pokerPlayers', 'host'))).data();
+      assert.equal(player.bank, 0);
+      assert.equal(player.inPlay, 2000);
+      const hostFb = { fs, db: db('host') };
+      await assertSucceeds(settleClosedRoomBinding(hostFb, 'host', { ...closed, id: roomId }));
+      await assertSucceeds(settleClosedRoomBinding(hostFb, 'host', { ...closed, id: roomId }));
+      player = (await fs.getDoc(fs.doc(db('host'), 'pokerPlayers', 'host'))).data();
+      assert.equal(player.bank, 2000);
+      assert.equal(player.inPlay, 0);
+      assert.equal(player.tableRoomId, null);
+      assert.equal((await fs.getDoc(fs.doc(db('third'), 'pokerCodes', '000'))).data().roomId, created.roomId);
+    });
+    await t.test('房主心跳新鮮：開桌者加入原 000，不收桌、不回收', async () => {
+      const original = await seed();
+      const stale = fs.Timestamp.fromMillis(Date.now() - 31 * 60_000);
+      await env.withSecurityRulesDisabled(async c => {
+        const d = c.firestore();
+        await fs.updateDoc(roomRef(d), { code: '000', updatedAt: stale,
+          seatUids: ['host', '', '', '', '', ''], stacks: [2000, 0, 0, 0, 0, 0],
+          chipTotal: 2000, sess: [original.sess[0], null, null, null, null, null] });
+        await fs.setDoc(fs.doc(d, 'pokerRooms', roomId, 'presence', 'host'), { beat: fs.Timestamp.now(), vis: true });
+        await fs.setDoc(fs.doc(d, 'pokerCodes', '000'), { roomId, hostUid: 'host', createdAt: stale,
+          expiresAt: fs.Timestamp.fromMillis(Date.now() + 86400000) });
+      });
+      const joined = await assertSucceeds(createSingleTable({ fs, db: db('third') }, {
+        uid: 'third', name: '牌桌', sb: 10, bb: 20, newPlayerChips: 2000,
+      }));
+      assert.equal(joined.roomId, roomId);
+      assert.equal(joined.existing, true);
+      assert.equal((await fs.getDoc(roomRef(db('host')))).data().status, 'lobby');
+    });
     await t.test('固定碼 000：建立／加入／並行唯一／關閉後回收', async () => {
       await env.clearFirestore();
       const opts = { uid: 'host', name: '牌桌', displayName: '房主', sb: 10, bb: 20, newPlayerChips: 2000 };

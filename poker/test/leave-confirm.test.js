@@ -106,7 +106,7 @@ describe('收桌即時回饋與單次讀取（source contracts）', () => {
   it('同步顯示 pending 卡，再啟動背景收桌；完成才顯示金額', () => {
     const start = section(app, 'function startHostClose', 'async function performHostCloseRoomInner');
     assert.match(start, /showCloseResultCard\(\{ state: 'pending' \}\);\s*closeInFlight = performHostCloseRoom/);
-    assert.match(start, /pending.then\(\(chips\) => \{[\s\S]*closeInFlight = null;[\s\S]*showCloseResultCard\(\{ chips \}\)/);
+    assert.match(start, /pending.then\(\(chips\) => \{[\s\S]*closeInFlight = null;[\s\S]*showCloseResultCard\(\{ chips, auto: !!opts.auto \}\)/);
     const card = section(app, 'function showCloseResultCard', 'function showHostAloneLeaveDialog');
     assert.match(card, /state === 'pending' \? '結算中…'/);
     assert.match(card, /state !== 'done'[\s\S]*mpCloseLobby[\s\S]*remove\(\)/);
