@@ -106,7 +106,7 @@ describe('附錄 M5 — M29～M34 契約', () => {
     // #2 just-closed toast
     assert.match(app, /這桌剛收桌了，換一桌或開新牌桌/);
     // #3 keep digits + select-all
-    assert.match(lobby, /input\.select\(\)/);
+    assert.doesNotMatch(lobby, /id="mpJoinCode"/);
     assert.match(app, /M2 #3: keep digits/);
     // #4 leave current table first
     assert.match(app, /先離開「/);
@@ -152,12 +152,9 @@ describe('附錄 M5 — M29～M34 契約', () => {
     assert.match(app, /mpCloseStats/);
   });
 
-  it('M31: 房號錯不清空＋全選＋Enter 重試', () => {
-    const lobby = read('js/ui/lobby.js');
-    assert.match(lobby, /input\.select\(\)/);
-    assert.match(lobby, /wrap\.dataset\.s === 'error'/);
-    assert.match(lobby, /e\.key === 'Enter'/);
-    assert.match(lobby, /還差 \$\{/);
+  it('M31: 大廳移除房號輸入，保留內部加入路徑', () => {
+    assert.doesNotMatch(read('js/ui/lobby.js'), /id="mpJoinCode"/);
+    assert.match(read('js/ui/mp-app.js'), /async function doJoin\(/);
   });
 
   it('M32: 防重複 busy flags on writes', () => {

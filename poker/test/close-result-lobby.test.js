@@ -21,6 +21,20 @@ import {
   getDocs,
 } from 'firebase/firestore';
 
+// Emulator target (defaults = shared demo-poker on 8195/9099). Override for a private emulator:
+// POKER_EMU_PROJECT=demo-xxx POKER_EMU_FS_PORT=8395 POKER_EMU_AUTH_PORT=9399
+const EMU_PROJECT = process.env.POKER_EMU_PROJECT || 'demo-poker';
+const EMU_FS_PORT = Number(process.env.POKER_EMU_FS_PORT || 8195);
+const EMU_AUTH_PORT = Number(process.env.POKER_EMU_AUTH_PORT || 9099);
+function emuServe(file) {
+  const body = readFileSync(file);
+  if (!file.endsWith('js/net/firebase-config.js')) return body;
+  return String(body)
+    .replace("projectId: 'demo-poker'", `projectId: '${EMU_PROJECT}'`)
+    .replace('auth: 9099, firestore: 8195', `auth: ${EMU_AUTH_PORT}, firestore: ${EMU_FS_PORT}`);
+}
+
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const REPO = join(ROOT, '..');
@@ -194,7 +208,7 @@ function startStatic() {
         return;
       }
       res.writeHead(200, { 'Content-Type': MIME[extname(file)] || 'application/octet-stream' });
-      res.end(readFileSync(file));
+      res.end(emuServe(file));
     });
     server.listen(0, '127.0.0.1', () => {
       resolve({ server, base: `http://127.0.0.1:${server.address().port}` });
@@ -218,8 +232,8 @@ function blockProd(route) {
 async function withRulesDisabled(fn) {
   const rules = readFileSync(join(ROOT, 'firebase/firestore.rules'), 'utf8');
   const env = await initializeTestEnvironment({
-    projectId: 'demo-poker',
-    firestore: { host: '127.0.0.1', port: 8195, rules },
+    projectId: EMU_PROJECT,
+    firestore: { host: '127.0.0.1', port: EMU_FS_PORT, rules },
   });
   try {
     let out;
@@ -540,9 +554,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       await host.waitForSelector('.mp-url', { timeout: 20000 });
       const share = (await host.innerText('.mp-url')).trim();
       const roomId = new URL(share).searchParams.get('r');
-      const code = String(new URL(share).searchParams.get('room') || '')
-        .replace(/\D/g, '')
-        .slice(0, 3);
+      assert.ok(roomId, '單桌房間存在');
       await host.click('[data-act="enter"]');
       await host.waitForSelector('#mpLeave, #seats .seat, #mpStart', { timeout: 25000 });
 
@@ -560,7 +572,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       });
       await guest.evaluate(() => window.__qaSignIn('guestLeaveConf', '訪客'));
       await guest.waitForSelector('.mp-lobby', { timeout: 20000 });
-      await guest.locator('.mp-join input, input[inputmode="numeric"]').first().fill(code);
+      await guest.locator('[data-act="open-table"]:visible, .mp-btn-primary[data-act="create"]:visible').first().click();
       await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
         timeout: 20000,
       });
@@ -641,7 +653,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
     }
   });
 
-  it('join by code → 回大廳 → join by code again（joining 不得卡在加入中）', async () => {
+  it('單桌入口 → 回大廳 → 再次由單桌入口加入（joining 不得卡在加入中）', async () => {
     const { server, base } = await startStatic();
     const browser = await chromium.launch({
       headless: true,
@@ -685,9 +697,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       await host.waitForSelector('.mp-url', { timeout: 20000 });
       const share = (await host.innerText('.mp-url')).trim();
       const roomId = new URL(share).searchParams.get('r');
-      let code = new URL(share).searchParams.get('room') || '';
-      code = String(code).replace(/\D/g, '').slice(0, 3);
-      assert.equal(code.length, 3);
+      assert.ok(roomId, '單桌房間存在');
       await host.click('[data-act="enter"]');
       await host.waitForSelector('#mpLeave, #seats .seat, #mpStart', { timeout: 25000 });
 
@@ -706,9 +716,9 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       await guest.evaluate(() => window.__qaSignIn('guestJoin2', '訪客'));
       await guest.waitForSelector('.mp-lobby', { timeout: 20000 });
 
-      // First join by code
-      const joinInput = guest.locator('.mp-join input, input[inputmode="numeric"]').first();
-      await joinInput.fill(code);
+      // 由唯一牌桌入口加入；清單尚未返回時，開新牌桌也會加入 000。
+      const tableEntry = () => guest.locator('[data-act="open-table"]:visible, .mp-btn-primary[data-act="create"]:visible').first();
+      await tableEntry().click();
       await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
         timeout: 20000,
       });
@@ -732,10 +742,8 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       assert.equal(stuck.joining, false, 'joining false on lobby');
       assert.equal(stuck.statusJoining, false, 'UI not stuck on 加入中');
 
-      // Leave host table so guest can re-join same code? Room still open — join again OK
-      // Guest may already be a member; joinByCode should re-enter
-      await joinInput.fill('');
-      await joinInput.fill(code);
+      // 不重新載入，同一個 000 牌桌仍可再次進入。
+      await tableEntry().click();
       await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
         timeout: 20000,
       });

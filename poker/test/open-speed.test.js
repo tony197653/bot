@@ -4,6 +4,9 @@
  * Baseline before production edits (0ms and 2ms): A=0, B=3, C=4, D=12;
  * stale hostRoomId A=3. C/D both start at the enter-table click.
  * D includes the awaited lobby refresh after the authoritative seat write.
+ * 固定碼 000 後：A=1、B=4、C=2、D=10。
+ * B：legacy listing 預查＋固定 code 讀取＋player 預讀＋原子交易；
+ * 移除建立後 listing 查詢，新增 code 讀取，總數仍為 4。
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -32,6 +35,11 @@ function fakeFirebase(delay = 0) {
   }
   const write = (ref, value) => docs.set(ref, { ...docs.get(ref), ...value });
   const fs = {
+    collection: (_db, ...path) => path.join('/'), query: (...args) => args,
+    where: () => null, orderBy: () => null, limit: () => null,
+    getDocs: () => trip('getDocs', () => ({ forEach: cb => {
+      for (const [ref, data] of docs) if (ref.startsWith('pokerLobby/') && data.status !== 'closed') cb(snap(ref));
+    } })),
     doc: (_db, ...path) => path.join('/'), serverTimestamp: () => 1,
     Timestamp: { fromMillis: n => ({ toMillis: () => n }), now: () => 1 },
     getDoc: ref => trip('getDoc', () => snap(ref)),
@@ -69,10 +77,11 @@ function harness(fb) {
     roomGoneFor: null, joinEnded: false, joinError: '', document: { getElementById: () => null },
     stopRoom: null, hostLoop: null, presence: null, intents: null, stopHole: null,
     animQ: null, lastRecvAt: 0, nameCache: {}, getLastRoom: () => null,
-    tearDownRoom: noop, paintTableChrome: noop, cachePlayerName: noop,
+    enterOpenTable: noop,
+    tearDownRoom: noop, paintEnterShell: noop, paintTableChrome: noop, cachePlayerName: noop,
     startPresence: () => ({}), createIntentSender: () => ({}), listenHole: noop,
     qaStatsOpts: () => ({}), displayNameOf: () => 'Host', createAnimQueue: () => ({}),
-    toast: () => { ctx.feedback = fb.calls.length; },
+    toast: () => { ctx.feedback ??= fb.calls.length; },
     paint: () => { ctx.marks[ctx.screen] = fb.calls.length; }, marks: {},
     friendlyError: e => { throw e; },
   });
@@ -80,12 +89,13 @@ function harness(fb) {
   // Execute the real host seat write + lobby refresh; isolate engine and background loop.
   ctx.createHostLoop = (_fb, opts) => {
     const hostCtx = vm.createContext({ ...ctx, fs: fb.fs, db: fb.db, ...opts,
+      closing: false, running: true, writeChain: Promise.resolve(), getRoom: () => fb.docs.get(`pokerRooms/${opts.roomId}`), nightKeyOf: () => '20261109', onLocalState: noop,
       engine: {}, actionSeq: 0, seatedAt: [], lastWriteAt: 0,
       applyAction: () => ({}), buildPub: () => ({}), recordWrite: noop,
       playerName: () => 'Host', curStatus: () => 'lobby',
       syncLobbyListingDoc: async (r, lobby, status) => roomNet.upsertLobbyListing(fb, opts.roomId, roomNet.buildLobbyListing(r, lobby, status)),
     });
-    vm.runInContext(section(host, '  async function refreshLobbySummary(', '\n  function curStatus(') + section(host, '  async function seatPlayer(', '\n  async function cashoutSeat('), hostCtx);
+    vm.runInContext(section(host, '  async function refreshLobbySummary(', '\n  function curStatus(') + section(host, '  function seatPlayer(', '\n  async function cashoutSeat('), hostCtx);
     return { start: noop, seatPlayer: async (...args) => { await hostCtx.seatPlayer(...args); ctx.seatedAtRoundTrips = fb.calls.length; } };
   };
   vm.runInContext(section(app, 'async function onCreateTable()', '\nasync function doJoin(') + section(app, 'async function enterRoom(', '\nfunction paintTableChrome('), ctx);
@@ -101,6 +111,8 @@ for (const delay of [0, 2]) test(`open flow serial round trips (injected latency
   await ctx.doCreate({ name: 'Test', sb: 10, bb: 20, newPlayerChips: 2000 });
   const B = ctx.marks.share;
   assert.ok(ctx.shareInfo?.roomId);
+  assert.equal(ctx.shareInfo.code, '000');
+  assert.deepEqual(fb.calls, ['getDocs', 'getDoc', 'getDoc', 'runTransaction']);
   fb.calls.length = 0;
   await ctx.enterRoom(ctx.shareInfo.roomId, { asHostSit: true });
   await fb.settle();
@@ -113,7 +125,7 @@ for (const delay of [0, 2]) test(`open flow serial round trips (injected latency
   assert.equal(stored.stacks[0], 2000);
   assert.equal(fb.docs.get('pokerPlayers/u').bank, 0);
   t.diagnostic(JSON.stringify({ A, B, C, D }));
-  assert.deepEqual({ A, B, C, D }, { A: 0, B: 2, C: 2, D: 9 });
+  assert.deepEqual({ A, B, C, D }, { A: 1, B: 4, C: 2, D: 10 });
 });
 
 test('stale host pointer: form round trips', async t => {
@@ -122,7 +134,7 @@ test('stale host pointer: form round trips', async t => {
   const ctx = harness(fb);
   await ctx.onCreateTable();
   t.diagnostic(`A(stale hostRoomId)=${ctx.marks.create}; feedback=${ctx.feedback}`);
-  assert.equal(ctx.marks.create, 2);
+  assert.equal(ctx.marks.create, 3);
   assert.equal(ctx.feedback, 0, 'existing toast runs before the first network wait');
 });
 

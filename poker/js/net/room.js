@@ -8,6 +8,7 @@ import { recordWrite } from './quota.js';
 
 const CODE_DIGITS = 3;
 const CODE_ATTEMPTS = 10;
+export const SINGLE_TABLE_CODE = '000';
 const IDLE_CLOSE_MS = 30 * 60_000;
 /** Lightweight lobby list docs (not full pokerRooms). Doc id = roomId. */
 export const LOBBY_LIST_COL = 'pokerLobby';
@@ -172,6 +173,57 @@ export function sortLobbyListings(rows) {
   });
 }
 
+/** 以既有大廳查詢找最早開桌；不將本機快取當作建立許可。 */
+export async function findOpenTable(fb) {
+  const { db, fs } = fb;
+  const snap = await fs.getDocs(fs.query(
+    fs.collection(db, LOBBY_LIST_COL),
+    fs.where('status', 'in', ['lobby', 'playing']),
+    fs.orderBy('createdAt', 'asc'), fs.limit(20),
+  ));
+  const rows = [];
+  snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+  return sortLobbyListings(rows)[0] || null;
+}
+
+async function joinExistingTable(fb, table, uid) {
+  const result = await joinByRoomId(fb, table.id, uid);
+  if (result.error || result.ended) throw new Error(result.error || '牌桌已結束');
+  return { roomId: table.id, code: result.room.code, name: result.room.name,
+    config: result.room.config, existing: true };
+}
+
+/** 固定房號鎖；房間可讀性在交易外判斷，回收合法性由既有規則核對。 */
+export async function createSingleTable(fb, opts) {
+  const existing = await findOpenTable(fb);
+  if (existing) return joinExistingTable(fb, existing, opts.uid);
+  const { db, fs } = fb;
+  const codeRef = fs.doc(db, 'pokerCodes', SINGLE_TABLE_CODE);
+  for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
+    const snap = await fs.getDoc(codeRef);
+    const lock = snap.exists() ? snap.data() : null;
+    if (lock) {
+      let room;
+      try {
+        room = await fs.getDoc(fs.doc(db, 'pokerRooms', lock.roomId));
+      } catch (e) {
+        if (!isPerm(e)) throw e;
+        // 非成員無法讀取關閉／不存在的房間；交由 codeReclaimable 判定。
+      }
+      if (room?.exists() && isRoomOpenStatus(room.data().status)) {
+        return joinExistingTable(fb, { id: lock.roomId }, opts.uid);
+      }
+    }
+    try {
+      return await createRoomWithLock(fb, opts, { codeRef, lock });
+    } catch (e) {
+      if (e?.code !== 'single-table-lock-changed') throw e;
+      // SDK 重試看到新鎖時不覆寫，回讀並加入勝方。
+    }
+  }
+  throw new Error('牌桌正在更新，請稍後再試');
+}
+
 async function codeIsFree(tx, fs, db, code) {
   const codeRef = fs.doc(db, 'pokerCodes', code);
   const codeSnap = await tx.get(codeRef);
@@ -192,6 +244,10 @@ async function codeIsFree(tx, fs, db, code) {
  * @returns {Promise<{ roomId:string, code:string, name:string, config:object, existing?:boolean }>}
  */
 export async function createRoom(fb, opts) {
+  return createRoomWithLock(fb, opts);
+}
+
+async function createRoomWithLock(fb, opts, single = null) {
   const { db, fs } = fb;
   const name = (opts.name || '週五牌局').trim().slice(0, 20) || '週五牌局';
   const config = {
@@ -238,10 +294,21 @@ export async function createRoom(fb, opts) {
 
   let lastErr = null;
   for (let attempt = 0; attempt < CODE_ATTEMPTS; attempt++) {
-    const code = randomCode();
+    const code = single ? SINGLE_TABLE_CODE : randomCode();
     const roomId = randomRoomId();
     try {
       await fs.runTransaction(db, async (tx) => {
+        let lockedCode;
+        if (single) {
+          // 必須是交易第一筆讀取；不在此讀取鎖所指的房間。
+          const current = await tx.get(single.codeRef);
+          const now = current.exists() ? current.data() : null;
+          const unchanged = single.lock === null ? now === null : now !== null &&
+            now.roomId === single.lock.roomId &&
+            (now.expiresAt?.toMillis?.() ?? 0) === (single.lock.expiresAt?.toMillis?.() ?? 0);
+          if (!unchanged) throw Object.assign(new Error('牌桌鎖已變更'), { code: 'single-table-lock-changed' });
+          lockedCode = { free: true, codeRef: single.codeRef };
+        }
         // Re-check hostRoomId inside txn — any still-open prior table blocks create
         const pNow = await tx.get(pref);
         if (pNow.exists()) {
@@ -262,7 +329,7 @@ export async function createRoom(fb, opts) {
           }
         }
 
-        const { free, codeRef, reclaim } = await codeIsFree(tx, fs, db, code);
+        const { free, codeRef, reclaim } = lockedCode || await codeIsFree(tx, fs, db, code);
         if (!free) throw Object.assign(new Error('code taken'), { code: 'taken' });
 
         const roomRef = fs.doc(db, 'pokerRooms', roomId);
@@ -433,6 +500,9 @@ export async function joinByCode(fb, code, uid, expectedRoomId = null) {
       if (room.status === 'closed') {
         return { roomId, ended: true, error: '牌桌已結束' };
       }
+      if (room.seatUids?.filter(Boolean).length >= 6 && !room.seatUids.includes(uid)) {
+        return { roomId, error: '這桌已滿，請選其他牌桌' };
+      }
       if (room.members?.includes(uid)) {
         rememberLastRoom(roomId, digits, { name: room.name });
         return { roomId, room };
@@ -464,7 +534,7 @@ export async function joinByCode(fb, code, uid, expectedRoomId = null) {
   return { roomId, room: { id: roomId, ...roomSnap.data() } };
 }
 
-/** Join open room by id (list row → spectator). */
+/** 加入牌桌後選擇座位；滿桌僅允許原在座玩家重連。 */
 export async function joinByRoomId(fb, roomId, uid) {
   const { db, fs } = fb;
   const ref = fs.doc(db, 'pokerRooms', roomId);
@@ -473,6 +543,9 @@ export async function joinByRoomId(fb, roomId, uid) {
     return { roomId, ended: true, error: '牌桌已結束' };
   }
   const room = { id: roomId, ...snap.data() };
+  if (room.seatUids?.filter(Boolean).length >= 6 && !room.seatUids.includes(uid)) {
+    return { roomId, error: '這桌已滿，請選其他牌桌' };
+  }
   if (!room.members?.includes(uid)) {
     try {
       await fs.updateDoc(ref, { members: fs.arrayUnion(uid) });

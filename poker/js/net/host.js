@@ -644,13 +644,25 @@ export function createHostLoop(fb, opts) {
     }
   }
 
-  async function seatPlayer(seat, playerUid) {
-    const room = getRoom();
-    if (!room || room.seatUids[seat]) return;
+  function seatPlayer(seat, playerUid) {
+    const pending = writeChain.then(() => seatPlayerInner(seat, playerUid));
+    writeChain = pending.catch(() => {});
+    return pending;
+  }
+
+  async function seatPlayerInner(seat, playerUid) {
+    if (closing || !running) return;
+    const snap = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
+    const room = snap.exists() ? snap.data() : null;
+    if (!room || room.status === 'closed' || room.hostUid !== uid) return;
+    if (!Number.isInteger(seat) || seat < 0 || seat > 5) return;
+    if (!room.members?.includes(playerUid)) return;
+    if (room.seatUids[seat]) return;
     if (room.seatUids.includes(playerUid)) return;
 
     const pSnap = await fs.getDoc(fs.doc(db, 'pokerPlayers', playerUid));
     if (!pSnap.exists()) return;
+    if (closing || !running || getRoom()?.status === 'closed') return;
     const p = pSnap.data();
     if (p.tableRoomId !== roomId) return;
     const amount = p.inPlay;
@@ -672,6 +684,9 @@ export function createHostLoop(fb, opts) {
       nightKey: nightKeyOf(),
       startAt,
     };
+    const beforeEngine = engine;
+    const beforeSeq = actionSeq;
+    const beforeSeatedAt = seatedAt[seat];
     seatedAt[seat] = Date.now();
 
     engine = applyAction(engine, {
@@ -687,24 +702,32 @@ export function createHostLoop(fb, opts) {
 
     const nextRoom = { ...room, seatUids, stacks, sess };
     // Money write must not touch lobby (rules 1000-expr budget); refresh lobby after.
-    await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), {
-      rev: room.rev + 1,
-      updatedAt: fs.serverTimestamp(),
-      seatUids,
-      stacks,
-      chipTotal: room.chipTotal + amount,
-      sess,
-      lastMoneyEvent: {
-        uid: playerUid,
-        id: ledgerId,
-        seat,
-        type: 'buyin',
-        amount,
-      },
-      pub: buildPub(nextRoom),
-      deadlineAt: null,
-      status: 'lobby',
-    });
+    try {
+      await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), {
+        rev: room.rev + 1,
+        updatedAt: fs.serverTimestamp(),
+        seatUids,
+        stacks,
+        chipTotal: room.chipTotal + amount,
+        sess,
+        lastMoneyEvent: {
+          uid: playerUid,
+          id: ledgerId,
+          seat,
+          type: 'buyin',
+          amount,
+        },
+        pub: buildPub(nextRoom),
+        deadlineAt: null,
+        status: 'lobby',
+      });
+    } catch (e) {
+      engine = beforeEngine;
+      actionSeq = beforeSeq;
+      seatedAt[seat] = beforeSeatedAt;
+      onLocalState?.(engine);
+      throw e;
+    }
     lastWriteAt = Date.now();
     recordWrite();
     await refreshLobbySummary({ ...nextRoom, rev: room.rev + 1, status: 'lobby' });
