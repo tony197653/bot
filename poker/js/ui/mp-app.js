@@ -31,9 +31,7 @@ import {
   getLastRoom,
   rememberLastRoom,
   clearLastRoom,
-  shareUrl,
   formatCode,
-  extendCode,
   closeRoom,
   maybeAutoCloseIdleRoom,
   isRoomOpenStatus,
@@ -70,6 +68,7 @@ import {
 import { decideRescue } from '../net/rescue.js';
 import {
   renderMpLobby,
+  patchOpenTables,
   renderCreateRoom,
   renderShareRoom,
   renderJoinCode,
@@ -787,6 +786,10 @@ export async function startMpApp() {
 }
 
 /** C1: existing seat avatar → that player's Page stats overlay (avatar hit area only). */
+function openOwnStats() {
+  const me = getUser();
+  if (me) openStatsFor(me.uid, playerDoc?.displayName || me.displayName || '玩家');
+}
 function bindPersonalStatsEntry() {
   if (document.body.dataset.psWired) return;
   document.body.dataset.psWired = '1';
@@ -798,7 +801,7 @@ function bindPersonalStatsEntry() {
     if (!fb || !me) return;
     if (av.classList?.contains('mp-hav') && av.dataset.psUid !== me.uid) return;
     e.stopPropagation();
-    if (av.id === 'heroAv' || av.dataset.psUid === me.uid) void openStats();
+    if (av.id === 'heroAv' || av.dataset.psUid === me.uid) openOwnStats();
     else openStatsFor(av.dataset.psUid, av.dataset.psName || '');
   }, true);
 }
@@ -1107,7 +1110,7 @@ function paint() {
       onMyStats: () => { const u = getUser(); if (u) openStatsFor(u.uid, u.displayName || '玩家'); },
       onSignOut: () => signOut(),
       onRescue: () => doRescue(),
-      onAvatar: openStats,
+      onAvatar: openOwnStats,
       onSettings: () => toast('設定還在製作中，請先用⋯選單的「戰績」'),
       lobbyStatus: awayLobbyStatus,
     });
@@ -1270,8 +1273,14 @@ function ensureOpenTablesListen() {
   stopOpenTables = listenOpenTables(
     fb,
     (rows) => {
+      const hadTable = openTables.length > 0;
       openTables = rows.slice(0, 1);
       if (screen !== 'lobby') return;
+      // 一般快照只更新清單，保留手機 pointerdown 到 click 之間的頭像節點。
+      const root = $('#mpRoot');
+      const mine = lobbyExitSuppressMine ? null : playerDoc?.tableRoomId || playerDoc?.hostRoomId;
+      const listed = openTables.filter(t => t.id !== mine && isRoomOpenStatus(t.status));
+      if (hadTable === (openTables.length > 0) && root && patchOpenTables(root, listed)) return;
       // 單桌出現／消失時，開桌入口也必須同步更新。
       paint();
     },
@@ -1623,6 +1632,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
     if (!presence) {
       presence = startPresence(fb, id, user.uid, {
         isHost: () => room?.hostUid === user.uid,
+        getRoom: () => room,
         lastRoomWriteAt: () => hostLoop?.lastRoomWriteAt?.() || 0,
       });
     } else {
@@ -1740,6 +1750,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
 
         presence = startPresence(fb, id, user.uid, {
           isHost: () => room?.hostUid === user.uid,
+          getRoom: () => room,
           lastRoomWriteAt: () => hostLoop?.lastRoomWriteAt?.() || 0,
         });
         intents = createIntentSender(fb, id, user.uid);
@@ -2904,8 +2915,9 @@ async function doRescue() {
 
 async function openStats() {
   screen = 'stats';
-  await loadStats();
   paint();
+  await loadStats();
+  if (screen === 'stats') paint();
 }
 
 async function loadStats() {
@@ -3194,8 +3206,6 @@ function ensureMpMenu() {
   const extras = document.createElement('div');
   extras.id = 'mpMenuExtras';
   extras.innerHTML = `
-    <button type="button" id="mpBtnCopyLink" role="menuitem">複製房號連結</button>
-    <button type="button" id="mpBtnExtend" role="menuitem">延長房號 24 小時</button>
     <button type="button" id="mpBtnMembers" role="menuitem">成員</button>
     <button type="button" id="mpBtnCloseRoom" role="menuitem">收桌</button>
     <div id="mpMembersPanel" class="mp-members hidden" hidden></div>`;
@@ -3213,20 +3223,6 @@ function ensureMpMenu() {
       });
     }
   }
-  $('#mpBtnCopyLink')?.addEventListener('click', async () => {
-    closeMpMenu();
-    const url = shareUrl(room.code, room.id);
-    try {
-      await navigator.clipboard?.writeText(url);
-      toast('已複製');
-    } catch {
-      toast(url);
-    }
-  });
-  $('#mpBtnExtend')?.addEventListener('click', () => {
-    closeMpMenu();
-    mpExtendCode();
-  });
   $('#mpBtnCloseRoom')?.addEventListener('click', () => {
     closeMpMenu();
     if (room?.hostUid !== getUser()?.uid) {
@@ -3288,12 +3284,6 @@ function toast(msg) {
 /** Expose for menu hooks */
 export function mpLeaveToLobby() {
   showLeaveTableConfirm();
-}
-
-export function mpExtendCode() {
-  const fb = getFirebase();
-  if (!fb || !room) return;
-  extendCode(fb, room.code, getUser()?.uid).then(() => toast('房號延長 24 小時'));
 }
 
 /**

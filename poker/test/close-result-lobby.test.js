@@ -540,9 +540,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       await host.waitForSelector('.mp-url', { timeout: 20000 });
       const share = (await host.innerText('.mp-url')).trim();
       const roomId = new URL(share).searchParams.get('r');
-      const code = String(new URL(share).searchParams.get('room') || '')
-        .replace(/\D/g, '')
-        .slice(0, 3);
+      assert.ok(roomId, '單桌房間存在');
       await host.click('[data-act="enter"]');
       await host.waitForSelector('#mpLeave, #seats .seat, #mpStart', { timeout: 25000 });
 
@@ -560,7 +558,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       });
       await guest.evaluate(() => window.__qaSignIn('guestLeaveConf', '訪客'));
       await guest.waitForSelector('.mp-lobby', { timeout: 20000 });
-      await guest.locator('.mp-join input, input[inputmode="numeric"]').first().fill(code);
+      await guest.locator('[data-act="open-table"]:visible, .mp-btn-primary[data-act="create"]:visible').first().click();
       await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
         timeout: 20000,
       });
@@ -641,7 +639,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
     }
   });
 
-  it('join by code → 回大廳 → join by code again（joining 不得卡在加入中）', async () => {
+  it('單桌入口 → 回大廳 → 再次由單桌入口加入（joining 不得卡在加入中）', async () => {
     const { server, base } = await startStatic();
     const browser = await chromium.launch({
       headless: true,
@@ -685,9 +683,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       await host.waitForSelector('.mp-url', { timeout: 20000 });
       const share = (await host.innerText('.mp-url')).trim();
       const roomId = new URL(share).searchParams.get('r');
-      let code = new URL(share).searchParams.get('room') || '';
-      code = String(code).replace(/\D/g, '').slice(0, 3);
-      assert.equal(code.length, 3);
+      assert.ok(roomId, '單桌房間存在');
       await host.click('[data-act="enter"]');
       await host.waitForSelector('#mpLeave, #seats .seat, #mpStart', { timeout: 25000 });
 
@@ -706,9 +702,9 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       await guest.evaluate(() => window.__qaSignIn('guestJoin2', '訪客'));
       await guest.waitForSelector('.mp-lobby', { timeout: 20000 });
 
-      // First join by code
-      const joinInput = guest.locator('.mp-join input, input[inputmode="numeric"]').first();
-      await joinInput.fill(code);
+      // 由唯一牌桌入口加入；清單尚未返回時，開新牌桌也會加入 000。
+      const tableEntry = () => guest.locator('[data-act="open-table"]:visible, .mp-btn-primary[data-act="create"]:visible').first();
+      await tableEntry().click();
       await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
         timeout: 20000,
       });
@@ -732,10 +728,8 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       assert.equal(stuck.joining, false, 'joining false on lobby');
       assert.equal(stuck.statusJoining, false, 'UI not stuck on 加入中');
 
-      // Leave host table so guest can re-join same code? Room still open — join again OK
-      // Guest may already be a member; joinByCode should re-enter
-      await joinInput.fill('');
-      await joinInput.fill(code);
+      // 不重新載入，同一個 000 牌桌仍可再次進入。
+      await tableEntry().click();
       await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
         timeout: 20000,
       });

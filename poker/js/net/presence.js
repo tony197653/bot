@@ -3,6 +3,7 @@
  */
 
 import { recordWrite } from './quota.js';
+import { extendCode, isRoomOpenStatus } from './room.js';
 
 const PLAYER_BEAT_MS = 30_000;
 const HOST_IDLE_BEAT_MS = 10_000;
@@ -13,7 +14,7 @@ const TAKEOVER_STAGGER_MS = 3_000;
  * @param {{ db:any, fs:any }} fb
  * @param {string} roomId
  * @param {string} uid
- * @param {{ isHost: () => boolean, lastRoomWriteAt: () => number, now?: () => number, setInterval?: Function, clearInterval?: Function, document?: Document }} opts
+ * @param {{ isHost: () => boolean, lastRoomWriteAt: () => number, getRoom?: () => object|null, now?: () => number, setInterval?: Function, clearInterval?: Function, document?: Document }} opts
  */
 export function startPresence(fb, roomId, uid, opts) {
   const { db, fs } = fb;
@@ -27,8 +28,28 @@ export function startPresence(fb, roomId, uid, opts) {
   let lastBeatAt = -Infinity;
   let lastPlayerTickAt = now();
 
+  let codeCheckAt = -Infinity;
+  let codeCheckPending = false;
+  async function refreshCode() {
+    const room = opts.getRoom?.();
+    if (stopped || !opts.isHost() || !room || !isRoomOpenStatus(room.status) ||
+        !room.code || codeCheckPending || now() - codeCheckAt < 60_000) return;
+    codeCheckPending = true;
+    codeCheckAt = now();
+    try {
+      const snap = await fs.getDoc(fs.doc(db, 'pokerCodes', room.code));
+      if (stopped || !opts.isHost() || !isRoomOpenStatus(opts.getRoom?.()?.status)) return;
+      if (snap.exists() && snap.data().roomId === roomId &&
+          (snap.data().expiresAt?.toMillis?.() ?? 0) < now() + 12 * 3600e3) {
+        await extendCode(fb, room.code, uid);
+      }
+    } catch { /* 背景續期失敗，下次既有心跳再試。 */ }
+    finally { codeCheckPending = false; }
+  }
+
   async function beat(vis) {
     if (stopped) return;
+    void refreshCode();
     if (opts.isHost()) {
       const idle = now() - (opts.lastRoomWriteAt() || 0);
       if (idle < HOST_IDLE_BEAT_MS) return;
@@ -51,6 +72,7 @@ export function startPresence(fb, roomId, uid, opts) {
   beat(doc.visibilityState === 'visible');
   timer = schedule(() => {
     if (doc.visibilityState !== 'visible') return;
+    void refreshCode();
     if (opts.isHost()) {
       if (now() - lastBeatAt >= 1.5 * HOST_IDLE_BEAT_MS) beat(true); // 15s threshold on a 10s tick → beats every ~20s even with setDoc latency
     } else if (now() - lastPlayerTickAt >= PLAYER_BEAT_MS) {
