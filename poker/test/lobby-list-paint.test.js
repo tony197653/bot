@@ -18,6 +18,20 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 
+// Emulator target (defaults = shared demo-poker on 8195/9099). Override for a private emulator:
+// POKER_EMU_PROJECT=demo-xxx POKER_EMU_FS_PORT=8395 POKER_EMU_AUTH_PORT=9399
+const EMU_PROJECT = process.env.POKER_EMU_PROJECT || 'demo-poker';
+const EMU_FS_PORT = Number(process.env.POKER_EMU_FS_PORT || 8195);
+const EMU_AUTH_PORT = Number(process.env.POKER_EMU_AUTH_PORT || 9099);
+function emuServe(file) {
+  const body = readFileSync(file);
+  if (!file.endsWith('js/net/firebase-config.js')) return body;
+  return String(body)
+    .replace("projectId: 'demo-poker'", `projectId: '${EMU_PROJECT}'`)
+    .replace('auth: 9099, firestore: 8195', `auth: ${EMU_AUTH_PORT}, firestore: ${EMU_FS_PORT}`);
+}
+
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const REPO = join(ROOT, '..');
@@ -93,7 +107,7 @@ function startStatic() {
       res.writeHead(200, {
         'Content-Type': MIME[extname(file)] || 'application/octet-stream',
       });
-      res.end(readFileSync(file));
+      res.end(emuServe(file));
     });
     server.listen(0, '127.0.0.1', () => {
       resolve({ server, base: `http://127.0.0.1:${server.address().port}` });
@@ -128,8 +142,8 @@ describeEmu('lobby idle paint while others play（emulator）', () => {
     });
     const rules = readFileSync(join(ROOT, 'firebase/firestore.rules'), 'utf8');
     const env = await initializeTestEnvironment({
-      projectId: 'demo-poker',
-      firestore: { host: '127.0.0.1', port: 8195, rules },
+      projectId: EMU_PROJECT,
+      firestore: { host: '127.0.0.1', port: EMU_FS_PORT, rules },
     });
     try {
       const ctx = await browser.newContext({
