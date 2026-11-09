@@ -129,7 +129,7 @@ describe('收桌即時回饋與單次讀取（source contracts）', () => {
     const prepare = section(host, 'async function prepareClose', 'function voidHand');
     assert.equal((prepare.match(/fs.getDoc/g) || []).length, 1);
     assert.match(prepare, /VOID_HAND[\s\S]*await writeChain;[\s\S]*fs.getDoc[\s\S]*return current/);
-    const cashout = section(host, 'async function cashoutSeat', 'async function approveTopUp');
+    const cashout = section(host, 'async function cashoutSeat', 'function startHand');
     assert.match(cashout, /let room = opts.room;\s*if \(!room\) \{[\s\S]*fs.getDoc/);
     assert.match(cashout, /await hostCashoutBatch[\s\S]*Object.assign\(room, roomPatch\)/);
     const close = section(app, 'async function performHostCloseRoomInner', 'function showCloseRoomConfirm');
@@ -141,7 +141,7 @@ describe('收桌即時回饋與單次讀取（source contracts）', () => {
     assert.match(close, /await closeRoom\(fb, id, closedRoom \? \{ closedRoom \} : \{\}\)/);
   });
   it('開房不等待收桌；停止／關桌後不重排下一手或離座重試', () => {
-    assert.doesNotMatch(section(app, 'async function doCreate', 'async function doJoin'), /closeInFlight|await.*[Ss]ettl/);
+    assert.doesNotMatch(section(app, 'async function doCreate', 'async function doJoin'), /closeInFlight/);
     for (const [start, end] of [['function scheduleNextHand', 'function afterEngineChange'], ['async function drainSitLeave()', 'async function drainSitLeaveInner']]) {
       assert.match(section(host, start, end), /closing \|\| !running \|\| getRoom\(\)\?\.status === 'closed'/);
     }

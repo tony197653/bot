@@ -580,6 +580,8 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
         await guest
           .evaluate(() => document.querySelector('.mp-empty-seat')?.click())
           .catch(() => {});
+        await guest.waitForSelector('#mpBuyinPicker [data-confirm]', { timeout: 5000 }).catch(() => {});
+        await guest.evaluate(() => document.querySelector('#mpBuyinPicker [data-confirm]')?.click()).catch(() => {});
         await guest.waitForSelector('#mpLeave', { timeout: 15000 }).catch(() => {});
       }
       assert.ok(await guest.locator('#mpLeave').count(), 'guest seated');

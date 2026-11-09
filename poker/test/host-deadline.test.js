@@ -220,7 +220,7 @@ describe('離桌結帳的已提交狀態保護', () => {
     const host = readFileSync(join(ROOT, 'js/net/host.js'), 'utf8');
     const cashout = host.slice(host.indexOf('  async function cashoutSeat('), host.indexOf('  async function approveTopUp'));
     assert.match(cashout, /await writeChain;[\s\S]*await fs.getDoc[\s\S]*cashoutStateReady[\s\S]*hostCashoutBatch/);
-    assert.match(host, /if \(!await cashoutSeat\(seat, item.uid\)\) return;\s*leaveQueue.splice/);
+    assert.match(host, /if \(!await cashoutSeat\(seat, item.uid[^)]*\)\) return;\s*leaveQueue.splice/);
   });
   it('收桌先作廢並確認發布，再逐席結帳、關桌；立即顯示結算中', () => {
     const host = readFileSync(join(ROOT, 'js/net/host.js'), 'utf8');

@@ -150,11 +150,6 @@ export function diffPubEvents(prev, next, flags = {}) {
   if (next.lastAction && next.actionSeq !== prev.actionSeq) {
     events.push({ type: 'action', action: next.lastAction, pub: next });
   }
-  // top-up: stacks 0→2000 with topUps+1
-  // (host sets lastMoneyEvent type topup — clients can also watch stacks)
-  if (next.lastMoneyEvent?.type === 'topup' && next.lastMoneyEvent?.id !== prev.lastMoneyEvent?.id) {
-    events.push({ type: 'topUp', seat: next.lastMoneyEvent.seat, amount: next.lastMoneyEvent.amount });
-  }
   if (next.lastMoneyEvent?.type === 'cashout' && next.lastMoneyEvent?.id !== prev.lastMoneyEvent?.id) {
     events.push({ type: 'cashout', seat: next.lastMoneyEvent.seat, amount: next.lastMoneyEvent.amount });
   }

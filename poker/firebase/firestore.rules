@@ -156,19 +156,6 @@ service cloud.firestore {
         && s.startAt > request.time - duration.value(10, 'm')
         && s.startAt < request.time + duration.value(10, 'm');
     }
-    // 補碼（加買）：只能在桌上籌碼 0 時、剛好 config.topUpAmount；房主自己也走這條
-    function topupSeatOk(d, m, e) {
-      let r = resource.data;
-      let s0 = r.sess[m.seat];
-      let s1 = d.sess[m.seat];
-      return r.seatUids[m.seat] == m.uid && d.seatUids[m.seat] == m.uid
-        && r.stacks[m.seat] == 0 && d.stacks[m.seat] == m.amount
-        && m.amount == r.config.topUpAmount && d.chipTotal == r.chipTotal + m.amount
-        && e.sessionNo == s0.sessionNo
-        && s1.uid == s0.uid && s1.sessionNo == s0.sessionNo && s1.buyIn == s0.buyIn
-        && s1.nightKey == s0.nightKey && s1.startAt == s0.startAt && s1.hands == s0.hands
-        && s1.topUps == s0.topUps + 1 && s1.topUpChips == s0.topUpChips + m.amount;
-    }
     // 結帳（帶走）：帶走金額＝這一格的桌上籌碼；座位空出、stacks 歸 0、chipTotal 減掉
     function cashoutSeatOk(d, m, e) {
       let r = resource.data;
@@ -192,7 +179,6 @@ service cloud.firestore {
       return e.roomId == roomId && e.type == m.type && e.amount == m.amount
         && (m.type == 'buyin' || e.seat == m.seat)
         && ((m.type == 'buyin' && buyinSeatOk(roomId, d, m, e, getAfter(playerPath(m.uid)).data))
-            || (m.type == 'topup' && topupSeatOk(d, m, e))
             || (m.type == 'cashout' && cashoutSeatOk(d, m, e)));
     }
     // 房主寫入（含交棒、接手）都要符合：rev 加 1、伺服器時間、關了不能再開、
@@ -458,7 +444,7 @@ service cloud.firestore {
           let d = request.resource.data;
           return d.keys().hasOnly(['type', 'seq', 'amount', 'seat', 'handNo', 'turn', 'at'])
             && d.type in ['SIT', 'LEAVE', 'FOLD', 'CHECK', 'CALL', 'BET_RAISE', 'ALL_IN',
-                          'SHOW', 'MUCK', 'TOPUP_REQ', 'TOPUP_CANCEL']
+                          'SHOW', 'MUCK']
             && d.seq is int
             && (d.get('amount', null) == null || (d.amount is int && d.amount >= 0 && d.amount <= 100000000))
             && (d.get('seat', null) == null || (d.seat is int && d.seat >= 0 && d.seat <= 5))
@@ -591,7 +577,7 @@ service cloud.firestore {
           && d.diff(resource.data).affectedKeys().hasOnly(['hostRoomId', 'updatedAt'])
           && d.updatedAt == request.time;
       }
-      // 本人帶入（整筆帶入）：bank 全部移到 inPlay；同一個 batch 要有帳本 buyin
+      // 本人自選帶入：bank 扣除 inPlay，total 不變；同一個 batch 要有帳本 buyin
       function buyinOk() {
         let d = request.resource.data;
         let r = roomOf(d.tableRoomId);
@@ -599,7 +585,9 @@ service cloud.firestore {
           && resource.data.tableRoomId == null
           && d.tableRoomId is string && d.lastRoomId == d.tableRoomId
           && request.auth.uid in r.members && roomOpen(r.status)
-          && d.inPlay == resource.data.bank && d.bank == 0 && d.total == resource.data.total
+          && d.inPlay is int && d.inPlay >= 50 * r.config.bb
+          && d.inPlay <= resource.data.bank && d.bank == resource.data.bank - d.inPlay
+          && d.total == resource.data.total
           && d.sessionNo == resource.data.sessionNo + 1
           && d.updatedAt == request.time
           && existsAfter(ledgerPath(uid, d.tableRoomId + '_' + string(d.sessionNo) + '_buyin'));
@@ -629,12 +617,12 @@ service cloud.firestore {
 
       // 帳本（只新增）：編號固定＝冪等鍵
       //   grant：{roomId}_0_grant　buyin：{roomId}_{sessionNo}_buyin
-      //   topup：{roomId}_{sessionNo}_topup{n}　cashout：{roomId}_{sessionNo}_cashout
+      //   cashout：{roomId}_{sessionNo}_cashout
       match /ledger/{entryId} {
         function entryKeysOk(d) {
           return d.keys().hasOnly(['type', 'amount', 'roomId', 'sessionNo', 'seat', 'buyIn', 'topUps',
                                    'topUpChips', 'hands', 'nightKey', 'bankAfter', 'by', 'at'])
-            && d.type in ['grant', 'buyin', 'topup', 'cashout']
+            && d.type in ['grant', 'buyin', 'cashout']
             && d.amount is int && d.amount >= 0 && d.amount <= 100000000
             && d.roomId is string && d.roomId.size() <= 40
             && d.sessionNo is int && d.sessionNo >= 0
@@ -654,18 +642,6 @@ service cloud.firestore {
             && entryId == d.roomId + '_' + string(d.sessionNo) + '_buyin'
             && p.tableRoomId == d.roomId && p.sessionNo == d.sessionNo
             && d.amount == p.inPlay && d.bankAfter == p.bank;
-        }
-        // 補碼：現任房主（房主自己輸光也可以核准自己），和房間寫入同一個 batch
-        function topupEntryOk(d) {
-          let r = roomOf(d.roomId);
-          return d.type == 'topup' && r.hostUid == request.auth.uid
-            && d.seat is int && d.seat >= 0 && d.seat <= 5
-            && r.seatUids[d.seat] == uid && r.stacks[d.seat] == 0 && betweenHands(r.pub)
-            && d.amount == r.config.topUpAmount
-            && d.sessionNo == r.sess[d.seat].sessionNo
-            && d.topUps == r.sess[d.seat].topUps + 1
-            && entryId == d.roomId + '_' + string(d.sessionNo) + '_topup' + string(d.topUps)
-            && getAfter(roomPath(d.roomId)).data.lastMoneyEvent.id == entryId;
         }
         // 房主失聯 10 分鐘以上（房間和房主心跳都沒更新），或房間已收桌
         function hostGone(r, roomId) {
@@ -708,7 +684,7 @@ service cloud.firestore {
         allow list: if signedIn() && request.query.limit <= 50;
         allow create: if signedIn() && entryKeysOk(request.resource.data)
           && (grantOk(request.resource.data) || buyinEntryOk(request.resource.data)
-              || topupEntryOk(request.resource.data) || cashoutEntryOk(request.resource.data));
+              || cashoutEntryOk(request.resource.data));
         allow update, delete: if false;
       }
 

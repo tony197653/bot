@@ -190,13 +190,14 @@ test('stacks：真 engine 每步房主寫入與帳務相容', async t => {
         rev: room.rev + 1, updatedAt: fs.serverTimestamp(), pub: publicState(state), stacks: room.stacks,
       }));
     });
-    await t.test('手間 buyin、topup、cashout 後繼續下一手', async () => {
+    await t.test('手間補碼被拒，buyin、cashout 後繼續下一手', async () => {
       const e = await seed([2000, 2000, 0]);
       await step({ type: 'START_HAND' }, e);
       await finish(e);
       // 補碼：照 approveTopUp 的原子 room + ledger 寫入，帳戶不變。
       const seat = 2, uid = uids[seat], row = room.sess[seat], amount = 2000;
       const id = `${roomId}_${row.sessionNo}_topup1`;
+      const beforeTopup = state;
       state = applyAction(state, { type: 'TOP_UP', seat, amount }, e);
       const batch = fs.writeBatch(hostDb);
       const sess = room.sess.map((p, i) => i === seat ? { ...p, topUps: 1, topUpChips: amount } : p);
@@ -207,7 +208,7 @@ test('stacks：真 engine 每步房主寫入與帳務相容', async t => {
         type: 'topup', amount, roomId, sessionNo: row.sessionNo, seat, buyIn: null, topUps: 1,
         topUpChips: null, hands: null, nightKey: null, bankAfter: null, by: 'host', at: fs.serverTimestamp(),
       });
-      await assertSucceeds(batch.commit()); await snap();
+      await assertFails(batch.commit()); state = beforeTopup; await snap();
       // 新人真的領取贈送並買入，再由房主依帳本入座。
       const newUid = uids[3], fb = { fs, db: db(newUid) };
       await assertSucceeds(ensurePlayerGrant(fb, newUid, roomId, 2000, { displayName: newUid, photoURL: null }));

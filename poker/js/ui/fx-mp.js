@@ -16,8 +16,6 @@ export const MP_FX = {
   hostTagInMs: 240,
   voidChipMs: SHOWDOWN_FX.chipFlyMs ?? 650,
   voidBoardFadeMs: 240,
-  topUpDropMs: 650,
-  topUpCountMs: 600,
   awayInMs: 300,
   awayOutMs: 240,
   reconnectFadeMs: 160,

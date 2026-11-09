@@ -41,7 +41,7 @@ import {
 } from '../net/room.js';
 import {
   ensurePlayerGrant,
-  buyinAll,
+  buyinAmount,
   getPlayer,
   fetchLeaderboard,
   fetchNightBoard,
@@ -50,7 +50,7 @@ import {
   nightKeyOf,
   readCachedPlayer,
 } from '../net/ledger.js';
-import { DEFAULT_NEW_PLAYER_CHIPS, assertMinimumBuyin, wholeBalance, buyinLabel } from '../net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
 import {
   createIntentSender,
@@ -141,11 +141,8 @@ let createDraft = { name: '', sb: 10, chips: DEFAULT_NEW_PLAYER_CHIPS };
 let sittingBusy = false;
 let openJoinBusy = false;
 let rescueBusy = false;
-let approveBusy = false;
-let denyBusy = false;
 let leaveBusy = false;
 /** Local tick for M2 #13「再申請一次」countdown. */
-let topUpDenyTick = null;
 
 /** Map low-level errors to plain 發生什麼 + 怎麼做（附錄 M3）. */
 function friendlyError(err, fallback) {
@@ -1308,6 +1305,8 @@ async function enterOpenTable(roomId) {
     if (go) go.textContent = '加入中…';
   }
   try {
+    await silentlySettleClosedBinding();
+    playerDoc = await getPlayer(fb, user.uid);
     if (await maybeAutoCloseSingleTable(fb, roomId, user.uid)) {
       openTables = openTables.filter((t) => t.id !== roomId);
       // Release the join guard in finally before create's lookup may join a new table.
@@ -1332,6 +1331,9 @@ async function enterOpenTable(roomId) {
       );
       if (screen === 'lobby') paint();
       return;
+    }
+    if (playerDoc?.tableRoomId !== roomId) {
+      assertMinimumBuyin(playerDoc?.bank ?? res.room.config.newPlayerChips, res.room.config.bb);
     }
     await enterRoom(roomId);
   } catch (e) {
@@ -1503,6 +1505,8 @@ async function doCreate(data) {
     const displayName = user.displayName || '玩家';
     const tableName =
       String(data.name || '').trim() || `${displayName}的牌桌`;
+    await silentlySettleClosedBinding();
+    playerDoc = await getPlayer(fb, user.uid);
     const res = await createSingleTable(fb, {
       uid: user.uid,
       name: tableName,
@@ -1516,6 +1520,11 @@ async function doCreate(data) {
       // L3: already hosting → go straight back to that table
       creating = false;
       screen = 'lobby';
+      playerDoc = await getPlayer(fb, user.uid);
+      if (playerDoc?.tableRoomId !== res.roomId) {
+        try { assertMinimumBuyin(playerDoc?.bank ?? res.config.newPlayerChips, res.config.bb); }
+        catch (e) { toast(e.message); paint(); return; }
+      }
       await enterRoom(res.roomId);
       return;
     }
@@ -1674,7 +1683,18 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
     id,
     async (r) => {
       const first = !room;
+      const previousSelfSeat = room?.seatUids?.indexOf(user.uid) ?? -1;
+      const wasBusted = previousSelfSeat >= 0 && (room.stacks?.[previousSelfSeat] === 0 ||
+        room.pub?.seats?.[previousSelfSeat]?.chips === 0);
       room = r;
+      const ownZeroCashout = r.lastMoneyEvent?.type === 'cashout' &&
+        r.lastMoneyEvent.uid === user.uid && r.lastMoneyEvent.amount === 0;
+      if (previousSelfSeat >= 0 && (wasBusted || ownZeroCashout) &&
+          r.status !== 'closed' && !r.seatUids.includes(user.uid)) {
+        goLobbyClean();
+        toast('籌碼輸光了，已離座回大廳');
+        return;
+      }
       lastRecvAt = Date.now();
       // Track self stack while still seated / bound — host may cash out before status=closed
       {
@@ -1824,8 +1844,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
                 ? `房主斷線，由 ${who} 接手；這一手作廢`
                 : `${displayNameOf(ev.from)} 離座，由 ${who} 當房主`,
             );
-          } else if (ev.type === 'topUp') {
-            toast(`座位 ${ev.seat + 1} 補碼 ${fmtChips(ev.amount)}`);
+
           } else if (ev.type === 'seatIn') {
             toast(`${ev.player?.name || '玩家'} 入座`);
           } else if (ev.type === 'seatOut') {
@@ -1843,7 +1862,8 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         if (needHostSit) {
           try {
             assertMinimumBuyin(wholeBalance(playerDoc, id), r.config.bb);
-            const buyin = await buyinAll(fb, user.uid, id, r.config.bb);
+            const buyin = await buyinAmount(fb, user.uid, id, r.config.bb,
+              playerDoc?.tableRoomId === id ? playerDoc.inPlay : buyinOptions(playerDoc, r.config).amount);
             playerDoc = { uid: user.uid, ...buyin.player };
             await hostLoop?.seatPlayer(0, user.uid);
           } catch (e) {
@@ -1970,7 +1990,7 @@ function paintTableChrome() {
   const meta = $('#roomMeta');
   if (meta) {
     const selfSeat = room.seatUids.indexOf(user?.uid);
-    const buyin = buyinLabel(playerDoc, roomId, selfSeat >= 0 ? room.sess?.[selfSeat] : null);
+    const buyin = buyinLabel(playerDoc, roomId, selfSeat >= 0 ? room.sess?.[selfSeat] : null, room.config);
     meta.innerHTML = `<span class="meta-a"><b>${esc(room.config.sb)}／${esc(room.config.bb)}</b>　${esc(buyin)}</span><span class="meta-b">　房號 ${esc(formatCode(room.code))}</span>`;
   }
 
@@ -2193,49 +2213,6 @@ function SLOT_FALLBACK(seat, viewer) {
   return { 0: 'hero', 1: 3, 2: 4, 3: 0, 4: 1, 5: 2 }[rel] ?? 0;
 }
 
-/** M2 #13 / §4.1 6-d: host approve+deny buttons + player deny cooldown. */
-function topUpHostHtml(pub) {
-  const reqs = Object.keys(pub.topUpReqs || {});
-  if (!reqs.length) return '';
-  return reqs
-    .map(
-      (s) =>
-        `<button type="button" class="primary" data-approve="${s}">核准補碼 座位${+s + 1}</button>` +
-        `<button type="button" class="ghost" data-deny="${s}">先不要</button>`,
-    )
-    .join('');
-}
-
-function topUpPlayerHtml(pub, mySeat, stacks) {
-  if (mySeat < 0 || (stacks[mySeat] || 0) !== 0) return '';
-  if (pub.topUpReqs?.[mySeat] || pub.topUpReqs?.[String(mySeat)]) {
-    return `<button type="button" class="ghost" id="mpTopupCancel">取消申請</button>
-      <span class="mp-spec">等房主核准…</span>`;
-  }
-  const deniedAt = Number(
-    pub.topUpDenied?.[mySeat] ?? pub.topUpDenied?.[String(mySeat)] ?? 0,
-  );
-  if (deniedAt) {
-    const left = Math.max(0, 60 - Math.floor((Date.now() - deniedAt) / 1000));
-    if (left > 0) {
-      if (!topUpDenyTick) {
-        topUpDenyTick = setInterval(() => paintTableChrome(), 1000);
-      }
-      return `<div class="mp-spec">房主這次先不補。你可以 1 分鐘後再申請，或離座把籌碼結回帳戶</div>
-        <button type="button" class="primary" id="mpTopup" disabled aria-disabled="true">再申請一次（${left}s）</button>
-        <button type="button" class="ghost" id="mpLeave">離座</button>`;
-    }
-    if (topUpDenyTick) {
-      clearInterval(topUpDenyTick);
-      topUpDenyTick = null;
-    }
-    return `<div class="mp-spec">房主這次先不補。你可以再申請一次，或離座把籌碼結回帳戶</div>
-      <button type="button" class="primary" id="mpTopup">再申請一次</button>
-      <button type="button" class="ghost" id="mpLeave">離座</button>`;
-  }
-  return `<button type="button" class="primary" id="mpTopup">申請補 2,000</button>`;
-}
-
 async function startHandFromButton(event) {
   const button = event.currentTarget;
   if (button.disabled) return;
@@ -2248,75 +2225,6 @@ async function startHandFromButton(event) {
     button.disabled = false;
     paintTableChrome();
   }
-}
-
-function wireTopUpActions(btns, pub, mySeat) {
-  $('#mpTopup', btns)?.addEventListener('click', () => {
-    const btn = $('#mpTopup', btns);
-    if (btn?.disabled) return;
-    btn.disabled = true;
-    btn.textContent = '申請中…';
-    intents?.send(
-      {
-        type: 'TOPUP_REQ',
-        handNo: (Number(pub.handNo) || 0) | 0,
-        turn: (Number(pub.actionSeq) || 0) | 0,
-        seat: mySeat,
-      },
-      {
-        onFail: () => {
-          toast('沒有送出去，可能是網路斷了。請再按一次');
-          paintTableChrome();
-        },
-      },
-    );
-  });
-  $('#mpTopupCancel', btns)?.addEventListener('click', () => {
-    intents?.send({
-      type: 'TOPUP_CANCEL',
-      handNo: (Number(pub.handNo) || 0) | 0,
-      turn: (Number(pub.actionSeq) || 0) | 0,
-      seat: mySeat,
-    });
-  });
-  btns.querySelectorAll('[data-approve]').forEach((el) => {
-    el.addEventListener('click', async () => {
-      if (approveBusy || denyBusy) return;
-      approveBusy = true;
-      const seat = Number(el.getAttribute('data-approve'));
-      btns.querySelectorAll(`[data-approve="${seat}"],[data-deny="${seat}"]`).forEach((b) => {
-        b.disabled = true;
-      });
-      el.textContent = '核准中…';
-      try {
-        await hostLoop?.approveTopUp(seat);
-      } catch (e) {
-        toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
-        paintTableChrome();
-      } finally {
-        approveBusy = false;
-      }
-    });
-  });
-  btns.querySelectorAll('[data-deny]').forEach((el) => {
-    el.addEventListener('click', async () => {
-      if (approveBusy || denyBusy) return;
-      denyBusy = true;
-      const seat = Number(el.getAttribute('data-deny'));
-      btns.querySelectorAll(`[data-approve="${seat}"],[data-deny="${seat}"]`).forEach((b) => {
-        b.disabled = true;
-      });
-      el.textContent = '處理中…';
-      try {
-        await hostLoop?.denyTopUp(seat);
-      } catch (e) {
-        toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
-        paintTableChrome();
-      } finally {
-        denyBusy = false;
-      }
-    });
-  });
 }
 
 function renderActBar() {
@@ -2349,7 +2257,7 @@ function renderActBar() {
   }
   if (mySeat < 0) {
     // PL: soft leave via top 「‹ 大廳」only — no bottom 回大廳
-    btns.innerHTML = `<div class="mp-spec">請選位子，點牌桌上的空位入座<br><small>${esc(buyinLabel(playerDoc, roomId))}；最低 ${fmtChips(50 * room.config.bb)}（50 大盲）</small></div>`;
+    btns.innerHTML = `<div class="mp-spec">請選位子，點牌桌上的空位入座<br><small>${esc(buyinLabel(playerDoc, roomId, null, room.config))}；最低 ${fmtChips(50 * room.config.bb)}（50 大盲）</small></div>`;
     return;
   }
 
@@ -2402,28 +2310,16 @@ function renderActBar() {
   }
 
   if (between && isHost && seatedCount >= 2 && pub.phase === 'hand_over') {
-    const playerTop = topUpPlayerHtml(pub, mySeat, room.stacks);
-    // Denied player block already includes 離座
-    const hasLeaveInTop = /id="mpLeave"/.test(playerTop);
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始下一手（${seatedCount}人）</button>
-      ${hasLeaveInTop ? '' : '<button type="button" class="ghost" id="mpLeave">離座</button>'}
-      ${playerTop}
-      ${topUpHostHtml(pub)}`;
+      <button type="button" class="ghost" id="mpLeave">離座</button>`;
     $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
-    wireTopUpActions(btns, pub, mySeat);
     return;
   }
 
   if (between) {
-    const playerTop = topUpPlayerHtml(pub, mySeat, room.stacks);
-    const hasLeaveInTop = /id="mpLeave"/.test(playerTop);
-    btns.innerHTML = `
-      ${playerTop}
-      ${isHost ? topUpHostHtml(pub) : ''}
-      ${hasLeaveInTop ? '' : '<button type="button" class="ghost" id="mpLeave">離座</button>'}`;
+    btns.innerHTML = '<button type="button" class="ghost" id="mpLeave">離座</button>';
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
-    wireTopUpActions(btns, pub, mySeat);
     return;
   }
 
@@ -2758,6 +2654,41 @@ function openMpRaise(minRaiseTo, send) {
   };
 }
 
+function pickBuyinAmount(options) {
+  const el = document.createElement('div');
+  el.id = 'mpBuyinPicker';
+  el.className = 'mp-close-result';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'mpBuyinTitle');
+  el.innerHTML = `<div class="mp-close-result-card">
+    <h2 id="mpBuyinTitle">攜入籌碼</h2>
+    <input aria-label="攜入籌碼" type="number" inputmode="numeric" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
+    <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
+    <button type="button" class="mp-btn-ghost" data-cancel>取消</button>
+    <button type="button" class="mp-btn-primary" data-confirm>入座</button>
+  </div>`;
+  document.body.appendChild(el);
+  const number = el.querySelector('input[type="number"]');
+  const slider = el.querySelector('input[type="range"]');
+  number.addEventListener('input', () => { slider.value = number.value; });
+  slider.addEventListener('input', () => { number.value = slider.value; });
+  return new Promise(resolve => {
+    el.querySelector('[data-cancel]').addEventListener('click', () => { el.remove(); resolve(null); });
+    el.querySelector('[data-confirm]').addEventListener('click', () => {
+      const amount = Number(number.value);
+      if (!Number.isSafeInteger(amount) || amount < options.min || amount > options.max ||
+          (amount - options.min) % options.step !== 0) {
+        number.reportValidity();
+        return;
+      }
+      toast('入座中…');
+      el.remove();
+      resolve(amount);
+    });
+  });
+}
+
 async function sitDown(seat) {
   const fb = getFirebase();
   const user = getUser();
@@ -2777,8 +2708,12 @@ async function sitDown(seat) {
     return;
   }
   sittingBusy = true;
-  toast('入座中…');
   try {
+    const targetRoomId = roomId;
+    const amount = playerDoc?.tableRoomId === roomId ? playerDoc.inPlay
+      : await pickBuyinAmount(buyinOptions(playerDoc, room.config));
+    if (amount == null || !room || roomId !== targetRoomId) return;
+    toast('入座中…');
     if (room.hostUid !== user.uid) {
       try {
         const hp = await fb.fs.getDoc(
@@ -2797,7 +2732,7 @@ async function sitDown(seat) {
       }
     }
     if (playerDoc?.tableRoomId !== roomId) {
-      await buyinAll(fb, user.uid, roomId, room.config.bb);
+      await buyinAmount(fb, user.uid, roomId, room.config.bb, amount);
       playerDoc = await getPlayer(fb, user.uid);
     }
     if (!intents) throw new Error('連線準備中，請再點一次空位');
@@ -3227,10 +3162,7 @@ function tearDownRoom() {
   membersPanelOpen = false;
   clearMpRaiseHold();
   raiseOpen = false;
-  if (topUpDenyTick) {
-    clearInterval(topUpDenyTick);
-    topUpDenyTick = null;
-  }
+  document.getElementById('mpBuyinPicker')?.querySelector('[data-cancel]')?.click();
   hideCloseResultCard();
   const alone = document.getElementById('mpHostAlone');
   if (alone) alone.hidden = true;

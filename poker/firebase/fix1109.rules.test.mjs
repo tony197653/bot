@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import * as fs from 'firebase/firestore';
-import { hostCloseAllBatch, buyinAll, ensurePlayerGrant, settleClosedRoomBinding } from '../js/net/ledger.js';
+import { hostCloseAllBatch, hostCashoutBatch, buyinAmount, buyinAll, ensurePlayerGrant, settleClosedRoomBinding } from '../js/net/ledger.js';
 import { createSingleTable, closeRoom } from '../js/net/room.js';
 import { createHostLoop } from '../js/net/host.js';
 
@@ -50,7 +50,81 @@ test('fix1109：零手數收桌／第三人入座／禁止房主任意移錢', a
     });
     return room;
   };
+  const seedBuyer = async () => {
+    await seed();
+    await env.withSecurityRulesDisabled(async c => {
+      const d = c.firestore(), now = fs.Timestamp.now();
+      await fs.setDoc(fs.doc(d, 'pokerPlayers', 'third'), {
+        displayName: 'third', photoURL: null, bank: 8765, inPlay: 0, total: 8765,
+        tableRoomId: null, sessionNo: 0, topUps: 0, topUpChips: 0, handsPlayed: 0,
+        lastRoomId: roomId, hostRoomId: null, createdAt: now, updatedAt: now,
+      });
+    });
+  };
+  const rawBuyin = async (amount, bank = 8765 - amount, by = 'third') => {
+    const d = db(by), b = fs.writeBatch(d);
+    b.update(fs.doc(d, 'pokerPlayers', 'third'), { bank, inPlay: amount, tableRoomId: roomId,
+      sessionNo: 1, lastRoomId: roomId, updatedAt: fs.serverTimestamp() });
+    b.set(fs.doc(d, 'pokerPlayers', 'third', 'ledger', `${roomId}_1_buyin`), {
+      type: 'buyin', amount, roomId, sessionNo: 1, bankAfter: bank, by, at: fs.serverTimestamp(),
+    });
+    return b.commit();
+  };
   try {
+    await t.test('自選買入 2000，保留 6765 且 total 不變', async () => {
+      await seedBuyer();
+      await assertSucceeds(buyinAmount({ fs, db: db('third') }, 'third', roomId, 20, 2000));
+      const p = (await fs.getDoc(fs.doc(db('third'), 'pokerPlayers', 'third'))).data();
+      assert.equal(p.bank, 6765); assert.equal(p.inPlay, 2000); assert.equal(p.total, 8765);
+    });
+    for (const [name, amount, bank, by] of [
+      ['低於 50BB', 999, 7766, 'third'], ['超過 bank', 8766, -1, 'third'],
+      ['未扣足 bank', 2000, 8765, 'third'], ['他人代寫買入', 2000, 6765, 'host'],
+    ]) await t.test(name + '拒絕', async () => { await seedBuyer(); await assertFails(rawBuyin(amount, bank, by)); });
+    await t.test('補碼 ledger 與房間改寫均拒絕', async () => {
+      const r = await seed(), d = db('host');
+      await assertFails(fs.setDoc(fs.doc(d,'pokerPlayers','friend','ledger',`${roomId}_1_topup1`), {
+        type:'topup',amount:2000,roomId,sessionNo:1,seat:1,topUps:1,by:'host',at:fs.serverTimestamp(),
+      }));
+      await assertFails(fs.updateDoc(roomRef(d), { rev:r.rev+1,updatedAt:fs.serverTimestamp(),
+        stacks:[2000,4000,0,0,0,0],chipTotal:6000,
+        lastMoneyEvent:{uid:'friend',id:`${roomId}_1_topup1`,seat:1,type:'topup',amount:2000} }));
+      // 舊版可核准的完整補碼批次：輸光席＋房間＋帳本，現在必須拒絕。
+      await env.withSecurityRulesDisabled(c => fs.updateDoc(roomRef(c.firestore()), {stacks:[4000,0,0,0,0,0]}));
+      const batch = fs.writeBatch(d), id = `${roomId}_1_topup1`;
+      batch.update(roomRef(d), {rev:r.rev+1,updatedAt:fs.serverTimestamp(),
+        stacks:[4000,2000,0,0,0,0],chipTotal:6000,
+        sess:[r.sess[0],{...r.sess[1],topUps:1,topUpChips:2000},null,null,null,null],
+        lastMoneyEvent:{uid:'friend',id,seat:1,type:'topup',amount:2000}});
+      batch.set(fs.doc(d,'pokerPlayers','friend','ledger',id), {
+        type:'topup',amount:2000,roomId,sessionNo:1,seat:1,buyIn:null,topUps:1,
+        topUpChips:null,hands:null,nightKey:null,bankAfter:null,by:'host',at:fs.serverTimestamp(),
+      });
+      await assertFails(batch.commit());
+    });
+    await t.test('房主將輸光 0-stack 席結帳，bank 保持餘額且桌上總額不變', async () => {
+      const r = await seed();
+      r.stacks = [4000,0,0,0,0,0]; r.pub.phase = 'hand_over';
+      await env.withSecurityRulesDisabled(async c => {
+        const f = c.firestore();
+        await fs.updateDoc(roomRef(f), { stacks:r.stacks,pub:r.pub });
+        await fs.updateDoc(fs.doc(f,'pokerPlayers','friend'), {bank:765,total:2765});
+      });
+      await assertSucceeds(hostCashoutBatch({fs,db:db('host')}, {
+        hostUid:'host',roomId,seat:1,uid:'friend',sessRow:r.sess[1],amount:0,playerName:'friend',
+        roomPatch:{ rev:r.rev+1,seatUids:['host','','','','',''],stacks:r.stacks,chipTotal:4000,
+          sess:[r.sess[0],null,null,null,null,null],pub:r.pub,
+          lastMoneyEvent:{uid:'friend',id:`${roomId}_1_cashout`,seat:1,type:'cashout',amount:0} },
+      }));
+      let p, ct;
+      await env.withSecurityRulesDisabled(async c => {
+        const f = c.firestore();
+        p = (await fs.getDoc(fs.doc(f,'pokerPlayers','friend'))).data();
+        ct = (await fs.getDoc(roomRef(f))).data().chipTotal;
+      });
+      assert.equal(p.bank,765); assert.equal(p.inPlay,0); assert.equal(p.total,765);
+      assert.equal(ct,4000);
+    });
     await t.test('房主離線獨坐：非房主懶惰收桌回收 000，本人稍後結算守恆且不重複', async () => {
       const original = await seed();
       const stale = fs.Timestamp.fromMillis(Date.now() - 31 * 60_000);
