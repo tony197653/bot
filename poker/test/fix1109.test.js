@@ -27,7 +27,7 @@ test('所有進桌入口：第一筆網路讀取前立即顯示牌桌載入畫�
 function fixture(options = {}) {
   let room = { id: 'r', hostUid: 'h', status: 'lobby', rev: 0, name: '牌桌',
     config: { sb: 10, bb: 20, newPlayerChips: 2000, actionMs: 30000, topUpAmount: 2000 },
-    members: ['h', 'b', 'c'], seatUids: ['h', '', '', '', '', ''], stacks: [2000, 0, 0, 0, 0, 0], chipTotal: 2000,
+    members: ['h', 'b', 'c', 'd'], seatUids: ['h', '', '', '', '', ''], stacks: [2000, 0, 0, 0, 0, 0], chipTotal: 2000,
     sess: [{ uid: 'h', sessionNo: 1, buyIn: 2000, topUps: 0, topUpChips: 0, hands: 0, nightKey: '20261109' }, null, null, null, null, null],
     pub: { phase: 'lobby', handNo: 0, seats: [] } };
   let deny = false;
@@ -43,6 +43,7 @@ function fixture(options = {}) {
     updateDoc: async (path, patch) => {
       if (deny && patch.lastMoneyEvent) throw Object.assign(Error('denied'), { code: 'permission-denied' });
       if (path === 'pokerRooms/r') {
+        await options.beforeRoomWrite?.(patch, room);
         assert.equal(patch.rev, room.rev + 1, 'rev 必須依最新已寫入文件遞增');
         room = { ...room, ...patch };
       }
@@ -224,4 +225,66 @@ test('host 收到非行動者 LEAVE 即刻蓋牌，後續行動跳過離桌席�
     }
     assert.ok(['showdown', 'hand_over'].includes(f.loop.getEngine().phase));
   } finally { f.loop.stop(); }
+});
+
+
+test('host 手數：四人連續三手各加一次，拒絕後重試成功才開下一手', async () => {
+  const priorDocument = globalThis.document;
+  globalThis.document = { visibilityState: 'visible' };
+  const bumps = [];
+  let denied = 0;
+  let release, entered;
+  const blocked = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const f = fixture({
+    onSnapshot(ref, cb) {
+      if (ref.endsWith('/presence')) cb({ forEach: fn => ['h', 'b', 'c', 'd'].forEach(id =>
+        fn({ id, data: () => ({ beat: { toMillis: () => Date.now() }, vis: true }) })) });
+    },
+    async beforeRoomWrite(patch, room) {
+      if (!patch.sess || patch.sess[0].hands === room.sess[0].hands) return;
+      assert.deepEqual(Object.keys(patch).sort(), ['rev', 'sess', 'updatedAt']);
+      assert.equal(room.pub.phase, 'hand_over');
+      if (room.pub.handNo === 2 && denied++ === 0) {
+        throw Object.assign(Error('測試手數寫入遭拒'), { code: 'permission-denied' });
+      }
+      if (room.pub.handNo === 2 && denied === 2) {
+        entered();
+        await gate;
+      }
+      bumps.push(room.pub.handNo);
+    },
+  });
+  const waitFor = async predicate => {
+    for (let i = 0; i < 600; i++) {
+      if (predicate()) return;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.fail('等待連續手數寫入逾時');
+  };
+  try {
+    await f.loop.seatPlayer(1, 'b');
+    await f.loop.seatPlayer(2, 'c');
+    await f.loop.seatPlayer(3, 'd');
+    assert.equal(f.loop.startHand(), true);
+    for (let hand = 1; hand <= 3; hand++) {
+      await waitFor(() => f.room().pub.phase === 'preflop' && f.room().pub.handNo === hand);
+      while (f.loop.getEngine().phase === 'preflop') {
+        f.loop.hostAction({ type: 'FOLD', seat: f.loop.getEngine().actor });
+      }
+      await waitFor(() => f.room().pub.phase === 'hand_over');
+      if (hand === 2) {
+        await Promise.race([blocked, waitFor(() => denied >= 2)]);
+        assert.equal(f.loop.getEngine().handNumber, 2);
+        assert.equal(f.loop.getEngine().phase, 'hand_over');
+        assert.deepEqual(f.room().sess.filter(Boolean).map(p => p.hands), [1, 1, 1, 1]);
+        release();
+      }
+      await waitFor(() => f.room().sess.filter(Boolean).every(p => p.hands === hand));
+      await waitFor(() => f.room().pub.phase === 'preflop' && f.room().pub.handNo === hand + 1);
+      assert.deepEqual(f.room().sess.filter(Boolean).map(p => p.hands), [hand, hand, hand, hand]);
+    }
+    assert.deepEqual(bumps, [1, 2, 3]);
+    assert.ok(denied >= 2, '第二手必須真的重試');
+  } finally { release(); f.loop.stop(); globalThis.document = priorDocument; }
 });

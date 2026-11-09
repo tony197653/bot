@@ -50,8 +50,9 @@ const roomRef = (d) => doc(d, 'pokerRooms', R);
 const hostUpd = async (d, room, ch) => updateDoc(roomRef(d), { rev: room.rev + 1, updatedAt: serverTimestamp(), ...ch });
 
 // ---- 帳務 batch 產生器 ----
-if (process.env.STARTAT && process.env.STARTAT !== 'ts') { console.error(`STARTAT must be 'ts' (got ${process.env.STARTAT}); serverTimestamp() inside arrays fails 4 tests`); process.exit(2); }
-const START_AT = () => (process.env.STARTAT === 'ts' ? Timestamp.now() : serverTimestamp());
+if (process.env.STARTAT && process.env.STARTAT !== 'ts') { console.error(`STARTAT 必須為 'ts'（收到 ${process.env.STARTAT}）；sess 陣列固定使用 Timestamp.now()`); process.exit(2); }
+// sess 是陣列，不能內嵌 serverTimestamp；目前時間符合規則的正負十分鐘限制。
+const START_AT = () => Timestamp.now();
 async function buyinBatch(uid, roomId = R, o = {}) {
   const d = db(uid); const p = await curP(uid); const no = p.sessionNo + 1;
   const b = writeBatch(d);
@@ -938,7 +939,7 @@ await t('#takeover', 'lobby 房可 takeover（presence+updatedAt 過期）', 'ok
   });
 });
 
-fs.writeFileSync(process.env.OUT || 'results.json', JSON.stringify({ rules: RULES, startAt: process.env.STARTAT || 'serverTimestamp', results, raceInfo, retry, cancelBack }, null, 1));
+fs.writeFileSync(process.env.OUT || 'results.json', JSON.stringify({ rules: RULES, startAt: 'Timestamp.now()', results, raceInfo, retry, cancelBack }, null, 1));
 for (const r of results) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.group} ${r.name} | 預期 ${r.expect} 實際 ${r.got} ${r.pass ? '' : r.err}`);
 console.log('race:', raceInfo, '\ncancelBack:', cancelBack, '\nretry before/after A bank:', retry.before?.bank, retry.after?.bank);
 console.log(`TOTAL ${results.filter((r) => r.pass).length}/${results.length}`);

@@ -243,8 +243,29 @@ export function createHostLoop(fb, opts) {
         /* noop — simple delay coalesce */
       }
 
-      const latest = getRoom();
+      let latest = getRoom();
       if ((!running && !closing) || !latest || latest.status === 'closed' || latest.hostUid !== uid) return;
+
+      // 手數獨立寫入：保留已結算的 pub、stacks 與所有帳務欄位，避免重建 pub 後走昂貴的規則比較。
+      if (engine.phase === PHASE.HAND_OVER &&
+          engine.handNumber > lastHandsBumpHandNo &&
+          latest.pub?.phase === PHASE.HAND_OVER &&
+          latest.pub?.handNo === engine.handNumber) {
+        const handNo = engine.handNumber;
+        const handsPatch = {
+          rev: latest.rev + 1,
+          updatedAt: fs.serverTimestamp(),
+          sess: latest.sess.map((x, i) => x && latest.seatUids[i] === x.uid
+            ? { ...x, hands: (x.hands || 0) + 1 } : x),
+        };
+        await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), handsPatch);
+        // 只有伺服器確認成功才放行下一手；拒絕時由既有下一手計時器重試。
+        lastHandsBumpHandNo = handNo;
+        lastWriteAt = Date.now();
+        recordWrite();
+        // 不等待房間快照回呼；後續 pub 寫入必須使用這筆已確認的 rev 與 sess。
+        latest = { ...latest, ...handsPatch };
+      }
 
       const between =
         engine.phase === PHASE.LOBBY || engine.phase === PHASE.HAND_OVER;
@@ -262,18 +283,6 @@ export function createHostLoop(fb, opts) {
           return;
         }
         stacks = next;
-        // Bump sess.hands once per finished hand (roomWriteOk allows hands↑ without money)
-        // 規則：結算那筆（進行中 → hand_over）不能動 sess；hands+1 等房間已存成 hand_over 後的下一筆再寫
-        if (
-          engine.phase === PHASE.HAND_OVER &&
-          engine.handNumber > lastHandsBumpHandNo &&
-          latest.pub?.phase === PHASE.HAND_OVER
-        ) {
-          lastHandsBumpHandNo = engine.handNumber;
-          sess = sess.map((x) =>
-            x ? { ...x, hands: (x.hands || 0) + 1 } : null,
-          );
-        }
       }
 
       const pub = buildPub(latest);

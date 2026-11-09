@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { initializeTestEnvironment, assertSucceeds } from '@firebase/rules-unit-testing';
+import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import * as fs from 'firebase/firestore';
 import { createInitialState, applyAction, getLegalActions } from '../js/engine/game.js';
 import { publicState } from '../js/engine/view.js';
@@ -66,17 +66,24 @@ test('stacks：真 engine 每步房主寫入與帳務相容', async t => {
   // 與 queueWrite 相同：進行中保留 stacks，between 時同步 engine；房間已存成 hand_over 後每手只加一次 hands。
   const publish = async (extra = {}) => {
     await snap();
-    let sess = room.sess.map(p => p ? { ...p } : null);
-    if (state.phase === 'hand_over' && state.handNumber > lastHandsBump && room.pub.phase === 'hand_over') {
+    if (state.phase === 'hand_over' && state.handNumber > lastHandsBump &&
+        room.pub.phase === 'hand_over' && room.pub.handNo === state.handNumber) {
+      const sess = room.sess.map((p, i) => p && room.seatUids[i] === p.uid
+        ? { ...p, hands: p.hands + 1 } : p);
+      const handsPatch = { rev: room.rev + 1, updatedAt: fs.serverTimestamp(), sess };
+      // 手數寫入不能夾帶挪籌碼；總額守恆也必須拒絕。
+      const moved = [...room.stacks]; moved[0]--; moved[1]++;
+      await assertFails(fs.updateDoc(ref, { ...handsPatch, stacks: moved }));
+      await assertSucceeds(fs.updateDoc(ref, handsPatch));
       lastHandsBump = state.handNumber;
-      sess = sess.map(p => p ? { ...p, hands: p.hands + 1 } : null);
+      await snap();
     }
     const pub = publicState(state, { actionSeq: ++actionSeq });
     if (voided) pub.voided = true;
     const patch = {
       rev: room.rev + 1, updatedAt: fs.serverTimestamp(), pub, deadlineAt: state.deadline,
       stacks: between(state.phase) ? chips(state) : room.stacks, chipTotal: room.chipTotal,
-      sess, seatUids: room.seatUids, status: between(state.phase) ? 'lobby' : 'playing',
+      sess: room.sess, seatUids: room.seatUids, status: between(state.phase) ? 'lobby' : 'playing',
       lobby: room.lobby, ...extra,
     };
     assert.equal(patch.stacks.reduce((a, b) => a + b, 0), patch.chipTotal);
@@ -115,10 +122,14 @@ test('stacks：真 engine 每步房主寫入與帳務相容', async t => {
         // 結算那筆不動 sess；房間存成 hand_over 後下一筆才 hands+1（host.js 開下一手前會等這筆）
         assert.equal(room.sess[0].hands, hand);
         await publish();
-        assert.equal(room.sess[0].hands, hand + 1);
+        assert.deepEqual(room.sess.filter(Boolean).map(p => p.hands), Array(6).fill(hand + 1));
         // ACK 清除 contributed，但 stacks 不變，仍可重送 hand_over。
         await step({ type: 'ACK_HAND' }, e);
+        assert.deepEqual(room.sess.filter(Boolean).map(p => p.hands), Array(6).fill(hand + 1));
       }
+      await step({ type: 'START_HAND' }, e);
+      assert.equal(room.pub.handNo, 4);
+      assert.equal(room.pub.phase, 'preflop');
     });
     await t.test('多人 fold 與 foldWin', async () => {
       const e = await seed([2000, 2000, 2000]);
