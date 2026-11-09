@@ -39,6 +39,7 @@ function fixture(options = {}) {
         displayName: path.split('/').at(-1), tableRoomId: 'r', inPlay: 2000, sessionNo: 1,
       } };
     },
+    writeBatch: () => ({ set() {}, commit: async () => {} }),
     updateDoc: async (path, patch) => {
       if (deny && patch.lastMoneyEvent) throw Object.assign(Error('denied'), { code: 'permission-denied' });
       if (path === 'pokerRooms/r') {
@@ -153,4 +154,44 @@ test('收桌開始後，已在等待帳戶讀取的 SIT 不得插入結算中', 
     assert.equal((await close).chipTotal, 2000);
     assert.equal(f.room().seatUids[1], '');
   } finally { release(); f.loop.stop(); }
+});
+
+// 真 host queueWrite：觀察實際送出的 patch，驗證 stacks 存檔點與結算同步時機。
+test('host stacks：進行中不變，foldWin 同筆 hand_over 同步 chips；hands+1 在下一筆、開下一手前', async () => {
+  const priorDocument = globalThis.document;
+  globalThis.document = { visibilityState: 'visible' };
+  const f = fixture();
+  const waitFor = async predicate => {
+    for (let i = 0; i < 150; i++) {
+      if (predicate()) return;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.fail('等待 host 寫入逾時');
+  };
+  try {
+    await f.loop.seatPlayer(1, 'b');
+    assert.equal(f.loop.startHand(), true);
+    await waitFor(() => f.room().pub.phase === 'preflop');
+    assert.deepEqual(f.room().stacks, [2000, 2000, 0, 0, 0, 0]);
+    assert.notDeepEqual(f.room().stacks, f.loop.getEngine().seats.map(p => p?.chips ?? 0));
+    f.loop.hostAction({ type: 'FOLD', seat: f.loop.getEngine().actor });
+    await waitFor(() => f.room().pub.phase === 'hand_over');
+    const engine = f.loop.getEngine();
+    assert.deepEqual(f.room().stacks, engine.seats.map(p => p?.chips ?? 0));
+    // 規則：結算那筆不能動 sess；hands+1 等房間已存成 hand_over 後的下一筆
+    assert.deepEqual(f.room().sess.filter(Boolean).map(p => p.hands), [0, 0]);
+    for (let i = 0; i < 2; i++) {
+      const p = f.room().pub.seats[i];
+      assert.equal(p.chips, f.room().stacks[i]);
+      assert.ok(p.contributed >= 0 && p.contributed <= 2000);
+      assert.ok(p.chips >= 2000 - p.contributed);
+      if (p.folded) assert.equal(p.chips, 2000 - p.contributed);
+    }
+    // HAND_OVER 重送不再改 stacks，也不重複增加 hands。
+    const rev = f.room().rev;
+    f.loop.hostAction({ type: 'ACK_HAND' });
+    await waitFor(() => f.room().rev > rev);
+    assert.deepEqual(f.room().stacks, engine.seats.map(p => p?.chips ?? 0));
+    assert.deepEqual(f.room().sess.filter(Boolean).map(p => p.hands), [1, 1]);
+  } finally { f.loop.stop(); globalThis.document = priorDocument; }
 });

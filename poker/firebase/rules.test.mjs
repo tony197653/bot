@@ -174,8 +174,19 @@ await t('#4', '房主讓 B 坐下金額 ≠ 帳本 buyin', 'deny', async () => {
 await t('#4', '房主寫 Σstacks ≠ chipTotal', 'deny', S, async () => { const r = await cur(); return hostUpd(db('H'), r, { stacks: [8000, 3000, 0, 0, 0, 0] }); });
 await t('#4', '房主沒帳務事件改 chipTotal（stacks 也跟著改）', 'deny', S, async () => { const r = await cur(); return hostUpd(db('H'), r, { stacks: [9000, 3000, 0, 0, 0, 0], chipTotal: 12000 }); });
 await t('#4', '房主沒帳務事件改座位', 'deny', S, async () => { const r = await cur(); return hostUpd(db('H'), r, { seatUids: ['H', '', 'A', '', '', ''], stacks: [7000, 0, 3000, 0, 0, 0], sess: [r.sess[0], null, r.sess[1], null, null, null] }); });
-await t('#4', '正常：每手結束（stacks 重分配、hands+1、空位 sess 維持 null）', 'ok', S, async () => { const r = await cur();
+// stacks-rules-1109：無帳務只能在「進行中 → hand_over」結算時改 stacks（每格不得少於開局−本手投入、棄牌者不能贏），且那筆不動 sess；hands+1 在下一筆。
+const riverSeats = (c) => [{ chips: 7000 - c[0], contributed: c[0], folded: false }, { chips: 3000 - c[1], contributed: c[1], folded: false }, null, null, null, null];
+const settledSeats = (a, b) => [{ chips: a, contributed: 1000, folded: false }, { chips: b, contributed: 1000, folded: false }, null, null, null, null];
+await t('#4', '正常：每手結束結算（進行中→hand_over），下一筆 hands+1、空位 sess 維持 null', 'ok', () => seed({ room: { pub: { phase: 'river', handNo: 4, seats: riverSeats([1000, 1000]) } } }), async () => { let r = await cur();
+  await hostUpd(db('H'), r, { stacks: [8000, 2000, 0, 0, 0, 0], pub: { phase: 'hand_over', handNo: 4, seats: settledSeats(8000, 2000) } });
+  r = await cur();
+  return hostUpd(db('H'), r, { sess: [{ ...r.sess[0], hands: 4 }, { ...r.sess[1], hands: 4 }, null, null, null, null] }); });
+await t('#4', '舊漏洞：兩手之間無帳務重分配 stacks（Σ 不變）拒絕', 'deny', S, async () => { const r = await cur();
   return hostUpd(db('H'), r, { stacks: [6000, 4000, 0, 0, 0, 0], sess: [{ ...r.sess[0], hands: 4 }, { ...r.sess[1], hands: 4 }, null, null, null, null], pub: { phase: 'hand_over', handNo: 4 } }); });
+await t('#4', '結算超過本手投入（A 開局 3000 投入 1000，結算剩 1000）拒絕', 'deny', () => seed({ room: { pub: { phase: 'river', handNo: 4, seats: riverSeats([1000, 1000]) } } }), async () => { const r = await cur();
+  return hostUpd(db('H'), r, { stacks: [9000, 1000, 0, 0, 0, 0], pub: { phase: 'hand_over', handNo: 4, seats: settledSeats(9000, 1000) } }); });
+await t('#4', '結算同筆改 sess（hands+1）拒絕（須分兩筆）', 'deny', () => seed({ room: { pub: { phase: 'river', handNo: 4, seats: riverSeats([1000, 1000]) } } }), async () => { const r = await cur();
+  return hostUpd(db('H'), r, { stacks: [8000, 2000, 0, 0, 0, 0], sess: [{ ...r.sess[0], hands: 4 }, { ...r.sess[1], hands: 4 }, null, null, null, null], pub: { phase: 'hand_over', handNo: 4, seats: settledSeats(8000, 2000) } }); });
 await t('#4', '房主改別人 sess 的 buyIn', 'deny', S, async () => { const r = await cur(); return hostUpd(db('H'), r, { sess: [r.sess[0], { ...r.sess[1], buyIn: 1 }, null, null, null, null] }); });
 await t('#4', '房主改別人 sess 的 topUps', 'deny', S, async () => { const r = await cur(); return hostUpd(db('H'), r, { sess: [r.sess[0], { ...r.sess[1], topUps: 5 }, null, null, null, null] }); });
 await t('#4', '房主把空位 sess 從 null 改成資料（無帳務事件）', 'deny', S, async () => { const r = await cur(); return hostUpd(db('H'), r, { sess: [r.sess[0], r.sess[1], sessOf('B', 1, 0), null, null, null] }); });
@@ -309,8 +320,14 @@ await t('moneyOk', 'lastMoneyEvent 改回 null', 'deny', async () => { await see
 const full = (o = {}) => () => seed({ room: { members: ['H','A','B','C','D','E','F','G'], seatUids: ['H','A','C','D','E','F'], stacks: [5000,5000,5000,5000,5000,5000], chipTotal: 30000,
   sess: ['H','A','C','D','E','F'].map((u) => sessOf(u, 1, 5000)), ...o },
   players: { C: player(), D: player(), E: player(), F: player() } });
-await t('worst', '6 人滿桌：每手結束（6 格 stacks 和 hands 都變）', 'ok', full(), async () => { const r = await cur();
-  return hostUpd(db('H'), r, { stacks: [10000, 0, 2500, 2500, 7500, 7500], sess: r.sess.map((x) => ({ ...x, hands: x.hands + 1 })), pub: { phase: 'hand_over', handNo: 4 } }); });
+const fullAfter = [10000, 0, 2500, 2500, 7500, 7500], fullContrib = [2500, 5000, 2500, 2500, 2500, 2500];
+const fullPub = (phase, chips) => fatMidHandPub({ phase, seats: fatMidHandPub().seats.map((x, i) => ({ ...x, chips: chips[i], contributed: fullContrib[i], folded: false, allIn: i === 1 })) });
+await t('worst', '6 人滿桌：每手結束結算（大 pub、6 格 stacks 都變），下一筆 6 格 hands+1', 'ok', full({ pub: fullPub('river', [2500, 0, 2500, 2500, 2500, 2500]) }), async () => { let r = await cur();
+  await hostUpd(db('H'), r, { stacks: fullAfter, pub: fullPub('hand_over', fullAfter) });
+  r = await cur();
+  return hostUpd(db('H'), r, { sess: r.sess.map((x) => ({ ...x, hands: x.hands + 1 })) }); });
+await t('worst', '6 人滿桌：舊漏洞 hand_over 直接重分配（無進行中 pub）拒絕', 'deny', full(), async () => { const r = await cur();
+  return hostUpd(db('H'), r, { stacks: fullAfter, sess: r.sess.map((x) => ({ ...x, hands: x.hands + 1 })), pub: { phase: 'hand_over', handNo: 4 } }); });
 await t('worst', '6 人滿桌：房主替 F（5 號位）結帳', 'ok', full(), () => hostCashout(5, 'F'));
 await t('worst', '6 人滿桌：房主替自己結帳＋交棒給 A', 'ok', full(), () => hostCashout(0, 'H', { room: { hostUid: 'A', hostSince: serverTimestamp() } }));
 await t('worst', '6 人滿桌：A 接手（房主失聯 60 秒）', 'ok', async () => { await full({ updatedAt: ago(60000) })(); await env.withSecurityRulesDisabled((c) => setDoc(doc(c.firestore(), 'pokerRooms', R, 'presence', 'H'), { beat: ago(60000), vis: false })); },
@@ -372,7 +389,7 @@ await t('worst', '6 人滿桌 mid-hand：只改 pub（CALL→下一 actor）', '
   });
   return hostUpd(db('H'), r, { pub, deadlineAt: Date.now() + 30000 });
 });
-await t('worst', '6 人滿桌 mid-hand：pub＋stacks 快照（Σ 不變）', 'ok', midHandSeed(), async () => {
+await t('worst', '6 人滿桌 mid-hand：改 stacks（Σ 不變）拒絕——房主不能移錢', 'deny', midHandSeed(), async () => {
   const r = await cur();
   return hostUpd(db('H'), r, {
     pub: fatMidHandPub({ actionSeq: 19 }),

@@ -263,9 +263,11 @@ export function createHostLoop(fb, opts) {
         }
         stacks = next;
         // Bump sess.hands once per finished hand (roomWriteOk allows hands↑ without money)
+        // 規則：結算那筆（進行中 → hand_over）不能動 sess；hands+1 等房間已存成 hand_over 後的下一筆再寫
         if (
           engine.phase === PHASE.HAND_OVER &&
-          engine.handNumber > lastHandsBumpHandNo
+          engine.handNumber > lastHandsBumpHandNo &&
+          latest.pub?.phase === PHASE.HAND_OVER
         ) {
           lastHandsBumpHandNo = engine.handNumber;
           sess = sess.map((x) =>
@@ -395,6 +397,17 @@ export function createHostLoop(fb, opts) {
       nextHandTimer = null;
       if (!running || !engine || getRoom()?.status === 'closed') return;
       if (engine.phase !== PHASE.HAND_OVER || closing) return;
+      // 規則只允許「進行中 → hand_over」那一筆改 stacks：結算還沒寫進房間前不開下一手
+      const savedPub = getRoom()?.pub;
+      if (
+        savedPub?.phase !== PHASE.HAND_OVER ||
+        savedPub?.handNo !== engine.handNumber ||
+        engine.handNumber > lastHandsBumpHandNo
+      ) {
+        queueWrite();
+        scheduleNextHand(1000);
+        return;
+      }
       if (draining || leaveQueue.length) {
         void drainSitLeave();
         scheduleNextHand(1000);
@@ -902,8 +915,7 @@ export function createHostLoop(fb, opts) {
         engine = applyAction(engine, { type: 'SET_AWAY', seat: i, away: true });
       }
     }
-    // Snapshot stacks BEFORE blinds (hand-start checkpoint = chipTotal)
-    const stacks = engine.seats.map((p) => (p ? p.chips : 0));
+    // queueWrite 保留已結算的開局 stacks；進行中不另覆寫存檔點。
     const roomSeats = getRoom()?.seatUids || [];
     try {
       statsSession.onHandStarting(engine, roomSeats);
@@ -922,8 +934,7 @@ export function createHostLoop(fb, opts) {
       syncDeadlineFromEngine();
       queueWrite();
     }, dealMs);
-    // Persist pre-blind stacks snapshot (same chipTotal)
-    queueWrite((latest) => ({ stacks, chipTotal: latest.chipTotal }));
+    // applyAndPublish 已排入寫入；不可另排舊 stacks，避免延後覆蓋手結束結算。
     return true;
   }
 
