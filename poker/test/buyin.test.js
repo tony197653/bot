@@ -140,3 +140,63 @@ test('足額入座先同步提示，再買入並送出 SIT', async () => {
 test('實際買入放在手機也顯示的 meta-a 區塊', () => {
   assert.match(source, /class="meta-a">[^\n]*\$\{esc\(buyin\)\}<\/span><span class="meta-b">/);
 });
+
+test('訪客入座先讀房主 presence：離線阻擋，近期活動或讀取失敗保留入座', async () => {
+  const body = source.slice(source.indexOf('async function sitDown(seat)'), source.indexOf('async function requestLeave()'));
+  const now = 2_000_000_000_000;
+  for (const scenario of [
+    { name: '過期房主', beatAge: 120_000, roomAge: 180_000, minutes: 28 },
+    { name: '缺少 presence', missing: true, roomAge: 90_000, minutes: 29 },
+    { name: '超過關桌時間', beatAge: 1_900_000, roomAge: 2_000_000, minutes: 1 },
+    { name: '近期房主', beatAge: 10_000, roomAge: 180_000 },
+    { name: '近期房間更新', beatAge: 180_000, roomAge: 10_000 },
+    { name: '剛好 30 秒', beatAge: 30_000, roomAge: 180_000 },
+    { name: '讀取失敗', fail: true, roomAge: 180_000 },
+    { name: '房主本人', host: true, roomAge: 180_000 },
+  ]) {
+    const events = [];
+    const context = vm.createContext({
+      Date: { now: () => now },
+      getFirebase: () => ({ db: {}, fs: {
+        doc: (_db, ...path) => path.join('/'),
+        getDoc: async ref => {
+          events.push(['presence', ref]);
+          if (scenario.fail) throw new Error('offline');
+          return {
+            exists: () => !scenario.missing,
+            data: () => ({ beat: { toMillis: () => now - scenario.beatAge } }),
+          };
+        },
+      } }),
+      getUser: () => ({ uid: 'u' }),
+      room: {
+        hostUid: scenario.host ? 'u' : 'host',
+        seatUids: Array(6).fill(null), config: { bb: 20 },
+        updatedAt: { toMillis: () => now - scenario.roomAge },
+      },
+      roomId: 'r', sittingBusy: false, playerDoc: { bank: 8765 },
+      assertMinimumBuyin, wholeBalance,
+      toast: msg => events.push(msg),
+      buyinAll: async () => { events.push('buyin'); },
+      getPlayer: async () => ({ bank: 0, inPlay: 8765, tableRoomId: 'r' }),
+      intents: { send: async intent => events.push(intent.type) },
+      hostLoop: { seatPlayer: async () => {} },
+      friendlyError: e => e.message,
+    });
+    vm.runInContext(body, context);
+    const started = performance.now();
+    const pending = context.sitDown(2);
+    assert.equal(events[0], '入座中…', scenario.name);
+    assert.ok(performance.now() - started < 200, scenario.name);
+    await pending;
+    const expected = ['入座中…'];
+    if (!scenario.host) expected.push(['presence', 'pokerRooms/r/presence/host']);
+    if (scenario.minutes) {
+      expected.push(`房主已離線，暫時無法入座；牌桌約 ${scenario.minutes} 分鐘後會自動關閉，之後就能開新牌桌`);
+    } else {
+      expected.push('buyin', 'SIT');
+    }
+    assert.deepEqual(events, expected, scenario.name);
+    assert.equal(context.sittingBusy, false, scenario.name);
+  }
+});

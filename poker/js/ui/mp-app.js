@@ -2779,6 +2779,23 @@ async function sitDown(seat) {
   sittingBusy = true;
   toast('入座中…');
   try {
+    if (room.hostUid !== user.uid) {
+      try {
+        const hp = await fb.fs.getDoc(
+          fb.fs.doc(fb.db, 'pokerRooms', roomId, 'presence', room.hostUid),
+        );
+        const hostBeatMs = hp.exists() ? hp.data()?.beat?.toMillis?.() ?? 0 : 0;
+        const updatedAtMs = room.updatedAt?.toMillis?.() || 0;
+        const age = Date.now() - Math.max(hostBeatMs, updatedAtMs);
+        if (age > 30_000) {
+          const minutes = Math.max(1, Math.ceil((30 * 60_000 - age) / 60_000));
+          toast(`房主已離線，暫時無法入座；牌桌約 ${minutes} 分鐘後會自動關閉，之後就能開新牌桌`);
+          return;
+        }
+      } catch {
+        // Presence read failures retain the existing sit flow.
+      }
+    }
     if (playerDoc?.tableRoomId !== roomId) {
       await buyinAll(fb, user.uid, roomId, room.config.bb);
       playerDoc = await getPlayer(fb, user.uid);
