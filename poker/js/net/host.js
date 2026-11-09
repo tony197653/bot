@@ -350,8 +350,9 @@ export function createHostLoop(fb, opts) {
     const fields = buildLobbyListing(roomLike, lobby, listStatus);
     const key = lobbyListingKey(fields);
     if (key === lastLobbyListingKey) return;
-    lastLobbyListingKey = key;
-    await upsertLobbyListing({ db, fs }, roomId, fields);
+    if (await upsertLobbyListing({ db, fs }, roomId, fields)) {
+      lastLobbyListingKey = key;
+    }
   }
 
   /** Non-money follow-up: refresh public lobby summary after seat/cashout. */
@@ -1058,6 +1059,12 @@ export function createHostLoop(fb, opts) {
     const room = getRoom();
     ensureEngine(room);
     statsRuntime.start();
+    // 帳務批次不能改 lobby；交棒後由現任房主透過既有非帳務寫入補齊摘要與列表。
+    if (room?.lobby && room.lobby.seated !== room.seatUids.filter(Boolean).length) {
+      writeChain = writeChain.then(() => {
+        if (running && getRoom()?.status !== 'closed') return refreshLobbySummary();
+      });
+    }
 
     stopIntentListen = fs.onSnapshot(
       fs.collection(db, 'pokerRooms', roomId, 'intents'),

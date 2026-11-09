@@ -246,7 +246,9 @@ function hostAvHtml(hostName, hostPhoto, hostUid) {
 
 function seatedCountOf(t) {
   const raw =
-    t.seated ?? t.lobby?.seated ?? (t.seatUids || []).filter(Boolean).length;
+    Array.isArray(t.seatUids)
+      ? t.seatUids.filter(Boolean).length
+      : t.seated ?? t.lobby?.seated ?? 0;
   const n = Number(raw);
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(6, Math.trunc(n)));

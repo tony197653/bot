@@ -139,8 +139,10 @@ export async function upsertLobbyListing(fb, roomId, fields, { createdAt } = {})
       await fs.updateDoc(ref, payload);
     }
     recordWrite();
+    return true;
   } catch (e) {
     console.warn('[lobby] upsert listing', e);
+    return false;
   }
 }
 

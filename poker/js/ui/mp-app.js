@@ -1065,8 +1065,9 @@ function paint() {
                 : last?.chips ?? playerDoc?.inPlay,
             seat: seatIdx >= 0 ? seatIdx : last?.seat ?? null,
             seated:
-              room?.lobby?.seated ??
-              (room?.seatUids || []).filter(Boolean).length,
+              Array.isArray(room?.seatUids)
+                ? room.seatUids.filter(Boolean).length
+                : room?.lobby?.seated ?? 0,
             blinds:
               room?.lobby?.blinds ||
               (room?.config
