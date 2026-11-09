@@ -19,6 +19,9 @@ import { nightKeyOf, hostCashoutBatch, hostCloseAllBatch } from './ledger.js';
 import { recordWrite, hostMustStopNewHand } from './quota.js';
 import { listenPresence } from './presence.js';
 import {
+  hostAloneCloseMs,
+  hostAloneSince,
+  hostIsOnlySeated,
   buildLobbySummary,
   buildLobbyListing,
   lobbyListingKey,
@@ -75,6 +78,7 @@ export function createHostLoop(fb, opts) {
 
   /** @type {object|null} */
   let engine = null;
+  let autoClosing = false;
   let actionSeq = 0;
   /** @type {Record<string, number>} last seen presence change (local clock) */
   const presenceSeen = {};
@@ -88,6 +92,7 @@ export function createHostLoop(fb, opts) {
   let stopPresenceListen = null;
   let lastWriteAt = 0;
   let writeChain = Promise.resolve();
+  let startingNext = null;
   let closing = false;
   let draining = false;
   /** Personal-stats chain: independent of writeChain; never awaited by game flow. */
@@ -137,6 +142,7 @@ export function createHostLoop(fb, opts) {
     delayedTimers.add(timer);
   }
   let lastHandsBumpHandNo = 0;
+  let handsBumpAttempts = 0;
   let pubVoided = false;
 
   function playerName(uid, fallback) {
@@ -224,6 +230,12 @@ export function createHostLoop(fb, opts) {
       rejects: { ...rejects },
     });
     if (pubVoided || extra.voided) pub.voided = true;
+    if (room.code === '000') {
+      pub.hostHadOtherSeats = !!room.pub?.hostHadOtherSeats ||
+        room.seatUids.some(u => u && u !== room.hostUid);
+      pub.hostAloneSince = hostAloneSince(room, opts.now?.() ?? Date.now());
+      if (autoClosing) pub.autoClosed = true;
+    }
     if (quotaStop) pub.quotaStop = true;
     return pub;
   }
@@ -235,7 +247,7 @@ export function createHostLoop(fb, opts) {
       if (document.visibilityState !== 'visible') return;
 
       // coalesce 250ms
-      await new Promise((r) => {
+      if (!startingNext) await new Promise((r) => {
         pendingFlush = r;
         flushTimer = setTimeout(() => { flushTimer = null; pendingFlush = null; r(); }, 250);
       });
@@ -243,8 +255,30 @@ export function createHostLoop(fb, opts) {
         /* noop — simple delay coalesce */
       }
 
-      const latest = getRoom();
+      let latest = getRoom();
       if ((!running && !closing) || !latest || latest.status === 'closed' || latest.hostUid !== uid) return;
+
+      // 手數獨立寫入：保留已結算的 pub、stacks 與所有帳務欄位，避免重建 pub 後走昂貴的規則比較。
+      if (engine.phase === PHASE.HAND_OVER &&
+          engine.handNumber > lastHandsBumpHandNo &&
+          latest.pub?.phase === PHASE.HAND_OVER &&
+          latest.pub?.handNo === engine.handNumber) {
+        const handNo = engine.handNumber;
+        const handsPatch = {
+          rev: latest.rev + 1,
+          updatedAt: fs.serverTimestamp(),
+          sess: latest.sess.map((x, i) => x && latest.seatUids[i] === x.uid
+            ? { ...x, hands: (x.hands || 0) + 1 } : x),
+        };
+        handsBumpAttempts++;
+        await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), handsPatch);
+        // 只有伺服器確認成功才放行下一手；拒絕時由既有下一手計時器重試。
+        lastHandsBumpHandNo = handNo;
+        lastWriteAt = Date.now();
+        recordWrite();
+        // 不等待房間快照回呼；後續 pub 寫入必須使用這筆已確認的 rev 與 sess。
+        latest = { ...latest, ...handsPatch };
+      }
 
       const between =
         engine.phase === PHASE.LOBBY || engine.phase === PHASE.HAND_OVER;
@@ -262,16 +296,6 @@ export function createHostLoop(fb, opts) {
           return;
         }
         stacks = next;
-        // Bump sess.hands once per finished hand (roomWriteOk allows hands↑ without money)
-        if (
-          engine.phase === PHASE.HAND_OVER &&
-          engine.handNumber > lastHandsBumpHandNo
-        ) {
-          lastHandsBumpHandNo = engine.handNumber;
-          sess = sess.map((x) =>
-            x ? { ...x, hands: (x.hands || 0) + 1 } : null,
-          );
-        }
       }
 
       const pub = buildPub(latest);
@@ -395,17 +419,23 @@ export function createHostLoop(fb, opts) {
       nextHandTimer = null;
       if (!running || !engine || getRoom()?.status === 'closed') return;
       if (engine.phase !== PHASE.HAND_OVER || closing) return;
+      // 規則只允許「進行中 → hand_over」那一筆改 stacks：結算還沒寫進房間前不開下一手
+      const savedPub = getRoom()?.pub;
+      if (
+        savedPub?.phase !== PHASE.HAND_OVER ||
+        savedPub?.handNo !== engine.handNumber ||
+        engine.handNumber > lastHandsBumpHandNo
+      ) {
+        queueWrite();
+        scheduleNextHand(1000);
+        return;
+      }
       if (draining || leaveQueue.length) {
         void drainSitLeave();
         scheduleNextHand(1000);
         return;
       }
-      try {
-        engine = applyAction(engine, { type: 'ACK_HAND' }, { now: Date.now() });
-      } catch {
-        /* ignore */
-      }
-      startHand();
+      void startHand();
     }, ms);
   }
 
@@ -885,6 +915,43 @@ export function createHostLoop(fb, opts) {
   }
 
   function startHand() {
+    if (startingNext) return startingNext;
+    if (engine?.phase !== PHASE.HAND_OVER) return startHandNow();
+    clearNextHandTimer();
+    const bumpAttemptsAtClick = handsBumpAttempts;
+    startingNext = (async () => {
+      // 先排空結算，再確保獨立手數寫入成功；失敗最多重試一次。
+      await Promise.resolve();
+      if (flushTimer) clearTimeout(flushTimer);
+      flushTimer = null;
+      pendingFlush?.();
+      pendingFlush = null;
+      const handNo = engine.handNumber;
+      await writeChain;
+      if (getRoom()?.pub?.phase !== PHASE.HAND_OVER || getRoom()?.pub?.handNo !== handNo) {
+        await queueWrite();
+      }
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (lastHandsBumpHandNo < handNo || getRoom()?.pub?.phase !== PHASE.HAND_OVER ||
+            getRoom()?.pub?.handNo !== handNo) {
+          if (handsBumpAttempts - bumpAttemptsAtClick >= 2) break;
+          await queueWrite();
+        }
+        if (!running || closing || getRoom()?.status === 'closed' ||
+            engine.phase !== PHASE.HAND_OVER || engine.handNumber !== handNo) return false;
+        if (getRoom()?.pub?.phase === PHASE.HAND_OVER &&
+            getRoom()?.pub?.handNo === handNo && lastHandsBumpHandNo >= handNo) {
+          if (draining || leaveQueue.length) return false;
+          engine = applyAction(engine, { type: 'ACK_HAND' }, { now: Date.now() });
+          return startHandNow();
+        }
+      }
+      return false;
+    })().finally(() => { startingNext = null; });
+    return startingNext;
+  }
+
+  function startHandNow() {
     if (closing || !running || getRoom()?.status === 'closed') return false;
     if (hostMustStopNewHand(true)) {
       quotaStop = true;
@@ -902,8 +969,7 @@ export function createHostLoop(fb, opts) {
         engine = applyAction(engine, { type: 'SET_AWAY', seat: i, away: true });
       }
     }
-    // Snapshot stacks BEFORE blinds (hand-start checkpoint = chipTotal)
-    const stacks = engine.seats.map((p) => (p ? p.chips : 0));
+    // queueWrite 保留已結算的開局 stacks；進行中不另覆寫存檔點。
     const roomSeats = getRoom()?.seatUids || [];
     try {
       statsSession.onHandStarting(engine, roomSeats);
@@ -922,8 +988,7 @@ export function createHostLoop(fb, opts) {
       syncDeadlineFromEngine();
       queueWrite();
     }, dealMs);
-    // Persist pre-blind stacks snapshot (same chipTotal)
-    queueWrite((latest) => ({ stacks, chipTotal: latest.chipTotal }));
+    // applyAndPublish 已排入寫入；不可另排舊 stacks，避免延後覆蓋手結束結算。
     return true;
   }
 
@@ -955,6 +1020,12 @@ export function createHostLoop(fb, opts) {
     await writeChain;
     const saved = getRoom();
     if (!saved) throw new Error('Room missing');
+    if (autoClosing && (!hostIsOnlySeated(saved) ||
+        ![PHASE.LOBBY, PHASE.HAND_OVER].includes(saved.pub?.phase))) {
+      autoClosing = false;
+      closing = false;
+      throw new Error('牌桌狀態已變更，已取消自動收桌');
+    }
     if (![PHASE.LOBBY, PHASE.HAND_OVER].includes(engine.phase)) {
       if (!applyAndPublish({ type: 'VOID_HAND', stacks: saved.stacks })) {
         throw new Error('VOID_HAND failed');
@@ -967,6 +1038,11 @@ export function createHostLoop(fb, opts) {
     const committed = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
     const current = committed.exists() ? committed.data() : null;
     if (current?.status === 'closed') return current;
+    if (autoClosing && !hostIsOnlySeated(current)) {
+      autoClosing = false;
+      closing = false;
+      throw new Error('已有其他玩家入座，已取消自動收桌');
+    }
     if (!current || current.seatUids.some((u, i) => u &&
       !cashoutStateReady(current, engine, i, u))) throw new Error('Settlement not committed');
     return current;
@@ -987,9 +1063,21 @@ export function createHostLoop(fb, opts) {
 
   function onTick() {
     if (!running || !engine || closing) return;
-    if (document.visibilityState !== 'visible') return;
     const room = getRoom();
     if (!room || room.hostUid !== uid) return;
+
+    const now = opts.now?.() ?? Date.now();
+    const since = hostAloneSince(room, now);
+    if (since !== (room.pub?.hostAloneSince ?? null)) queueWrite();
+    if (!autoClosing && since != null && now - since >= hostAloneCloseMs() &&
+        [PHASE.LOBBY, PHASE.HAND_OVER].includes(engine.phase) &&
+        [PHASE.LOBBY, PHASE.HAND_OVER].includes(room.pub?.phase) && opts.onHostAloneClose) {
+      autoClosing = true;
+      queueWrite();
+      void opts.onHostAloneClose();
+      return;
+    }
+    if (document.visibilityState !== 'visible') return;
 
     // Away detection from presenceSeen
     for (let i = 0; i < 6; i++) {

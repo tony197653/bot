@@ -203,3 +203,87 @@ A/B/C/D：**1／4／2／10**（0ms 與 2ms 注入延遲皆相同）。A 為開�
 - 指定完整命令：`cd poker && node --test --test-isolation=none test/*.test.js`：288 項，287 通過、1 失敗；唯一失敗為 `raise-confirm.test.js:87` 的 `listen EPERM: operation not permitted 127.0.0.1`，屬沙箱監聽限制。輸出保留在 `/tmp/fix1109-round6-tests.log`。未設定 FIRESTORE_EMULATOR_HOST，emulator 案例未執行。
 - 另執行 `node --check poker/test/_reg1109.local.mjs`、`node --check poker/test/close-result-lobby.test.js` 與 `git diff --check`，均通過。
 - 回歸範圍／風險：本輪涵蓋頭像入口、同步浮層、快照 DOM 保留、離桌 intent 與不等待離桌者的單元檢查，並執行完整既有測試命令；未進行人工桌機／手機回歸，未自行驗收或核准。PM 尚需執行兩項 emulator 案例與本機 e2e，確認實際 sheet 延遲、pub.folded 發布延遲及結算。無新增 preview URL。
+
+
+## 第七輪：hands 計數
+
+- 範圍：依本輪明確授權修復 hands、補既有測試；分支 `pm/fix-stacks-rules`、基底 `8cec6e2`。未 commit／push／部署、未使用網路、未安裝依賴、未修改 Rules 本體或指定保留的未追蹤檔案。未更動產品流程、畫面或樣式。
+- 修改檔案：`js/net/host.js`、`test/fix1109.test.js`、`firebase/stacks-sim.rules.test.mjs`、`firebase/rules.test.mjs`、本報告。
+
+### 原因與逐段追蹤
+
+以下舊 host 行號以 `8cec6e2` 為準；Rules 與 ledger 未改，行號仍是目前版本。
+
+1. **確定缺陷：成功標記在提交之前推進。** 舊 `host.js:267–275` 在房間已為 hand_over 時組 hands+1，但 `272` 已先改 `lastHandsBumpHandNo`；真正 `updateDoc` 在 `310`，`324` 只警告、吞掉拒絕，不還原標記。`scheduleNextHand:401–409` 只檢查已儲存的 phase／handNo 和這個記憶體標記；若第 2 手起的 bump 被拒，標記仍視為已完成，下一次計時器可開第 3 手，後續也不會補第 2 手。若只有第 1 次成功、其餘 bump 失敗，sess.hands 就會維持 1，而 stacks 結算仍可獨立成功。這個遺失／錯誤放行機制已用拒絕注入回歸涵蓋。
+2. **規則文字沒有禁止「hand_over 不變、只改 hands」。** `firestore.rules:446–452`：lastMoneyEvent 不變且不是進行中→hand_over，就進一般分支；`isHostPubWrite:286` 的白名單不含 sess，所以 hands 變動須走 `isHostWrite:320–326` → `roomWriteOk:200–231`。stacks 不變符合 `nonMoneyStacksOk:93`；座位不變且每格只增加整數 hands 符合 `227–229`、`sessKeep:125–131`，chipTotal 不變符合 `230`。這一路徑也在語意上允許 hand_over→preflop 同時增 hands，只要 stacks 等條件保持；因此不能從規則文字斷言該組合必然拒絕。
+3. **結算那筆明確不能帶 hands。** 進行中→hand_over 由 `isSettleTransition:291–294` 與 `450–451` 強制走 `isHostSettleWrite`，`312` 要求 sess 整份相同，`313–315` 做總額及逐席結算限制。因此把 hands 塞回結算那筆不可行。帳務事件另走 `221–224`，禁止動其他席的 sess／stacks。
+4. **不是實際合併／去重佇列。** 舊 `queueWrite:232–246` 每個呼叫串在 Promise 後等待 250ms，再讀目前 engine／room；`242` 分支固定為 false，沒有按手號去重或取消。不同呼叫確實可能發布相同的最新 engine，或略過中間畫面。舊自動下一手正常情況會被 `401–409` 擋到 bump 分支執行，但它等待的是預先推進的記憶體標記，不是成功提交。一般 bump 的 patch 還會重建 pub／lobby（`279–307`），不是純 sess 寫入。
+5. **首次拒絕的來源仍須實際 emulator trace 確認。** Rules 註解 `274`、`305` 已記載大型 pub 的完整比較可能超過 1000 運算式；舊 bump 必須走完整 `roomWriteOk`，因此有此疑點。但本輪沒有該次 permission-denied 的 emulator 評估記錄，且依指示不能連 emulator，不能宣稱已證實首次拒絕一定是運算式上限、下一手合併或某個特定 predicate。已證實的是：任何一次 bump 拒絕都會被舊 client 永久漏算；本輪修掉此機制並縮小 bump patch。真四人 e2e 是否完全解決，仍須 PM 重跑。
+6. **最終統計來源就是 sess.hands。** `ledger.js:191,204,220`（單席結帳）、`279,292,306`（整桌結帳）將 sessRow.hands 寫入帳本，累加到 pokerPlayers.handsPlayed 與 nights/{night}.hands。Rules `618`、`686`、`730` 再對應帳本與 sess；因此上游 sess 少算會原樣反映到兩種統計，與籌碼總額守恆不衝突。
+
+### 修正與安全界線
+
+- `host.js:249–267`：在同一 writeChain 內，等房間已存成同一 handNo 的 hand_over，先獨立提交只有 `sess`／`rev`／`updatedAt` 的 patch。只對 uid 與 seatUids 相符的在座 sess 加 1；不帶 pub、stacks、chipTotal 或任何帳務欄位。這符合目前 Rules 的一般非帳務分支，不需改 Rules。
+- `261–263`：await updateDoc 成功後才推進 lastHandsBumpHandNo。拒絕時停在 catch，原下一手計時器會在約一秒後再次排 queueWrite，成功之前仍停在 hand_over。後續 pub 寫入以已確認的 rev／sess 接續，避免等待快照回呼而送回舊手數。
+- 原進行中 stacks 存檔點、結算逐席檢查、帳務只改事件席的限制全數保留；未放寬房主挪籌碼權限。成本：每手多一筆獨立 room update，之後原有 pub 更新照常進行。
+- `rules.test.mjs:54–55`：START_AT 預設也改用 Timestamp.now()，不再把 serverTimestamp sentinel 放進 sess 陣列。仍是 Timestamp，符合 Rules `154–157` 的 request.time 正負十分鐘限制；原 `STARTAT=ts` 呼叫相容。結果輸出同步記錄實際使用的型別。
+
+### 測試、回歸與待辦
+
+- `test/fix1109.test.js:231` 新增真 host fixture：四人連打三手，逐手確認每席 hands 為 1／2／3、不重複增加，並自動開始第四手。第二手刻意拒絕第一次 hands update，阻擋重試回應時檢查仍停在第二手 hand_over、hands 仍為 1，放行後才進第三手。每次 bump 斷言 patch 僅有 sess／rev／updatedAt。fixture 補上第四位成員及可注入的 room 寫入攔截。
+- `firebase/stacks-sim.rules.test.mjs:69–79,115–132`：等價於修正後 host 的「結算→純 hands bump→pub／ACK→下一手」寫入，六人連打三手、逐席驗 hands，重送 ACK 不重算，第四手能開始。每筆純 bump 用 assertSucceeds；同一 bump 若夾帶席 0 減 1、席 1 加 1（總額不變）用 assertFails。RULES_PROJECT 環境變數與預設 demo-fix1109 保留。
+- 實際執行 `cd poker && node --test --test-isolation=none test/*.test.js`：290 項，289 通過、1 失敗。新增三手／拒絕重試測試通過；唯一失敗是既有 `test/raise-confirm.test.js:87` 的 `listen EPERM: operation not permitted 127.0.0.1`，無法在沙箱建立本機伺服器。完整日誌 `/tmp/fix1109-round7-tests.log`。首輪新增測試曾因 fixture 未列第四人成員失敗，補正後以上述完整命令重跑。
+- 實際執行 `node --check poker/firebase/stacks-sim.rules.test.mjs`、`node --check poker/firebase/rules.test.mjs`、`git diff --check`：通過。Rules 測試未執行，不宣稱 ALLOWED／DENIED 已由 emulator 證實。
+- M 級受影響區域：連續開手／結算／sess 計數／拒絕重試與既有完整單元測試。未完成桌機／手機人工端到端或 QA 驗收；沒有 preview URL。
+- PM 待辦：在既有 emulator 設定下執行 `cd poker && RULES_PROJECT=demo-fix1109 node --test firebase/stacks-sim.rules.test.mjs`，以及 `cd poker/firebase && node rules.test.mjs`（後者沿用既有 8195／demo-poker 設定），再重跑原四人瀏覽器 e2e，核對 room.sess、cashout 帳本、玩家 handsPlayed 及夜間 hands。若舊 bump 仍可重現拒絕，保留首次拒絕的 emulator 評估錯誤以確認起因。斷線／接手跨程序的持久去重不在本輪新增設計範圍；沿用現有記憶體標記模型。
+
+## 第八輪：房主獨坐 30 分自動收桌
+
+本輪依 owner 明確核准的新功能；分支 `pm/fix-stacks-rules`、基底 `a39d416`。未 commit／push／merge／deploy，未連網、安裝依賴或修改 firestore.rules；指定未追蹤檔未碰觸。
+
+### 實作與選擇
+
+- `js/net/room.js`：匯出 `HOST_ALONE_CLOSE_MS = 30 * 60_000`。僅 000、房主在座且無其他在座者適用。`hostAloneSince`／`hostHadOtherSeats` 保存於既有 pub，首次無其他人入座時以建立時間起算，其他人入座清空，再次獨坐重新計時；房主重新載入可沿用已保存時間。
+- `js/net/host.js`：使用既有一秒 tick 與可注入 now，僅房間與引擎都在 lobby／hand_over 才觸發 callback；寫入 pub.autoClosed 後交給既有 prepareClose → closeAll。prepareClose 等待寫入鏈後再次檢查座位與階段，避免已經有其他玩家入座仍自動收桌。收桌失敗沿用既有失敗卡與停止 loop 行為。
+- `js/ui/mp-app.js`：三個建立 host loop 的位置均接回既有 startHostClose；自動收桌結果使用既有 auto 卡、回大廳按鈕與結帳行為。未加畫面、按鈕或動畫。大廳開桌入口先檢查 000；`createSingleTable` 的 listing 與 code-lock 路徑亦先檢查，關閉成功才重新建立／回收碼。
+- 房主客戶端關閉時，非房主先以既有加入流程成為成員，再讀 presence；須房間 updatedAt 與房主心跳均嚴格超過 30 分鐘、只有房主在座且手間，才呼叫既有 auto close。000 不因未入座成員的心跳新鮮而阻擋。非房主不接任房主、不寫任何 bank／inPlay／帳本；closeRoom 原有清理他人 hostRoomId／到期碼的嘗試可能遭規則拒絕，既有 catch 保留，實際回收依已關閉房間判斷。
+- 房主籌碼留在舊 room.stacks／sess 與本人 inPlay，之後 `silentlySettleClosedBinding` → `settleClosedRoomBinding` → `selfRescueCashout` 以固定 cashout 帳本 ID 自行結算，並清除綁定；不以新開桌者代領。原始碼可確認路徑不區分手動或 auto 關房，實際規則守恆測試待執行。
+
+### 規則核對（原檔未修改）
+
+- `firebase/firestore.rules:246–260`：isHostCloseAll 限現任 host、手間、逐席對應同批帳本、清空座位與 stacks；`446–453` 分流 host closeAll。
+- `263–271`：非成員只能把自己加入 members，不得修改其他欄位；`491–498`：presence 限成員讀。因此須先加入，不能直接以陌生訪客收桌。
+- `346–356`：isAutoClose 限成員、updatedAt 與房主 presence 逾 30 分鐘，只能改 status／closedBy／closedAt；不是 takeover。`331–343` 的 takeover 另要求非房主在座，本功能不走此路。
+- `516–528`：舊 room 已 closed 可回收 pokerCodes，非房主不用成功改 expiresAt。
+- `608–627`：cashoutApplyOk 以同批本人帳本核對 bank 增額、inPlay 歸零及解除綁定；`670–675` closed 即符合 hostGone，`688–706` 本人可按舊座位 stacks／sess 結算。新開桌者不可移動房主的錢。
+
+### 實際驗證與剩餘
+
+- 新增 `test/host-alone-close.test.js`：3/3 通過。注入時間／fake timers 覆蓋建立起算、其他人在座清除與重新起算、30 分鐘前不關、牌局中有其他人不關、手間只觸發一次，以及 stale／fresh presence 的關房差異與不寫玩家帳戶。
+- `test/leave-confirm.test.js`：既有完成卡 source contract 更新為包含 auto 參數；既有收桌與大廳路徑測試保留。
+- `firebase/fix1109.rules.test.mjs` 新增兩案：非房主關閉 stale 000 後建立新桌、房主稍後本人結算且重送不重複／2000 守恆／非房主移錢遭拒；fresh host presence 則加入原桌。保留 RULES_PROJECT。未設定本機 emulator，且本輪禁止連線，故未執行，不宣稱規則 ALLOWED／DENIED 已實證。
+- 實際執行 `cd poker && node --test --test-isolation=none test/*.test.js`：293 項，292 通過、1 失敗。唯一失敗 `raise-confirm.test.js:87`：沙箱禁止監聽 `127.0.0.1`，`listen EPERM`。日誌 `/tmp/fix1109-round8-tests.log`。
+- 實際執行 `node --check poker/js/net/host.js`、`node --check poker/js/net/room.js`、`node --check poker/js/ui/mp-app.js`、`node --check poker/firebase/fix1109.rules.test.mjs` 與 `git diff --check`，通過。
+- 修改檔案：上述三個正式 JS、兩個單元測試、一個 Rules 測試與本報告，共七檔。
+- M 級受影響範圍：單桌建立／加入／回收、host tick、入座、收桌、本人閉桌結算。已跑單元；未做桌機／手機人工端到端，亦未做「真 host closeAll → 點結果卡回大廳」完整整合實測，不將 callback 測試當作驗收。無 preview URL。
+- 待 PM：執行新增 Rules emulator 案例，以及 host 開啟／關閉兩種情況的人工端到端與籌碼核對，估 15–25 分鐘。依本輪 15 分鐘限制停止，不自行 QA、合併或部署。
+
+## 第九輪
+
+- 分支 `pm/fix-stacks-rules`，基底 `06118bf`。修改 `js/net/host.js`、`js/net/room.js`、`js/ui/mp-app.js`、`test/fix1109.test.js`、`test/host-alone-close.test.js`、`test/personal-stats-phase-a.test.js` 及本報告。
+- 手動下一手與自動開局共用 startHand 門檻：排空結算寫入，核對 room.pub 的 hand_over／handNo，確認獨立 hands+1 已成功才開局；點擊期間合併重複呼叫，失敗最多重試一次（含點擊後原排隊寫入），最終失敗維持原手。按鈕同步 disabled，失敗使用既有樣式 toast 並恢復可按。
+- 僅 isEmuMode() 為真時讀取正整數 `aloneMs`／`staleMs`；後者僅由開桌檢查路徑傳入，其他 idle 檢查與正式環境仍為 30 分鐘。Firestore Rules 未改，縮短客戶端門檻不代表 emulator Rules 允許提前非房主關桌。
+- 新增 unit 覆蓋：結算後無延遲點擊連續三手、每手只計一次、同步按鈕回饋、拒絕後僅重試一次與恢復可按、非 emu 忽略 URL 覆寫。既有 Phase A fixture 配合非同步下一手，回寫假房間並 await；統計儲存停滯測試保留。
+- 實際執行 `cd poker && node --test --test-isolation=none test/*.test.js`：296 項，295 通過、1 失敗；唯一失敗為既有 `raise-confirm.test.js:87` 的 `listen EPERM 127.0.0.1`（沙箱禁止本機監聽）。日誌 `/tmp/fix1109-round9-tests.log`。初跑曾發現 URL 前置門檻及 fixture 非同步假設問題，已修正並重跑。
+- `git diff --check` 及三個正式 JS 的 `node --check` 通過。M 級受影響區域單元回歸已跑；未做人工端到端、Rules emulator 或 QA 驗收，無 preview URL。
+- 未 commit／push／deploy／merge、連網、安裝依賴或修改指定未追蹤檔。剩餘：PM 在允許監聽的環境補跑失敗案例及人工連續開手／模擬器收桌驗證，估 10–15 分鐘。
+
+## 第十輪
+
+- 分支 `pm/fix-stacks-rules`，基底 `d017443`。修改 `js/ui/mp-app.js`、新增 `test/fix1109-round10.test.js`，並追加本報告。
+- 清單 `enterOpenTable` 在第一個 await 前同步顯示既有「正在確認牌桌…」toast 與加入中狀態；加入前呼叫 `maybeAutoCloseSingleTable(fb, roomId, uid)`。成功關閉後移除本機舊清單並走既有 `onCreateTable`／建立表單；未關閉則照常加入。開桌查詢前釋放進桌防重複旗標，避免查詢發現其他人新建牌桌時無法加入。
+- 登入取得玩家資料後、首次大廳 paint／自動續桌前，對既有綁定執行 `silentlySettleClosedBinding`；沿用原結算與固定帳本 ID，房主本人退回籌碼、清除 tableRoomId／hostRoomId，停留大廳。
+- 新增兩案 unit：同步回饋先於未返回的過期查詢、重複點擊阻擋、關閉與未關閉分流、開桌銜接旗標；實際既有 ledger 搭配 fake Firestore 驗證房主登入 bank 300 + inPlay 2000 = 2300、inPlay 歸零、綁定清空、重登不重複入帳。
+- 實際執行 `cd poker && node --test --test-isolation=none test/fix1109-round10.test.js`：2/2 通過。指定 `cd poker && node --test --test-isolation=none test/*.test.js` 最終重跑：298 項，297 通過、1 失敗；唯一失敗仍為既有 `raise-confirm.test.js:87` 的 `listen EPERM 127.0.0.1`（沙箱禁止監聽）。日誌 `/tmp/fix1109-round10-tests.log`。`node --check poker/js/ui/mp-app.js`、`node --check poker/test/fix1109-round10.test.js`、`git diff --check` 通過。
+- M 級影響範圍：清單加入／單桌回收／開桌銜接／登入續桌與閉桌結算；已跑單元回歸，未做人工瀏覽器端到端或 Rules emulator，不視為 QA 驗收，亦未實測畫面繪製 0.2 秒。無 preview URL。剩餘：PM 人工核對訪客點舊桌與房主重開 app，並在允許監聽環境補跑既有失敗案，估 10–15 分鐘。
+- 未 commit／push／deploy／merge、連網、安裝依賴、修改 Rules 或碰觸指定 `_r1109-*`／`test/_reg1109.local.mjs`。

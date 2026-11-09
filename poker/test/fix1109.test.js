@@ -27,7 +27,7 @@ test('所有進桌入口：第一筆網路讀取前立即顯示牌桌載入畫�
 function fixture(options = {}) {
   let room = { id: 'r', hostUid: 'h', status: 'lobby', rev: 0, name: '牌桌',
     config: { sb: 10, bb: 20, newPlayerChips: 2000, actionMs: 30000, topUpAmount: 2000 },
-    members: ['h', 'b', 'c'], seatUids: ['h', '', '', '', '', ''], stacks: [2000, 0, 0, 0, 0, 0], chipTotal: 2000,
+    members: ['h', 'b', 'c', 'd'], seatUids: ['h', '', '', '', '', ''], stacks: [2000, 0, 0, 0, 0, 0], chipTotal: 2000,
     sess: [{ uid: 'h', sessionNo: 1, buyIn: 2000, topUps: 0, topUpChips: 0, hands: 0, nightKey: '20261109' }, null, null, null, null, null],
     pub: { phase: 'lobby', handNo: 0, seats: [] } };
   let deny = false;
@@ -39,9 +39,11 @@ function fixture(options = {}) {
         displayName: path.split('/').at(-1), tableRoomId: 'r', inPlay: 2000, sessionNo: 1,
       } };
     },
+    writeBatch: () => ({ set() {}, commit: async () => {} }),
     updateDoc: async (path, patch) => {
       if (deny && patch.lastMoneyEvent) throw Object.assign(Error('denied'), { code: 'permission-denied' });
       if (path === 'pokerRooms/r') {
+        await options.beforeRoomWrite?.(patch, room);
         assert.equal(patch.rev, room.rev + 1, 'rev 必須依最新已寫入文件遞增');
         room = { ...room, ...patch };
       }
@@ -156,6 +158,45 @@ test('收桌開始後，已在等待帳戶讀取的 SIT 不得插入結算中', 
   } finally { release(); f.loop.stop(); }
 });
 
+// 真 host queueWrite：觀察實際送出的 patch，驗證 stacks 存檔點與結算同步時機。
+test('host stacks：進行中不變，foldWin 同筆 hand_over 同步 chips；hands+1 在下一筆、開下一手前', async () => {
+  const priorDocument = globalThis.document;
+  globalThis.document = { visibilityState: 'visible' };
+  const f = fixture();
+  const waitFor = async predicate => {
+    for (let i = 0; i < 150; i++) {
+      if (predicate()) return;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.fail('等待 host 寫入逾時');
+  };
+  try {
+    await f.loop.seatPlayer(1, 'b');
+    assert.equal(f.loop.startHand(), true);
+    await waitFor(() => f.room().pub.phase === 'preflop');
+    assert.deepEqual(f.room().stacks, [2000, 2000, 0, 0, 0, 0]);
+    assert.notDeepEqual(f.room().stacks, f.loop.getEngine().seats.map(p => p?.chips ?? 0));
+    f.loop.hostAction({ type: 'FOLD', seat: f.loop.getEngine().actor });
+    await waitFor(() => f.room().pub.phase === 'hand_over');
+    const engine = f.loop.getEngine();
+    assert.deepEqual(f.room().stacks, engine.seats.map(p => p?.chips ?? 0));
+    // 規則：結算那筆不能動 sess；hands+1 等房間已存成 hand_over 後的下一筆
+    assert.deepEqual(f.room().sess.filter(Boolean).map(p => p.hands), [0, 0]);
+    for (let i = 0; i < 2; i++) {
+      const p = f.room().pub.seats[i];
+      assert.equal(p.chips, f.room().stacks[i]);
+      assert.ok(p.contributed >= 0 && p.contributed <= 2000);
+      assert.ok(p.chips >= 2000 - p.contributed);
+      if (p.folded) assert.equal(p.chips, 2000 - p.contributed);
+    }
+    // HAND_OVER 重送不再改 stacks，也不重複增加 hands。
+    const rev = f.room().rev;
+    f.loop.hostAction({ type: 'ACK_HAND' });
+    await waitFor(() => f.room().rev > rev);
+    assert.deepEqual(f.room().stacks, engine.seats.map(p => p?.chips ?? 0));
+    assert.deepEqual(f.room().sess.filter(Boolean).map(p => p.hands), [1, 1]);
+  } finally { f.loop.stop(); globalThis.document = priorDocument; }
+});
 
 test('host 收到非行動者 LEAVE 即刻蓋牌，後續行動跳過離桌席而不等 timeout', async () => {
   let intentSnapshot;
@@ -184,4 +225,132 @@ test('host 收到非行動者 LEAVE 即刻蓋牌，後續行動跳過離桌席�
     }
     assert.ok(['showdown', 'hand_over'].includes(f.loop.getEngine().phase));
   } finally { f.loop.stop(); }
+});
+
+
+test('host 手數：四人連續三手各加一次，拒絕後重試成功才開下一手', async () => {
+  const priorDocument = globalThis.document;
+  globalThis.document = { visibilityState: 'visible' };
+  const bumps = [];
+  let denied = 0;
+  let release, entered;
+  const blocked = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const f = fixture({
+    onSnapshot(ref, cb) {
+      if (ref.endsWith('/presence')) cb({ forEach: fn => ['h', 'b', 'c', 'd'].forEach(id =>
+        fn({ id, data: () => ({ beat: { toMillis: () => Date.now() }, vis: true }) })) });
+    },
+    async beforeRoomWrite(patch, room) {
+      if (!patch.sess || patch.sess[0].hands === room.sess[0].hands) return;
+      assert.deepEqual(Object.keys(patch).sort(), ['rev', 'sess', 'updatedAt']);
+      assert.equal(room.pub.phase, 'hand_over');
+      if (room.pub.handNo === 2 && denied++ === 0) {
+        throw Object.assign(Error('測試手數寫入遭拒'), { code: 'permission-denied' });
+      }
+      if (room.pub.handNo === 2 && denied === 2) {
+        entered();
+        await gate;
+      }
+      bumps.push(room.pub.handNo);
+    },
+  });
+  const waitFor = async predicate => {
+    for (let i = 0; i < 600; i++) {
+      if (predicate()) return;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.fail('等待連續手數寫入逾時');
+  };
+  try {
+    await f.loop.seatPlayer(1, 'b');
+    await f.loop.seatPlayer(2, 'c');
+    await f.loop.seatPlayer(3, 'd');
+    assert.equal(f.loop.startHand(), true);
+    for (let hand = 1; hand <= 3; hand++) {
+      await waitFor(() => f.room().pub.phase === 'preflop' && f.room().pub.handNo === hand);
+      while (f.loop.getEngine().phase === 'preflop') {
+        f.loop.hostAction({ type: 'FOLD', seat: f.loop.getEngine().actor });
+      }
+      await waitFor(() => f.room().pub.phase === 'hand_over');
+      if (hand === 2) {
+        await Promise.race([blocked, waitFor(() => denied >= 2)]);
+        assert.equal(f.loop.getEngine().handNumber, 2);
+        assert.equal(f.loop.getEngine().phase, 'hand_over');
+        assert.deepEqual(f.room().sess.filter(Boolean).map(p => p.hands), [1, 1, 1, 1]);
+        release();
+      }
+      await waitFor(() => f.room().sess.filter(Boolean).every(p => p.hands === hand));
+      await waitFor(() => f.room().pub.phase === 'preflop' && f.room().pub.handNo === hand + 1);
+      assert.deepEqual(f.room().sess.filter(Boolean).map(p => p.hands), [hand, hand, hand, hand]);
+    }
+    assert.deepEqual(bumps, [1, 2, 3]);
+    assert.ok(denied >= 2, '第二手必須真的重試');
+  } finally { release(); f.loop.stop(); globalThis.document = priorDocument; }
+});
+
+
+test('手動下一手：結算後立即按，連續三手各計一次且按鈕同步停用', async () => {
+  const previous = globalThis.document;
+  globalThis.document = { visibilityState: 'visible' };
+  const bumps = [];
+  const f = fixture({ beforeRoomWrite(patch, room) {
+    if (patch.sess?.[0]?.hands > room.sess[0].hands) bumps.push(room.pub.handNo);
+  } });
+  const context = vm.createContext({ hostLoop: f.loop, toast: message => assert.fail(message),
+    friendlyError: e => e.message, paintTableChrome() {} });
+  vm.runInContext(source.slice(source.indexOf('async function startHandFromButton('),
+    source.indexOf('function wireTopUpActions(')), context);
+  try {
+    await f.loop.seatPlayer(1, 'b');
+    assert.equal(f.loop.startHand(), true);
+    for (let hand = 1; hand <= 3; hand++) {
+      f.loop.hostAction({ type: 'FOLD', seat: f.loop.getEngine().actor });
+      assert.equal(f.loop.getEngine().phase, 'hand_over');
+      const button = { disabled: false };
+      const pending = context.startHandFromButton({ currentTarget: button });
+      assert.equal(button.disabled, true, '等待寫入前同步停用');
+      await pending;
+      assert.equal(button.disabled, false);
+      assert.equal(f.loop.getEngine().handNumber, hand + 1);
+      assert.equal(f.loop.getEngine().phase, 'preflop');
+      assert.deepEqual(f.room().sess.filter(Boolean).map(p => p.hands), [hand, hand]);
+    }
+    assert.deepEqual(bumps, [1, 2, 3]);
+  } finally { f.loop.stop(); globalThis.document = previous; }
+});
+
+
+test('手動下一手：手數被拒重試一次，持續失敗顯示提示且可再次按', async () => {
+  const previous = globalThis.document;
+  globalThis.document = { visibilityState: 'visible' };
+  let reject = true, attempts = 0;
+  const f = fixture({ beforeRoomWrite(patch, room) {
+    if (patch.sess?.[0]?.hands > room.sess[0].hands) {
+      attempts++;
+      if (reject) throw Error('測試拒絕');
+    }
+  } });
+  const messages = [];
+  const context = vm.createContext({ hostLoop: f.loop, toast: message => messages.push(message),
+    friendlyError: e => e.message, paintTableChrome() {} });
+  vm.runInContext(source.slice(source.indexOf('async function startHandFromButton('),
+    source.indexOf('function wireTopUpActions(')), context);
+  try {
+    await f.loop.seatPlayer(1, 'b');
+    f.loop.startHand();
+    f.loop.hostAction({ type: 'FOLD', seat: f.loop.getEngine().actor });
+    const button = { disabled: false };
+    await context.startHandFromButton({ currentTarget: button });
+    assert.equal(attempts, 2);
+    assert.equal(messages.length, 1);
+    assert.equal(button.disabled, false);
+    assert.equal(f.loop.getEngine().handNumber, 1);
+    assert.equal(f.loop.getEngine().phase, 'hand_over');
+    assert.equal(f.room().sess[0].hands, 0);
+    reject = false;
+    await context.startHandFromButton({ currentTarget: button });
+    assert.equal(f.loop.getEngine().handNumber, 2);
+    assert.equal(f.room().sess[0].hands, 1);
+  } finally { f.loop.stop(); globalThis.document = previous; }
 });

@@ -34,6 +34,7 @@ import {
   formatCode,
   closeRoom,
   maybeAutoCloseIdleRoom,
+  maybeAutoCloseSingleTable,
   isRoomOpenStatus,
   noteLobbyRoomClosed,
   deleteLobbyListing,
@@ -750,6 +751,10 @@ export async function startMpApp() {
       } else {
         playerDoc = readCachedPlayer(ev.user.uid);
       }
+      // Resolve closed bindings before the first lobby paint can auto-resume.
+      if (playerDoc?.tableRoomId || playerDoc?.hostRoomId) {
+        await silentlySettleClosedBinding();
+      }
       if (deepRoom && screen === 'auth') {
         await tryDeepLink(deepRoom, deepR);
         return;
@@ -1293,6 +1298,7 @@ async function enterOpenTable(roomId) {
   const user = getUser();
   if (!fb || !user || !roomId || openJoinBusy) return;
   openJoinBusy = true;
+  toast('正在確認牌桌…');
   const root = $('#mpRoot');
   const row = root?.querySelector(`.mp-row[data-rid="${CSS.escape(roomId)}"]`);
   if (row) {
@@ -1302,6 +1308,11 @@ async function enterOpenTable(roomId) {
     if (go) go.textContent = '加入中…';
   }
   try {
+    if (await maybeAutoCloseSingleTable(fb, roomId, user.uid)) {
+      openTables = openTables.filter((t) => t.id !== roomId);
+      // Release the join guard in finally before create's lookup may join a new table.
+      return onCreateTable();
+    }
     const res = await joinByRoomId(fb, roomId, user.uid);
     if (res.ended || res.error) {
       // M2 #2: just-closed from open list — drop stale pokerLobby row
@@ -1418,7 +1429,7 @@ async function onCreateTable() {
   toast('正在確認牌桌…');
   if (!fb || !user) return;
   try {
-    const existing = await findOpenTable(fb);
+    const existing = await findOpenTable(fb, user.uid);
     if (existing) {
       await enterOpenTable(existing.id);
       return;
@@ -1619,6 +1630,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
     }
     if (room.hostUid === user.uid && !hostLoop) {
       hostLoop = createHostLoop(fb, {
+        onHostAloneClose: () => startHostClose({ showResultCard: true, auto: true }),
         getCurrentUid: () => getUser()?.uid,
         stats: qaStatsOpts(),
         roomId: id,
@@ -1697,7 +1709,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
           return;
         }
         const auto =
-          !!(r.lobby?.autoClosed || r.autoClosed) || r.closedBy === 'auto';
+          !!(r.lobby?.autoClosed || r.autoClosed || r.pub?.autoClosed) || r.closedBy === 'auto';
         // Prefer pending / settle / last-known stack (never show 0 after a real return)
         let chips =
           pendingCloseReturnChips != null
@@ -1781,6 +1793,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
 
         if (r.hostUid === user.uid) {
           hostLoop = createHostLoop(fb, {
+        onHostAloneClose: () => startHostClose({ showResultCard: true, auto: true }),
         getCurrentUid: () => getUser()?.uid,
         stats: qaStatsOpts(),
             roomId: id,
@@ -1869,6 +1882,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         // host loop ownership
         if (r.hostUid === user.uid && !hostLoop) {
           hostLoop = createHostLoop(fb, {
+        onHostAloneClose: () => startHostClose({ showResultCard: true, auto: true }),
         getCurrentUid: () => getUser()?.uid,
         stats: qaStatsOpts(),
             roomId: id,
@@ -2222,6 +2236,20 @@ function topUpPlayerHtml(pub, mySeat, stacks) {
   return `<button type="button" class="primary" id="mpTopup">申請補 2,000</button>`;
 }
 
+async function startHandFromButton(event) {
+  const button = event.currentTarget;
+  if (button.disabled) return;
+  button.disabled = true;
+  try {
+    if (!await hostLoop?.startHand()) toast('沒有送出去，可能是網路斷了。請再按一次');
+  } catch (e) {
+    toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
+  } finally {
+    button.disabled = false;
+    paintTableChrome();
+  }
+}
+
 function wireTopUpActions(btns, pub, mySeat) {
   $('#mpTopup', btns)?.addEventListener('click', () => {
     const btn = $('#mpTopup', btns);
@@ -2368,7 +2396,7 @@ function renderActBar() {
   ) {
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始第一手（${seatedCount}人）</button>
       <button type="button" class="ghost" id="mpLeave">離座</button>`;
-    $('#mpStart')?.addEventListener('click', () => hostLoop?.startHand());
+    $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
   }
@@ -2381,7 +2409,7 @@ function renderActBar() {
       ${hasLeaveInTop ? '' : '<button type="button" class="ghost" id="mpLeave">離座</button>'}
       ${playerTop}
       ${topUpHostHtml(pub)}`;
-    $('#mpStart')?.addEventListener('click', () => hostLoop?.startHand());
+    $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     wireTopUpActions(btns, pub, mySeat);
     return;
@@ -2751,6 +2779,23 @@ async function sitDown(seat) {
   sittingBusy = true;
   toast('入座中…');
   try {
+    if (room.hostUid !== user.uid) {
+      try {
+        const hp = await fb.fs.getDoc(
+          fb.fs.doc(fb.db, 'pokerRooms', roomId, 'presence', room.hostUid),
+        );
+        const hostBeatMs = hp.exists() ? hp.data()?.beat?.toMillis?.() ?? 0 : 0;
+        const updatedAtMs = room.updatedAt?.toMillis?.() || 0;
+        const age = Date.now() - Math.max(hostBeatMs, updatedAtMs);
+        if (age > 30_000) {
+          const minutes = Math.max(1, Math.ceil((30 * 60_000 - age) / 60_000));
+          toast(`房主已離線，暫時無法入座；牌桌約 ${minutes} 分鐘後會自動關閉，之後就能開新牌桌`);
+          return;
+        }
+      } catch {
+        // Presence read failures retain the existing sit flow.
+      }
+    }
     if (playerDoc?.tableRoomId !== roomId) {
       await buyinAll(fb, user.uid, roomId, room.config.bb);
       playerDoc = await getPlayer(fb, user.uid);
@@ -3309,7 +3354,7 @@ function startHostClose(opts = {}) {
   const pending = closeInFlight;
   void pending.then((chips) => {
     closeInFlight = null;
-    if (opts.showResultCard !== false) showCloseResultCard({ chips });
+    if (opts.showResultCard !== false) showCloseResultCard({ chips, auto: !!opts.auto });
     else if (screen === 'lobby') goLobbyClean();
   }, () => {
     closeInFlight = null;
@@ -3380,7 +3425,7 @@ async function performHostCloseRoomInner(opts = {}) {
     await silentlySettleClosedBinding();
   }
   if (showResultCard && closeResultDismissedFor !== id) {
-    showCloseResultCard({ chips, auto: false });
+    showCloseResultCard({ chips, auto: !!opts.auto });
   } else if (!showResultCard) {
     closeResultDismissedFor = id;
   }

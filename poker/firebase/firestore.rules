@@ -88,6 +88,40 @@ service cloud.firestore {
     // 帶入、補碼、結帳只能在兩手之間（pub.phase 是 lobby 或 hand_over）
     function betweenHands(p) { return p is map && p.get('phase', '') in ['lobby', 'hand_over']; }
 
+    // 無帳務只能在進行中 → hand_over 結算；其他寫入保留開局存檔點。
+    function nonMoneyStacksOk(d, r) {
+      return d.stacks == r.stacks
+        || (!betweenHands(r.pub) && d.pub.phase == 'hand_over'
+            && settledStacksOk(d, r, d.pub.get('voided', false) == true));
+    }
+    function settledStacksOk(d, r, voided) {
+      return settledListsOk(r.seatUids, d.stacks, r.stacks, d.pub.seats, r.pub.seats, voided);
+    }
+    // 陣列只取一次再逐格傳入（省運算式）
+    function settledListsOk(su, ds, rs, ps, rps, v) {
+      return settledSeatOk(su[0], ds[0], rs[0], ps[0], rps[0], v)
+        && settledSeatOk(su[1], ds[1], rs[1], ps[1], rps[1], v)
+        && settledSeatOk(su[2], ds[2], rs[2], ps[2], rps[2], v)
+        && settledSeatOk(su[3], ds[3], rs[3], ps[3], rps[3], v)
+        && settledSeatOk(su[4], ds[4], rs[4], ps[4], rps[4], v)
+        && settledSeatOk(su[5], ds[5], rs[5], ps[5], rps[5], v);
+    }
+    function settledSeatOk(u, after, before, p, rp, voided) {
+      return u == '' ? after == before : seatSettleOk(p, after, before, voided, rp);
+    }
+    // p＝這手結束後的 pub 座位，rp＝結束前（進行中）的 pub 座位；參數只算一次（省運算式）
+    function seatSettleOk(p, after, before, voided, rp) {
+      return after == p.chips
+        && (voided
+            // 作廢：只有中途離桌（前一份 pub 已棄牌）的人會少，且最多少掉他本手已下的注
+            ? (after >= before
+                || (rp.folded == true && rp.contributed is int && before - after <= rp.contributed))
+            // 正常結算：最多輸掉本手已下的注；棄牌的人剛好輸掉已下的注、不能贏
+            : (p.contributed is int && p.contributed >= 0 && p.contributed <= before
+                && after >= before - p.contributed
+                && (p.folded != true || after == before - p.contributed)));
+    }
+
     // 座位帳（sess）在沒有帳務事件時只能讓 hands 變多，其他欄位不能動（房主不能改別人的帶入、補碼紀錄）
     function sessKeep(a, b) {
       // [FIX-2] 先比整格相等（1 個運算式）；不相等時只允許 hands 變多（用 diff 取代逐欄比較，省運算式）
@@ -186,7 +220,10 @@ service cloud.firestore {
         && (money
             ? othersSame(d.seatUids, resource.data.seatUids, d.lastMoneyEvent.seat)
               && othersSame(d.sess, resource.data.sess, d.lastMoneyEvent.seat)
-            : d.seatUids == resource.data.seatUids
+              // 帳務事件只能動事件那一格的籌碼；其他格不能順便被挪
+              && othersSame(d.stacks, resource.data.stacks, d.lastMoneyEvent.seat)
+            : nonMoneyStacksOk(d, resource.data)
+              && d.seatUids == resource.data.seatUids
               && (d.sess == resource.data.sess
                   || (sessSame(d, 0, -1) && sessSame(d, 1, -1) && sessSame(d, 2, -1)
                       && sessSame(d, 3, -1) && sessSame(d, 4, -1) && sessSame(d, 5, -1))))
@@ -235,7 +272,7 @@ service cloud.firestore {
       }
       // 牌局中便宜路徑（語意 ⊆ isHostWrite／roomWriteOk 的「無帳務」分支）。
       // 不用 diff()/affectedKeys()：大型 mid-hand pub 會把 isHostWrite 推過 1000 運算式上限（QA #3）。
-      // 允許改 pub／deadlineAt／stacks（Σ=chipTotal 不變）；座位／sess／帳務／身分欄位必須整份相等。
+      // 允許改 pub／deadlineAt；stacks 只限手結束結算（Σ=chipTotal 不變）；座位／sess／帳務／身分欄位必須整份相等。
       // 變動那些欄位（含 sess.hands++、帶入／結帳）仍走下方完整 isHostWrite。
       function isHostPubWrite() {
         let d = request.resource.data;
@@ -247,7 +284,35 @@ service cloud.firestore {
           && d.pub is map
           && (d.deadlineAt == null || d.deadlineAt is int)
           && d.diff(r).affectedKeys().hasOnly(['pub', 'deadlineAt', 'rev', 'updatedAt', 'stacks'])
-          && stacksOk(d.stacks) && sumOf(d.stacks) == d.chipTotal;
+          // 一手結束結算已分流到 isHostSettleWrite；這條路徑 stacks 必須不變
+          && d.stacks == r.stacks;
+      }
+      // 一手結束（進行中 → hand_over）：唯一可在無帳務下改 stacks 的寫入；座位、帳務、房主、chipTotal 都不能動。
+      function isSettleTransition() {
+        return !betweenHands(resource.data.pub)
+          && request.resource.data.pub is map
+          && request.resource.data.pub.get('phase', '') == 'hand_over';
+      }
+      function isHostSettleWrite() {
+        return hostSettleOk(request.resource.data, resource.data);
+      }
+      function hostSettleOk(d, r) {
+        return request.auth.uid == r.hostUid
+          && roomOpen(r.status) && d.status in ['lobby', 'playing']
+          && d.rev == r.rev + 1
+          && d.updatedAt == request.time
+          && (d.deadlineAt == null || d.deadlineAt is int)
+          // 不用 diff()（大型 pub 會超過 1000 運算式）：欄位數不變＋其他欄位逐一相等，等同只改 pub/stacks/status/lobby/deadlineAt
+          && d.size() == r.size()
+          && d.seatUids == r.seatUids && d.chipTotal == r.chipTotal && d.hostUid == r.hostUid
+          && d.members == r.members && d.config == r.config && d.name == r.name && d.code == r.code
+          && d.hostSince == r.hostSince && d.createdAt == r.createdAt && d.lastMoneyEvent == r.lastMoneyEvent
+          && (d.get('lobby', null) == r.get('lobby', null) || lobbyOk(d.lobby))
+          // sess 不能動（hands+1 改在下一筆 hand_over 寫入，走 isHostWrite；省運算式）
+          && d.sess == r.sess
+          && stacksOk(d.stacks) && sumOf(d.stacks) == d.chipTotal
+          // 已由 isSettleTransition 分流確認「進行中 → hand_over」，直接逐格核對
+          && settledStacksOk(d, r, d.pub.get('voided', false) == true);
       }
       // 房主寫入；交棒只能交給在座的人。
       // 房主離座：在 HAND_OVER 用同一筆寫入「交棒＋結帳空出自己的座位」（帳務事件＝自己的 cashout）；
@@ -377,9 +442,14 @@ service cloud.firestore {
         && request.query.limit <= 20
         && resource.data.status in ['lobby', 'playing'];
       allow create: if signedIn() && (createLobbyRoomOk() || createLegacyOpenRoomOk());
+      // 分流省運算式（上限 1000）：帳務事件只可能走 isHostWrite；一手結束結算走專用 isHostSettleWrite（或接手作廢）。
       allow update: if signedIn() && (request.resource.data.lastMoneyEvent == {'type': 'closeAll'}
         ? isHostCloseAll()
-        : (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover() || isAutoClose()));
+        : request.resource.data.lastMoneyEvent != resource.data.lastMoneyEvent
+          ? isHostWrite()
+          : isSettleTransition()
+            ? (isHostSettleWrite() || isTakeover())
+            : (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover() || isAutoClose()));
       allow delete: if false;
 
       // 動作意圖：每人一份，覆寫，seq 只能變大；turn＝送出時看到的 pub.actionSeq（房主用來去重）

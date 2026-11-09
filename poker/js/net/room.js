@@ -3,13 +3,22 @@
  */
 
 import { DEFAULT_NEW_PLAYER_CHIPS } from './buyin-policy.js';
-import { LS_PREFIX } from './firebase-config.js';
+import { LS_PREFIX, isEmuMode } from './firebase-config.js';
 import { recordWrite } from './quota.js';
 
 const CODE_DIGITS = 3;
 const CODE_ATTEMPTS = 10;
 export const SINGLE_TABLE_CODE = '000';
 const IDLE_CLOSE_MS = 30 * 60_000;
+export const HOST_ALONE_CLOSE_MS = 30 * 60_000;
+function emuTimeout(name, fallback) {
+  if (!isEmuMode()) return fallback;
+  const value = Number(new URLSearchParams(location.search).get(name));
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+export function hostAloneCloseMs() {
+  return emuTimeout('aloneMs', HOST_ALONE_CLOSE_MS);
+}
 /** Lightweight lobby list docs (not full pokerRooms). Doc id = roomId. */
 export const LOBBY_LIST_COL = 'pokerLobby';
 
@@ -174,7 +183,7 @@ export function sortLobbyListings(rows) {
 }
 
 /** 以既有大廳查詢找最早開桌；不將本機快取當作建立許可。 */
-export async function findOpenTable(fb) {
+export async function findOpenTable(fb, uid) {
   const { db, fs } = fb;
   const snap = await fs.getDocs(fs.query(
     fs.collection(db, LOBBY_LIST_COL),
@@ -183,7 +192,12 @@ export async function findOpenTable(fb) {
   ));
   const rows = [];
   snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
-  return sortLobbyListings(rows)[0] || null;
+  for (const table of sortLobbyListings(rows)) {
+    if (uid && table.code === SINGLE_TABLE_CODE &&
+        await maybeAutoCloseSingleTable(fb, table.id, uid)) continue;
+    return table;
+  }
+  return null;
 }
 
 async function joinExistingTable(fb, table, uid) {
@@ -195,7 +209,7 @@ async function joinExistingTable(fb, table, uid) {
 
 /** 固定房號鎖；房間可讀性在交易外判斷，回收合法性由既有規則核對。 */
 export async function createSingleTable(fb, opts) {
-  const existing = await findOpenTable(fb);
+  const existing = await findOpenTable(fb, opts.uid);
   if (existing) return joinExistingTable(fb, existing, opts.uid);
   const { db, fs } = fb;
   const codeRef = fs.doc(db, 'pokerCodes', SINGLE_TABLE_CODE);
@@ -211,7 +225,9 @@ export async function createSingleTable(fb, opts) {
         // 非成員無法讀取關閉／不存在的房間；交由 codeReclaimable 判定。
       }
       if (room?.exists() && isRoomOpenStatus(room.data().status)) {
-        return joinExistingTable(fb, { id: lock.roomId }, opts.uid);
+        if (!await maybeAutoCloseSingleTable(fb, lock.roomId, opts.uid)) {
+          return joinExistingTable(fb, { id: lock.roomId }, opts.uid);
+        }
       }
     }
     try {
@@ -222,6 +238,36 @@ export async function createSingleTable(fb, opts) {
     }
   }
   throw new Error('牌桌正在更新，請稍後再試');
+}
+
+/** 非房主先成為成員；只關房，不更動任何人的籌碼。 */
+export async function maybeAutoCloseSingleTable(fb, roomId, uid, now = Date.now()) {
+  const { db, fs } = fb;
+  const ref = fs.doc(db, 'pokerRooms', roomId);
+  let snap = await fs.getDoc(ref);
+  if (!snap.exists()) return false;
+  let room = snap.data();
+  if (room.code !== SINGLE_TABLE_CODE || !isRoomOpenStatus(room.status) ||
+      !hostIsOnlySeated(room) || !['lobby', 'hand_over'].includes(room.pub?.phase) ||
+      now - (room.updatedAt?.toMillis?.() || 0) <= emuTimeout('staleMs', IDLE_CLOSE_MS)) return false;
+  if (!room.members.includes(uid)) {
+    await fs.updateDoc(ref, { members: fs.arrayUnion(uid) });
+  }
+  snap = await fs.getDoc(ref);
+  room = snap.data();
+  return maybeAutoCloseIdleRoom(fb, { ...room, id: roomId }, now, emuTimeout('staleMs', IDLE_CLOSE_MS));
+}
+
+export function hostIsOnlySeated(room) {
+  return !!room?.hostUid && room.seatUids?.includes(room.hostUid) &&
+    !room.seatUids.some(uid => uid && uid !== room.hostUid);
+}
+
+export function hostAloneSince(room, now = Date.now()) {
+  if (room?.code !== SINGLE_TABLE_CODE || !hostIsOnlySeated(room)) return null;
+  if (Number.isFinite(room.pub?.hostAloneSince)) return room.pub.hostAloneSince;
+  return room.pub?.handNo === 0 && !room.pub?.hostHadOtherSeats
+    ? (room.createdAt?.toMillis?.() ?? now) : now;
 }
 
 async function codeIsFree(tx, fs, db, code) {
@@ -649,18 +695,21 @@ export async function closeRoom(fb, roomId, { auto = false, closedRoom = null } 
  * L4: if room idle ≥30m (updatedAt + all member presence), auto-close.
  * @returns {Promise<boolean>} true if closed
  */
-export async function maybeAutoCloseIdleRoom(fb, room) {
+export async function maybeAutoCloseIdleRoom(fb, room, now = Date.now(), staleMs = IDLE_CLOSE_MS) {
   if (!room?.id || room.status === 'closed') return false;
+  if (room.code === SINGLE_TABLE_CODE && (!hostIsOnlySeated(room) ||
+      !['lobby', 'hand_over'].includes(room.pub?.phase))) return false;
   const updatedMs = room.updatedAt?.toMillis?.() || 0;
-  if (Date.now() - updatedMs < IDLE_CLOSE_MS) return false;
+  if (now - updatedMs <= staleMs) return false;
   const { db, fs } = fb;
   try {
     const pres = await fs.getDocs(
       fs.collection(db, 'pokerRooms', room.id, 'presence'),
     );
     for (const d of pres.docs) {
+      if (room.code === SINGLE_TABLE_CODE && d.id !== room.hostUid) continue;
       const beat = d.data()?.beat?.toMillis?.() || 0;
-      if (Date.now() - beat < IDLE_CLOSE_MS) return false;
+      if (now - beat <= staleMs) return false;
     }
     await closeRoom(fb, room.id, { auto: true });
     return true;
