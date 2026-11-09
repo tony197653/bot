@@ -1,0 +1,225 @@
+{
+  "id": "2026-11-09-personal-stats-cce7071",
+  "approverQuote": "接受 QA 列的缺口風險，現在上線 cce7071d533b0015",
+  "approvalRef": "t356s2081",
+  "approvedAt": "2026-11-09T01:32:00.000Z",
+  "sourceVersion": "sites/tony-poker/versions/cce7071d533b0015",
+  "expectedLiveVersion": "sites/tony-poker/versions/6bf25602b4157564",
+  "manifest": {
+    "/__/firebase/init.js": "19c03bf7fb1741fec391a6fe1281ed8ed2d374c47231cc88655fc10a14ed3309",
+    "/__/firebase/init.json": "ace11914473b922e156b0b829e855403fe2df6eacd9ac91a179b56dd6d5753e7",
+    "/lib/auth/auth-ui.js": "04eb7e586939136e4294dccbb8dd59efe07e15b57b1b290e990fe7eeb194c1cd",
+    "/lib/auth/auth.js": "1747af83106e6e5c40159bbb89f2915f2836a65a56c717df1f5779ae0798bc80",
+    "/lib/auth/demo.html": "bae0b1f0edb71bae1b413674c517fde63f3e8f6f94c22b0eeb322d7888b32d1e",
+    "/lib/firebase/load.js": "58c5351d763ade38a54730143c4298a497be70736654cbbbc79d9b69745010d1",
+    "/poker/assets/auth-felt.svg": "5721edaf28326689bc9c69f6c6f98336d7db26d85251df0151b9ef5127237b21",
+    "/poker/assets/icon-180.png": "b4a90ab548790a9f5df077c46c9233b9b37d9043faf128fe34c9bea40e316045",
+    "/poker/assets/icon-192.png": "f0a708fa18d03f7de7abcf96df15ea0100abac9746c03603c04569600fd6277a",
+    "/poker/assets/icon-512.png": "d6c4186b9d310bd18d3fea6e28da3af385b2a23722ecb1fba787e8835e2c89aa",
+    "/poker/css/game.css": "ccc29fa802ad96ab6d82bc2e2ee8c0065fe53220fe69ff2ed1fdf8f6bd1d2488",
+    "/poker/index.html": "ffe9452fb6ec1de6bbcdb8a5573bbafc01d44eb0c2639a72de0a505e620026c0",
+    "/poker/js/engine/cards.js": "7668c3004bd170ea4adf20f3c0b935c0b77b1ddc56d60f4f44ef62cab41a7bd9",
+    "/poker/js/engine/game.js": "f733bb13634858f7d9269bb2728e724036066ebd4102738aacda75456d2bbff5",
+    "/poker/js/engine/hand.js": "398c9ea4abded269e2120157fa4d724ad6e60b63f45a6c8164207c9cc421728b",
+    "/poker/js/engine/index.js": "a85b49b69a96ab72fd41d6b7decc4a075ee613f1be3d2aeafba25c98be77d20d",
+    "/poker/js/engine/pots.js": "b2bbca81f711cf54e6b01cedb3f84a50a976a5e01fa636462342d4908a6ef616",
+    "/poker/js/engine/shuffle.js": "850fe30bab3e5b8d8d7cf4652b6c1d5f710b494fc9c39fb9600461e798804962",
+    "/poker/js/engine/view.js": "5cdc3987724c6995f3e10d7d3a6520d21452a36a0f75e99169028bbc64e54cff",
+    "/poker/js/net/buyin-policy.js": "7bb4e07c3d578f9ea65b345d024809da5b4299acfcc37ad3ed804aa5d7468983",
+    "/poker/js/net/client.js": "e50c33831385de45dcae860a7b63fa9faf9c31d874a36c7678a24c4e3c067a0c",
+    "/poker/js/net/firebase-config.js": "b4bc3450d4eaf07097accc952bf7f0f7447b547affff1bf7e8834b6d27ab52ff",
+    "/poker/js/net/host.js": "b490bec93f795f5479cbde35d6a774d70ccaf5a17888b09d051691d388c7875f",
+    "/poker/js/net/ledger.js": "468424798d67df71784313507adcb3e852b5061050302327b36af3d39b5b6b62",
+    "/poker/js/net/presence.js": "431bf4d5daa2c21bdff3fcaa5a54d04b7143bc4c13934e0a9416fa4579d66509",
+    "/poker/js/net/quota.js": "56b089abbfc855525d7c0b26450bc273f3fdae63ea80b57e27106b60a6571d61",
+    "/poker/js/net/rescue.js": "8c0e550541f3b9db40158fd7a8fbd6bea16e5f8f8777e795f5b2b56c153119f7",
+    "/poker/js/net/room.js": "32c4f1c87b38e9fd6b0d7a53616b847ac6e57d50fef513eb8e565fd93db9fedc",
+    "/poker/js/stats/bounded-queue.js": "454f725eb3354f7d014b1925df40489055cbaf78c5681fc2ea6fbffa2e9225b1",
+    "/poker/js/stats/firestore-adapter.js": "37d50bd2fa120822430688f15cf0ac67b54f6b5aca7d26cec1895fdbb1326c90",
+    "/poker/js/stats/hand-id.js": "1ac0e6c33b996881653486ec5e133ae3de61205ac1ce972edb9d227ebe1639d5",
+    "/poker/js/stats/host-runtime.js": "a1a660608c70eb47c5876548f001f3c2cd1f13e525788ed2cea8b0dfc2de550e",
+    "/poker/js/stats/index.js": "9f01bf797983b3aa907bb47df335de317a48505ae6c22c196703323ceb573824",
+    "/poker/js/stats/pending-queue.js": "081aef6f30c6cb56866f3e75f039930b0e9ac1206cd0d8fe50e3ad97364dcfc0",
+    "/poker/js/stats/preflop-flags.js": "d32b628b47544be07ab892ae0b62749aeb62f9194c07720b24a8d979facb3cd7",
+    "/poker/js/stats/remote-pending.js": "1e25dc443a8ab986c33c65b2e2a040a1f19a217bb9938c2b9bf7c4312acb714c",
+    "/poker/js/stats/session.js": "f47a8dc38f0d824dc0e2b8ead8079ab6387c738ad436d8dab7b4ec8ddacb6a8b",
+    "/poker/js/stats/snapshot.js": "58c76bc6dd0d48aafbd2628292814bd479b2a85cb2180e914ab4f36663ef4e8e",
+    "/poker/js/stats/submission.js": "0cba60b7bd4846c503f0da61309bbd3349ed0ca33e2ef7a7f69b8989b5425835",
+    "/poker/js/stats/write-chain.js": "72f37d75863d08ad3770be5a9ae6f18ef09c4c04c991f3d43ce97f5de7bbe5d5",
+    "/poker/js/ui/app.js": "438181ee54bb340641376d672cfee06b9bb154b3c64cd8b228363252c39aff45",
+    "/poker/js/ui/cards-dom.js": "8e957e03ecfc5c61dc30082f58e42215aa71e332edad3312fe6fc59117901be8",
+    "/poker/js/ui/fx-mp.js": "b8d13f7db8228aa9f59b52682cccda72ee2d9ab4d5433160528bec2ba1c51789",
+    "/poker/js/ui/fx.js": "afcdfbd6d441988d06972d31370dd414a0ef7c78be85d80e30bde01aabbd8deb",
+    "/poker/js/ui/layout-felt.js": "48b09ece9b3604afa7355754ce1fe357c6b6cb2f62a88d405b5d713dee43cf83",
+    "/poker/js/ui/lobby.js": "a6ac53429a62fff4bdd9058529938c9a0adda283f6e383d6605c3e20cfb4def3",
+    "/poker/js/ui/mp-app.js": "70117e4a999f5124fbc93262355361fb0b65b0f14e4584d73fb03b0f0b9a9275",
+    "/poker/js/ui/personal-stats.js": "ac91ec8bf24280b644c327817eb3c4ab1444019ac27b25624adac05fa4651991",
+    "/poker/js/ui/seating.js": "24199b2e29b675b07d2e419e64c8cfcbd6e68476681c509b53823be46ecf984d",
+    "/poker/js/ui/stats.js": "9a3a20ac0919ed29887f7a8b1332b57454c4077246816f4a5c54cc6b44a87296",
+    "/poker/js/ui/ticker.js": "b2784a788f2de7eaa6f17248ef75c3f8ccc5b518cbeca5114edb3843d3e45386",
+    "/poker/manifest.webmanifest": "3ab40bcc4fe9edc80636bccd4c2a100affae61711b175aabbceb9d38ae18a3f4",
+    "/poker/playground.html": "215d6421ddf9f21d1f8b4772c5b10057b1ae7ac27296c269cc07d067ccbe9771"
+  },
+  "servingConfig": {
+    "headers": [
+      {
+        "headers": {
+          "Cache-Control": "no-cache"
+        },
+        "glob": "**/*.@(js|css|html)"
+      }
+    ],
+    "redirects": [
+      {
+        "statusCode": 302,
+        "location": "/poker/",
+        "glob": "/"
+      }
+    ]
+  },
+  "manifestDigest": "01445801f0e41832ea2714c36cf17d9db932359ba461179ce47ad0521df578f2",
+  "diffVsLive": {
+    "files": [
+      {
+        "path": "/poker/js/engine/game.js",
+        "change": "modified",
+        "liveHash": "f01517e00a3f39b486dd6072e065f9664ffc2d9eb6492bb576d4effd7c1d1df6",
+        "sourceHash": "f733bb13634858f7d9269bb2728e724036066ebd4102738aacda75456d2bbff5"
+      },
+      {
+        "path": "/poker/js/engine/view.js",
+        "change": "modified",
+        "liveHash": "6121331a9d9d995ede9dc3866a2a1a71065fa3ee042d3f8bcdf848853cb52b39",
+        "sourceHash": "5cdc3987724c6995f3e10d7d3a6520d21452a36a0f75e99169028bbc64e54cff"
+      },
+      {
+        "path": "/poker/js/net/buyin-policy.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "7bb4e07c3d578f9ea65b345d024809da5b4299acfcc37ad3ed804aa5d7468983"
+      },
+      {
+        "path": "/poker/js/net/host.js",
+        "change": "modified",
+        "liveHash": "d2fc0fd21593b3a1eefa64c099ac31b0a553e0bf97c928aff076e0fab9f31e60",
+        "sourceHash": "b490bec93f795f5479cbde35d6a774d70ccaf5a17888b09d051691d388c7875f"
+      },
+      {
+        "path": "/poker/js/net/ledger.js",
+        "change": "modified",
+        "liveHash": "952dfdec8b4ea665a5f195befe8cec6964bc4fe8811ea853fce094255c8e5f1d",
+        "sourceHash": "468424798d67df71784313507adcb3e852b5061050302327b36af3d39b5b6b62"
+      },
+      {
+        "path": "/poker/js/net/presence.js",
+        "change": "modified",
+        "liveHash": "5de8b8febea319f8bee30f4cd4c5b587f0189084b86845d69b699ed75d860fb5",
+        "sourceHash": "431bf4d5daa2c21bdff3fcaa5a54d04b7143bc4c13934e0a9416fa4579d66509"
+      },
+      {
+        "path": "/poker/js/net/room.js",
+        "change": "modified",
+        "liveHash": "3d5f2073cbeb20cf91a8366561a57d519edaaa3fb49bdef24d0cdb72b8b3cf2f",
+        "sourceHash": "32c4f1c87b38e9fd6b0d7a53616b847ac6e57d50fef513eb8e565fd93db9fedc"
+      },
+      {
+        "path": "/poker/js/stats/bounded-queue.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "454f725eb3354f7d014b1925df40489055cbaf78c5681fc2ea6fbffa2e9225b1"
+      },
+      {
+        "path": "/poker/js/stats/firestore-adapter.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "37d50bd2fa120822430688f15cf0ac67b54f6b5aca7d26cec1895fdbb1326c90"
+      },
+      {
+        "path": "/poker/js/stats/hand-id.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "1ac0e6c33b996881653486ec5e133ae3de61205ac1ce972edb9d227ebe1639d5"
+      },
+      {
+        "path": "/poker/js/stats/host-runtime.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "a1a660608c70eb47c5876548f001f3c2cd1f13e525788ed2cea8b0dfc2de550e"
+      },
+      {
+        "path": "/poker/js/stats/index.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "9f01bf797983b3aa907bb47df335de317a48505ae6c22c196703323ceb573824"
+      },
+      {
+        "path": "/poker/js/stats/pending-queue.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "081aef6f30c6cb56866f3e75f039930b0e9ac1206cd0d8fe50e3ad97364dcfc0"
+      },
+      {
+        "path": "/poker/js/stats/preflop-flags.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "d32b628b47544be07ab892ae0b62749aeb62f9194c07720b24a8d979facb3cd7"
+      },
+      {
+        "path": "/poker/js/stats/remote-pending.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "1e25dc443a8ab986c33c65b2e2a040a1f19a217bb9938c2b9bf7c4312acb714c"
+      },
+      {
+        "path": "/poker/js/stats/session.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "f47a8dc38f0d824dc0e2b8ead8079ab6387c738ad436d8dab7b4ec8ddacb6a8b"
+      },
+      {
+        "path": "/poker/js/stats/snapshot.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "58c76bc6dd0d48aafbd2628292814bd479b2a85cb2180e914ab4f36663ef4e8e"
+      },
+      {
+        "path": "/poker/js/stats/submission.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "0cba60b7bd4846c503f0da61309bbd3349ed0ca33e2ef7a7f69b8989b5425835"
+      },
+      {
+        "path": "/poker/js/stats/write-chain.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "72f37d75863d08ad3770be5a9ae6f18ef09c4c04c991f3d43ce97f5de7bbe5d5"
+      },
+      {
+        "path": "/poker/js/ui/lobby.js",
+        "change": "modified",
+        "liveHash": "2569c686e96f36419c94f8dfd6d7cafb59230ce69043bc0f91547e3bd43fa071",
+        "sourceHash": "a6ac53429a62fff4bdd9058529938c9a0adda283f6e383d6605c3e20cfb4def3"
+      },
+      {
+        "path": "/poker/js/ui/mp-app.js",
+        "change": "modified",
+        "liveHash": "6403fb4d5a21edafdd6f079fa8c3577a33eebd3245ca91379b675870daf746e3",
+        "sourceHash": "70117e4a999f5124fbc93262355361fb0b65b0f14e4584d73fb03b0f0b9a9275"
+      },
+      {
+        "path": "/poker/js/ui/personal-stats.js",
+        "change": "added",
+        "liveHash": null,
+        "sourceHash": "ac91ec8bf24280b644c327817eb3c4ab1444019ac27b25624adac05fa4651991"
+      },
+      {
+        "path": "/poker/js/ui/stats.js",
+        "change": "modified",
+        "liveHash": "3310f782d8ee15e584cef6ba867e7e7b0df2b0a75d904ebc7e9299515dc218eb",
+        "sourceHash": "9a3a20ac0919ed29887f7a8b1332b57454c4077246816f4a5c54cc6b44a87296"
+      }
+    ],
+    "servingConfigChanged": false
+  },
+  "reviewedDiffSummary": "source=sites/tony-poker/versions/cce7071d533b0015 digest=01445801f0e41832ea2714c36cf17d9db932359ba461179ce47ad0521df578f2\nlive=sites/tony-poker/versions/6bf25602b4157564 digest=792b2c823bcab8f6aac3b0c45566839071d0f94ee852ebffb4a2744389d5a36f\nfiles: +14 ~9 -0\nservingConfigChanged=false\nmodified /poker/js/engine/game.js\nmodified /poker/js/engine/view.js\nadded /poker/js/net/buyin-policy.js\nmodified /poker/js/net/host.js\nmodified /poker/js/net/ledger.js\nmodified /poker/js/net/presence.js\nmodified /poker/js/net/room.js\nadded /poker/js/stats/bounded-queue.js\nadded /poker/js/stats/firestore-adapter.js\nadded /poker/js/stats/hand-id.js\nadded /poker/js/stats/host-runtime.js\nadded /poker/js/stats/index.js\nadded /poker/js/stats/pending-queue.js\nadded /poker/js/stats/preflop-flags.js\nadded /poker/js/stats/remote-pending.js\nadded /poker/js/stats/session.js\nadded /poker/js/stats/snapshot.js\nadded /poker/js/stats/submission.js\nadded /poker/js/stats/write-chain.js\nmodified /poker/js/ui/lobby.js\nmodified /poker/js/ui/mp-app.js\nadded /poker/js/ui/personal-stats.js\nmodified /poker/js/ui/stats.js"
+}

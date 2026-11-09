@@ -3,6 +3,7 @@
  * Ledger ids are fixed → idempotent (permission-denied + exists = success).
  */
 
+import { assertMinimumBuyin } from './buyin-policy.js';
 import { LS_PREFIX } from './firebase-config.js';
 import { deleteLobbyListing } from './room.js';
 
@@ -92,19 +93,20 @@ export async function ensurePlayerGrant(fb, uid, roomId, n, profile) {
 /**
  * Whole-bank buy-in (§6.10 scheme ①).
  */
-export async function buyinAll(fb, uid, roomId) {
+export async function buyinAll(fb, uid, roomId, bb) {
   const { db, fs } = fb;
   const pref = fs.doc(db, 'pokerPlayers', uid);
   const snap = await fs.getDoc(pref);
   if (!snap.exists()) throw new Error('還沒有帳戶');
   const p = snap.data();
   if (p.tableRoomId === roomId) {
+    assertMinimumBuyin(p.inPlay, bb);
     return { skipped: true, amount: p.inPlay, sessionNo: p.sessionNo };
   }
   if (p.tableRoomId != null) throw new Error('你還在別桌，請先結帳離開');
 
   const no = p.sessionNo + 1;
-  const amount = p.bank;
+  const amount = assertMinimumBuyin(p.bank, bb);
   const id = `${roomId}_${no}_buyin`;
   const batch = fs.writeBatch(db);
   batch.update(pref, {
@@ -225,6 +227,87 @@ export async function hostCashoutBatch(fb, {
     throw e;
   }
   return { alreadyCashed: false, id };
+}
+
+/** 整桌結算：prepareClose 的房間快照＋平行帳戶／晚間紀錄讀取＋單次原子寫入。 */
+export async function hostCloseAllBatch(fb, { hostUid, roomId, room, displayNameOf }) {
+  if (room.status === 'closed') return { skipped: true };
+  if (room.hostUid !== hostUid || !['lobby', 'hand_over'].includes(room.pub?.phase)) {
+    throw new Error('結算尚未同步，請重試收桌');
+  }
+  const { db, fs } = fb;
+  const rows = await Promise.all(room.seatUids.map(async (uid, seat) => {
+    if (!uid) return null;
+    const sessRow = room.sess[seat];
+    if (!sessRow) throw new Error('座位帳資料缺失');
+    const pref = fs.doc(db, 'pokerPlayers', uid);
+    const nref = fs.doc(db, 'pokerPlayers', uid, 'nights', sessRow.nightKey);
+    const [pSnap, nSnap] = await Promise.all([fs.getDoc(pref), fs.getDoc(nref)]);
+    const p = pSnap.data();
+    if (!p) throw new Error('玩家帳戶缺失');
+    if (p.tableRoomId == null) return null;
+    if (p.tableRoomId !== roomId || p.sessionNo !== sessRow.sessionNo) {
+      throw new Error('玩家帳戶與座位帳不同步');
+    }
+    return { uid, seat, sessRow, pref, nref, nSnap, p };
+  }));
+  const batch = fs.writeBatch(db);
+  const roomPatch = {
+    status: 'closed', rev: room.rev + 1, updatedAt: fs.serverTimestamp(),
+    seatUids: ['', '', '', '', '', ''], stacks: [0, 0, 0, 0, 0, 0],
+    chipTotal: 0, sess: [null, null, null, null, null, null],
+    deadlineAt: null, lastMoneyEvent: { type: 'closeAll' },
+  };
+  batch.update(fs.doc(db, 'pokerRooms', roomId), roomPatch);
+  for (const row of rows) {
+    if (!row) continue;
+    const { uid, seat, sessRow, pref, nref, nSnap, p } = row;
+    const id = `${roomId}_${sessRow.sessionNo}_cashout`;
+    const amount = room.stacks[seat];
+    const playerName = displayNameOf?.(uid);
+    batch.set(fs.doc(db, 'pokerPlayers', uid, 'ledger', id), {
+      type: 'cashout',
+      amount,
+      roomId,
+      sessionNo: sessRow.sessionNo,
+      seat,
+      buyIn: sessRow.buyIn,
+      topUps: sessRow.topUps,
+      topUpChips: sessRow.topUpChips,
+      hands: sessRow.hands,
+      nightKey: sessRow.nightKey,
+      bankAfter: p.bank + amount,
+      by: hostUid,
+      at: fs.serverTimestamp(),
+    });
+    batch.update(pref, {
+      bank: p.bank + amount,
+      inPlay: 0,
+      total: p.bank + amount,
+      tableRoomId: null,
+      topUps: p.topUps + sessRow.topUps,
+      topUpChips: p.topUpChips + sessRow.topUpChips,
+      handsPlayed: p.handsPlayed + sessRow.hands,
+      updatedAt: fs.serverTimestamp(),
+    });
+    const base = nSnap.exists()
+      ? nSnap.data()
+      : { buyIn: 0, cashOut: 0, topUps: 0, hands: 0, lastEntry: '' };
+    batch.set(nref, {
+      nightKey: sessRow.nightKey,
+      uid,
+      name: (playerName || '玩家').slice(0, 60),
+      buyIn: base.buyIn + sessRow.buyIn + sessRow.topUpChips,
+      cashOut: base.cashOut + amount,
+      net: base.cashOut + amount - (base.buyIn + sessRow.buyIn + sessRow.topUpChips),
+      topUps: base.topUps + sessRow.topUps,
+      hands: base.hands + sessRow.hands,
+      lastEntry: id,
+      updatedAt: fs.serverTimestamp(),
+    });
+  }
+  await batch.commit();
+  return { skipped: false, room: { ...room, ...roomPatch } };
 }
 
 /**

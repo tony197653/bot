@@ -2,6 +2,7 @@
  * Create / join / extend / close rooms (§9.2 + 附錄 L3/L4/L7).
  */
 
+import { DEFAULT_NEW_PLAYER_CHIPS } from './buyin-policy.js';
 import { LS_PREFIX } from './firebase-config.js';
 import { recordWrite } from './quota.js';
 
@@ -196,7 +197,7 @@ export async function createRoom(fb, opts) {
   const config = {
     sb: opts.sb,
     bb: opts.bb,
-    newPlayerChips: opts.newPlayerChips,
+    newPlayerChips: opts.newPlayerChips ?? DEFAULT_NEW_PLAYER_CHIPS,
     actionMs: 30000,
     topUpAmount: 2000,
   };
@@ -515,21 +516,23 @@ export async function expireCodeNow(fb, code) {
   recordWrite();
 }
 
-export async function closeRoom(fb, roomId, { auto = false } = {}) {
+export async function closeRoom(fb, roomId, { auto = false, closedRoom = null } = {}) {
   const { db, fs } = fb;
   const ref = fs.doc(db, 'pokerRooms', roomId);
-  const snap = await fs.getDoc(ref);
+  const snap = closedRoom ? { exists: () => true, data: () => closedRoom } : await fs.getDoc(ref);
   if (!snap.exists()) {
     await deleteLobbyListing(fb, roomId);
     return;
   }
   const r = snap.data();
   // Always drop lobby listing — even if room was already closed by another path
-  if (r.status === 'closed') {
+  if (r.status === 'closed' && !closedRoom) {
     await deleteLobbyListing(fb, roomId);
     return;
   }
-  if (auto) {
+  if (closedRoom) {
+    // 整桌 batch 已原子關房；接續既有清理。
+  } else if (auto) {
     await fs.updateDoc(ref, {
       status: 'closed',
       closedBy: 'auto',

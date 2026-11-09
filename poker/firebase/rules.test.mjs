@@ -50,6 +50,7 @@ const roomRef = (d) => doc(d, 'pokerRooms', R);
 const hostUpd = async (d, room, ch) => updateDoc(roomRef(d), { rev: room.rev + 1, updatedAt: serverTimestamp(), ...ch });
 
 // ---- 帳務 batch 產生器 ----
+if (process.env.STARTAT && process.env.STARTAT !== 'ts') { console.error(`STARTAT must be 'ts' (got ${process.env.STARTAT}); serverTimestamp() inside arrays fails 4 tests`); process.exit(2); }
 const START_AT = () => (process.env.STARTAT === 'ts' ? Timestamp.now() : serverTimestamp());
 async function buyinBatch(uid, roomId = R, o = {}) {
   const d = db(uid); const p = await curP(uid); const no = p.sessionNo + 1;
@@ -79,6 +80,31 @@ async function hostCashout(seat, uid, o = {}) {
     topUpChips: p.topUpChips + s.topUpChips, handsPlayed: p.handsPlayed + s.hands, updatedAt: serverTimestamp() });
   b.set(doc(d, 'pokerPlayers', uid, 'nights', s.nightKey), { nightKey: s.nightKey, uid, name: 'x', buyIn: s.buyIn + s.topUpChips, cashOut: amt,
     net: amt - s.buyIn - s.topUpChips, topUps: s.topUps, hands: s.hands, lastEntry: id, updatedAt: serverTimestamp() });
+  return b.commit();
+}
+// 整桌收桌（與客戶端相同：一筆 room＋每席 ledger/player/night）。
+async function hostCloseAll(o = {}) {
+  const d = db(o.by || 'H'); const r = await cur(); const b = writeBatch(d);
+  b.update(roomRef(d), { status: 'closed', rev: r.rev + 1, updatedAt: serverTimestamp(),
+    seatUids: ['', '', '', '', '', ''], stacks: [0, 0, 0, 0, 0, 0], chipTotal: 0,
+    sess: [null, null, null, null, null, null], deadlineAt: null, lastMoneyEvent: { type: 'closeAll' }, ...o.room });
+  for (let seat = 0; seat < 6; seat++) {
+    const uid = r.seatUids[seat]; if (!uid) continue;
+    const p = await curP(uid); const s = r.sess[seat];
+    const amt = r.stacks[seat] + (o.wrongSeat === seat ? 1 : 0);
+    const id = `${R}_${s.sessionNo}_cashout`;
+    if (o.missingSeat !== seat) b.set(doc(d, 'pokerPlayers', uid, 'ledger', id), {
+      type: 'cashout', amount: amt, roomId: R, sessionNo: s.sessionNo, seat, buyIn: s.buyIn,
+      topUps: s.topUps, topUpChips: s.topUpChips, hands: s.hands, nightKey: s.nightKey,
+      bankAfter: p.bank + amt, by: o.by || 'H', at: serverTimestamp(),
+    });
+    b.update(doc(d, 'pokerPlayers', uid), { bank: p.bank + amt, inPlay: 0, total: p.bank + amt,
+      tableRoomId: null, topUps: p.topUps + s.topUps, topUpChips: p.topUpChips + s.topUpChips,
+      handsPlayed: p.handsPlayed + s.hands, updatedAt: serverTimestamp() });
+    b.set(doc(d, 'pokerPlayers', uid, 'nights', NK), { nightKey: NK, uid, name: 'x',
+      buyIn: s.buyIn + s.topUpChips, cashOut: amt, net: amt - s.buyIn - s.topUpChips,
+      topUps: s.topUps, hands: s.hands, lastEntry: id, updatedAt: serverTimestamp() });
+  }
   return b.commit();
 }
 // 本人取消帶入（沒座位）
@@ -159,6 +185,23 @@ await t('#4', '同一個 sessionNo 結帳兩次', 'deny', async () => { await S(
 await t('#4', '帳本 update', 'deny', S, () => updateDoc(doc(db('A'), 'pokerPlayers', 'A', 'ledger', R + '_1_buyin'), { amount: 99999 }));
 await t('#4', '帳本 delete', 'deny', S, () => deleteDoc(doc(db('A'), 'pokerPlayers', 'A', 'ledger', R + '_1_buyin')));
 await t('#4', '牌局中（phase=flop）結帳', 'deny', () => seed({ room: { pub: { phase: 'flop', handNo: 3 } } }), () => hostCashout(1, 'A', { room: { pub: { phase: 'flop', handNo: 3 } } }));
+
+const closeFour = (room = {}) => seed({ room: {
+  seatUids: ['H', 'A', 'B', 'C', '', ''], stacks: [7000, 3000, 5000, 5000, 0, 0], chipTotal: 20000,
+  sess: ['H', 'A', 'B', 'C'].map((u) => sessOf(u, 1, 5000)).concat([null, null]), ...room,
+}, players: { B: player(), C: player() } });
+await t('#closeAll', 'closeAll 房主四席原子結算', 'ok', closeFour, () => hostCloseAll());
+await t('#closeAll', 'closeAll 金額錯誤', 'deny', closeFour, () => hostCloseAll({ wrongSeat: 2 }));
+await t('#closeAll', 'closeAll 非房主', 'deny', closeFour, () => hostCloseAll({ by: 'A' }));
+await t('#closeAll', 'closeAll 牌局中', 'deny', () => closeFour({ pub: { phase: 'flop', handNo: 3 } }), () => hostCloseAll());
+await t('#closeAll', 'closeAll 寫入牌局中 pub', 'deny', closeFour, () => hostCloseAll({ room: { pub: { phase: 'flop' } } }));
+await t('#closeAll', 'closeAll 缺少一席帳本', 'deny', closeFour, () => hostCloseAll({ missingSeat: 3 }));
+await t('#closeAll', 'closeAll 已關桌重試被拒', 'deny', async () => { await closeFour(); await hostCloseAll(); }, () => hostCloseAll());
+await t('#closeAll', 'closeAll 房主六席文件與運算式預算', 'ok', () => seed({ room: {
+  members: ['H', 'A', 'B', 'C', 'D', 'E'], seatUids: ['H', 'A', 'B', 'C', 'D', 'E'],
+  stacks: [7000, 3000, 5000, 5000, 5000, 5000], chipTotal: 30000,
+  sess: ['H', 'A', 'B', 'C', 'D', 'E'].map((u) => sessOf(u, 1, 5000)),
+}, players: { B: player(), C: player(), D: player(), E: player() } }), () => hostCloseAll());
 
 // #9 搶房主
 const stale = () => seed({ room: { updatedAt: ago(60000), seatUids: ['H', 'A', 'B', '', '', ''], stacks: [7000, 3000, 5000, 0, 0, 0], chipTotal: 15000,

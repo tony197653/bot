@@ -195,6 +195,33 @@ service cloud.firestore {
     }
 
     match /pokerRooms/{roomId} {
+      // 整桌原子結算；每個非空座位都必須有本次請求的固定 cashout 帳本。
+      function closeAllEntryOk(roomId, r, i) {
+        return r.seatUids[i] == '' || closeAllLedgerOk(
+          getAfter(ledgerPath(r.seatUids[i], roomId + '_' + string(r.sess[i].sessionNo) + '_cashout')).data,
+          roomId, r, i);
+      }
+      function closeAllLedgerOk(e, roomId, r, i) {
+        return e.type == 'cashout' && e.amount == r.stacks[i] && e.seat == i
+          && e.roomId == roomId && e.by == request.auth.uid && e.at == request.time;
+      }
+      function isHostCloseAll() {
+        let r = resource.data;
+        let d = request.resource.data;
+        return request.auth.uid == r.hostUid && roomOpen(r.status)
+          && d.lastMoneyEvent == {'type': 'closeAll'}
+          && betweenHands(r.pub) && betweenHands(d.pub)
+          && d.status == 'closed' && d.rev == r.rev + 1 && d.updatedAt == request.time
+          && d.seatUids == ['', '', '', '', '', '']
+          && d.stacks == [0, 0, 0, 0, 0, 0] && d.chipTotal == 0
+          && d.sess == [null, null, null, null, null, null]
+          && d.deadlineAt == null
+          && d.diff(r).affectedKeys().hasOnly(['lastMoneyEvent', 'status', 'rev', 'updatedAt',
+                                             'seatUids', 'stacks', 'chipTotal', 'sess', 'deadlineAt'])
+          && closeAllEntryOk(roomId, r, 0) && closeAllEntryOk(roomId, r, 1)
+          && closeAllEntryOk(roomId, r, 2) && closeAllEntryOk(roomId, r, 3)
+          && closeAllEntryOk(roomId, r, 4) && closeAllEntryOk(roomId, r, 5);
+      }
       // 加入：只能把「自己」加進成員，其他欄位都不能動
       function isJoin() {
         let d = request.resource.data;
@@ -350,7 +377,9 @@ service cloud.firestore {
         && request.query.limit <= 20
         && resource.data.status in ['lobby', 'playing'];
       allow create: if signedIn() && (createLobbyRoomOk() || createLegacyOpenRoomOk());
-      allow update: if signedIn() && (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover() || isAutoClose());
+      allow update: if signedIn() && (request.resource.data.lastMoneyEvent == {'type': 'closeAll'}
+        ? isHostCloseAll()
+        : (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover() || isAutoClose()));
       allow delete: if false;
 
       // 動作意圖：每人一份，覆寫，seq 只能變大；turn＝送出時看到的 pub.actionSeq（房主用來去重）
@@ -689,6 +718,165 @@ service cloud.firestore {
     // ===== [/POKER] ===========================================================
 
 
+
+    // Phase B candidate, UNTESTED: explicitly disabled until separate T0 approval.
+    function statsEnabled() { return true; }
+    function statsPath(uid, key) { return /databases/$(database)/documents/pokerStats/$(uid)/hands/$(key); }
+    function statsReceipt(room, key, uid) {
+      return /databases/$(database)/documents/pokerRooms/$(room)/statsReceipts/$(key)/uids/$(uid);
+    }
+    function statsHost(room) { return signedIn() && roomOf(room).hostUid == request.auth.uid; }
+    // Only the current host can restore the room's acknowledged minimal queue.
+    match /pokerRooms/{room}/statsPending/{queueId} {
+      function pendingEntry(e) {
+        let d = e.summary;
+        return e.keys().hasAll(['roomId','handId','uid','summary'])
+          && e.keys().hasOnly(['roomId','handId','uid','summary'])
+          && e.roomId == room && strOk(e.handId, 128) && strOk(e.uid, 128)
+          && d.keys().hasAll(['roomId','handId','schemaVersion','handStartedAt','wonAnyPot','vpipOpp','vpip','pfrOpp','pfr','threeBetOpp','threeBet','netDelta'])
+          && d.keys().hasOnly(['roomId','handId','schemaVersion','handStartedAt','wonAnyPot','vpipOpp','vpip','pfrOpp','pfr','threeBetOpp','threeBet','netDelta'])
+          && strOk(room, 40) && d.roomId == room && d.handId == e.handId
+          && d.schemaVersion == 1 && d.handStartedAt is int && d.handStartedAt > 0
+          && d.netDelta is int && d.netDelta >= -9007199254740991 && d.netDelta <= 9007199254740991
+          && d.wonAnyPot is bool && d.vpipOpp is bool && d.vpip is bool
+          && d.pfrOpp is bool && d.pfr is bool && d.threeBetOpp is bool && d.threeBet is bool
+          && (!d.vpip || d.vpipOpp) && (!d.pfr || d.pfrOpp) && (!d.threeBet || d.threeBetOpp);
+      }
+      function pendingOk() {
+        let d = request.resource.data;
+        let a = d.entries;
+        return d.keys().hasOnly(['entries']) && a is list && a.size() <= 2
+          && (a.size() < 1 || pendingEntry(a[0]))
+          && (a.size() < 2 || pendingEntry(a[1]));
+      }
+      allow get: if statsEnabled() && queueId == 'queue' && statsHost(room);
+      allow create, update: if statsEnabled() && queueId == 'queue' && statsHost(room) && pendingOk();
+      allow list, delete: if false;
+    }
+    function seatMapPath(uid) { return /databases/$(database)/documents/pokerStatsSeat/$(uid); }
+    // Private chips verification mapping: owner-only read; never public.
+    match /pokerStatsSeat/{uid} {
+      function mapOk() {
+        let d = request.resource.data;
+        let pub = getAfter(/databases/$(database)/documents/pokerStatsPublic/$(uid)).data;
+        return statsEnabled() && d.keys().hasOnly(['roomId','seat','at']) && d.at == request.time
+          && pub.chipsAt == request.time
+          && (d.roomId == null
+            ? d.seat == null && isSelf(uid)
+            : strOk(d.roomId, 40) && d.seat is int && d.seat >= 0 && d.seat < 6
+              && signedIn() && roomOf(d.roomId).hostUid == request.auth.uid
+              && roomOf(d.roomId).seatUids[d.seat] == uid);
+      }
+      allow get: if isSelf(uid);
+      allow list, delete: if false;
+      allow create, update: if mapOk();
+    }
+    // C: Page-only public aggregate projection. Readable by registered (non-anonymous) players;
+    // private summaries / lastHandKey / pending / ledger stay in owner-only paths.
+    function publicStatsPath(uid) { return /databases/$(database)/documents/pokerStatsPublic/$(uid); }
+    match /pokerStatsPublic/{uid} {
+      function publicOk() {
+        let d = request.resource.data;
+        let p = getAfter(/databases/$(database)/documents/pokerStats/$(uid)).data;
+        return statsEnabled()
+          && d.keys().hasOnly(['schemaVersion','startedAt','validHands','wonHands',
+            'vpipOppHands','vpipHands','pfrOppHands','pfrHands','threeBetOppHands','threeBetHands',
+            'netChips','updatedAt','currentChipsTotal','chipsAt'])
+          && (resource == null ? !d.keys().hasAny(['currentChipsTotal','chipsAt'])
+              : d.diff(resource.data).affectedKeys().hasOnly(['schemaVersion','startedAt','validHands','wonHands',
+                'vpipOppHands','vpipHands','pfrOppHands','pfrHands','threeBetOppHands','threeBetHands','netChips','updatedAt']))
+          && p.updatedAt == request.time && d.updatedAt == request.time
+          && d.schemaVersion == p.schemaVersion && d.startedAt == p.startedAt
+          && d.validHands == p.validHands && d.wonHands == p.wonHands
+          && d.vpipOppHands == p.vpipOppHands && d.vpipHands == p.vpipHands
+          && d.pfrOppHands == p.pfrOppHands && d.pfrHands == p.pfrHands
+          && d.threeBetOppHands == p.threeBetOppHands && d.threeBetHands == p.threeBetHands
+          && d.netChips == p.netChips;
+      }
+      // v1.0.4: aligned with leaderboard pokerPlayers get (signedIn incl. anonymous; auth null denied).
+      allow get: if signedIn();
+      allow list, delete: if false;
+      // Current chips TOTAL only (v1.0.5): seat/room verification lives in private pokerStatsSeat/{uid}.
+      // Mode A (host, HAND_OVER): total == bank + room.stacks[seat], private mapping written in the same batch.
+      // Mode B (self, after cash-out / leave): mapping cleared, not seated anywhere, total == bank.
+      function chipsOk() {
+        let d = request.resource.data;
+        let m = getAfter(seatMapPath(uid)).data;
+        let bank = get(playerPath(uid)).data.bank;
+        return statsEnabled() && resource != null && signedIn()
+          && d.diff(resource.data).affectedKeys().hasOnly(['currentChipsTotal','chipsAt'])
+          && d.currentChipsTotal is int && d.chipsAt == request.time && m.at == request.time
+          && (m.roomId == null
+            ? isSelf(uid) && get(playerPath(uid)).data.tableRoomId == null && d.currentChipsTotal == bank
+            : d.currentChipsTotal == bank + roomOf(m.roomId).stacks[m.seat]);
+      }
+      allow create: if publicOk();
+      allow update: if publicOk() || chipsOk();
+    }
+    match /pokerStats/{uid} {
+      function aggregateOk(base) {
+        let d = request.resource.data;
+        let h = getAfter(statsPath(uid, d.lastHandKey)).data;
+        return statsEnabled() && statsHost(h.roomId)
+          && !exists(statsPath(uid, d.lastHandKey))
+          && h.settledAt == request.time
+          && d.keys().hasOnly(['schemaVersion','startedAt','validHands','wonHands',
+            'vpipOppHands','vpipHands','pfrOppHands','pfrHands','threeBetOppHands','threeBetHands',
+            'netChips','updatedAt','lastHandKey'])
+          && d.schemaVersion == 1 && d.startedAt is int && d.startedAt > 0
+          && d.startedAt == base.get('startedAt', d.startedAt)
+          && h.handStartedAt >= d.startedAt && d.updatedAt == request.time
+          && d.validHands is int && d.validHands == base.get('validHands', 0) + 1
+          && d.wonHands is int && d.wonHands == base.get('wonHands', 0) + (h.wonAnyPot ? 1 : 0)
+          && d.vpipOppHands is int && d.vpipOppHands == base.get('vpipOppHands', 0) + (h.vpipOpp ? 1 : 0)
+          && d.vpipHands is int && d.vpipHands == base.get('vpipHands', 0) + (h.vpip ? 1 : 0)
+          && d.pfrOppHands is int && d.pfrOppHands == base.get('pfrOppHands', 0) + (h.pfrOpp ? 1 : 0)
+          && d.pfrHands is int && d.pfrHands == base.get('pfrHands', 0) + (h.pfr ? 1 : 0)
+          && d.threeBetOppHands is int && d.threeBetOppHands == base.get('threeBetOppHands', 0) + (h.threeBetOpp ? 1 : 0)
+          && d.threeBetHands is int && d.threeBetHands == base.get('threeBetHands', 0) + (h.threeBet ? 1 : 0)
+          && d.netChips is int && d.netChips == base.get('netChips', 0) + h.netDelta
+          && existsAfter(publicStatsPath(uid));
+      }
+      allow get: if isSelf(uid);
+      allow list: if false;
+      allow create: if aggregateOk({});
+      allow update: if aggregateOk(resource.data);
+      allow delete: if false;
+      match /hands/{key} {
+        function summaryOk() {
+          let d = request.resource.data;
+          let a = getAfter(/databases/$(database)/documents/pokerStats/$(uid)).data;
+          return statsEnabled() && statsHost(d.roomId)
+            && d.keys().hasAll(['roomId','handId','schemaVersion','handStartedAt','wonAnyPot',
+              'vpipOpp','vpip','pfrOpp','pfr','threeBetOpp','threeBet','netDelta','settledAt'])
+            && d.keys().hasOnly(['roomId','handId','schemaVersion','handStartedAt','wonAnyPot',
+              'vpipOpp','vpip','pfrOpp','pfr','threeBetOpp','threeBet','netDelta','settledAt'])
+            && strOk(d.roomId, 40) && strOk(d.handId, 128)
+            && key == d.roomId.replace('%', '%25').replace('_', '%5F') + '_' + d.handId.replace('%', '%25').replace('_', '%5F')
+            && d.schemaVersion == 1 && d.handStartedAt is int
+            && d.handStartedAt >= a.startedAt && d.netDelta is int
+            && d.wonAnyPot is bool && d.vpipOpp is bool && d.vpip is bool
+            && d.pfrOpp is bool && d.pfr is bool && d.threeBetOpp is bool && d.threeBet is bool
+            && (!d.vpip || d.vpipOpp) && (!d.pfr || d.pfrOpp) && (!d.threeBet || d.threeBetOpp)
+            && d.settledAt == request.time && a.updatedAt == request.time && a.lastHandKey == key
+            && existsAfter(statsReceipt(d.roomId, key, uid));
+        }
+        allow get, list: if isSelf(uid);
+        allow create: if summaryOk();
+        allow update, delete: if false;
+      }
+    }
+    // Receipt contains identity only, never private counters/net/flags. No list.
+    match /pokerRooms/{room}/statsReceipts/{key}/uids/{uid} {
+      allow get: if statsEnabled() && (isSelf(uid) || statsHost(room));
+      allow list, update, delete: if false;
+      allow create: if statsEnabled() && statsHost(room)
+        && request.resource.data.keys().hasOnly(['uid','handKey'])
+        && request.resource.data.uid == uid && request.resource.data.handKey == key
+        && !exists(statsPath(uid, key))
+        && getAfter(statsPath(uid, key)).data.roomId == room
+        && getAfter(statsPath(uid, key)).data.settledAt == request.time;
+    }
 
     // 其他路徑一律拒絕（預設就是拒絕，這裡寫明）
     match /{document=**} {

@@ -15,7 +15,7 @@ import {
 } from '../engine/index.js';
 import { estimateMpDealTotalMs, MP_FX } from '../ui/fx-mp.js';
 import { DEAL_FX } from '../ui/fx.js';
-import { nightKeyOf, hostCashoutBatch } from './ledger.js';
+import { nightKeyOf, hostCashoutBatch, hostCloseAllBatch } from './ledger.js';
 import { recordWrite, hostMustStopNewHand } from './quota.js';
 import { listenPresence } from './presence.js';
 import {
@@ -25,8 +25,26 @@ import {
   upsertLobbyListing,
   deleteLobbyListing,
 } from './room.js';
+import {
+  createMemoryPendingQueue,
+  createStatsWriteChain,
+  createStatsSession,
+} from '../stats/index.js';
+
+import { createHostStatsRuntime } from '../stats/host-runtime.js';
 
 const AWAY_UNSEAT_MS = 30 * 60_000;
+
+export function cashoutStateReady(room, engine, seat, uid) {
+  return !!room && !!engine &&
+    ['lobby', 'hand_over'].includes(engine.phase) &&
+    room.pub?.phase === engine.phase &&
+    room.pub?.handNo === engine.handNumber &&
+    room.seatUids?.[seat] === uid &&
+    room.stacks?.[seat] === engine.seats?.[seat]?.chips &&
+    room.stacks.every((chips, i) => chips === (engine.seats?.[i]?.chips || 0)) &&
+    room.stacks.reduce((sum, chips) => sum + chips, 0) === room.chipTotal;
+}
 
 /**
  * Host timeout gate: use the engine's current per-action deadline only.
@@ -70,6 +88,20 @@ export function createHostLoop(fb, opts) {
   let stopPresenceListen = null;
   let lastWriteAt = 0;
   let writeChain = Promise.resolve();
+  let closing = false;
+  let draining = false;
+  /** Personal-stats chain: independent of writeChain; never awaited by game flow. */
+  const statsRuntime = createHostStatsRuntime({ ...opts.stats, fs, db, roomId, uid,
+    isCurrentHost: () => running && getRoom()?.hostUid === uid &&
+      (!opts.getCurrentUid || opts.getCurrentUid() === uid),
+  });
+  const statsQueue = statsRuntime.queue || createMemoryPendingQueue();
+  let lastChipsHandNo = -1;
+  const statsWriteChain = createStatsWriteChain({ queue: statsQueue, recovery: statsRuntime.recovery });
+  const statsSession = createStatsSession({
+    roomId,
+    writeChain: statsWriteChain,
+  });
   let pendingFlush = null;
   /** @type {object[]} */
   const sitQueue = [];
@@ -95,6 +127,15 @@ export function createHostLoop(fb, opts) {
   let revealTimer = null;
   /** @type {ReturnType<typeof setTimeout>|null} */
   let nextHandTimer = null;
+  let flushTimer = null;
+  const delayedTimers = new Set();
+  function delayHost(fn, ms) {
+    const timer = setTimeout(() => {
+      delayedTimers.delete(timer);
+      if (running && !closing && getRoom()?.status !== 'closed') fn();
+    }, ms);
+    delayedTimers.add(timer);
+  }
   let lastHandsBumpHandNo = 0;
   let pubVoided = false;
 
@@ -135,6 +176,9 @@ export function createHostLoop(fb, opts) {
     // Resume hand counter from stored pub (QA round-3 D) — do not reset to 0/1
     const storedHand = Number(room.pub?.handNo) || 0;
     if (storedHand > 0) engine.handNumber = storedHand;
+    // Stable stats handId: reuse published id across reconnect / host handoff
+    statsSession.restoreFromPub(room.pub);
+    if (room.pub?.handId) engine.handId = room.pub.handId;
     seatedAt = room.pub?.seatedAt ? [...room.pub.seatedAt] : seatedAt;
     away = { ...(room.pub?.away || {}) };
     topUpReqs = { ...(room.pub?.topUpReqs || {}) };
@@ -150,7 +194,7 @@ export function createHostLoop(fb, opts) {
     // Spec §6.8: deck only in host memory — mid-hand refresh/handoff voids then reshuffles
     const phase = room.pub?.phase;
     if (phase && phase !== PHASE.LOBBY && phase !== PHASE.HAND_OVER) {
-      setTimeout(() => {
+      delayHost(() => {
         if (!running || !engine) return;
         voidHand([...room.stacks]);
       }, 0);
@@ -187,20 +231,20 @@ export function createHostLoop(fb, opts) {
   function queueWrite(patchFn) {
     writeChain = writeChain.then(async () => {
       const room = getRoom();
-      if (!room || room.hostUid !== uid) return;
+      if ((!running && !closing) || !room || room.status === 'closed' || room.hostUid !== uid) return;
       if (document.visibilityState !== 'visible') return;
 
       // coalesce 250ms
       await new Promise((r) => {
         pendingFlush = r;
-        setTimeout(r, 250);
+        flushTimer = setTimeout(() => { flushTimer = null; pendingFlush = null; r(); }, 250);
       });
       if (pendingFlush !== arguments[0] && false) {
         /* noop — simple delay coalesce */
       }
 
       const latest = getRoom();
-      if (!latest || latest.hostUid !== uid) return;
+      if ((!running && !closing) || !latest || latest.status === 'closed' || latest.hostUid !== uid) return;
 
       const between =
         engine.phase === PHASE.LOBBY || engine.phase === PHASE.HAND_OVER;
@@ -212,7 +256,12 @@ export function createHostLoop(fb, opts) {
       if (between) {
         // Update stacks to current chips without changing chipTotal unless money event
         const next = engine.seats.map((p) => (p ? p.chips : 0));
-        if (sumStacks(next) === chipTotal) stacks = next;
+        if (sumStacks(next) !== chipTotal) {
+          console.error('[host] chip mismatch', next, chipTotal);
+          opts.onChipMismatch?.();
+          return;
+        }
+        stacks = next;
         // Bump sess.hands once per finished hand (roomWriteOk allows hands↑ without money)
         if (
           engine.phase === PHASE.HAND_OVER &&
@@ -259,6 +308,7 @@ export function createHostLoop(fb, opts) {
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), patch);
       lastWriteAt = Date.now();
       recordWrite();
+      if (engine.phase === PHASE.HAND_OVER && engine.handNumber !== lastChipsHandNo) lastChipsHandNo = engine.handNumber, void statsRuntime.syncChips?.({ seatUids: patch.seatUids, stacks: patch.stacks });
       await syncLobbyListingDoc({
         ...latest,
         seatUids: patch.seatUids || latest.seatUids,
@@ -289,7 +339,7 @@ export function createHostLoop(fb, opts) {
 
   /** Non-money follow-up: refresh public lobby summary after seat/cashout. */
   async function refreshLobbySummary(roomLike) {
-    const latest = getRoom() || roomLike;
+    const latest = roomLike || getRoom();
     if (!latest || latest.hostUid !== uid) return;
     const seatUids = roomLike?.seatUids || latest.seatUids;
     const hostUid = roomLike?.hostUid || latest.hostUid;
@@ -303,9 +353,8 @@ export function createHostLoop(fb, opts) {
     );
     const listStatus = roomLike?.status || curStatus(latest) || 'lobby';
     try {
-      const cur = getRoom() || latest;
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), {
-        rev: (cur.rev || 0) + 1,
+        rev: (latest.rev || 0) + 1,
         updatedAt: fs.serverTimestamp(),
         lobby,
         status: listStatus,
@@ -340,11 +389,17 @@ export function createHostLoop(fb, opts) {
   }
 
   function scheduleNextHand(ms) {
+    if (closing || !running || getRoom()?.status === 'closed') return;
     clearNextHandTimer();
     nextHandTimer = setTimeout(() => {
       nextHandTimer = null;
-      if (!running || !engine) return;
-      if (engine.phase !== PHASE.HAND_OVER) return;
+      if (!running || !engine || getRoom()?.status === 'closed') return;
+      if (engine.phase !== PHASE.HAND_OVER || closing) return;
+      if (draining || leaveQueue.length) {
+        void drainSitLeave();
+        scheduleNextHand(1000);
+        return;
+      }
       try {
         engine = applyAction(engine, { type: 'ACK_HAND' }, { now: Date.now() });
       } catch {
@@ -395,11 +450,35 @@ export function createHostLoop(fb, opts) {
   }
 
   function applyAndPublish(action, meta = {}) {
+    const prev = engine;
     try {
       engine = applyAction(engine, action, { now: Date.now() });
     } catch (e) {
       if (meta.uid) rejects[meta.uid] = String(e.message || e).slice(0, 40);
       return false;
+    }
+    // Stats observe / snapshot: never throw into betting or next-hand path
+    try {
+      if (action.type === 'VOID_HAND') {
+        statsSession.onVoid();
+      } else if (action.type === 'START_HAND') {
+        statsSession.onHandStarted(engine);
+      } else if (action.type === 'TOP_UP') {
+        statsSession.onTopUp(action.seat, action.amount);
+      } else {
+        statsSession.onAction(prev, action, engine);
+      }
+      // Snapshot only on transition into HAND_OVER (not ACK_HAND / linger).
+      if (
+        engine.phase === PHASE.HAND_OVER &&
+        prev?.phase !== PHASE.HAND_OVER &&
+        action.type !== 'VOID_HAND'
+      ) {
+        // Immutable snapshot + fire-and-forget pending enqueue (not on writeChain)
+        statsSession.onHandOver(engine);
+      }
+    } catch (e) {
+      console.warn('[host] stats', e);
     }
     if (action.type === 'VOID_HAND') pubVoided = true;
     else if (action.type === 'START_HAND' || action.type === 'ACK_HAND') {
@@ -417,6 +496,7 @@ export function createHostLoop(fb, opts) {
   }
 
   async function processIntent(intentUid, data) {
+    if (closing || !running || getRoom()?.status === 'closed') return;
     const room = getRoom();
     if (!room || room.hostUid !== uid) return;
     if (!engine) ensureEngine(room);
@@ -514,6 +594,14 @@ export function createHostLoop(fb, opts) {
   }
 
   async function drainSitLeave() {
+    if (closing || !running || getRoom()?.status === 'closed' || draining) return;
+    draining = true;
+    try { await drainSitLeaveInner(); }
+    catch (e) { console.warn('[host] drain', e); }
+    finally { draining = false; }
+  }
+
+  async function drainSitLeaveInner() {
     const room = getRoom();
     if (!room) return;
     const between =
@@ -527,14 +615,16 @@ export function createHostLoop(fb, opts) {
         continue;
       }
       if (!between) {
-        if (engine.seats[seat] && !engine.seats[seat].folded) {
-          applyAndPublish({ type: 'FOLD', seat });
+        if (engine.seats[seat] && !engine.seats[seat].leftHand) {
+          // Track leaving on and off turn for VOID settlement.
+          applyAndPublish({ type: 'LEAVE_FOLD', seat });
         }
         // wait until hand over
         continue;
       }
-      leaveQueue.shift();
-      await cashoutSeat(seat, item.uid);
+      if (closing || !running || getRoom()?.status === 'closed') return;
+      if (!await cashoutSeat(seat, item.uid)) return;
+      leaveQueue.splice(leaveQueue.indexOf(item), 1);
     }
 
     if (!between) {
@@ -620,9 +710,15 @@ export function createHostLoop(fb, opts) {
     await refreshLobbySummary({ ...nextRoom, rev: room.rev + 1, status: 'lobby' });
   }
 
-  async function cashoutSeat(seat, playerUid, { handOffTo } = {}) {
-    const room = getRoom();
-    if (!room) return;
+  async function cashoutSeat(seat, playerUid, opts = {}) {
+    const { handOffTo } = opts;
+    await writeChain;
+    let room = opts.room;
+    if (!room) {
+      const snap = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
+      room = snap.exists() ? snap.data() : null;
+    }
+    if (!cashoutStateReady(room, engine, seat, playerUid)) return false;
     const sessRow = room.sess[seat];
     if (!sessRow) return;
     const amount = room.stacks[seat];
@@ -635,6 +731,7 @@ export function createHostLoop(fb, opts) {
     seatedAt[seat] = 0;
     delete away[seat];
 
+    const beforeCashout = engine;
     try {
       engine = applyAction(engine, { type: 'UNSEAT', seat });
     } catch {
@@ -671,25 +768,27 @@ export function createHostLoop(fb, opts) {
         : {}),
     };
 
-    await hostCashoutBatch(fb, {
-      hostUid: uid,
-      roomId,
-      seat,
-      uid: playerUid,
-      roomPatch,
-      sessRow,
-      amount,
-      playerName: displayNameOf?.(playerUid),
-    });
+    try {
+      await hostCashoutBatch(fb, {
+        hostUid: uid,
+        roomId,
+        seat,
+        uid: playerUid,
+        roomPatch,
+        sessRow,
+        amount,
+        playerName: displayNameOf?.(playerUid),
+      });
+    } catch (e) {
+      engine = beforeCashout;
+      throw e;
+    }
+    Object.assign(room, roomPatch);
     delete awaySince[seat];
     lastWriteAt = Date.now();
     onLocalState?.(engine);
-    await refreshLobbySummary({
-      ...nextRoom,
-      rev: room.rev + 1,
-      status: 'lobby',
-      hostUid: nextHost,
-    });
+    if (!closing) await refreshLobbySummary(room);
+    return true;
   }
 
   async function approveTopUp(seat) {
@@ -739,6 +838,8 @@ export function createHostLoop(fb, opts) {
     await batch.commit();
     lastWriteAt = Date.now();
     recordWrite();
+    // v1.0.5: top-up is a real asset change → refresh this seat's public total now (fire-and-forget).
+    void statsRuntime.syncChips?.({ seatUids: room.seatUids.map((u, i) => (i === seat ? u : null)), stacks });
     onLocalState?.(engine);
   }
 
@@ -761,6 +862,7 @@ export function createHostLoop(fb, opts) {
   }
 
   function startHand() {
+    if (closing || !running || getRoom()?.status === 'closed') return false;
     if (hostMustStopNewHand(true)) {
       quotaStop = true;
       queueWrite();
@@ -779,12 +881,19 @@ export function createHostLoop(fb, opts) {
     }
     // Snapshot stacks BEFORE blinds (hand-start checkpoint = chipTotal)
     const stacks = engine.seats.map((p) => (p ? p.chips : 0));
+    const roomSeats = getRoom()?.seatUids || [];
+    try {
+      statsSession.onHandStarting(engine, roomSeats);
+    } catch (e) {
+      console.warn('[host] stats start', e);
+    }
     const ok = applyAndPublish({ type: 'START_HAND' });
     if (!ok) return false;
     writeHoles();
     const n = engine.seats.filter((p) => p && p.hasHole).length;
     const dealMs = estimateMpDealTotalMs(DEAL_FX, n);
-    setTimeout(() => {
+    delayHost(() => {
+      if (closing || !running || getRoom()?.status === 'closed') return;
       const now = Date.now();
       engine = applyAction(engine, { type: 'ARM_DEADLINE' }, { now });
       syncDeadlineFromEngine();
@@ -816,15 +925,45 @@ export function createHostLoop(fb, opts) {
     writeHoles();
   }
 
+  async function prepareClose() {
+    closing = true;
+    clearNextHandTimer();
+    clearRevealTimer();
+    await writeChain;
+    const saved = getRoom();
+    if (!saved) throw new Error('Room missing');
+    if (![PHASE.LOBBY, PHASE.HAND_OVER].includes(engine.phase)) {
+      if (!applyAndPublish({ type: 'VOID_HAND', stacks: saved.stacks })) {
+        throw new Error('VOID_HAND failed');
+      }
+    } else if (pubVoided && saved.pub?.phase !== PHASE.HAND_OVER) {
+      // A previous VOID write may have failed; retry publishing without restarting timers.
+      queueWrite();
+    }
+    await writeChain;
+    const committed = await fs.getDoc(fs.doc(db, 'pokerRooms', roomId));
+    const current = committed.exists() ? committed.data() : null;
+    if (current?.status === 'closed') return current;
+    if (!current || current.seatUids.some((u, i) => u &&
+      !cashoutStateReady(current, engine, i, u))) throw new Error('Settlement not committed');
+    return current;
+  }
+
+  async function closeAll(room) {
+    const result = await hostCloseAllBatch(fb, { hostUid: uid, roomId, room, displayNameOf });
+    if (!result.skipped) recordWrite();
+    return result.room || room;
+  }
+
   function voidHand(stacks) {
     applyAndPublish({ type: 'VOID_HAND', stacks });
     hostClockAt = null;
     deadlineLocal = null;
-    setTimeout(() => startHand(), 3000);
+    delayHost(() => startHand(), 3000);
   }
 
   function onTick() {
-    if (!running || !engine) return;
+    if (!running || !engine || closing) return;
     if (document.visibilityState !== 'visible') return;
     const room = getRoom();
     if (!room || room.hostUid !== uid) return;
@@ -886,6 +1025,7 @@ export function createHostLoop(fb, opts) {
     running = true;
     const room = getRoom();
     ensureEngine(room);
+    statsRuntime.start();
 
     stopIntentListen = fs.onSnapshot(
       fs.collection(db, 'pokerRooms', roomId, 'intents'),
@@ -925,6 +1065,13 @@ export function createHostLoop(fb, opts) {
 
   function stop() {
     running = false;
+    statsRuntime.stop();
+    for (const timer of delayedTimers) clearTimeout(timer);
+    delayedTimers.clear();
+    if (flushTimer) clearTimeout(flushTimer);
+    flushTimer = null;
+    pendingFlush?.();
+    pendingFlush = null;
     if (tickTimer) clearInterval(tickTimer);
     clearRevealTimer();
     clearNextHandTimer();
@@ -941,10 +1088,16 @@ export function createHostLoop(fb, opts) {
     approveTopUp,
     denyTopUp,
     cashoutSeat,
+    prepareClose,
+    closeAll,
     seatPlayer,
     getEngine: () => engine,
     lastRoomWriteAt: () => lastWriteAt,
     getAway: () => ({ ...away }),
     getSeatedAt: () => [...seatedAt],
+    /** Phase A test/debug: stats pending queue + session (not for game flow). */
+    getStatsSession: () => statsSession,
+    getStatsQueue: () => statsQueue,
+    getStatsWriteChain: () => statsWriteChain,
   };
 }

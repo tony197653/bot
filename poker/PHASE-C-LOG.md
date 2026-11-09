@@ -1,0 +1,55 @@
+# PHASE C LOG
+
+## C 第一輪（2026-11-08 11:26–11:37 台北時間，約11分）
+分支 pm/pr49-c1（自 aa735d6），僅本機 demo-poker emulator；不推送、不合併、不部署。正式 statsEnabled()=false、STATS_ENABLED=false/T0=null 不變。
+1. 資料拆分：新增 pokerStatsPublic/{uid}（僅 Page 指標：schemaVersion,startedAt,validHands,wonHands,vpip*/pfr*/threeBet* 機會/成功,netChips,updatedAt；無 lastHandKey）。host 同一 batch 寫 摘要+私有聚合+公開投影+receipt。Rules：公開投影 get 限 登入且非匿名且有 pokerPlayers/{auth.uid}；list/delete 拒；寫入須 statsEnabled 且每欄等於同交易後私有聚合；私有聚合要求 existsAfter(公開投影)。
+2. 畫面骨架：js/ui/personal-stats.js 疊層（依 Page：首排勝率環/總手數、次排淨贏/目前籌碼、末排 VPIP 藍/PFR 黃/3-bet 紅三環）。入口：牌桌座位既有頭像 .av（只綁頭像）。疊層不卸載原畫面→牌局不暫停、不離座；返回鍵與瀏覽器返回同一路徑；只讀 pokerStatsPublic/{uid} 一次（getDocFromServer），無輪詢。
+3. 測試：unit 200/200（新增 C1 3 案、B batch 案改 4 寫）；既有 Rules 142/142；B+C Rules 22/22（新增 C 6 案：host 寫投影無私有欄、登錄玩家讀他人、訪客/匿名/未註冊/list 拒、他人私有/摘要/pending 拒、任意寫/刪/偽造批次拒、合法新手補送成功且重送不重算）。B/C 需 --test-concurrency=1（共用 emulator 會互清）。
+4. 真瀏覽器：點他人頭像顯示 大雄 勝率50.0%/2手/淨贏20/VPIP100%/PFR0%/3-bet —；瀏覽器返回與返回鍵都回原牌桌；開啟 idle10s repaints 0、emu requests 12（房間/presence 既有）。證據 /workspace/pr49c-r1/。
+待 PL：見回報問題清單。
+
+## C 第二輪（2026-11-08 11:45–11:56 台北時間，約11分）依 v1.0.4
+1. Rules：pokerStatsPublic get=signedIn()（含匿名、不需本人pokerPlayers；auth null 拒）；list/delete 拒。新增 currentChipsTotal/chipsAt/chipsRoomId/chipsSeat：僅現任 host、room.seatUids[chipsSeat]==uid、總額==pokerPlayers/{uid}.bank+room.stacks[seat]、只能改這4欄、需已存在公開文件。統計批次不能順便改籌碼欄。host 於 HAND_OVER 房間寫入後 fire-and-forget（每手一次，不進 writeChain）；成本：每在座玩家 +1 讀 pokerPlayers、+1 寫。
+2. 入口：大廳 ⋯ 選單新增「我的戰績」；本人頭像原行為（開戰績排行）不變；桌主頭像不變；排行榜每列加頭像按鈕（只頭像開統計）；牌桌本人 #heroAv 與他人座位頭像。疊層不卸載來源→捲動/分頁/同房座位保留，瀏覽器返回一致。
+3. 測試：unit 200/200；既有 Rules 142/142；B+C Rules 23/23（--test-concurrency=1）。真瀏覽器 6 項入口+返回全過；證據 /workspace/pr49c-r2/{phone,desktop}-0[1-6]-*.png、r6-result.json。
+
+## C 第三輪（2026-11-08 12:06–12:13 台北時間，約7分）依 v1.0.5
+1. 位置驗證私有化：chipsRoomId/chipsSeat 移出公開文件 → 私有 pokerStatsSeat/{uid}{roomId,seat,at}（只本人 get；list/delete 拒）。公開只剩 currentChipsTotal/chipsAt。Rules 以 getAfter(私有映射) 驗：host 模式 總額==bank+room.stacks[seat]；結帳模式 本人、tableRoomId==null、映射清空、總額==bank。私有映射寫入須同批公開 chipsAt==request.time。每次籌碼同步 1 batch 2 寫；Rules 讀 room/player/映射各 1。
+2. 結帳／離桌：回大廳 paint 時若 bank 變動且不在桌 → 本人送一次（無輪詢、無重畫）；失敗標「本裝置待送」，不阻擋遊戲。帶入=轉移不變（下一手 host 依 bank+stack）；補碼於下一 HAND_OVER 反映（未即時）。
+3. 原桌已關閉：從牌桌開統計後若房間已不在/closed，關閉時回大廳並提示「原牌桌已關閉，已回大廳」。直接開網址：無統計 URL 路由，維持大廳。
+4. 離線快取：按 [viewer,target] uid 隔離 localStorage；讀取失敗時顯示快取並標「連線中斷／統計讀取失敗・顯示最後更新 HH:MM 的資料」；無快取顯示錯誤＋重試。
+5. 排行榜對象核對：點 阿明(wXSOOu) → 畫面 33.3%/3手/0/66.7%/2,000 與 DB pokerStatsPublic [3,1,0,2,2000] 一致，正確。第二輪兩人相同屬資料巧合（當時 DB 未留存，無法回查）。
+測試：unit 201/201；Rules 142/142；B+C 24/24。證據 /workspace/pr49c-r3/。
+
+## C 第四輪（2026-11-08 12:13–12:26 台北時間，約12分）
+1. 補碼：approveTopUp 成功後 host 立即只同步該座位 currentChipsTotal（bank+新 stack），fire-and-forget。Rules 測：房間 stack 增加後舊總額拒、新總額成功。
+2. 結帳同步重試：失敗保留 localStorage 旗標→顯示「本裝置待送」；online 事件或下次啟動回大廳時重送（無輪詢）。
+3. 真瀏覽器：離線開已看過的人→快取＋「連線中斷・顯示最後更新 12:16 的資料」；離線開未快取→「統計讀取失敗，請重試」＋重試，回線按重試成功。看統計中房間被收桌→關閉後回大廳並 toast「原牌桌已關閉，已回大廳」（同時也出現既有收桌結果卡，兩則提示並存，待 PL 決定）。
+4. idle10s（不含首次載入）：牌桌 0 重畫／2 請求（presence 心跳）；統計疊層 0/0；大廳 0/0。每手成本（源碼）：每在座玩家 統計 1 batch 4 寫＋讀 receipt 1；籌碼 1 batch 2 寫＋讀 pokerPlayers 1；Rules 內部讀另計。
+5. M 回歸（r8 腳本重跑）：raise 面板、±、slider、6 快捷、全下取消、確認、取消、check/call/fold、回大廳對話框、離桌、host 收桌 PASS；hands==unique 無重複。換 host 段沿用舊腳本計時（已知腳本因素），非本輪改動。
+測試：unit 201/201；Rules 142/142；B+C 25/25。證據 /workspace/pr49c-r4/。
+
+## C 第五輪（2026-11-08 12:49–13:03 台北時間，約13分）
+1. 去重（PL 原話）：同一張桌、同一次收桌事件，已有收桌結果卡顯示時，就不再跳『原牌桌已關閉，已回大廳』提示；保留結果卡與回大廳行為。若沒有結果卡可顯示，才用原提示補足原因。不要因任意其他卡片存在就抑制訊息，也不要改原本收桌結果內容。
+   實作：onClose 只看「該 fromRoom 的收桌結果卡已顯示／已關閉」(closeResultShownFor/closeResultDismissedFor)，不看其他卡；同房只提示一次(closedFallbackToastFor)。結果卡內容未改。
+   自測：有結果卡→卡 1、toast 0 PASS；重複開關→不重複 PASS；無結果卡分支未成功重現（admin 刪房間文件後 room 仍在記憶體，未觸發 fallback）→ 未驗證。
+2. main(3f6800e, PR#50) 試合併：git merge-tree 顯示 poker/js/ui/mp-app.js 內容衝突（兩邊都改收桌確認）；其他檔自動合併。未合併。
+3. 截圖 /workspace/pr49c-r5/{phone,desktop}-01..14-*.png。
+測試：見回報。
+
+## Round 6 (2026-11-08)
+- Fallback toast: added shouldToastClosedFallback() + roomGoneFor (listenRoom onErr while overlay open defers to overlay close → goLobbyClean + toast). Unit TDD test C6 (fail→pass).
+- Shot 07 retaken: other player (阿明) from leaderboard. With-card dedup: card 1, toast 0.
+- Browser no-card check NOT completed (script hit 420s timeout during second-table join); pending.
+- merge-tree vs pm/live-styled-confirm b5b4f4f: 1 conflict, mp-app.js L~3154, comment-only (showCloseRoomConfirm docstring). app.js auto-merges.
+
+## Round 7 (2026-11-08)
+- Ring: gray track drawn only on the uncovered remainder (pathLength 100, dasharray 100-d d, dashoffset -d, rotate -90; omitted at d=100). Unit test C7. Before/after shots in /workspace/pr49c-r7.
+- No-card toast (mp-c7-nocard.mjs): card 0, toast 原牌桌已關閉，已回大廳 visible, lobby 1; repeat → no new toast. Shot 15 taken.
+- Unit 203/203, B+C 25/25, Rules 138/142 (failing 4 not identified this round). Betting/raise regression + leave + close dialogs ok (r8 script ended early at extra hand 4, fatal after checks).
+- Idle 10s: table 0 repaints/2 req, overlay 0/2, lobby 0/0.
+
+## Round 8 (2026-11-08)
+- Rules 4 failures (r7 138/142) = env: STARTAT was passed a numeric timestamp, harness only honors 'ts' → serverTimestamp() in arrays (#4 x2, moneyOk, worst). With STARTAT=ts: 142/142. Harness now exits 2 on invalid STARTAT.
+- Fold/bet: mp-c8-foldbet.mjs — host call, guest check, flop guest bet 20 (panel 下注), pot 40→60, host sees 跟注 20, host fold, hand over, guest 2,020.
+- r8 regression rerun to completion (no fatal; r7 fatal was outer timeout SIGTERM). But takeover leg: newHost null, h3/h4 false — needs a look.

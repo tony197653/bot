@@ -565,6 +565,7 @@ export function renderMpLobby(root, vm) {
             <div class="mp-sep" role="separator"></div>`
                 : ''
             }
+            <button type="button" class="mp-mi" role="menuitem" data-act="my-stats" tabindex="-1">${menuIco.stats}我的戰績</button>
             <button type="button" class="mp-mi" role="menuitem" data-act="stats" tabindex="-1">${menuIco.stats}戰績</button>
             <button type="button" class="mp-mi" role="menuitem" data-act="settings" tabindex="-1">${menuIco.set}設定</button>
             <button type="button" class="mp-mi" role="menuitem" data-act="signout" tabindex="-1">${menuIco.out}登出</button>
@@ -592,6 +593,7 @@ export function renderMpLobby(root, vm) {
     create: onCreate,
     rescue: onRescue,
     stats: onStats,
+    'my-stats': () => vm.onMyStats?.(),
     signout: onSignOut,
     avatar: onAvatar,
     settings: () => vm.onSettings?.(),

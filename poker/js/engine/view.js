@@ -149,6 +149,7 @@ export function publicState(state, extra = {}) {
   return {
     version: state.version,
     handNo: state.handNumber,
+    handId: state.handId ?? null,
     actionSeq: extra.actionSeq ?? 0,
     lastAction: extra.lastAction ?? null,
     button: state.button,
