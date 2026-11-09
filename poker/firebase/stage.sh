@@ -16,6 +16,8 @@ EXCLUDES=(
   --exclude 'package.json'
   --exclude 'package-lock.json'
   --exclude 'README.md'
+  --exclude 'PHASE-B-LOG.md'
+  --exclude 'PHASE-C-LOG.md'
   --exclude 'assets/component-library-index.html'
   --exclude 'assets/style-green-mockup.html'
 )
@@ -32,6 +34,8 @@ else
     --exclude='package.json' \
     --exclude='package-lock.json' \
     --exclude='README.md' \
+    --exclude='PHASE-B-LOG.md' \
+    --exclude='PHASE-C-LOG.md' \
     --exclude='assets/component-library-index.html' \
     --exclude='assets/style-green-mockup.html' \
     -cf - .) | (cd "$DEST/poker" && tar -xf -)

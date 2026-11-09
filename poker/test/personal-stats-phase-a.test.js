@@ -441,7 +441,10 @@ describe('Phase A fix-up coverage', () => {
   it('real host actions enqueue immutable hands while stats storage stalls/fails; reconnect keeps identity', async (t) => {
     t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
     const priorDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
-    Object.defineProperty(globalThis, 'document', { configurable: true, value: { visibilityState: 'visible' } });
+    const win = new EventTarget();
+    const doc = new EventTarget();
+    doc.visibilityState = 'visible';
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: doc });
     t.after(() => {
       if (priorDocument) Object.defineProperty(globalThis, 'document', priorDocument);
       else delete globalThis.document;
@@ -457,8 +460,16 @@ describe('Phase A fix-up coverage', () => {
       writeBatch: () => ({ set() {}, async commit() {} }),
       async updateDoc() {}, async setDoc() {},
     };
+    const mem = {
+      _d: Object.create(null),
+      getItem(k) { return Object.hasOwn(this._d, k) ? this._d[k] : null; },
+      setItem(k, v) { this._d[k] = String(v); },
+      removeItem(k) { delete this._d[k]; },
+    };
     const makeHost = () => createHostLoop({ db: {}, fs }, {
       roomId: 'local', uid: room.hostUid, getRoom: () => room,
+      // Production defaults ON: provide device storage for node (no window.localStorage).
+      stats: { storage: mem, windowTarget: win, documentTarget: doc },
     });
     const host = makeHost();
     t.after(() => host.stop());
@@ -515,7 +526,8 @@ describe('Phase A fix-up coverage', () => {
       resumed.start();
       assert.equal(resumed.getEngine().handId, secondId);
       assert.equal(resumed.getStatsSession().getHandId(), secondId);
-      assert.equal((await resumed.getStatsQueue().list()).length, 0);
+      // Production-on: device queue is keyed by [uid, roomId] — same host keeps pending; other uid starts empty.
+      assert.equal((await resumed.getStatsQueue().list()).length, nextHost === 'uid-a' ? 4 : 0);
       resumed.stop();
     }
   });

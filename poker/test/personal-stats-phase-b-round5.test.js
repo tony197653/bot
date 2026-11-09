@@ -60,8 +60,10 @@ test('B5 real host wiring persists HAND_OVER snapshot and wakes independently; s
   f.win.dispatchEvent(new Event('online')); await new Promise(r => setImmediate(r));
   assert.equal(f.state().commits, before);
 });
-test('B5 production disabled runtime makes no subscriptions or adapter requests', () => {
-  assert.equal(STATS_ENABLED, false); assert.equal(STATS_T0, null);
-  const runtime = createHostStatsRuntime({ isCurrentHost: () => true });
+test('B5 production release is enabled with fixed T0', () => {
+  assert.equal(STATS_ENABLED, true); assert.equal(STATS_T0, 1794153600000);
+});
+test('B5 explicit disabled override makes no subscriptions or adapter requests', () => {
+  const runtime = createHostStatsRuntime({ enabled: false, startedAt: null, isCurrentHost: () => true });
   runtime.start(); runtime.stop(); assert.equal(runtime.queue, null);
 });

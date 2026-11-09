@@ -3,9 +3,9 @@ import { createRoomPendingQueue } from './remote-pending.js';
 import { createFirestoreStatsAdapter } from './firestore-adapter.js';
 import { bindStatsWake, createStatsRoomRecovery, createStatsSubmitter } from './submission.js';
 
-// Release activation is deliberately absent. Tests inject an explicit period/adapters.
-export const STATS_ENABLED = false;
-export const STATS_T0 = null;
+// Release activation is ON with this fixed T0; no remote config. Tests may still inject overrides.
+export const STATS_ENABLED = true;
+export const STATS_T0 = 1794153600000;
 export function createHostStatsRuntime({ fs, db, roomId, uid, isCurrentHost,
   enabled = STATS_ENABLED, startedAt = STATS_T0, storage,
   queue: injectedQueue, remoteQueue: injectedRemote, adapter: injectedAdapter,
