@@ -786,6 +786,10 @@ export async function startMpApp() {
 }
 
 /** C1: existing seat avatar → that player's Page stats overlay (avatar hit area only). */
+function openOwnStats() {
+  const me = getUser();
+  if (me) openStatsFor(me.uid, playerDoc?.displayName || me.displayName || '玩家');
+}
 function bindPersonalStatsEntry() {
   if (document.body.dataset.psWired) return;
   document.body.dataset.psWired = '1';
@@ -797,7 +801,7 @@ function bindPersonalStatsEntry() {
     if (!fb || !me) return;
     if (av.classList?.contains('mp-hav') && av.dataset.psUid !== me.uid) return;
     e.stopPropagation();
-    if (av.id === 'heroAv' || av.dataset.psUid === me.uid) void openStats();
+    if (av.id === 'heroAv' || av.dataset.psUid === me.uid) openOwnStats();
     else openStatsFor(av.dataset.psUid, av.dataset.psName || '');
   }, true);
 }
@@ -1106,7 +1110,7 @@ function paint() {
       onMyStats: () => { const u = getUser(); if (u) openStatsFor(u.uid, u.displayName || '玩家'); },
       onSignOut: () => signOut(),
       onRescue: () => doRescue(),
-      onAvatar: openStats,
+      onAvatar: openOwnStats,
       onSettings: () => toast('設定還在製作中，請先用⋯選單的「戰績」'),
       lobbyStatus: awayLobbyStatus,
     });

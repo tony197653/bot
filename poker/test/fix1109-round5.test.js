@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { renderMpLobby, renderShareRoom } from '../js/ui/lobby.js';
 import { createSingleTable } from '../js/net/room.js';
+import { openPersonalStats } from '../js/ui/personal-stats.js';
 import { startPresence } from '../js/net/presence.js';
 const app = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
 const section = (a, b) => app.slice(app.indexOf(a), app.indexOf(b, app.indexOf(a)));
@@ -26,35 +27,41 @@ function lobbyRoot() {
   return root;
 }
 
-test('大廳實際可見頭像 click → 立即繪製個人紀錄；網路未返回及後續快照/paint 都維持 stats', async () => {
+test('大廳頭像同步顯示本人 ps-sheet；讀取未返回及後續快照仍保留浮層與頭像', async () => {
   const root = lobbyRoot();
-  let snapshot, finish;
-  const ctx = vm.createContext({ screen: 'lobby', paintCount: 0, window: {},
-    $: sel => sel === '#mpRoot' ? root : null,
-    silenceSoloScreens() {}, renderStats: () => { ctx.shown = '個人紀錄'; },
-    statsMode: 'total', statsRows: [], statsNight: '20261109', authState: { user: { uid: 'me' } },
-    loadStats: () => new Promise(resolve => { finish = resolve; }),
-    stopOpenTables: null, openTables: [{ id: 'r' }], getFirebase: () => ({}),
+  let snapshot, finish, reads = 0, host;
+  const doc = { activeElement: null, getElementById: () => null,
+    createElement: () => ({ innerHTML: '', addEventListener() {}, remove() {} }),
+    head: { appendChild() {} }, body: { appendChild: el => { host = el; } } };
+  const win = { history: { pushState() {} }, addEventListener() {}, removeEventListener() {} };
+  const ctx = vm.createContext({ screen: 'lobby', getUser: () => ({ uid: 'me', displayName: '本人' }),
+    playerDoc: {}, getFirebase: () => ({}),
+    openStatsFor: (uid, name) => {
+      assert.equal(uid, 'me'); assert.equal(name, '本人');
+      openPersonalStats({ uid, name, myUid: 'me', enabled: true, doc, win, storage: null,
+        load: () => { reads++; assert.match(host.innerHTML, /class="ps-sheet"/); return new Promise(resolve => { finish = resolve; }); } });
+    },
+    $: () => root, stopOpenTables: null, openTables: [{ id: 'r' }],
     listenOpenTables: (_fb, cb) => { snapshot = cb; return () => {}; },
-    lobbyExitSuppressMine: false, playerDoc: {}, isRoomOpenStatus: () => true,
-    patchOpenTables: r => { assert.equal(r.nodes[0], avatar); return true; }, console,
+    lobbyExitSuppressMine: false, isRoomOpenStatus: () => true,
+    patchOpenTables: r => { assert.equal(r.nodes.find(n => n.act === 'avatar'), avatar); return true; },
+    paint: () => assert.fail('一般快照不應重建大廳'), console,
   });
-  vm.runInContext(section('function paint()', '\nfunction paintEnterShell(')
-    + section('async function openStats()', '\nasync function loadStats()')
+  vm.runInContext(section('function openOwnStats()', 'function bindPersonalStatsEntry()')
     + section('function ensureOpenTablesListen()', '\nasync function enterOpenTable('), ctx);
   const wiring = /onAvatar:\s*(\w+)/.exec(app)[1];
   renderMpLobby(root, { user: { uid: 'me', displayName: '本人' }, onAvatar: ctx[wiring] });
   const avatar = root.nodes.find(n => /class="mp-av"/.test(n.attrs));
   assert.ok(avatar); assert.equal(avatar.act, 'avatar');
-  assert.equal(root.nodes.filter(n => /class="mp-av"/.test(n.attrs)).length, 1);
   ctx.ensureOpenTablesListen();
-  snapshot([{ id: 'r', status: 'playing' }]); // 手指按下後、click 前的快照不得移除頭像。
-  assert.equal(root.nodes.find(n => n.act === 'avatar'), avatar);
+  snapshot([{ id: 'r', status: 'playing' }]);
   avatar.listeners.click();
-  assert.equal(ctx.screen, 'stats'); assert.equal(ctx.shown, '個人紀錄');
-  snapshot([{ id: 'r', status: 'playing' }]); ctx.paint();
-  assert.equal(ctx.screen, 'stats'); assert.equal(ctx.shown, '個人紀錄');
-  finish(); await flush(); assert.equal(ctx.screen, 'stats');
+  assert.match(host.innerHTML, /class="ps-sheet"/); assert.equal(reads, 1);
+  assert.equal(ctx.screen, 'lobby');
+  snapshot([{ id: 'r', status: 'playing' }]);
+  assert.match(host.innerHTML, /class="ps-sheet"/);
+  finish(null); await flush();
+  assert.match(host.innerHTML, /class="ps-sheet"/);
 });
 
 test('分享頁只保留既有連結加入文字；牌桌選單刪除兩入口及死 handler', () => {

@@ -31,8 +31,8 @@ function fixture(options = {}) {
     sess: [{ uid: 'h', sessionNo: 1, buyIn: 2000, topUps: 0, topUpChips: 0, hands: 0, nightKey: '20261109' }, null, null, null, null, null],
     pub: { phase: 'lobby', handNo: 0, seats: [] } };
   let deny = false;
-  const fs = { doc: (_db, ...p) => p.join('/'), collection: () => '',
-    Timestamp: { now: () => 123 }, serverTimestamp: () => 'now', onSnapshot: () => () => {},
+  const fs = { doc: (_db, ...p) => p.join('/'), collection: (_db, ...p) => p.join('/'),
+    Timestamp: { now: () => 123 }, serverTimestamp: () => 'now', onSnapshot: (ref, cb) => { options.onSnapshot?.(ref, cb); return () => {}; },
     getDoc: async path => {
       if (path === 'pokerPlayers/b') await options.beforePlayerRead?.();
       return { exists: () => true, data: () => path === 'pokerRooms/r' ? room : {
@@ -46,6 +46,7 @@ function fixture(options = {}) {
         room = { ...room, ...patch };
       }
     }, setDoc: async () => {},
+    writeBatch: () => ({ set() {}, commit: async () => {} }),
   };
   const loop = createHostLoop({ db: {}, fs }, { roomId: 'r', uid: 'h', getRoom: () => room, stats: { enabled: false } });
   loop.start();
@@ -153,4 +154,34 @@ test('收桌開始後，已在等待帳戶讀取的 SIT 不得插入結算中', 
     assert.equal((await close).chipTotal, 2000);
     assert.equal(f.room().seatUids[1], '');
   } finally { release(); f.loop.stop(); }
+});
+
+
+test('host 收到非行動者 LEAVE 即刻蓋牌，後續行動跳過離桌席而不等 timeout', async () => {
+  let intentSnapshot;
+  const f = fixture({ onSnapshot: (ref, cb) => { if (ref.endsWith('/intents')) intentSnapshot = cb; } });
+  try {
+    await f.loop.seatPlayer(1, 'b');
+    await f.loop.seatPlayer(2, 'c');
+    assert.equal(f.loop.startHand(), true);
+    const before = f.loop.getEngine();
+    const seat = before.seats.findIndex(p => p && p.seat !== before.actor && p.bet > 0);
+    const leaver = f.room().seatUids[seat];
+    const contributed = before.seats[seat].contributed;
+    intentSnapshot({ docChanges: () => [{ type: 'modified', doc: { id: leaver, data: () => ({ type: 'LEAVE', seq: 1 }) } }] });
+    const after = f.loop.getEngine();
+    assert.equal(after.seats[seat].folded, true, 'intent callback 返回前已蓋牌');
+    assert.equal(after.seats[seat].contributed, contributed);
+    assert.equal(after.actor, before.actor);
+    assert.equal(after.deadline, before.deadline);
+    // 不推進時間、不送 TIMEOUT，直接完成其餘玩家四個 street。
+    for (let n = 0; n < 20; n++) {
+      const state = f.loop.getEngine();
+      if (!['preflop', 'flop', 'turn', 'river'].includes(state.phase)) break;
+      assert.notEqual(state.actor, seat, '不能等待離桌者行動');
+      const p = state.seats[state.actor];
+      f.loop.hostAction({ type: p.bet < state.currentBet ? 'CALL' : 'CHECK', seat: state.actor });
+    }
+    assert.ok(['showdown', 'hand_over'].includes(f.loop.getEngine().phase));
+  } finally { f.loop.stop(); }
 });

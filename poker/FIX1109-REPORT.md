@@ -188,3 +188,18 @@ A/B/C/D：**1／4／2／10**（0ms 與 2ms 注入延遲皆相同）。A 為開�
 - `git diff --check`：通過。`git diff -- poker/firebase/firestore.rules`：空白。
 
 回歸範圍：以 M 級受影響區域（大廳入口、個人紀錄、他人戰績入口、分享、牌桌選單、presence、單桌建立／加入）執行既有全套可用單元測試；未完成 iPhone Safari 手動端到端、瀏覽器／emulator 與 Rules 驗證，不代表 QA 驗收。未建立 preview URL。待 PM／owner 於既有 preview 複驗四項與他人頭像；本輪沒有自行審核或核准上線。
+
+## 第六輪
+
+- 範圍：依本輪四項指示；分支 `pm/fix-1109-trial`、基底 `2b7d213`。未 commit／push／部署、未修改 Rules 或 PROD-EVIDENCE-930.md、未安裝依賴、未使用網路。
+- 修改檔案：`js/ui/mp-app.js`、`test/avatar-stats.test.js`、`test/fix1109-round5.test.js`、`test/close-result-lobby.test.js`、`test/fix1109.test.js`、既有未追蹤的 `test/_reg1109.local.mjs`、本報告。
+- 本人頭像：大廳主頭像、本人房主縮圖、本人座位頭像與 `#heroAv`（含 shell／未入座無 uid）共用 `openOwnStats()`，同步呼叫 `openStatsFor(me.uid, 本人名稱)`，顯示 `.ps-sheet`。其他玩家座位仍使用其 uid；其他房主縮圖仍維持原本進桌行為。戰績選單仍呼叫 `openStats()`。未改個人統計樣式，保留第五輪一般快照 patch 清單、不重建大廳 DOM 的改善。
+- 同步回饋證據：第五輪測試改用實際 `openPersonalStats`，在 load 被呼叫時即斷言 sheet 已渲染；讀取未完成及後續清單快照仍保留 sheet 與頭像節點。這是同步 DOM 單元證據，並非手機實際繪製毫秒數。
+- emulator 測試：兩項原房號輸入案例改點 `[data-act="open-table"]`／現有「開新牌桌」入口（後者會加入既有 000 桌），保留 host／guest 離開後 clean lobby、帳戶結算、取消離桌，以及不 reload 再次加入與 joining 清除檢查。未刪除覆蓋。
+- LEAVE 時機調查：`processIntent(LEAVE)` 立即入列並呼叫 `drainSitLeave()`；牌局中 `drainSitLeaveInner()` 對尚未 leftHand 的座位直接送 `LEAVE_FOLD`。引擎 `doLeaveFold()` 支援非當前行動者立即 folded，保留 contributed、當前 actor 與 deadline；輪到本人時走正常 fold 並推進。不依賴 away 或 TIMEOUT；結帳才等到手牌結束。全下者為既有例外，LEAVE_FOLD 不移除其攤牌資格，但也不會成為等待行動的 actor。
+- 新增 host 路徑單元測試：三人桌收到非行動者 LEAVE 後，在 intent snapshot callback 返回前確認 folded、下注保留及 actor/deadline 不變；不推進時間、不送 TIMEOUT，讓其他玩家完成四個 street 到 showdown／hand_over，逐次確認 actor 不會是離桌席。測試通過，未修改 host／engine。先前 e2e 的「3 秒後 pub.folded=false」尚無法在此重現或判定原因，不能宣稱該次實際已蓋牌；仍需 PM 用更新後輪詢記錄核對 intent 接收、玩家是否全下及 pub 發布時序。
+- 本機回歸程式（僅修改指定項目）：分享畫面檢查 000 前移除 `.mp-url` 連結文字；頭像以可見 `.ps-sheet` 判定並記錄 tapToSheetMs；離桌確認後最多輪詢 10 秒並記錄 foldedDelayMs。未執行該程式，未產生新的 e2e 毫秒數。
+- 實際執行：`cd poker && node --test --test-isolation=none test/avatar-stats.test.js test/fix1109-round5.test.js`：16 項通過；`cd poker && node --test --test-isolation=none test/fix1109.test.js`：9 項通過。
+- 指定完整命令：`cd poker && node --test --test-isolation=none test/*.test.js`：288 項，287 通過、1 失敗；唯一失敗為 `raise-confirm.test.js:87` 的 `listen EPERM: operation not permitted 127.0.0.1`，屬沙箱監聽限制。輸出保留在 `/tmp/fix1109-round6-tests.log`。未設定 FIRESTORE_EMULATOR_HOST，emulator 案例未執行。
+- 另執行 `node --check poker/test/_reg1109.local.mjs`、`node --check poker/test/close-result-lobby.test.js` 與 `git diff --check`，均通過。
+- 回歸範圍／風險：本輪涵蓋頭像入口、同步浮層、快照 DOM 保留、離桌 intent 與不等待離桌者的單元檢查，並執行完整既有測試命令；未進行人工桌機／手機回歸，未自行驗收或核准。PM 尚需執行兩項 emulator 案例與本機 e2e，確認實際 sheet 延遲、pub.folded 發布延遲及結算。無新增 preview URL。

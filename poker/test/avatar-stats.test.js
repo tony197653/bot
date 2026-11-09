@@ -12,10 +12,10 @@ function harness() {
   let click;
   const ctx = vm.createContext({
     screen: 'table', document: { body: { dataset: {} }, addEventListener: (_event, cb) => { click = cb; } },
-    getFirebase: () => ({}), getUser: () => ({ uid: 'me' }), loadStats: async () => {},
+    getFirebase: () => ({}), getUser: () => ({ uid: 'me', displayName: '本人' }), playerDoc: null, loadStats: async () => {},
     paint: () => { ctx.painted = ctx.screen; }, openStatsFor: (...args) => { ctx.other = args; },
   });
-  vm.runInContext(section('function bindPersonalStatsEntry()', '/** v1.0.5: after cash-out')
+  vm.runInContext(section('function openOwnStats()', '/** v1.0.5: after cash-out')
     + section('async function openStats()', '\nasync function loadStats()'), ctx);
   ctx.bindPersonalStatsEntry();
   return { ctx, tap: async (id, uid, className = '') => {
@@ -31,13 +31,13 @@ function harness() {
 for (const [name, id, uid, cls] of [
   ['牌桌本人座位', '', 'me', ''], ['牌桌自身頭像／進桌 shell 未入座', 'heroAv', '', ''],
   ['個人紀錄總籌碼與單晚列表', '', 'me', 'mp-lb-av'], ['大廳本人房主縮圖', '', 'me', 'mp-hav'],
-]) test(`${name}點擊共用 openStats 並切至 stats`, async () => {
+]) test(`${name}點擊共用 openOwnStats 並開本人浮層`, async () => {
   const { ctx, tap } = harness();
   assert.equal(await tap(id, uid, cls), true);
-  assert.equal(ctx.screen, 'stats'); assert.equal(ctx.painted, 'stats'); assert.equal(ctx.other, undefined);
+  assert.equal(ctx.screen, 'table'); assert.deepEqual(Array.from(ctx.other), ['me', '本人']);
 });
-test('大廳主頭像直接接同一個 openStats', () => {
-  assert.match(app, /onAvatar: openStats/);
+test('大廳主頭像直接接同一個 openOwnStats', () => {
+  assert.match(app, /onAvatar: openOwnStats/);
   assert.match(lobby, /data-act="avatar"/); assert.match(lobby, /avatar: onAvatar/);
   assert.match(openRowHtml({ id: 'r', hostUid: 'me', hostName: '本人' }), /class="mp-hav" data-ps-uid="me"/);
 });
