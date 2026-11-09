@@ -4,6 +4,9 @@
  * Baseline before production edits (0ms and 2ms): A=0, B=3, C=4, D=12;
  * stale hostRoomId A=3. C/D both start at the enter-table click.
  * D includes the awaited lobby refresh after the authoritative seat write.
+ * 固定碼 000 後：A=1、B=4、C=2、D=10。
+ * B：legacy listing 預查＋固定 code 讀取＋player 預讀＋原子交易；
+ * 移除建立後 listing 查詢，新增 code 讀取，總數仍為 4。
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -108,6 +111,8 @@ for (const delay of [0, 2]) test(`open flow serial round trips (injected latency
   await ctx.doCreate({ name: 'Test', sb: 10, bb: 20, newPlayerChips: 2000 });
   const B = ctx.marks.share;
   assert.ok(ctx.shareInfo?.roomId);
+  assert.equal(ctx.shareInfo.code, '000');
+  assert.deepEqual(fb.calls, ['getDocs', 'getDoc', 'getDoc', 'runTransaction']);
   fb.calls.length = 0;
   await ctx.enterRoom(ctx.shareInfo.roomId, { asHostSit: true });
   await fb.settle();

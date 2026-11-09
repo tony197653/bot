@@ -138,3 +138,22 @@ Rules 行號（正式檔案未改）：
 - `git diff --check`：通過。
 - 回歸涵蓋：頭像點擊共用入口、本人與他人分流、既有 stats 兩模式渲染、開桌／進桌既有單元測試。未執行手動瀏覽器／桌機與手機端到端回歸，未自行驗收；仍由 PM／QA 依正式規模處理。沒有啟動或連線 emulator，rules 測試未執行。
 - Preview URL：無。A 剩餘：碼位決策後實作鎖、可控並行競態與關閉回收測試、rules 測試更新及等待量測；預估另需 15–20 分鐘，不含 emulator／PM 手動回歸。
+
+## 第四輪：固定碼 000 嚴格單桌
+
+依 PM 明確核准的 3 碼 `SINGLE_TABLE_CODE = '000'` 實作 TASK A；本輪只處理 A，不增加 UI／功能。分支 `pm/fix-1109-trial`、起點 `60d9e4e`。未 commit／push／部署、未修改 Rules／依賴／憑證、未連網。原有未追蹤 PROD-EVIDENCE-930.md 與 node_modules 保留未動。
+
+實作：保留 legacy pokerLobby 最舊開放桌預查；找不到才在交易外讀取 `pokerCodes/000` 及所指房間。房間可讀且開放則沿用 joinByRoomId，加成員後以既有 existing 路徑進桌及選位提示。其餘情況沿用 createRoom 的原子 room/code/lobby/player 寫入，新帳號同批寫 grant。交易第一筆必為 tx.get(code)，核對仍不存在，或 roomId 與先前判斷可回收的鎖相同且 expiresAt 未變；變更則不寫入，回讀鎖並加入勝方。交易不讀鎖所指的非成員關閉房間；回收是否合法由既有 codeReclaimable 規則判定。移除建立後查詢、關閉多開空桌及遷移的收斂流程。原 createRoom 的 hostRoomId 檢查與一般建桌 API 保留。
+
+單元覆蓋：無桌建立、已有 legacy 清單桌加入不建立、固定碼開放桌無 listing 時仍加入、兩人均完成無桌／無鎖預讀後交錯交易（同 roomId、只建立一個房間、每筆交易首讀 000）、前桌關閉且非成員讀取被拒時回收固定碼（不在交易讀舊房、新帳號 grant 同批建立）。沿用既有測試檔，沒有新增回歸腳本。Rules 測試更新 create/join/concurrent/reclaim-after-close，含新帳號回收舊房及並行後實際 room 文件總數等於 1，projectId 仍固定 demo-fix1109。
+
+A/B/C/D：**1／4／2／10**（0ms 與 2ms 注入延遲皆相同）。A 為開表單前 legacy 清單查詢 1 次；B 為提交時 legacy 清單查詢＋固定碼讀取＋player 預讀＋交易，共 4 次。第二輪的建立後查詢改為建立前固定碼讀取，所以 B 總數維持 4；並非省略鎖成本。C/D 未改進桌與入座流程，仍為 2／10。交易算一趟，交易內讀取／SDK 自動重試未另計；不是實機網路量測。
+
+實際命令與結果：
+- `cd poker && node --test --test-isolation=none test/ui-response.test.js test/open-speed.test.js`：16/16 通過。
+- `cd poker && node --test --test-isolation=none test/*.test.js`：283 項，282 通過、1 失敗；唯一失敗為既有 raise-confirm.test.js:87 的 `listen EPERM 127.0.0.1` 環境限制。不重試此已知錯誤，不宣稱全綠。
+- `node --check poker/firebase/fix1109.rules.test.mjs`、`git diff --check`：通過。未執行 Rules emulator，遵守本輪不連網限制。
+
+本輪修改：`poker/js/net/room.js`、`poker/test/ui-response.test.js`、`poker/test/open-speed.test.js`、`poker/firebase/fix1109.rules.test.mjs`、本報告。
+
+回歸範圍 M：已執行指定全套單元及受影響開桌／加入／選位／入座／收桌單元；未做桌機／手機手動端到端，未自行驗收。Preview URL：無。既有 24h 到期風險仍在：若開放桌無 listing 且其房間無法讀取，過期鎖可由規則允許回收；固定碼是本用戶端的交易協調，不是 Rules 對所有舊用戶端施加全站唯一限制。剩餘為 PM／QA 本機 emulator 與手動端到端驗證，估 15–25 分鐘；本輪程式與指定測試更新已完成。

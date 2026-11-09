@@ -9,11 +9,21 @@ import { renderMpLobby } from '../js/ui/lobby.js';
 globalThis.crypto ||= webcrypto;
 const app = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
 function section(start, end) { return app.slice(app.indexOf(start), app.indexOf(end, app.indexOf(start))); }
+class TestTimestamp {
+  constructor(ms) { this.ms = ms; }
+  toMillis() { return this.ms; }
+}
+function clone(value) {
+  if (value instanceof TestTimestamp) return new TestTimestamp(value.ms);
+  if (Array.isArray(value)) return value.map(clone);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, clone(v)]));
+  return value;
+}
 function fakeFirebase(delay = 0) {
   const docs = new Map([['pokerPlayers/u', { bank: 2000, inPlay: 0, total: 2000, sessionNo: 0, tableRoomId: null, hostRoomId: null }]]);
   const calls = [];
   const snapshotErrors = [];
-  const snap = ref => ({ id: ref.split('/').at(-1), exists: () => docs.has(ref), data: () => structuredClone(docs.get(ref)) });
+  const snap = ref => ({ id: ref.split('/').at(-1), exists: () => docs.has(ref), data: () => clone(docs.get(ref)) });
   async function trip(kind, fn) {
     calls.push(kind);
     if (delay) await new Promise(resolve => setTimeout(resolve, delay));
@@ -31,7 +41,7 @@ function fakeFirebase(delay = 0) {
       for (const [ref, data] of docs) if (ref.startsWith('pokerLobby/') && data.status !== 'closed') cb(snap(ref));
     } })),
     doc: (_db, ...path) => path.join('/'), serverTimestamp: () => 1,
-    Timestamp: { fromMillis: n => ({ toMillis: () => n }), now: () => 1 },
+    Timestamp: { fromMillis: n => new TestTimestamp(n), now: () => 1 },
     arrayUnion: (...union) => ({ union }),
     deleteDoc: ref => trip('deleteDoc', () => docs.delete(ref)),
     getDoc: ref => trip('getDoc', () => snap(ref)),
@@ -117,12 +127,70 @@ test('單桌：無桌建立；已有桌加入成員、不再建立，沿用選�
   assert.match(app, /請選位子，點牌桌上的空位入座/);
 });
 
-test('同時開桌：兩筆建立後查詢收斂到同桌，多開空桌關閉（非嚴格唯一保證）', async () => {
-  const fb = fakeFirebase(2);
+test('同時開桌：兩人預查皆無桌，鎖變更後加入勝方，僅建立一個房間', async () => {
+  const fb = fakeFirebase();
+  const originalGet = fb.fs.getDoc;
+  let arrivals = 0, release;
+  const barrier = new Promise(resolve => { release = resolve; });
+  fb.fs.getDoc = async ref => {
+    const snap = await originalGet(ref);
+    if (ref === 'pokerCodes/000' && arrivals < 2) {
+      if (++arrivals === 2) release();
+      await barrier;
+    }
+    return snap;
+  };
+  const transaction = fb.fs.runTransaction;
+  let chain = Promise.resolve();
+  const firstReads = [];
+  fb.fs.runTransaction = (db, fn) => {
+    const result = chain.then(() => transaction(db, tx => {
+      let first = true;
+      return fn({ ...tx, get: ref => {
+        if (first) { firstReads.push(ref); first = false; }
+        return tx.get(ref);
+      } });
+    }));
+    chain = result.catch(() => {});
+    return result;
+  };
   const result = await Promise.all([net.createSingleTable(fb, opts), net.createSingleTable(fb, { ...opts, uid: 'v' })]);
+  assert.equal(arrivals, 2);
   assert.equal(result[0].roomId, result[1].roomId);
-  const open = [...fb.docs.entries()].filter(([k, v]) => k.startsWith('pokerRooms/') && v.status !== 'closed');
-  assert.equal(open.length, 1);
+  assert.equal([...fb.docs.keys()].filter(k => k.startsWith('pokerRooms/')).length, 1);
+  assert.deepEqual(firstReads, ['pokerCodes/000', 'pokerCodes/000']);
+  assert.equal(result.filter(r => !r.existing).length, 1);
+});
+
+test('前桌已關閉且非成員讀取被拒：回收 000，不在交易讀取舊房間', async () => {
+  const fb = fakeFirebase();
+  const first = await net.createSingleTable(fb, opts);
+  assert.equal(first.code, '000');
+  fb.docs.get(`pokerRooms/${first.roomId}`).status = 'closed';
+  fb.docs.delete(`pokerLobby/${first.roomId}`);
+  const get = fb.fs.getDoc;
+  fb.fs.getDoc = ref => ref === `pokerRooms/${first.roomId}`
+    ? Promise.reject(Object.assign(new Error('權限不足'), { code: 'permission-denied' })) : get(ref);
+  const transaction = fb.fs.runTransaction;
+  fb.fs.runTransaction = (db, fn) => transaction(db, tx => fn({ ...tx, get: ref => {
+    assert.notEqual(ref, `pokerRooms/${first.roomId}`);
+    return tx.get(ref);
+  } }));
+  const next = await net.createSingleTable(fb, { ...opts, uid: 'v' });
+  assert.notEqual(next.roomId, first.roomId);
+  assert.equal(next.code, '000');
+  assert.equal(fb.docs.get('pokerCodes/000').roomId, next.roomId);
+  assert.ok(fb.docs.has(`pokerPlayers/v/ledger/${next.roomId}_0_grant`));
+});
+
+test('固定碼開放桌沒有 listing：加入、不建立', async () => {
+  const fb = fakeFirebase();
+  const first = await net.createSingleTable(fb, opts);
+  fb.docs.delete(`pokerLobby/${first.roomId}`);
+  const joined = await net.createSingleTable(fb, { ...opts, uid: 'v' });
+  assert.equal(joined.roomId, first.roomId);
+  assert.equal(joined.existing, true);
+  assert.equal([...fb.docs.keys()].filter(k => k.startsWith('pokerRooms/')).length, 1);
 });
 
 test('大廳實際 HTML：沒有房號輸入；已有桌僅一個清單入口', () => {
