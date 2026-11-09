@@ -277,3 +277,13 @@ A/B/C/D：**1／4／2／10**（0ms 與 2ms 注入延遲皆相同）。A 為開�
 - 實際執行 `cd poker && node --test --test-isolation=none test/*.test.js`：296 項，295 通過、1 失敗；唯一失敗為既有 `raise-confirm.test.js:87` 的 `listen EPERM 127.0.0.1`（沙箱禁止本機監聽）。日誌 `/tmp/fix1109-round9-tests.log`。初跑曾發現 URL 前置門檻及 fixture 非同步假設問題，已修正並重跑。
 - `git diff --check` 及三個正式 JS 的 `node --check` 通過。M 級受影響區域單元回歸已跑；未做人工端到端、Rules emulator 或 QA 驗收，無 preview URL。
 - 未 commit／push／deploy／merge、連網、安裝依賴或修改指定未追蹤檔。剩餘：PM 在允許監聽的環境補跑失敗案例及人工連續開手／模擬器收桌驗證，估 10–15 分鐘。
+
+## 第十輪
+
+- 分支 `pm/fix-stacks-rules`，基底 `d017443`。修改 `js/ui/mp-app.js`、新增 `test/fix1109-round10.test.js`，並追加本報告。
+- 清單 `enterOpenTable` 在第一個 await 前同步顯示既有「正在確認牌桌…」toast 與加入中狀態；加入前呼叫 `maybeAutoCloseSingleTable(fb, roomId, uid)`。成功關閉後移除本機舊清單並走既有 `onCreateTable`／建立表單；未關閉則照常加入。開桌查詢前釋放進桌防重複旗標，避免查詢發現其他人新建牌桌時無法加入。
+- 登入取得玩家資料後、首次大廳 paint／自動續桌前，對既有綁定執行 `silentlySettleClosedBinding`；沿用原結算與固定帳本 ID，房主本人退回籌碼、清除 tableRoomId／hostRoomId，停留大廳。
+- 新增兩案 unit：同步回饋先於未返回的過期查詢、重複點擊阻擋、關閉與未關閉分流、開桌銜接旗標；實際既有 ledger 搭配 fake Firestore 驗證房主登入 bank 300 + inPlay 2000 = 2300、inPlay 歸零、綁定清空、重登不重複入帳。
+- 實際執行 `cd poker && node --test --test-isolation=none test/fix1109-round10.test.js`：2/2 通過。指定 `cd poker && node --test --test-isolation=none test/*.test.js` 最終重跑：298 項，297 通過、1 失敗；唯一失敗仍為既有 `raise-confirm.test.js:87` 的 `listen EPERM 127.0.0.1`（沙箱禁止監聽）。日誌 `/tmp/fix1109-round10-tests.log`。`node --check poker/js/ui/mp-app.js`、`node --check poker/test/fix1109-round10.test.js`、`git diff --check` 通過。
+- M 級影響範圍：清單加入／單桌回收／開桌銜接／登入續桌與閉桌結算；已跑單元回歸，未做人工瀏覽器端到端或 Rules emulator，不視為 QA 驗收，亦未實測畫面繪製 0.2 秒。無 preview URL。剩餘：PM 人工核對訪客點舊桌與房主重開 app，並在允許監聽環境補跑既有失敗案，估 10–15 分鐘。
+- 未 commit／push／deploy／merge、連網、安裝依賴、修改 Rules 或碰觸指定 `_r1109-*`／`test/_reg1109.local.mjs`。

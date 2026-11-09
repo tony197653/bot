@@ -34,6 +34,7 @@ import {
   formatCode,
   closeRoom,
   maybeAutoCloseIdleRoom,
+  maybeAutoCloseSingleTable,
   isRoomOpenStatus,
   noteLobbyRoomClosed,
   deleteLobbyListing,
@@ -750,6 +751,10 @@ export async function startMpApp() {
       } else {
         playerDoc = readCachedPlayer(ev.user.uid);
       }
+      // Resolve closed bindings before the first lobby paint can auto-resume.
+      if (playerDoc?.tableRoomId || playerDoc?.hostRoomId) {
+        await silentlySettleClosedBinding();
+      }
       if (deepRoom && screen === 'auth') {
         await tryDeepLink(deepRoom, deepR);
         return;
@@ -1293,6 +1298,7 @@ async function enterOpenTable(roomId) {
   const user = getUser();
   if (!fb || !user || !roomId || openJoinBusy) return;
   openJoinBusy = true;
+  toast('正在確認牌桌…');
   const root = $('#mpRoot');
   const row = root?.querySelector(`.mp-row[data-rid="${CSS.escape(roomId)}"]`);
   if (row) {
@@ -1302,6 +1308,11 @@ async function enterOpenTable(roomId) {
     if (go) go.textContent = '加入中…';
   }
   try {
+    if (await maybeAutoCloseSingleTable(fb, roomId, user.uid)) {
+      openTables = openTables.filter((t) => t.id !== roomId);
+      // Release the join guard in finally before create's lookup may join a new table.
+      return onCreateTable();
+    }
     const res = await joinByRoomId(fb, roomId, user.uid);
     if (res.ended || res.error) {
       // M2 #2: just-closed from open list — drop stale pokerLobby row
