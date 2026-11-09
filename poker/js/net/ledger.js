@@ -1,5 +1,5 @@
 /**
- * Chip cashier: grant / buyin / topup / cashout / self-rescue (§6.10).
+ * Chip cashier: grant / buyin / cashout / self-rescue (§6.10).
  * Ledger ids are fixed → idempotent (permission-denied + exists = success).
  */
 
@@ -91,9 +91,9 @@ export async function ensurePlayerGrant(fb, uid, roomId, n, profile) {
 }
 
 /**
- * Whole-bank buy-in (§6.10 scheme ①).
+ * Player-chosen buy-in; uncarried chips stay in bank.
  */
-export async function buyinAll(fb, uid, roomId, bb) {
+export async function buyinAmount(fb, uid, roomId, bb, chosenAmount) {
   const { db, fs } = fb;
   const pref = fs.doc(db, 'pokerPlayers', uid);
   const snap = await fs.getDoc(pref);
@@ -106,11 +106,13 @@ export async function buyinAll(fb, uid, roomId, bb) {
   if (p.tableRoomId != null) throw new Error('你還在別桌，請先結帳離開');
 
   const no = p.sessionNo + 1;
-  const amount = assertMinimumBuyin(p.bank, bb);
+  const amount = assertMinimumBuyin(chosenAmount ?? p.bank, bb);
+  if (amount > p.bank) throw new Error('籌碼不足，攜入金額不可超過帳戶餘額');
+  const remaining = p.bank - amount;
   const id = `${roomId}_${no}_buyin`;
   const batch = fs.writeBatch(db);
   batch.update(pref, {
-    bank: 0,
+    bank: remaining,
     inPlay: amount,
     tableRoomId: roomId,
     sessionNo: no,
@@ -128,7 +130,7 @@ export async function buyinAll(fb, uid, roomId, bb) {
     topUpChips: null,
     hands: null,
     nightKey: null,
-    bankAfter: 0,
+    bankAfter: remaining,
     by: uid,
     at: fs.serverTimestamp(),
   });
@@ -143,12 +145,15 @@ export async function buyinAll(fb, uid, roomId, bb) {
     }
     throw e;
   }
-  cachePlayer(uid, { bank: 0, inPlay: amount, total: p.total, tableRoomId: roomId, sessionNo: no, lastRoomId: roomId });
+  cachePlayer(uid, { bank: remaining, inPlay: amount, total: p.total, tableRoomId: roomId, sessionNo: no, lastRoomId: roomId });
   return {
     skipped: false, amount, sessionNo: no,
-    player: { ...p, bank: 0, inPlay: amount, tableRoomId: roomId, sessionNo: no, lastRoomId: roomId },
+    player: { ...p, bank: remaining, inPlay: amount, tableRoomId: roomId, sessionNo: no, lastRoomId: roomId },
   };
 }
+
+// Compatibility for existing callers; all seating UI supplies a chosen amount.
+export const buyinAll = buyinAmount;
 
 /**
  * Host (or self) cashout batch: room seat clear + ledger + player + night.

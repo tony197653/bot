@@ -1,4 +1,4 @@
-/** Client admission policy; money still moves as one whole-bank buy-in. */
+/** Client admission and chosen carry-in policy. */
 export const DEFAULT_NEW_PLAYER_CHIPS = 2000;
 
 export function wholeBalance(player, roomId) {
@@ -14,8 +14,16 @@ export function assertMinimumBuyin(amount, bb) {
   return amount;
 }
 
-export function buyinLabel(player, roomId, session) {
-  const amount = session?.buyIn ?? wholeBalance(player, roomId);
-  const label = session ? '本次買入' : '整筆買入';
-  return `${label} ${(Number(amount) || 0).toLocaleString('en-US')} 籌碼`;
+export function buyinOptions(player, config) {
+  const min = 50 * config.bb;
+  const max = player?.bank || 0;
+  assertMinimumBuyin(max, config.bb);
+  return { min, max, step: (max - min) % config.bb === 0 ? config.bb : 1,
+    amount: Math.max(min, Math.min(config.newPlayerChips ?? DEFAULT_NEW_PLAYER_CHIPS, max)) };
+}
+
+export function buyinLabel(player, roomId, session, config = { bb: 20, newPlayerChips: DEFAULT_NEW_PLAYER_CHIPS }) {
+  const amount = session?.buyIn ?? (player?.tableRoomId === roomId ? player.inPlay
+    : Math.max(50 * config.bb, Math.min(config.newPlayerChips, player?.bank || 0)));
+  return `${session ? '本次買入' : '攜入'} ${(Number(amount) || 0).toLocaleString('en-US')} 籌碼`;
 }

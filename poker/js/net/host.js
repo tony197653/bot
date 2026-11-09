@@ -116,9 +116,7 @@ export function createHostLoop(fb, opts) {
   /** @type {Record<number, number>} local ms when seat became away */
   const awaySince = {};
   let seatedAt = [0, 0, 0, 0, 0, 0];
-  let topUpReqs = {};
   /** @type {Record<number, number>} seat → deniedAt ms (M2 #13 / §4.1 6-d) */
-  let topUpDenied = {};
   /** Published so whole table sees §2 / M2 #10 exits when host hits 8,000. */
   let quotaStop = false;
   let pendingSeats = [];
@@ -152,6 +150,19 @@ export function createHostLoop(fb, opts) {
     return n || fallback || uid.slice(0, 8);
   }
 
+  // lobby 摘要不允許 hostUid；用既有公開列表確認名稱／照片的擁有者。
+  let lobbyHostUid = null;
+  function lobbyHostProfile(room) {
+    const hostUid = room.hostUid;
+    const seat = room.seatUids.indexOf(hostUid);
+    const seatName = [engine?.seats?.[seat]?.name, room.pub?.seats?.[seat]?.name]
+      .find(name => name && name !== hostUid && name !== hostUid.slice(0, 8));
+    return {
+      hostName: playerName(hostUid, seatName),
+      hostPhoto: lobbyHostUid === hostUid ? room.lobby?.hostPhoto || '' : '',
+    };
+  }
+
   function ensureEngine(room) {
     if (engine) return engine;
     engine = createInitialState({
@@ -160,7 +171,6 @@ export function createHostLoop(fb, opts) {
       bigBlind: room.config.bb,
       startingStack: room.config.newPlayerChips,
       actionTimeoutMs: room.config.actionMs,
-      topUpAmount: room.config.topUpAmount,
       roomName: room.name,
       timerEnabled: true,
     });
@@ -187,8 +197,6 @@ export function createHostLoop(fb, opts) {
     if (room.pub?.handId) engine.handId = room.pub.handId;
     seatedAt = room.pub?.seatedAt ? [...room.pub.seatedAt] : seatedAt;
     away = { ...(room.pub?.away || {}) };
-    topUpReqs = { ...(room.pub?.topUpReqs || {}) };
-    topUpDenied = { ...(room.pub?.topUpDenied || {}) };
     quotaStop = !!room.pub?.quotaStop;
     // Drop pending seats that already sat (QA #9)
     pendingSeats = (room.pub?.pendingSeats || []).filter(
@@ -225,8 +233,6 @@ export function createHostLoop(fb, opts) {
       seatedAt: [...seatedAt],
       hostClockAt,
       pendingSeats: [...pendingSeats],
-      topUpReqs: { ...topUpReqs },
-      topUpDenied: { ...topUpDenied },
       rejects: { ...rejects },
     });
     if (pubVoided || extra.voided) pub.voided = true;
@@ -311,8 +317,7 @@ export function createHostLoop(fb, opts) {
       const lobby = buildLobbySummary(
         { ...latest, name: latest.name, config: latest.config, seatUids: latest.seatUids },
         {
-          hostName: playerName(latest.hostUid, latest.lobby?.hostName),
-          hostPhoto: latest.lobby?.hostPhoto || '',
+          ...lobbyHostProfile(latest),
         },
       );
       const patch = {
@@ -330,6 +335,7 @@ export function createHostLoop(fb, opts) {
       };
 
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), patch);
+      lobbyHostUid = latest.hostUid;
       lastWriteAt = Date.now();
       recordWrite();
       if (engine.phase === PHASE.HAND_OVER && engine.handNumber !== lastChipsHandNo) lastChipsHandNo = engine.handNumber, void statsRuntime.syncChips?.({ seatUids: patch.seatUids, stacks: patch.stacks });
@@ -357,8 +363,9 @@ export function createHostLoop(fb, opts) {
     const fields = buildLobbyListing(roomLike, lobby, listStatus);
     const key = lobbyListingKey(fields);
     if (key === lastLobbyListingKey) return;
-    lastLobbyListingKey = key;
-    await upsertLobbyListing({ db, fs }, roomId, fields);
+    if (await upsertLobbyListing({ db, fs }, roomId, fields)) {
+      lastLobbyListingKey = key;
+    }
   }
 
   /** Non-money follow-up: refresh public lobby summary after seat/cashout. */
@@ -370,9 +377,7 @@ export function createHostLoop(fb, opts) {
     const lobby = buildLobbySummary(
       { ...latest, seatUids, hostUid },
       {
-        hostName: playerName(hostUid, latest.lobby?.hostName),
-        hostPhoto:
-          hostUid === latest.hostUid ? latest.lobby?.hostPhoto || '' : '',
+        ...lobbyHostProfile({ ...latest, seatUids, hostUid }),
       },
     );
     const listStatus = roomLike?.status || curStatus(latest) || 'lobby';
@@ -383,6 +388,7 @@ export function createHostLoop(fb, opts) {
         lobby,
         status: listStatus,
       });
+      lobbyHostUid = hostUid;
       lastWriteAt = Date.now();
       recordWrite();
       await syncLobbyListingDoc(
@@ -546,24 +552,6 @@ export function createHostLoop(fb, opts) {
       drainSitLeave();
       return;
     }
-    if (type === 'TOPUP_REQ') {
-      const seat = room.seatUids.indexOf(intentUid);
-      if (seat >= 0) {
-        topUpReqs[seat] = true;
-        delete topUpDenied[seat];
-        queueWrite();
-      }
-      return;
-    }
-    if (type === 'TOPUP_CANCEL') {
-      const seat = room.seatUids.indexOf(intentUid);
-      if (seat >= 0) {
-        delete topUpReqs[seat];
-        queueWrite();
-      }
-      return;
-    }
-
     // Show/muck: eligible during SHOWDOWN pending (not actor-gated)
     if (type === 'SHOW' || type === 'MUCK') {
       if (handNo !== engine.handNumber) return;
@@ -637,6 +625,18 @@ export function createHostLoop(fb, opts) {
     const between =
       engine.phase === PHASE.LOBBY || engine.phase === PHASE.HAND_OVER;
 
+    if (engine.phase === PHASE.HAND_OVER && engine.seats.some(p => p && p.chips === 0)) {
+      await writeChain;
+      const saved = getRoom();
+      if (saved?.pub?.phase !== PHASE.HAND_OVER ||
+          saved.pub.handNo !== engine.handNumber || lastHandsBumpHandNo < engine.handNumber) return;
+      for (let seat = 0; seat < 6; seat++) {
+        const playerUid = saved.seatUids[seat];
+        if (playerUid && saved.stacks[seat] === 0 && engine.seats[seat]?.chips === 0 &&
+            !leaveQueue.some(item => item.uid === playerUid)) leaveQueue.push({ uid: playerUid });
+      }
+    }
+
     // Leaves during hand → fold first
     for (const item of [...leaveQueue]) {
       const seat = room.seatUids.indexOf(item.uid);
@@ -653,7 +653,11 @@ export function createHostLoop(fb, opts) {
         continue;
       }
       if (closing || !running || getRoom()?.status === 'closed') return;
-      if (!await cashoutSeat(seat, item.uid)) return;
+      const cur = getRoom() || room;
+      const handOffTo = item.uid === cur.hostUid
+        ? cur.seatUids.find((u, i) => u && u !== item.uid && cur.stacks[i] > 0)
+        : undefined;
+      if (!await cashoutSeat(seat, item.uid, handOffTo ? { handOffTo } : undefined)) return;
       leaveQueue.splice(leaveQueue.indexOf(item), 1);
     }
 
@@ -842,76 +846,6 @@ export function createHostLoop(fb, opts) {
     onLocalState?.(engine);
     if (!closing) await refreshLobbySummary(room);
     return true;
-  }
-
-  async function approveTopUp(seat) {
-    const room = getRoom();
-    if (!room) return;
-    const playerUid = room.seatUids[seat];
-    if (!playerUid || room.stacks[seat] !== 0) return;
-    const s0 = room.sess[seat];
-    const amt = room.config.topUpAmount;
-    const n = s0.topUps + 1;
-    const id = `${roomId}_${s0.sessionNo}_topup${n}`;
-    const stacks = [...room.stacks];
-    stacks[seat] = amt;
-    const sess = [...room.sess];
-    sess[seat] = { ...s0, topUps: n, topUpChips: s0.topUpChips + amt };
-    delete topUpReqs[seat];
-    delete topUpDenied[seat];
-
-    engine = applyAction(engine, { type: 'TOP_UP', seat, amount: amt });
-    actionSeq += 1;
-
-    const batch = fs.writeBatch(db);
-    batch.update(fs.doc(db, 'pokerRooms', roomId), {
-      rev: room.rev + 1,
-      updatedAt: fs.serverTimestamp(),
-      stacks,
-      chipTotal: room.chipTotal + amt,
-      sess,
-      lastMoneyEvent: { uid: playerUid, id, seat, type: 'topup', amount: amt },
-      pub: buildPub({ ...room, stacks, sess }),
-    });
-    batch.set(fs.doc(db, 'pokerPlayers', playerUid, 'ledger', id), {
-      type: 'topup',
-      amount: amt,
-      roomId,
-      sessionNo: s0.sessionNo,
-      seat,
-      buyIn: null,
-      topUps: n,
-      topUpChips: null,
-      hands: null,
-      nightKey: null,
-      bankAfter: null,
-      by: uid,
-      at: fs.serverTimestamp(),
-    });
-    await batch.commit();
-    lastWriteAt = Date.now();
-    recordWrite();
-    // v1.0.5: top-up is a real asset change → refresh this seat's public total now (fire-and-forget).
-    void statsRuntime.syncChips?.({ seatUids: room.seatUids.map((u, i) => (i === seat ? u : null)), stacks });
-    onLocalState?.(engine);
-  }
-
-  /** M2 #13 / §4.1 6-d: host declines top-up; publish deniedAt for 1-min cooldown UI. */
-  async function denyTopUp(seat) {
-    const room = getRoom();
-    if (!room) return;
-    delete topUpReqs[seat];
-    topUpDenied[seat] = Date.now();
-    const batch = fs.writeBatch(db);
-    batch.update(fs.doc(db, 'pokerRooms', roomId), {
-      rev: room.rev + 1,
-      updatedAt: fs.serverTimestamp(),
-      pub: buildPub(room),
-    });
-    await batch.commit();
-    lastWriteAt = Date.now();
-    recordWrite();
-    onLocalState?.(engine);
   }
 
   function startHand() {
@@ -1137,6 +1071,27 @@ export function createHostLoop(fb, opts) {
     const room = getRoom();
     ensureEngine(room);
     statsRuntime.start();
+    // 帳務批次不能改 lobby；交棒後由現任房主透過既有非帳務寫入補齊摘要與列表。
+    if (room?.lobby) {
+      writeChain = writeChain.then(async () => {
+        // 舊摘要沒有身分欄位；接管時即使人數相同也需核對列表房主。
+        let listedHostName;
+        try {
+          const listing = await fs.getDoc(fs.doc(db, 'pokerLobby', roomId));
+          const data = listing.exists() ? listing.data() : null;
+          lobbyHostUid = data?.hostUid;
+          listedHostName = data?.hostName;
+        } catch { lobbyHostUid = null; }
+        const latest = getRoom();
+        if (!running || !latest || latest.status === 'closed') return;
+        const profile = lobbyHostProfile(latest);
+        if (lobbyHostUid !== latest.hostUid || listedHostName !== profile.hostName ||
+            latest.lobby?.seated !== latest.seatUids.filter(Boolean).length ||
+            latest.lobby?.hostName !== profile.hostName) {
+          return refreshLobbySummary();
+        }
+      });
+    }
 
     stopIntentListen = fs.onSnapshot(
       fs.collection(db, 'pokerRooms', roomId, 'intents'),
@@ -1196,8 +1151,6 @@ export function createHostLoop(fb, opts) {
     startHand,
     hostAction,
     voidHand,
-    approveTopUp,
-    denyTopUp,
     cashoutSeat,
     prepareClose,
     closeAll,

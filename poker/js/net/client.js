@@ -9,8 +9,9 @@ import { MP_FX } from '../ui/fx-mp.js';
  * @param {{ db:any, fs:any }} fb
  * @param {string} roomId
  * @param {string} uid
+ * @param {() => boolean} [isActive] 仍在送出動作的原牌桌
  */
-export function createIntentSender(fb, roomId, uid) {
+export function createIntentSender(fb, roomId, uid, isActive = () => true) {
   const { db, fs } = fb;
   const ref = fs.doc(db, 'pokerRooms', roomId, 'intents', uid);
   let seq = 0;
@@ -20,6 +21,7 @@ export function createIntentSender(fb, roomId, uid) {
   let resendTimer = null;
   let pending = null;
   let resendCount = 0;
+  let generation = 0;
 
   /** Load existing intent seq so refresh can still write (rules: seq must increase). */
   function ensureSeq() {
@@ -40,8 +42,9 @@ export function createIntentSender(fb, roomId, uid) {
   // Kick off read immediately on create
   void ensureSeq();
 
-  async function write(payload) {
+  async function write(payload, token) {
     await ensureSeq();
+    if (token !== generation || !isActive()) return;
     seq += 1;
     // Strip undefined so fold/call never write amount:undefined (QA #2)
     const raw = { ...payload, seq, at: fs.serverTimestamp() };
@@ -58,20 +61,24 @@ export function createIntentSender(fb, roomId, uid) {
    */
   async function send(action, hooks = {}) {
     clearResend();
+    if (!isActive()) return;
+    const token = generation;
     pending = { ...action };
     resendCount = 0;
-    await write(pending);
+    await write(pending, token);
+    if (token !== generation || !isActive()) return;
     const t0 = Date.now();
     const labelAt = t0 + MP_FX.pendingLabelAfterMs;
     const resendAt = t0 + MP_FX.pendingResendAfterMs;
 
     const tick = () => {
-      if (!pending) return;
+      if (token !== generation) return;
+      if (!pending || !isActive()) { clearResend(); return; }
       const now = Date.now();
       if (now >= labelAt) hooks.onPending?.(now - t0);
       if (now >= resendAt && resendCount < 2) {
         resendCount += 1;
-        write({ ...pending }).catch(() => {});
+        write({ ...pending }, token).catch(() => {});
         resendTimer = setTimeout(tick, MP_FX.pendingResendAfterMs);
         return;
       }
@@ -86,7 +93,7 @@ export function createIntentSender(fb, roomId, uid) {
 
     return {
       clear(actionSeq) {
-        if (pending && actionSeq != null && actionSeq > pending.turn) {
+        if (token === generation && pending && actionSeq != null && actionSeq > pending.turn) {
           pending = null;
           clearResend();
           hooks.onClear?.();
@@ -96,6 +103,8 @@ export function createIntentSender(fb, roomId, uid) {
   }
 
   function clearResend() {
+    generation += 1;
+    pending = null;
     if (resendTimer) clearTimeout(resendTimer);
     resendTimer = null;
   }
@@ -149,11 +158,6 @@ export function diffPubEvents(prev, next, flags = {}) {
   }
   if (next.lastAction && next.actionSeq !== prev.actionSeq) {
     events.push({ type: 'action', action: next.lastAction, pub: next });
-  }
-  // top-up: stacks 0→2000 with topUps+1
-  // (host sets lastMoneyEvent type topup — clients can also watch stacks)
-  if (next.lastMoneyEvent?.type === 'topup' && next.lastMoneyEvent?.id !== prev.lastMoneyEvent?.id) {
-    events.push({ type: 'topUp', seat: next.lastMoneyEvent.seat, amount: next.lastMoneyEvent.amount });
   }
   if (next.lastMoneyEvent?.type === 'cashout' && next.lastMoneyEvent?.id !== prev.lastMoneyEvent?.id) {
     events.push({ type: 'cashout', seat: next.lastMoneyEvent.seat, amount: next.lastMoneyEvent.amount });

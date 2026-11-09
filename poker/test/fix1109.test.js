@@ -300,7 +300,7 @@ test('手動下一手：結算後立即按，連續三手各計一次且按鈕�
   const context = vm.createContext({ hostLoop: f.loop, toast: message => assert.fail(message),
     friendlyError: e => e.message, paintTableChrome() {} });
   vm.runInContext(source.slice(source.indexOf('async function startHandFromButton('),
-    source.indexOf('function wireTopUpActions(')), context);
+    source.indexOf('function renderActBar(')), context);
   try {
     await f.loop.seatPlayer(1, 'b');
     assert.equal(f.loop.startHand(), true);
@@ -335,7 +335,7 @@ test('手動下一手：手數被拒重試一次，持續失敗顯示提示且�
   const context = vm.createContext({ hostLoop: f.loop, toast: message => messages.push(message),
     friendlyError: e => e.message, paintTableChrome() {} });
   vm.runInContext(source.slice(source.indexOf('async function startHandFromButton('),
-    source.indexOf('function wireTopUpActions(')), context);
+    source.indexOf('function renderActBar(')), context);
   try {
     await f.loop.seatPlayer(1, 'b');
     f.loop.startHand();

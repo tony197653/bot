@@ -16,7 +16,8 @@ test('清單進桌同步回饋；過期關桌走開桌流程，新鮮牌桌維�
     const ctx = vm.createContext({
       getFirebase: () => ({}), getUser: () => ({ uid: 'visitor' }), openJoinBusy: false,
       toast: () => calls.push('toast'), $: () => ({ querySelector: () => row }), CSS: { escape: s => s },
-      openTables: [{ id: 'old' }], screen: 'lobby',
+      openTables: [{ id: 'old' }], screen: 'lobby', playerDoc: null,
+      silentlySettleClosedBinding: async () => {}, getPlayer: async () => null,
       maybeAutoCloseSingleTable: async (_fb, rid, uid) => {
         assert.equal(rid, 'old'); assert.equal(uid, 'visitor'); calls.push('check'); return pending;
       },
@@ -25,12 +26,15 @@ test('清單進桌同步回饋；過期關桌走開桌流程，新鮮牌桌維�
         await Promise.resolve();
         assert.equal(ctx.openJoinBusy, false, '開桌查詢後仍可加入競態中新建的牌桌');
       },
-      joinByRoomId: async () => { calls.push('join'); return {}; },
+      joinByRoomId: async () => { calls.push('join'); return { room: {config:{bb:20,newPlayerChips:2000}} }; },
+      assertMinimumBuyin: (amount, bb) => { assert.ok(amount >= 50 * bb); },
       enterRoom: async () => { calls.push('enter'); },
       friendlyError: e => { throw e; }, paint: () => {},
     });
     vm.runInContext(section('async function enterOpenTable(', 'function lobbyBindKey('), ctx);
     const entering = ctx.enterOpenTable('old');
+    assert.deepEqual(calls, ['toast', 'busy']);
+    await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(calls, ['toast', 'busy', 'check']);
     assert.equal(row.disabled, true);
     await ctx.enterOpenTable('old');

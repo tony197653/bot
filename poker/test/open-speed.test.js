@@ -15,7 +15,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 import * as roomNet from '../js/net/room.js';
 import * as ledger from '../js/net/ledger.js';
-import { assertMinimumBuyin, wholeBalance, DEFAULT_NEW_PLAYER_CHIPS } from '../js/net/buyin-policy.js';
+import { assertMinimumBuyin, wholeBalance, buyinOptions, DEFAULT_NEW_PLAYER_CHIPS } from '../js/net/buyin-policy.js';
 
 globalThis.crypto ||= webcrypto;
 const app = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
@@ -67,7 +67,7 @@ function fakeFirebase(delay = 0) {
 function harness(fb) {
   const noop = () => {};
   const ctx = vm.createContext({
-    ...roomNet, ...ledger, assertMinimumBuyin, wholeBalance, DEFAULT_NEW_PLAYER_CHIPS,
+    ...roomNet, ...ledger, assertMinimumBuyin, wholeBalance, buyinOptions, DEFAULT_NEW_PLAYER_CHIPS,
     console, Date, Promise, getFirebase: () => fb, getUser: () => ({ uid: 'u', displayName: 'Host' }),
     playerDoc: structuredClone(fb.docs.get('pokerPlayers/u')), screen: 'lobby', rescueOk: false,
     createDraft: {}, creating: false, createError: '', shareInfo: null,
@@ -77,7 +77,7 @@ function harness(fb) {
     roomGoneFor: null, joinEnded: false, joinError: '', document: { getElementById: () => null },
     stopRoom: null, hostLoop: null, presence: null, intents: null, stopHole: null,
     animQ: null, lastRecvAt: 0, nameCache: {}, getLastRoom: () => null,
-    enterOpenTable: noop,
+    enterOpenTable: noop, silentlySettleClosedBinding: async () => {},
     tearDownRoom: noop, paintEnterShell: noop, paintTableChrome: noop, cachePlayerName: noop,
     startPresence: () => ({}), createIntentSender: () => ({}), listenHole: noop,
     qaStatsOpts: () => ({}), displayNameOf: () => 'Host', createAnimQueue: () => ({}),
@@ -95,7 +95,7 @@ function harness(fb) {
       playerName: () => 'Host', curStatus: () => 'lobby',
       syncLobbyListingDoc: async (r, lobby, status) => roomNet.upsertLobbyListing(fb, opts.roomId, roomNet.buildLobbyListing(r, lobby, status)),
     });
-    vm.runInContext(section(host, '  async function refreshLobbySummary(', '\n  function curStatus(') + section(host, '  function seatPlayer(', '\n  async function cashoutSeat('), hostCtx);
+    vm.runInContext(section(host, '  let lobbyHostUid =', '\n  function ensureEngine(') + section(host, '  async function refreshLobbySummary(', '\n  function curStatus(') + section(host, '  function seatPlayer(', '\n  async function cashoutSeat('), hostCtx);
     return { start: noop, seatPlayer: async (...args) => { await hostCtx.seatPlayer(...args); ctx.seatedAtRoundTrips = fb.calls.length; } };
   };
   vm.runInContext(section(app, 'async function onCreateTable()', '\nasync function doJoin(') + section(app, 'async function enterRoom(', '\nfunction paintTableChrome('), ctx);
@@ -112,7 +112,7 @@ for (const delay of [0, 2]) test(`open flow serial round trips (injected latency
   const B = ctx.marks.share;
   assert.ok(ctx.shareInfo?.roomId);
   assert.equal(ctx.shareInfo.code, '000');
-  assert.deepEqual(fb.calls, ['getDocs', 'getDoc', 'getDoc', 'runTransaction']);
+  assert.deepEqual(fb.calls, ['getDoc', 'getDocs', 'getDoc', 'getDoc', 'runTransaction']);
   fb.calls.length = 0;
   await ctx.enterRoom(ctx.shareInfo.roomId, { asHostSit: true });
   await fb.settle();
@@ -125,7 +125,7 @@ for (const delay of [0, 2]) test(`open flow serial round trips (injected latency
   assert.equal(stored.stacks[0], 2000);
   assert.equal(fb.docs.get('pokerPlayers/u').bank, 0);
   t.diagnostic(JSON.stringify({ A, B, C, D }));
-  assert.deepEqual({ A, B, C, D }, { A: 1, B: 4, C: 2, D: 10 });
+  assert.deepEqual({ A, B, C, D }, { A: 1, B: 5, C: 2, D: 10 });
 });
 
 test('stale host pointer: form round trips', async t => {

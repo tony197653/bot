@@ -239,11 +239,11 @@ await t('#9', 'A、B 同時用交易接手：只有一人成功、rev 只加 1',
 
 // #10 補碼
 const broke = (seat) => () => seed({ room: { stacks: seat === 1 ? [10000, 0, 0, 0, 0, 0] : [0, 10000, 0, 0, 0, 0] } });
-await t('#10', '正常：A 輸光，房主核准補碼', 'ok', broke(1), () => topupBatch(1, 'A'));
-await t('#10', '正常：房主自己輸光，自己核准', 'ok', broke(0), () => topupBatch(0, 'H'));
+await t('#10', '已移除：A 輸光也不能補碼', 'deny', broke(1), () => topupBatch(1, 'A'));
+await t('#10', '已移除：房主不能補碼', 'deny', broke(0), () => topupBatch(0, 'H'));
 // Avoid mid-setup withSecurityRulesDisabled after authenticated writes (emulator
 // "Firestore has already been started…" flake). Seed post-first-topup state directly.
-await t('#10', '正常：第二次補碼（topup2）', 'ok', async () => {
+await t('#10', '已移除：第二次補碼（topup2）', 'deny', async () => {
   await seed({
     room: {
       stacks: [12000, 0, 0, 0, 0, 0],
@@ -337,7 +337,7 @@ await t('worst', '5 人在座：第 6 人 G 坐下（5 號位）', 'ok', async (
   await seed({ room: { members: ['H','A','B','C','D','E','G'], seatUids: ['H','A','C','D','E',''], stacks: [5000,5000,5000,5000,5000,0], chipTotal: 25000,
     sess: [...['H','A','C','D','E'].map((u) => sessOf(u, 1, 5000)), null] }, players: { C: player(), D: player(), E: player(), G: player({ bank: 5000, inPlay: 0, tableRoomId: null, sessionNo: 0 }) } });
   await buyinBatch('G'); }, () => seatBatch(5, 'G', 5000));
-await t('worst', '6 人滿桌：補碼（5 號位 F 輸光）', 'ok', full({ stacks: [10000,5000,5000,5000,5000,0] }), () => topupBatch(5, 'F'));
+await t('worst', '6 人滿桌：補碼（5 號位 F 輸光）', 'deny', full({ stacks: [10000,5000,5000,5000,5000,0] }), () => topupBatch(5, 'F'));
 
 await t('worst', '帳務事件同一筆順便改別格（結帳 F＋C 的 hands+1）', 'deny', full(), async () => { const r = await cur(); const sess = [...r.sess]; sess[5] = null; sess[2] = { ...sess[2], hands: sess[2].hands + 1 }; return hostCashout(5, 'F', { room: { sess } }); });
 await t('worst', '帳務事件同一筆順便清掉別人座位（結帳 F＋清 E）', 'deny', full(), async () => { const r = await cur(); const seatUids = [...r.seatUids]; seatUids[5] = ''; seatUids[4] = ''; return hostCashout(5, 'F', { room: { seatUids } }); });

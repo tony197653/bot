@@ -84,8 +84,6 @@ describe('附錄 M — 房號與錯誤契約', () => {
     const src = read('js/ui/mp-app.js');
     assert.match(src, /sittingBusy/);
     assert.match(src, /rescueBusy/);
-    assert.match(src, /approveBusy/);
-    assert.match(src, /denyBusy/);
     assert.match(src, /leaveBusy/);
     assert.match(src, /creating/);
     assert.match(src, /openJoinBusy/);
@@ -130,12 +128,7 @@ describe('附錄 M5 — M29～M34 契約', () => {
     assert.match(app, /桌上只剩你，不能交給別人/);
     assert.match(app, /mpHostAloneClose/);
     assert.match(app, /先不要/);
-    // #13 top-up deny
-    assert.match(host, /denyTopUp/);
-    assert.match(host, /topUpDenied/);
-    assert.match(app, /房主這次先不補/);
-    assert.match(app, /再申請一次/);
-    assert.match(app, /data-deny=/);
+    assert.doesNotMatch(host, /denyTopUp|approveTopUp/);
     // #14 stats empty
     assert.match(stats, /還沒有戰績/);
     assert.match(stats, /回大廳/);
@@ -164,15 +157,12 @@ describe('附錄 M5 — M29～M34 契約', () => {
       'joining',
       'sittingBusy',
       'rescueBusy',
-      'approveBusy',
-      'denyBusy',
       'leaveBusy',
       'openJoinBusy',
     ]) {
       assert.match(app, new RegExp(flag));
     }
     assert.match(app, /收桌中…/);
-    assert.match(app, /核准中…/);
     assert.match(app, /開房中…|creating/);
   });
 
@@ -198,11 +188,7 @@ describe('附錄 M5 — M29～M34 契約', () => {
 });
 
 describe('附錄 M — rules/indexes 未為本附錄改動（向下相容）', () => {
-  it('denyTopUp 只寫 pub（舊 client 可忽略新欄位）', () => {
-    const host = read('js/net/host.js');
-    const deny = host.slice(host.indexOf('async function denyTopUp'), host.indexOf('async function denyTopUp') + 500);
-    assert.match(deny, /topUpDenied/);
-    assert.match(deny, /pub:\s*buildPub/);
-    assert.doesNotMatch(deny, /chipTotal/);
+  it('補碼處理已移除', () => {
+    assert.doesNotMatch(read('js/net/host.js'), /denyTopUp|approveTopUp|TOPUP_REQ/);
   });
 });

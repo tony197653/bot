@@ -246,7 +246,9 @@ function hostAvHtml(hostName, hostPhoto, hostUid) {
 
 function seatedCountOf(t) {
   const raw =
-    t.seated ?? t.lobby?.seated ?? (t.seatUids || []).filter(Boolean).length;
+    Array.isArray(t.seatUids)
+      ? t.seatUids.filter(Boolean).length
+      : t.seated ?? t.lobby?.seated ?? 0;
   const n = Number(raw);
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(6, Math.trunc(n)));
@@ -733,20 +735,17 @@ export function renderCreateRoom(root, vm) {
           </div>
         </fieldset>
         <label class="mp-affix">
-          <span>新玩家起始籌碼</span>
+          <span>攜入籌碼</span>
           <div class="mp-affix-row">
-            <em>送</em>
             <input name="chips" id="mpCreateChips" type="number" inputmode="numeric" min="1000" max="100000" step="500" value="${defaults.chips}" aria-describedby="${chipsHintId}">
-            <em>籌碼</em>
           </div>
-          <small id="${chipsHintId}">第一次來的人送這筆；回來的人用帳戶餘額。1,000–100,000，每次 500。</small>
+          <small id="${chipsHintId}">入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。1,000–100,000，每次 500。</small>
         </label>
         <p class="mp-err" id="mpCreateLiveErr" ${error ? '' : 'hidden'}>${esc(error || '')}</p>
         <div class="mp-rules">
           <h3>固定規則</h3>
           <ul>
             <li>思考時間 30 秒</li>
-            <li>補碼 2,000，需房主核准</li>
             <li>斷線 60 秒標暫離</li>
           </ul>
         </div>
