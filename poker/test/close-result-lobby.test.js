@@ -576,13 +576,13 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
         timeout: 20000,
       });
-      if (!(await guest.locator('#mpLeave').count())) {
+      for (let attempt = 0; attempt < 3 && !(await guest.locator('#mpLeave').count()); attempt++) {
         await guest
           .evaluate(() => document.querySelector('.mp-empty-seat')?.click())
           .catch(() => {});
         await guest.waitForSelector('#mpBuyinPicker [data-confirm]', { timeout: 5000 }).catch(() => {});
         await guest.evaluate(() => document.querySelector('#mpBuyinPicker [data-confirm]')?.click()).catch(() => {});
-        await guest.waitForSelector('#mpLeave', { timeout: 15000 }).catch(() => {});
+        await guest.waitForSelector('#mpLeave', { timeout: 8000 }).catch(() => {});
       }
       assert.ok(await guest.locator('#mpLeave').count(), 'guest seated');
 
@@ -721,7 +721,7 @@ emuDescribe('收桌 → 回大廳 clean lobby（emulator）', () => {
       // 由唯一牌桌入口加入；清單尚未返回時，開新牌桌也會加入 000。
       const tableEntry = () => guest.locator('[data-act="open-table"]:visible, .mp-btn-primary[data-act="create"]:visible').first();
       await tableEntry().click();
-      await guest.waitForSelector('#btnBackLobby:not([hidden]), #seats, #mpLeave', {
+      await guest.waitForFunction(() => window.__qaCloseResultState?.()?.screen === 'table', null, {
         timeout: 20000,
       });
       assert.equal(

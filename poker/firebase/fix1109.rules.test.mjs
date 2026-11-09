@@ -50,12 +50,12 @@ test('fix1109：零手數收桌／第三人入座／禁止房主任意移錢', a
     });
     return room;
   };
-  const seedBuyer = async () => {
+  const seedBuyer = async (bank = 8765) => {
     await seed();
     await env.withSecurityRulesDisabled(async c => {
       const d = c.firestore(), now = fs.Timestamp.now();
       await fs.setDoc(fs.doc(d, 'pokerPlayers', 'third'), {
-        displayName: 'third', photoURL: null, bank: 8765, inPlay: 0, total: 8765,
+        displayName: 'third', photoURL: null, bank, inPlay: 0, total: bank,
         tableRoomId: null, sessionNo: 0, topUps: 0, topUpChips: 0, handsPlayed: 0,
         lastRoomId: roomId, hostRoomId: null, createdAt: now, updatedAt: now,
       });
@@ -71,6 +71,39 @@ test('fix1109：零手數收桌／第三人入座／禁止房主任意移錢', a
     return b.commit();
   };
   try {
+    await t.test('本人單批次自選買入 1500：bank 3000 變 1500、inPlay 1500、total 不變', async () => {
+      await seedBuyer(3000);
+      await assertSucceeds(rawBuyin(1500, 1500));
+      const f = db('third');
+      const p = (await fs.getDoc(fs.doc(f, 'pokerPlayers', 'third'))).data();
+      assert.equal(p.bank, 1500); assert.equal(p.inPlay, 1500); assert.equal(p.total, 3000);
+      const entry = (await fs.getDoc(fs.doc(f, 'pokerPlayers', 'third', 'ledger', `${roomId}_1_buyin`))).data();
+      assert.equal(entry.amount, 1500); assert.equal(entry.bankAfter, 1500);
+    });
+    for (const [name, amount, bank, by] of [
+      ['bank 3000：單批次買入 999 低於 50BB 1000，拒絕', 999, 2001, 'third'],
+      ['bank 3000：單批次買入 3500 超過餘額，拒絕', 3500, -500, 'third'],
+      ['bank 3000：單批次買入 1500 未扣 bank，拒絕', 1500, 3000, 'third'],
+      ['bank 3000：房主代寫玩家買入 1500 批次，拒絕', 1500, 1500, 'host'],
+    ]) await t.test(name, async () => {
+      await seedBuyer(3000);
+      await assertFails(rawBuyin(amount, bank, by));
+    });
+    await t.test('房主偽造帳務事件、無玩家帳本將朋友 500 移給自己，拒絕', async () => {
+      const room = await seed(), f = db('host');
+      await assertFails(fs.updateDoc(roomRef(f), {
+        rev: room.rev + 1, updatedAt: fs.serverTimestamp(),
+        stacks: [2500, 1500, 0, 0, 0, 0], chipTotal: room.chipTotal,
+        lastMoneyEvent: { uid: 'friend', id: `${roomId}_1_cashout`, seat: 1, type: 'cashout', amount: 500 },
+      }));
+    });
+    await t.test('房主直接改寫朋友 player bank，拒絕', async () => {
+      await seed();
+      const f = db('host');
+      await assertFails(fs.updateDoc(fs.doc(f, 'pokerPlayers', 'friend'), {
+        bank: 500, updatedAt: fs.serverTimestamp(),
+      }));
+    });
     await t.test('自選買入 2000，保留 6765 且 total 不變', async () => {
       await seedBuyer();
       await assertSucceeds(buyinAmount({ fs, db: db('third') }, 'third', roomId, 20, 2000));

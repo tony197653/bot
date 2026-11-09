@@ -1691,8 +1691,11 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         r.lastMoneyEvent.uid === user.uid && r.lastMoneyEvent.amount === 0;
       if (previousSelfSeat >= 0 && (wasBusted || ownZeroCashout) &&
           r.status !== 'closed' && !r.seatUids.includes(user.uid)) {
+        // 輸光離座＝自願離開：不顯示「我的牌桌／回到牌桌」，並重讀帳戶避免顯示舊的桌上籌碼
+        lobbyExitSuppressMine = true;
         goLobbyClean();
         toast('籌碼輸光了，已離座回大廳');
+        try { void getPlayer(fb, user.uid).then((p) => { if (p) { playerDoc = p; if (screen === 'lobby') paint(); } }).catch(() => {}); } catch { /* 測試沙盒 */ }
         return;
       }
       lastRecvAt = Date.now();
@@ -1779,6 +1782,8 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         } catch (e) {
           console.warn('grant', e);
         }
+        // 進桌途中已離開（回大廳）：不要再把畫面切回牌桌、不要啟動這桌的連線
+        if (roomId !== id) return;
 
         presence = startPresence(fb, id, user.uid, {
           isHost: () => room?.hostUid === user.uid,
