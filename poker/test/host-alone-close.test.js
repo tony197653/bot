@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { HOST_ALONE_CLOSE_MS, hostAloneSince, maybeAutoCloseSingleTable } from '../js/net/room.js';
+import { HOST_ALONE_CLOSE_MS, hostAloneCloseMs, hostAloneSince, maybeAutoCloseSingleTable } from '../js/net/room.js';
 import { createHostLoop } from '../js/net/host.js';
 
 const base = () => ({ id: 'r', code: '000', hostUid: 'h', members: ['h'], status: 'lobby', rev: 1,
@@ -67,4 +67,28 @@ test('離線房主：新成員只寫關閉標記；房主心跳新鮮則保留�
     assert.ok(writes.every(w => !w.path.startsWith('pokerPlayers/')));
     if (!fresh) assert.deepEqual(Object.keys(writes.find(w => w.patch.closedBy).patch), ['status', 'closedBy', 'closedAt']);
   }
+});
+
+
+test('獨坐與離線門檻 URL 覆寫僅限 emulator，正式環境維持 30 分鐘', async () => {
+  const previous = globalThis.location;
+  try {
+    for (const [hostname, search, emu] of [
+      ['localhost', '?emu=1&aloneMs=8000&staleMs=8000', true],
+      ['localhost', '?aloneMs=8000&staleMs=8000', false],
+      ['example.com', '?emu=1&aloneMs=8000&staleMs=8000', false],
+    ]) {
+      globalThis.location = { hostname, search };
+      assert.equal(hostAloneCloseMs(), emu ? 8000 : HOST_ALONE_CLOSE_MS);
+      let room = base();
+      const now = 10000;
+      const fs = { doc: (_d, ...p) => p.join('/'), collection: (_d, ...p) => p.join('/'),
+        arrayUnion: uid => [...room.members, uid], serverTimestamp: () => now,
+        getDoc: async path => ({ exists: () => path === 'pokerRooms/r', data: () => room }),
+        getDocs: async () => ({ docs: [{ id: 'h', data: () => ({ beat: { toMillis: () => 1000 } }) }] }),
+        updateDoc: async (path, patch) => { if (path === 'pokerRooms/r') room = { ...room, ...patch }; },
+        deleteDoc: async () => {} };
+      assert.equal(await maybeAutoCloseSingleTable({ db: {}, fs }, 'r', 'g', now), emu);
+    }
+  } finally { globalThis.location = previous; }
 });

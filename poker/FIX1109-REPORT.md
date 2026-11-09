@@ -267,3 +267,13 @@ A/B/C/D：**1／4／2／10**（0ms 與 2ms 注入延遲皆相同）。A 為開�
 - 修改檔案：上述三個正式 JS、兩個單元測試、一個 Rules 測試與本報告，共七檔。
 - M 級受影響範圍：單桌建立／加入／回收、host tick、入座、收桌、本人閉桌結算。已跑單元；未做桌機／手機人工端到端，亦未做「真 host closeAll → 點結果卡回大廳」完整整合實測，不將 callback 測試當作驗收。無 preview URL。
 - 待 PM：執行新增 Rules emulator 案例，以及 host 開啟／關閉兩種情況的人工端到端與籌碼核對，估 15–25 分鐘。依本輪 15 分鐘限制停止，不自行 QA、合併或部署。
+
+## 第九輪
+
+- 分支 `pm/fix-stacks-rules`，基底 `06118bf`。修改 `js/net/host.js`、`js/net/room.js`、`js/ui/mp-app.js`、`test/fix1109.test.js`、`test/host-alone-close.test.js`、`test/personal-stats-phase-a.test.js` 及本報告。
+- 手動下一手與自動開局共用 startHand 門檻：排空結算寫入，核對 room.pub 的 hand_over／handNo，確認獨立 hands+1 已成功才開局；點擊期間合併重複呼叫，失敗最多重試一次（含點擊後原排隊寫入），最終失敗維持原手。按鈕同步 disabled，失敗使用既有樣式 toast 並恢復可按。
+- 僅 isEmuMode() 為真時讀取正整數 `aloneMs`／`staleMs`；後者僅由開桌檢查路徑傳入，其他 idle 檢查與正式環境仍為 30 分鐘。Firestore Rules 未改，縮短客戶端門檻不代表 emulator Rules 允許提前非房主關桌。
+- 新增 unit 覆蓋：結算後無延遲點擊連續三手、每手只計一次、同步按鈕回饋、拒絕後僅重試一次與恢復可按、非 emu 忽略 URL 覆寫。既有 Phase A fixture 配合非同步下一手，回寫假房間並 await；統計儲存停滯測試保留。
+- 實際執行 `cd poker && node --test --test-isolation=none test/*.test.js`：296 項，295 通過、1 失敗；唯一失敗為既有 `raise-confirm.test.js:87` 的 `listen EPERM 127.0.0.1`（沙箱禁止本機監聽）。日誌 `/tmp/fix1109-round9-tests.log`。初跑曾發現 URL 前置門檻及 fixture 非同步假設問題，已修正並重跑。
+- `git diff --check` 及三個正式 JS 的 `node --check` 通過。M 級受影響區域單元回歸已跑；未做人工端到端、Rules emulator 或 QA 驗收，無 preview URL。
+- 未 commit／push／deploy／merge、連網、安裝依賴或修改指定未追蹤檔。剩餘：PM 在允許監聽的環境補跑失敗案例及人工連續開手／模擬器收桌驗證，估 10–15 分鐘。

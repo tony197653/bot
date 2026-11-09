@@ -288,3 +288,69 @@ test('host 手數：四人連續三手各加一次，拒絕後重試成功才開
     assert.ok(denied >= 2, '第二手必須真的重試');
   } finally { release(); f.loop.stop(); globalThis.document = priorDocument; }
 });
+
+
+test('手動下一手：結算後立即按，連續三手各計一次且按鈕同步停用', async () => {
+  const previous = globalThis.document;
+  globalThis.document = { visibilityState: 'visible' };
+  const bumps = [];
+  const f = fixture({ beforeRoomWrite(patch, room) {
+    if (patch.sess?.[0]?.hands > room.sess[0].hands) bumps.push(room.pub.handNo);
+  } });
+  const context = vm.createContext({ hostLoop: f.loop, toast: message => assert.fail(message),
+    friendlyError: e => e.message, paintTableChrome() {} });
+  vm.runInContext(source.slice(source.indexOf('async function startHandFromButton('),
+    source.indexOf('function wireTopUpActions(')), context);
+  try {
+    await f.loop.seatPlayer(1, 'b');
+    assert.equal(f.loop.startHand(), true);
+    for (let hand = 1; hand <= 3; hand++) {
+      f.loop.hostAction({ type: 'FOLD', seat: f.loop.getEngine().actor });
+      assert.equal(f.loop.getEngine().phase, 'hand_over');
+      const button = { disabled: false };
+      const pending = context.startHandFromButton({ currentTarget: button });
+      assert.equal(button.disabled, true, '等待寫入前同步停用');
+      await pending;
+      assert.equal(button.disabled, false);
+      assert.equal(f.loop.getEngine().handNumber, hand + 1);
+      assert.equal(f.loop.getEngine().phase, 'preflop');
+      assert.deepEqual(f.room().sess.filter(Boolean).map(p => p.hands), [hand, hand]);
+    }
+    assert.deepEqual(bumps, [1, 2, 3]);
+  } finally { f.loop.stop(); globalThis.document = previous; }
+});
+
+
+test('手動下一手：手數被拒重試一次，持續失敗顯示提示且可再次按', async () => {
+  const previous = globalThis.document;
+  globalThis.document = { visibilityState: 'visible' };
+  let reject = true, attempts = 0;
+  const f = fixture({ beforeRoomWrite(patch, room) {
+    if (patch.sess?.[0]?.hands > room.sess[0].hands) {
+      attempts++;
+      if (reject) throw Error('測試拒絕');
+    }
+  } });
+  const messages = [];
+  const context = vm.createContext({ hostLoop: f.loop, toast: message => messages.push(message),
+    friendlyError: e => e.message, paintTableChrome() {} });
+  vm.runInContext(source.slice(source.indexOf('async function startHandFromButton('),
+    source.indexOf('function wireTopUpActions(')), context);
+  try {
+    await f.loop.seatPlayer(1, 'b');
+    f.loop.startHand();
+    f.loop.hostAction({ type: 'FOLD', seat: f.loop.getEngine().actor });
+    const button = { disabled: false };
+    await context.startHandFromButton({ currentTarget: button });
+    assert.equal(attempts, 2);
+    assert.equal(messages.length, 1);
+    assert.equal(button.disabled, false);
+    assert.equal(f.loop.getEngine().handNumber, 1);
+    assert.equal(f.loop.getEngine().phase, 'hand_over');
+    assert.equal(f.room().sess[0].hands, 0);
+    reject = false;
+    await context.startHandFromButton({ currentTarget: button });
+    assert.equal(f.loop.getEngine().handNumber, 2);
+    assert.equal(f.room().sess[0].hands, 1);
+  } finally { f.loop.stop(); globalThis.document = previous; }
+});

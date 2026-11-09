@@ -19,7 +19,7 @@ import { nightKeyOf, hostCashoutBatch, hostCloseAllBatch } from './ledger.js';
 import { recordWrite, hostMustStopNewHand } from './quota.js';
 import { listenPresence } from './presence.js';
 import {
-  HOST_ALONE_CLOSE_MS,
+  hostAloneCloseMs,
   hostAloneSince,
   hostIsOnlySeated,
   buildLobbySummary,
@@ -92,6 +92,7 @@ export function createHostLoop(fb, opts) {
   let stopPresenceListen = null;
   let lastWriteAt = 0;
   let writeChain = Promise.resolve();
+  let startingNext = null;
   let closing = false;
   let draining = false;
   /** Personal-stats chain: independent of writeChain; never awaited by game flow. */
@@ -141,6 +142,7 @@ export function createHostLoop(fb, opts) {
     delayedTimers.add(timer);
   }
   let lastHandsBumpHandNo = 0;
+  let handsBumpAttempts = 0;
   let pubVoided = false;
 
   function playerName(uid, fallback) {
@@ -245,7 +247,7 @@ export function createHostLoop(fb, opts) {
       if (document.visibilityState !== 'visible') return;
 
       // coalesce 250ms
-      await new Promise((r) => {
+      if (!startingNext) await new Promise((r) => {
         pendingFlush = r;
         flushTimer = setTimeout(() => { flushTimer = null; pendingFlush = null; r(); }, 250);
       });
@@ -268,6 +270,7 @@ export function createHostLoop(fb, opts) {
           sess: latest.sess.map((x, i) => x && latest.seatUids[i] === x.uid
             ? { ...x, hands: (x.hands || 0) + 1 } : x),
         };
+        handsBumpAttempts++;
         await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), handsPatch);
         // 只有伺服器確認成功才放行下一手；拒絕時由既有下一手計時器重試。
         lastHandsBumpHandNo = handNo;
@@ -432,12 +435,7 @@ export function createHostLoop(fb, opts) {
         scheduleNextHand(1000);
         return;
       }
-      try {
-        engine = applyAction(engine, { type: 'ACK_HAND' }, { now: Date.now() });
-      } catch {
-        /* ignore */
-      }
-      startHand();
+      void startHand();
     }, ms);
   }
 
@@ -917,6 +915,43 @@ export function createHostLoop(fb, opts) {
   }
 
   function startHand() {
+    if (startingNext) return startingNext;
+    if (engine?.phase !== PHASE.HAND_OVER) return startHandNow();
+    clearNextHandTimer();
+    const bumpAttemptsAtClick = handsBumpAttempts;
+    startingNext = (async () => {
+      // 先排空結算，再確保獨立手數寫入成功；失敗最多重試一次。
+      await Promise.resolve();
+      if (flushTimer) clearTimeout(flushTimer);
+      flushTimer = null;
+      pendingFlush?.();
+      pendingFlush = null;
+      const handNo = engine.handNumber;
+      await writeChain;
+      if (getRoom()?.pub?.phase !== PHASE.HAND_OVER || getRoom()?.pub?.handNo !== handNo) {
+        await queueWrite();
+      }
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (lastHandsBumpHandNo < handNo || getRoom()?.pub?.phase !== PHASE.HAND_OVER ||
+            getRoom()?.pub?.handNo !== handNo) {
+          if (handsBumpAttempts - bumpAttemptsAtClick >= 2) break;
+          await queueWrite();
+        }
+        if (!running || closing || getRoom()?.status === 'closed' ||
+            engine.phase !== PHASE.HAND_OVER || engine.handNumber !== handNo) return false;
+        if (getRoom()?.pub?.phase === PHASE.HAND_OVER &&
+            getRoom()?.pub?.handNo === handNo && lastHandsBumpHandNo >= handNo) {
+          if (draining || leaveQueue.length) return false;
+          engine = applyAction(engine, { type: 'ACK_HAND' }, { now: Date.now() });
+          return startHandNow();
+        }
+      }
+      return false;
+    })().finally(() => { startingNext = null; });
+    return startingNext;
+  }
+
+  function startHandNow() {
     if (closing || !running || getRoom()?.status === 'closed') return false;
     if (hostMustStopNewHand(true)) {
       quotaStop = true;
@@ -1034,7 +1069,7 @@ export function createHostLoop(fb, opts) {
     const now = opts.now?.() ?? Date.now();
     const since = hostAloneSince(room, now);
     if (since !== (room.pub?.hostAloneSince ?? null)) queueWrite();
-    if (!autoClosing && since != null && now - since >= HOST_ALONE_CLOSE_MS &&
+    if (!autoClosing && since != null && now - since >= hostAloneCloseMs() &&
         [PHASE.LOBBY, PHASE.HAND_OVER].includes(engine.phase) &&
         [PHASE.LOBBY, PHASE.HAND_OVER].includes(room.pub?.phase) && opts.onHostAloneClose) {
       autoClosing = true;

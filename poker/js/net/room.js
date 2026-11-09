@@ -3,7 +3,7 @@
  */
 
 import { DEFAULT_NEW_PLAYER_CHIPS } from './buyin-policy.js';
-import { LS_PREFIX } from './firebase-config.js';
+import { LS_PREFIX, isEmuMode } from './firebase-config.js';
 import { recordWrite } from './quota.js';
 
 const CODE_DIGITS = 3;
@@ -11,6 +11,14 @@ const CODE_ATTEMPTS = 10;
 export const SINGLE_TABLE_CODE = '000';
 const IDLE_CLOSE_MS = 30 * 60_000;
 export const HOST_ALONE_CLOSE_MS = 30 * 60_000;
+function emuTimeout(name, fallback) {
+  if (!isEmuMode()) return fallback;
+  const value = Number(new URLSearchParams(location.search).get(name));
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+export function hostAloneCloseMs() {
+  return emuTimeout('aloneMs', HOST_ALONE_CLOSE_MS);
+}
 /** Lightweight lobby list docs (not full pokerRooms). Doc id = roomId. */
 export const LOBBY_LIST_COL = 'pokerLobby';
 
@@ -241,13 +249,13 @@ export async function maybeAutoCloseSingleTable(fb, roomId, uid, now = Date.now(
   let room = snap.data();
   if (room.code !== SINGLE_TABLE_CODE || !isRoomOpenStatus(room.status) ||
       !hostIsOnlySeated(room) || !['lobby', 'hand_over'].includes(room.pub?.phase) ||
-      now - (room.updatedAt?.toMillis?.() || 0) <= IDLE_CLOSE_MS) return false;
+      now - (room.updatedAt?.toMillis?.() || 0) <= emuTimeout('staleMs', IDLE_CLOSE_MS)) return false;
   if (!room.members.includes(uid)) {
     await fs.updateDoc(ref, { members: fs.arrayUnion(uid) });
   }
   snap = await fs.getDoc(ref);
   room = snap.data();
-  return maybeAutoCloseIdleRoom(fb, { ...room, id: roomId }, now);
+  return maybeAutoCloseIdleRoom(fb, { ...room, id: roomId }, now, emuTimeout('staleMs', IDLE_CLOSE_MS));
 }
 
 export function hostIsOnlySeated(room) {
@@ -687,12 +695,12 @@ export async function closeRoom(fb, roomId, { auto = false, closedRoom = null } 
  * L4: if room idle ≥30m (updatedAt + all member presence), auto-close.
  * @returns {Promise<boolean>} true if closed
  */
-export async function maybeAutoCloseIdleRoom(fb, room, now = Date.now()) {
+export async function maybeAutoCloseIdleRoom(fb, room, now = Date.now(), staleMs = IDLE_CLOSE_MS) {
   if (!room?.id || room.status === 'closed') return false;
   if (room.code === SINGLE_TABLE_CODE && (!hostIsOnlySeated(room) ||
       !['lobby', 'hand_over'].includes(room.pub?.phase))) return false;
   const updatedMs = room.updatedAt?.toMillis?.() || 0;
-  if (now - updatedMs <= IDLE_CLOSE_MS) return false;
+  if (now - updatedMs <= staleMs) return false;
   const { db, fs } = fb;
   try {
     const pres = await fs.getDocs(
@@ -701,7 +709,7 @@ export async function maybeAutoCloseIdleRoom(fb, room, now = Date.now()) {
     for (const d of pres.docs) {
       if (room.code === SINGLE_TABLE_CODE && d.id !== room.hostUid) continue;
       const beat = d.data()?.beat?.toMillis?.() || 0;
-      if (now - beat <= IDLE_CLOSE_MS) return false;
+      if (now - beat <= staleMs) return false;
     }
     await closeRoom(fb, room.id, { auto: true });
     return true;

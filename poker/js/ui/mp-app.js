@@ -2225,6 +2225,20 @@ function topUpPlayerHtml(pub, mySeat, stacks) {
   return `<button type="button" class="primary" id="mpTopup">申請補 2,000</button>`;
 }
 
+async function startHandFromButton(event) {
+  const button = event.currentTarget;
+  if (button.disabled) return;
+  button.disabled = true;
+  try {
+    if (!await hostLoop?.startHand()) toast('沒有送出去，可能是網路斷了。請再按一次');
+  } catch (e) {
+    toast(friendlyError(e, '沒有送出去，可能是網路斷了。請再按一次'));
+  } finally {
+    button.disabled = false;
+    paintTableChrome();
+  }
+}
+
 function wireTopUpActions(btns, pub, mySeat) {
   $('#mpTopup', btns)?.addEventListener('click', () => {
     const btn = $('#mpTopup', btns);
@@ -2371,7 +2385,7 @@ function renderActBar() {
   ) {
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始第一手（${seatedCount}人）</button>
       <button type="button" class="ghost" id="mpLeave">離座</button>`;
-    $('#mpStart')?.addEventListener('click', () => hostLoop?.startHand());
+    $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
   }
@@ -2384,7 +2398,7 @@ function renderActBar() {
       ${hasLeaveInTop ? '' : '<button type="button" class="ghost" id="mpLeave">離座</button>'}
       ${playerTop}
       ${topUpHostHtml(pub)}`;
-    $('#mpStart')?.addEventListener('click', () => hostLoop?.startHand());
+    $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     wireTopUpActions(btns, pub, mySeat);
     return;

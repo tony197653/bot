@@ -458,7 +458,7 @@ describe('Phase A fix-up coverage', () => {
       doc: (...args) => args.slice(1).join('/'), collection: () => 'local',
       onSnapshot: () => () => {}, serverTimestamp: () => 1,
       writeBatch: () => ({ set() {}, async commit() {} }),
-      async updateDoc() {}, async setDoc() {},
+      async updateDoc(path, patch) { if (path === 'pokerRooms/local') room = { ...room, ...patch }; }, async setDoc() {},
     };
     const mem = {
       _d: Object.create(null),
@@ -490,12 +490,12 @@ describe('Phase A fix-up coverage', () => {
     const warn = console.warn;
     console.warn = () => {};
     t.after(() => { console.warn = warn; });
-    assert.equal(host.startHand(), true);
+    assert.equal(await host.startHand(), true);
     const firstId = host.getEngine().handId;
     host.hostAction({ type: 'FOLD', seat: host.getEngine().actor });
     const first = host.getStatsSession().getLastSnapshot();
     assert.equal(first.handId, firstId);
-    assert.equal(host.startHand(), true);
+    assert.equal(await host.startHand(), true);
     const secondId = host.getEngine().handId;
     assert.notEqual(firstId, secondId);
     host.hostAction({ type: 'CALL', seat: host.getEngine().actor });
