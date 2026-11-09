@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import * as fs from 'firebase/firestore';
 import { hostCloseAllBatch, buyinAll, ensurePlayerGrant } from '../js/net/ledger.js';
+import { createSingleTable, closeRoom } from '../js/net/room.js';
 import { createHostLoop } from '../js/net/host.js';
 
 const endpoint = process.env.FIRESTORE_EMULATOR_HOST;
@@ -50,6 +51,26 @@ test('fix1109：零手數收桌／第三人入座／禁止房主任意移錢', a
     return room;
   };
   try {
+    await t.test('單桌建立／加入／並行收斂使用正式規則允許的寫入', async () => {
+      await env.clearFirestore();
+      const opts = { uid: 'host', name: '牌桌', displayName: '房主', sb: 10, bb: 20, newPlayerChips: 2000 };
+      const hostFb = { fs, db: db('host') };
+      const created = await assertSucceeds(createSingleTable(hostFb, opts));
+      const joined = await assertSucceeds(createSingleTable({ fs, db: db('friend') }, { ...opts, uid: 'friend' }));
+      assert.equal(joined.roomId, created.roomId);
+      assert.ok((await fs.getDoc(fs.doc(db('friend'), 'pokerRooms', created.roomId))).data().members.includes('friend'));
+      await assertSucceeds(closeRoom(hostFb, created.roomId));
+      // 關閉文件保留時仍可重新開桌；不重用已關閉房間 ID。
+      const reopened = await assertSucceeds(createSingleTable(hostFb, opts));
+      assert.notEqual(reopened.roomId, created.roomId);
+      await env.clearFirestore();
+      const concurrent = await Promise.all([
+        assertSucceeds(createSingleTable(hostFb, opts)),
+        assertSucceeds(createSingleTable({ fs, db: db('friend') }, { ...opts, uid: 'friend' })),
+      ]);
+      // 這個時序應收斂；不是所有時序的唯一性證明。
+      assert.equal(concurrent[0].roomId, concurrent[1].roomId);
+    });
     await t.test('兩人各買入 2000，未開局 closeAll 七文件原子結算成功', async () => {
       const room = await seed();
       await assertSucceeds(hostCloseAllBatch({ fs, db: db('host') }, { hostUid: 'host', roomId, room, displayNameOf: uid => uid }));

@@ -172,6 +172,52 @@ export function sortLobbyListings(rows) {
   });
 }
 
+/** 以既有大廳查詢找最早開桌；不將本機快取當作建立許可。 */
+export async function findOpenTable(fb) {
+  const { db, fs } = fb;
+  const snap = await fs.getDocs(fs.query(
+    fs.collection(db, LOBBY_LIST_COL),
+    fs.where('status', 'in', ['lobby', 'playing']),
+    fs.orderBy('createdAt', 'asc'), fs.limit(20),
+  ));
+  const rows = [];
+  snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+  return sortLobbyListings(rows)[0] || null;
+}
+
+async function joinExistingTable(fb, table, uid) {
+  const result = await joinByRoomId(fb, table.id, uid);
+  if (result.error || result.ended) throw new Error(result.error || '牌桌已結束');
+  return { roomId: table.id, code: result.room.code, name: result.room.name,
+    config: result.room.config, existing: true };
+}
+
+/** 並行建立僅盡力收斂；現行規則沒有跨房間唯一性限制。 */
+export async function createSingleTable(fb, opts) {
+  const existing = await findOpenTable(fb);
+  if (existing) return joinExistingTable(fb, existing, opts.uid);
+  const created = await createRoom(fb, opts);
+  const oldest = await findOpenTable(fb);
+  if (!oldest || oldest.id === created.roomId) return created;
+  // 尚未公開分享／入座，僅收掉這次自己建立的空桌。
+  if (!created.existing) {
+    const closed = await fb.fs.runTransaction(fb.db, async tx => {
+      const ref = fb.fs.doc(fb.db, 'pokerRooms', created.roomId);
+      const snap = await tx.get(ref);
+      if (!snap.exists()) return null;
+      const room = snap.data();
+      if (room.status === 'closed' || room.seatUids.some(Boolean)) return null;
+      const patch = { status: 'closed', rev: room.rev + 1, updatedAt: fb.fs.serverTimestamp() };
+      tx.update(ref, patch);
+      return { ...room, ...patch };
+    });
+    // 已有人入座時保留原桌，不能為收斂而中斷帳務。
+    if (!closed) return created;
+    await closeRoom(fb, created.roomId, { closedRoom: closed });
+  }
+  return joinExistingTable(fb, oldest, opts.uid);
+}
+
 async function codeIsFree(tx, fs, db, code) {
   const codeRef = fs.doc(db, 'pokerCodes', code);
   const codeSnap = await tx.get(codeRef);

@@ -18,9 +18,10 @@ test('所有進桌入口：第一筆網路讀取前立即顯示牌桌載入畫�
   paintEnterShell() { events.push('paint'); }, getLastRoom: () => ({ name: '牌桌' }),
   lastKnownSelfTableChips: 0, pendingCloseReturnChips: null, closeResultChipsShown: 0,
   });
-  vm.runInContext(body + '\n}', context);
+  context.listenRoom = () => { events.push('subscribe'); return null; };
+  vm.runInContext(body + '\n stopRoom = listenRoom();\n}', context);
   void context.enterRoom('r');
-  assert.deepEqual(events.slice(0, 2), ['paint', 'read']);
+  assert.deepEqual(events.slice(0, 2), ['paint', 'subscribe']);
 });
 
 function fixture(options = {}) {

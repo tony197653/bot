@@ -22,7 +22,8 @@ import {
   LS_PREFIX,
 } from '../net/firebase-config.js';
 import {
-  createRoom,
+  createSingleTable,
+  findOpenTable,
   joinByCode,
   joinByRoomId,
   listenRoom,
@@ -72,7 +73,6 @@ import {
   renderCreateRoom,
   renderShareRoom,
   renderJoinCode,
-  patchOpenTables,
   showLobbyNotify,
   hideLobbyNotify,
   flashMyTableAttn,
@@ -791,13 +791,15 @@ function bindPersonalStatsEntry() {
   if (document.body.dataset.psWired) return;
   document.body.dataset.psWired = '1';
   document.addEventListener('click', (e) => {
-    const av = e.target.closest?.('#seats .av[data-ps-uid], #heroAv[data-ps-uid], .mp-lb-av[data-ps-uid]');
-    if (!av || !av.dataset.psUid) return;
+    const av = e.target.closest?.('#seats .av[data-ps-uid], #heroAv, .mp-lb-av[data-ps-uid], .mp-hav[data-ps-uid]');
+    if (!av || (av.id !== 'heroAv' && !av.dataset.psUid)) return;
     const fb = getFirebase();
     const me = getUser();
     if (!fb || !me) return;
+    if (av.classList?.contains('mp-hav') && av.dataset.psUid !== me.uid) return;
     e.stopPropagation();
-    openStatsFor(av.dataset.psUid, av.dataset.psName || '');
+    if (av.id === 'heroAv' || av.dataset.psUid === me.uid) void openStats();
+    else openStatsFor(av.dataset.psUid, av.dataset.psName || '');
   }, true);
 }
 /** v1.0.5: after cash-out / leave, self re-syncs public chips total (= bank) and clears private seat map.
@@ -1105,7 +1107,7 @@ function paint() {
       onMyStats: () => { const u = getUser(); if (u) openStatsFor(u.uid, u.displayName || '玩家'); },
       onSignOut: () => signOut(),
       onRescue: () => doRescue(),
-      onAvatar: () => openStats(),
+      onAvatar: openStats,
       onSettings: () => toast('設定還在製作中，請先用⋯選單的「戰績」'),
       lobbyStatus: awayLobbyStatus,
     });
@@ -1268,14 +1270,9 @@ function ensureOpenTablesListen() {
   stopOpenTables = listenOpenTables(
     fb,
     (rows) => {
-      openTables = rows;
+      openTables = rows.slice(0, 1);
       if (screen !== 'lobby') return;
-      const root = $('#mpRoot');
-      const myId = playerDoc?.tableRoomId || playerDoc?.hostRoomId || null;
-      const visible = openTables.filter(
-        (t) => t.id !== myId && (t.status === 'lobby' || t.status === 'playing' || t.status === 'open'),
-      );
-      if (root && patchOpenTables(root, visible)) return;
+      // 單桌出現／消失時，開桌入口也必須同步更新。
       paint();
     },
     (err) => console.warn('open tables', err),
@@ -1409,9 +1406,20 @@ async function maybeRefreshRescue() {
 async function onCreateTable() {
   const fb = getFirebase();
   const user = getUser();
+  toast('正在確認牌桌…');
+  if (!fb || !user) return;
+  try {
+    const existing = await findOpenTable(fb);
+    if (existing) {
+      await enterOpenTable(existing.id);
+      return;
+    }
+  } catch (e) {
+    toast(friendlyError(e, '無法確認牌桌，請再試一次'));
+    return;
+  }
   const hid = playerDoc?.hostRoomId;
   if (hid && fb && user) {
-    toast('正在確認牌桌…');
     try {
       const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', hid));
       if (snap.exists() && isRoomOpenStatus(snap.data()?.status)) {
@@ -1475,7 +1483,7 @@ async function doCreate(data) {
     const displayName = user.displayName || '玩家';
     const tableName =
       String(data.name || '').trim() || `${displayName}的牌桌`;
-    const res = await createRoom(fb, {
+    const res = await createSingleTable(fb, {
       uid: user.uid,
       name: tableName,
       displayName,
@@ -1488,7 +1496,7 @@ async function doCreate(data) {
       // L3: already hosting → go straight back to that table
       creating = false;
       screen = 'lobby';
-      await enterRoom(res.roomId, { asHostSit: true });
+      await enterRoom(res.roomId);
       return;
     }
     shareInfo = res;

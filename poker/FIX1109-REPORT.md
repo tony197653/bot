@@ -76,3 +76,65 @@ Rules 是否改動：**否**。`git diff -- poker/firebase/firestore.rules` 為�
 - Rules 測試未執行；固定 projectId=demo-fix1109，只接受 FIRESTORE_EMULATOR_HOST=localhost/127.0.0.1:port，載入正式原檔不替換規則。包含兩人零手數 closeAll 成功、第三人完整 grant/buyin/seat 成功、房主任意移動別人的錢拒絕。
 
 回歸範圍：M，受影響為大廳開桌／加入、買入入座、房主寫入鏈、收桌、未入座提示；單元已執行，手機 Safari／桌機手動端到端與 Rules emulator 尚未執行，留 PM／QA，並非自行驗收通過。無 preview URL。剩餘估計：PM emulator＋雙裝置重現驗證約15–25分鐘，若正常兩人 closeAll 仍遭拒，需伺服器 trace 才能估算後續修正。
+
+## 單桌＋0.2秒（第二輪）
+
+本輪只在 pm/fix-1109-trial 本機修改；未 commit、push、部署、安裝依賴、修改任何 Rules 或 PROD-EVIDENCE-930.md。使用者本輪需求為行為授權，沿用既有 UI／選位提示。
+
+設計：開新牌桌先同步 toast，再用既有 pokerLobby 查詢（status in lobby/playing、createdAt 升冪、limit 20）找最早一桌。有桌就經既有 joinByRoomId 加成員，再進桌，不開表單；沒桌才開表單。表單提交再查一次；建立完成後再查一次，若有更早一桌，以交易確認自己新桌仍無座位才關閉，再清理清單／房號／hostRoomId，加入較早一桌。若已有入座則保留原桌，避免中斷帳務。大廳只顯示首桌入口，有桌不顯示開新牌桌；移除房號輸入與其死碼，分享、網址及訂閱拒絕後的房號加入保留。收桌確認原本已有同步 disabled＋「收桌中…」，未改其行為。
+
+**限制：這是盡力收斂，不是站台嚴格單桌保證，TASK 1 的嚴格要求尚未完成。** 兩個建立者若各自在對方提交前完成事後查詢，仍可能留下兩桌；查詢只涵蓋既有 lobby/playing 公開清單，無法發現沒有清單的舊 open 桌。並行單元測試只證明指定交錯順序能收斂。沒有證明所有現行規則相容鎖定設計均不可能，不將以下限制冒稱為完整不可能性證明；嚴格方案仍須另輪研究／PM 決策。
+
+Rules 行號（正式檔案未改）：
+- 294–324 createLobbyRoomOk：新房需空席、零籌碼、本人 host、同批 code 指向 room、player.hostRoomId 指向 room；沿用 createRoom 原交易及 grant。
+- 225–234 isJoin：僅增加本人至 members；既有 joinByRoomId arrayUnion 沿用。
+- 371–385：非成員只能 get lobby/playing，不能 get 已關閉文件／不存在文件；delete=false。這阻擋直接 tx.get 永久固定房間 ID 後重新 create 的方案，已關閉文件也不能重建。
+- 432–462 pokerCodes：signedIn 可 get；更新須過期／房間不存在／已關閉，或房主僅延長 expiresAt；固定房號可重用，但其開桌到期後也可被覆蓋，不能單靠這條規則宣稱全站唯一。
+- 468–494 player create：同批 grant 與 room 成員關係；本輪沿用既有寫入。
+- 693–716 pokerLobby：登入可 get；list 限 20 且 lobby/playing；create 須同批房間 host，update 僅房主且保留 createdAt；close 清理可由房主 delete。新查詢與空桌收斂沿用這些合法操作。規則沒有全站只能建立一桌的條件，各自 host/code/room 的交易仍可各自合法。
+
+檔案：js/net/room.js、js/ui/mp-app.js、js/ui/lobby.js、test/open-speed.test.js、test/fix1109.test.js、test/appendix-m.test.js、新增 test/ui-response.test.js、firebase/fix1109.rules.test.mjs、本報告。
+
+測試與命令（實際執行）：
+- `cd poker && node --test --test-isolation=none test/*.test.js`：269 項，268 通過、1 失敗；既有 raise-confirm 本機 HTTP listen EPERM 127.0.0.1。沒有宣稱全綠；相同環境錯誤已達停止重試門檻。
+- 最後補強空桌關閉為交易後，另跑 `node --test --test-isolation=none test/ui-response.test.js test/open-speed.test.js test/fix1109.test.js test/appendix-m.test.js`；結果見下方。
+- 注入 300ms 網路延遲，真實 onCreateTable 兩分支／收桌確認 click 處理器首次回饋實測分別 0.668／0.557／0.908 ms，皆同步、網路未完成且 <200ms。此為 fake DB／UI callback 時間，不是實機繪製驗收。
+- 速度 A/B/C/D 實測 1/4/2/10：A 新增建表前查詢 1；B 新增提交前與建立後查詢 2；C 不變。D 與指定 9 次基準不符：舊 harness 搜尋 async function seatPlayer，但先前座位修正已改成 function seatPlayer＋seatPlayerInner；修正 harness 才真正執行最新入座前的 room getDoc，多 1 次，並非本輪新增進桌操作。保留實測 10 的斷言，明列此項需求偏差，不用 stub 隱藏必要讀取。
+- Rules 新增實際 createSingleTable 建立／加入／收桌後重開／並行收斂 assertions；projectId 固定 demo-fix1109，只接受 localhost emulator。`FIRESTORE_EMULATOR_HOST=127.0.0.1:8295 node --test firebase/fix1109.rules.test.mjs` 及加 `--test-isolation=none` 的診斷執行皆失敗；精確原因 connect EPERM 127.0.0.1:8295，初始化載入規則即遭環境拒絕，測例未執行、未清除資料。相容性尚無 emulator 通過證據。
+- `node --check poker/firebase/fix1109.rules.test.mjs`、`git diff --check` 通過；Rules diff 為空。
+
+回歸 M：單元涵蓋開桌／加入／空桌收斂／房號移除／選位提示／收桌同步回饋及既有受影響測試；桌機／手機手動端到端未執行，仍由 PM 按 M 範圍驗證。無 preview URL；未自行驗收。剩餘：嚴格並行唯一設計、emulator 實跑及雙裝置手動驗證；估需另輪 20–40 分鐘（嚴格方案可行性未定）。
+
+最後受影響測試結果：37/37 通過（包含交易關閉空桌後的重跑）。
+
+## 第三輪：嚴格單桌鎖＋頭像統一
+
+### A：規則衝突，暫停待 PM／owner 決定
+
+本輪要求固定 6 碼 `SINGLE_TABLE_CODE`、沿用現有 createRoom 的 lobby 格式，且 Rules 不變。但實際 `firebase/firestore.rules:315` 的 createLobbyRoomOk 僅允許 `[0-9]{3}`；:322 要求同批 code 文件指向新房間。:341–367 的 6 碼相容分支僅接受 status=open、且欄位白名單不包含 lobby，不能用來承接現有 lobby 建房格式。codeDigitsOk（:71）與 pokerCodes（:432–464）接受 3／6 碼，不代表房間建立也接受 6 碼。
+
+已依 AGENTS.md「Ambiguity → stop and report」暫停 A，詢問是否改用固定 3 碼；本輪暫試的 A 修改已撤除，第二輪未提交內容保留。尚未替換 best-effort convergence、尚未更新 rules 測試及 open-speed 預期。現有並行收斂測試通過仍不是嚴格唯一保證。
+
+待確認後的設計：保留 legacy pokerLobby 最舊桌預查；讀固定 code，交易外判定其房間可讀且開放則 joinByRoomId；否則交易第一筆 tx.get(code)，核對 absent／先前 roomId 及到期時間，再原子寫 room/code/lobby/player（新帳號含既有 grant）。鎖變更則回讀並加入勝方；不在交易內讀非成員無法讀取的關閉房間，移除建立後收桌遷移。Rules :433–444 的 codeOk 核對同批 room.code/hostUid 與 24h±10m；:446–455 的 codeReclaimable 由伺服器判定 expired／missing／closed。
+
+到期風險：code 為 24 小時有效。`js/net/room.js:555` extendCode 可延長；全專案唯一呼叫是 `js/ui/mp-app.js` 的 mpExtendCode（手動選單操作），沒有自動續期。固定碼桌開超過 24h 且未手動延長時，若 listing 預查沒有找到該桌，鎖可被回收並建立第二桌；不能宣稱無期限嚴格唯一。A 尚待核准與實作，因此本輪開桌等待預期維持第二輪 A=1、B=4、C=2、D=10，不捏造新鎖量測。
+
+### B：所有既有自身頭像統一入口
+
+- 大廳 header：onAvatar 直接傳同一個 openStats。
+- 大廳牌桌列的房主縮圖：加入 hostUid 標記；本人點擊攔截並呼叫 openStats，其他房主維持進桌行為。
+- 牌桌：本人座位頭像、底部 heroAv（含進桌 shell／未入座、尚無 uid 標記）均走 openStats。
+- 個人紀錄頁：總籌碼與單晚列表的本人頭像走 openStats。既有 stats 頁仍渲染。
+- 建立表單、分享頁、加入頁、收桌／結算卡目前沒有自身頭像；未新增頭像或 UI。牌桌上方沒有另一個自身頭像。js/ui/app.js 為單機座位／玩家設定頭像，沒有登入使用者身分，不擅自改為多人個人紀錄。
+- 其他玩家座位／紀錄列表頭像維持 openStatsFor 的原有浮層。待 PM 確認：owner 的統一要求是否未來也要涵蓋其他玩家？本輪依明確指示保持原行為。
+
+本輪實際修改檔案：`js/ui/mp-app.js`、`js/ui/lobby.js`、新增 `test/avatar-stats.test.js`、本報告。其他第二輪檔案保留。未修改 PROD-EVIDENCE-930.md、Rules、依賴或憑證；無 commit／push／部署／對外網路操作。
+
+### 實際驗證與範圍
+
+- `cd poker && node --test --test-isolation=none test/*.test.js`：281 tests，280 pass、1 fail；唯一失敗為 raise-confirm.test.js 的 localhost listen EPERM（環境限制）。既有 stats 測試通過，未宣稱全套全綠。
+- `cd poker && node --test --test-isolation=none test/avatar-stats.test.js test/ui-response.test.js`：18 tests 全通過；其中新增頭像測試 12 項。
+- 重跑 ui-response 的首次同步回饋：尚無牌桌 0.644 ms、已有牌桌 0.532 ms、收桌確認 1.010 ms；注入等待 300 ms。這是本機函式／stub 量測，並非 Safari 實際繪製或正式網路延遲。
+- `git diff --check`：通過。
+- 回歸涵蓋：頭像點擊共用入口、本人與他人分流、既有 stats 兩模式渲染、開桌／進桌既有單元測試。未執行手動瀏覽器／桌機與手機端到端回歸，未自行驗收；仍由 PM／QA 依正式規模處理。沒有啟動或連線 emulator，rules 測試未執行。
+- Preview URL：無。A 剩餘：碼位決策後實作鎖、可控並行競態與關閉回收測試、rules 測試更新及等待量測；預估另需 15–20 分鐘，不含 emulator／PM 手動回歸。

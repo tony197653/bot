@@ -236,11 +236,12 @@ function openRowLabel(t, seated, full) {
   return `${name}，房主 ${host}，盲注 ${blinds}，${seated} / 6 人，房號 ${code}${full ? '，已滿' : ''}`;
 }
 
-function hostAvHtml(hostName, hostPhoto) {
+function hostAvHtml(hostName, hostPhoto, hostUid) {
+  const uidAttr = `data-ps-uid="${esc(hostUid || '')}"`;
   if (hostPhoto) {
-    return `<img class="mp-hav" src="${esc(hostPhoto)}" alt="" width="36" height="36">`;
+    return `<img class="mp-hav" ${uidAttr} src="${esc(hostPhoto)}" alt="" width="36" height="36">`;
   }
-  return `<span class="mp-hav" aria-hidden="true">${esc((hostName || '?')[0])}</span>`;
+  return `<span class="mp-hav" ${uidAttr} aria-hidden="true">${esc((hostName || '?')[0])}</span>`;
 }
 
 function seatedCountOf(t) {
@@ -262,7 +263,7 @@ export function openRowHtml(t) {
   return `<li>
     <button type="button" class="mp-row${full ? ' full' : ''}" data-act="open-table" data-rid="${esc(t.id)}"
       ${full ? 'disabled' : ''} aria-label="${esc(openRowLabel(t, seated, full))}">
-      ${hostAvHtml(hostName, rowHostPhoto(t))}
+      ${hostAvHtml(hostName, rowHostPhoto(t), t.hostUid)}
       <span class="mp-txt" aria-hidden="true">
         <span class="mp-l1"><b>${esc(name)}</b><span class="mp-tag">已滿</span></span>
         <em>${esc(hostName)} 開桌 · 房號 ${esc(code)}</em>
@@ -401,7 +402,7 @@ export function renderMpLobby(root, vm) {
     user,
     player,
     myTable = null,
-    openTables = [],
+    openTables: listedTables = [],
     joinDigits = '',
     joinError = '',
     joining = false,
@@ -418,6 +419,7 @@ export function renderMpLobby(root, vm) {
     onAvatar,
   } = vm;
 
+  const openTables = listedTables.slice(0, 1);
   const name = user?.displayName || '玩家';
   const bank = player?.bank ?? 0;
   const inPlay = player?.inPlay ?? 0;
@@ -436,7 +438,7 @@ export function renderMpLobby(root, vm) {
     inPlay,
   });
   const myPanel = mineCard.html;
-  const showCreateBtn = mineCard.showCreate;
+  const showCreateBtn = mineCard.showCreate && openTables.length === 0;
   const statusWord = vm.lobbyStatus || mineCard.statusWord || '在大廳';
   const tableBal = shownInPlay > 0 ? fmtChips(shownInPlay) : '—';
   const tableBalZero = shownInPlay > 0 ? '' : ' zero';
@@ -486,47 +488,6 @@ export function renderMpLobby(root, vm) {
          <p class="mp-meta">沒有網路，連上後才能開桌或加入</p>`
       : `<button type="button" class="mp-btn-primary" data-act="create" id="mpBtnCreate">${PLUS_SVG}開新牌桌</button>`
     : '';
-
-  const joinState = joining ? 'joining' : joinError ? 'error' : joinDigits ? 'typing' : 'empty';
-  const remain = CODE_DIGITS - (joinDigits || '').length;
-  const statusMsg = joining
-    ? `<span class="mp-spin" aria-hidden="true"></span><span class="mp-join-msg">加入中…</span>`
-    : joinError
-      ? `${ERR_ICO}<span class="mp-join-msg">${esc(joinError)}</span>`
-      : joinDigits
-        ? `<span class="mp-join-msg">還差 ${remain} 位</span>`
-        : `<span class="mp-join-msg">打滿 ${CODE_DIGITS} 位會自動加入，可直接貼上</span>`;
-
-  const cells = [0, 1, 2]
-    .map((i) => {
-      const d = (joinDigits || '')[i] || '';
-      const filled = d ? ' filled' : '';
-      const cur =
-        !joining && !joinError && (joinDigits || '').length < CODE_DIGITS && i === (joinDigits || '').length
-          ? ' cur'
-          : '';
-      return `<span class="mp-cell${filled}${cur}"><span class="mp-digit">${esc(d)}</span><span class="mp-caret"></span></span>`;
-    })
-    .join('');
-
-  const joinBox = `<section class="mp-join" aria-label="輸入房號加入">
-    <div class="mp-jr">
-      <div class="mp-jt">
-        <label class="mp-lbl" for="mpJoinCode">有房號？</label>
-        <span class="mp-sub">輸入 ${CODE_DIGITS} 位數直接加入</span>
-      </div>
-      <div class="mp-fb" id="mpJoinWrap" data-s="${joinState}">
-        <div class="mp-cells" aria-hidden="true">${cells}</div>
-        <input id="mpJoinCode" name="roomcode" type="text" inputmode="numeric" pattern="[0-9]*"
-          maxlength="${CODE_DIGITS}" autocomplete="off" autocorrect="off" autocapitalize="off"
-          spellcheck="false" enterkeyhint="go" value="${esc(joinDigits)}"
-          ${joining || offline ? 'readonly' : ''} aria-busy="${joining ? 'true' : 'false'}"
-          aria-invalid="${joinError ? 'true' : 'false'}" aria-describedby="mpJoinStatus"
-          ${offline ? 'aria-disabled="true"' : ''}>
-      </div>
-    </div>
-    <div class="mp-join-status" id="mpJoinStatus" data-s="${joinState}" aria-live="polite">${statusMsg}</div>
-  </section>`;
 
   const ranks = (vm.leaderPreview || [])
     .slice(0, 3)
@@ -581,7 +542,6 @@ export function renderMpLobby(root, vm) {
         </div>
         <div class="mp-side">
           ${createBtn}
-          ${joinBox}
           <article class="mp-card mp-c1" data-act="stats" role="button" tabindex="0">
             <h3>戰績</h3>
             <ol class="mp-ranks">${ranks || '<li class="mp-mute">還沒有戰績</li>'}</ol>
@@ -634,12 +594,7 @@ export function renderMpLobby(root, vm) {
     });
   });
 
-  wireJoinBoxes(root, {
-    digits: joinDigits,
-    joining,
-    error: joinError,
-    onJoinCode,
-  });
+
 }
 
 function closeLobbyMenu(root, focusBtn) {
@@ -751,134 +706,6 @@ function wireLobbyMenu(root) {
     closeLobbyMenu(document.getElementById('mpRoot') || document);
   };
   document.addEventListener('pointerdown', window.__mpMenuOutside, true);
-}
-
-function wireJoinBoxes(root, { digits, joining, error, onJoinCode }) {
-  const input = $('#mpJoinCode', root);
-  const wrap = $('#mpJoinWrap', root);
-  if (!input || !wrap) return;
-
-  const renderCells = () => {
-    const v = input.value;
-    const err = wrap.dataset.s === 'error';
-    const all =
-      err &&
-      v.length === CODE_DIGITS &&
-      input.selectionStart === 0 &&
-      input.selectionEnd === CODE_DIGITS;
-    wrap.classList.toggle('all', all);
-    wrap.querySelectorAll('.mp-cell').forEach((c, i) => {
-      const digit = c.querySelector('.mp-digit');
-      if (digit) digit.textContent = v[i] || '';
-      c.classList.toggle('filled', !!v[i]);
-      c.classList.toggle('cur', !all && v.length < CODE_DIGITS && i === v.length);
-    });
-  };
-
-  const sanitize = (raw) => String(raw || '').replace(/\D/g, '').slice(0, CODE_DIGITS);
-
-  const setStatus = (s, html) => {
-    wrap.dataset.s = s;
-    const st = $('#mpJoinStatus', root);
-    if (st) {
-      st.dataset.s = s;
-      st.innerHTML = html;
-    }
-    input.readOnly = s === 'joining' || s === 'success';
-    input.setAttribute('aria-invalid', s === 'error' ? 'true' : 'false');
-    input.setAttribute('aria-busy', s === 'joining' ? 'true' : 'false');
-    renderCells();
-  };
-
-  const idle = () => {
-    const n = input.value.length;
-    if (!n) {
-      setStatus(
-        'empty',
-        `<span class="mp-join-msg">打滿 ${CODE_DIGITS} 位會自動加入，可直接貼上</span>`,
-      );
-    } else {
-      setStatus('typing', `<span class="mp-join-msg">還差 ${CODE_DIGITS - n} 位</span>`);
-    }
-  };
-
-  input.addEventListener('input', () => {
-    if (wrap.dataset.s === 'joining' || wrap.dataset.s === 'success') return;
-    const v = sanitize(input.value);
-    if (v !== input.value) input.value = v;
-    if (v.length === CODE_DIGITS) {
-      setStatus(
-        'joining',
-        `<span class="mp-spin" aria-hidden="true"></span><span class="mp-join-msg">加入中…</span>`,
-      );
-      onJoinCode?.(v);
-    } else {
-      idle();
-    }
-  });
-
-  input.addEventListener('paste', (e) => {
-    e.preventDefault();
-    if (wrap.dataset.s === 'joining' || wrap.dataset.s === 'success') return;
-    const t = e.clipboardData?.getData('text') || '';
-    const m =
-      t.match(new RegExp(`room=(\\d{${CODE_DIGITS}})(?!\\d)`, 'i')) ||
-      t.match(new RegExp(`(?:^|\\D)(\\d{${CODE_DIGITS}})(?:\\D|$)`));
-    if (m) input.value = m[1];
-    else {
-      const a = input.selectionStart ?? input.value.length;
-      const b = input.selectionEnd ?? a;
-      input.value = sanitize(input.value.slice(0, a) + t + input.value.slice(b));
-    }
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-
-  input.addEventListener('keydown', (e) => {
-    if (
-      e.key === 'Enter' &&
-      wrap.dataset.s === 'error' &&
-      input.value.length === CODE_DIGITS
-    ) {
-      e.preventDefault();
-      onJoinCode?.(input.value);
-    }
-  });
-
-  const toEnd = () => {
-    if (wrap.dataset.s !== 'error') {
-      const n = input.value.length;
-      input.setSelectionRange(n, n);
-    }
-    renderCells();
-  };
-  input.addEventListener('focus', () => {
-    wrap.classList.add('focus');
-    requestAnimationFrame(toEnd);
-  });
-  input.addEventListener('blur', () => wrap.classList.remove('focus'));
-  input.addEventListener('click', toEnd);
-  input.addEventListener('keyup', renderCells);
-
-  // Sync initial state from vm
-  if (joining) {
-    setStatus(
-      'joining',
-      `<span class="mp-spin" aria-hidden="true"></span><span class="mp-join-msg">加入中…</span>`,
-    );
-  } else if (error) {
-    setStatus('error', `${ERR_ICO}<span class="mp-join-msg">${esc(error)}</span>`);
-    if (digits) {
-      input.value = digits;
-      requestAnimationFrame(() => {
-        input.focus();
-        input.select();
-        renderCells();
-      });
-    }
-  } else {
-    idle();
-  }
-  renderCells();
 }
 
 export function renderCreateRoom(root, vm) {
