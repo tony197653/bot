@@ -101,7 +101,7 @@ export async function buyinAll(fb, uid, roomId, bb) {
   const p = snap.data();
   if (p.tableRoomId === roomId) {
     assertMinimumBuyin(p.inPlay, bb);
-    return { skipped: true, amount: p.inPlay, sessionNo: p.sessionNo };
+    return { skipped: true, amount: p.inPlay, sessionNo: p.sessionNo, player: p };
   }
   if (p.tableRoomId != null) throw new Error('你還在別桌，請先結帳離開');
 
@@ -139,12 +139,15 @@ export async function buyinAll(fb, uid, roomId, bb) {
     const led = await fs.getDoc(fs.doc(db, 'pokerPlayers', uid, 'ledger', id));
     if (led.exists()) {
       const again = (await fs.getDoc(pref)).data();
-      return { skipped: false, amount: again.inPlay, sessionNo: again.sessionNo, idempotent: true };
+      return { skipped: false, amount: again.inPlay, sessionNo: again.sessionNo, idempotent: true, player: again };
     }
     throw e;
   }
   cachePlayer(uid, { bank: 0, inPlay: amount, total: p.total, tableRoomId: roomId, sessionNo: no, lastRoomId: roomId });
-  return { skipped: false, amount, sessionNo: no };
+  return {
+    skipped: false, amount, sessionNo: no,
+    player: { ...p, bank: 0, inPlay: amount, tableRoomId: roomId, sessionNo: no, lastRoomId: roomId },
+  };
 }
 
 /**

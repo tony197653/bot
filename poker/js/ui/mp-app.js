@@ -1411,6 +1411,7 @@ async function onCreateTable() {
   const user = getUser();
   const hid = playerDoc?.hostRoomId;
   if (hid && fb && user) {
+    toast('正在確認牌桌…');
     try {
       const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', hid));
       if (snap.exists() && isRoomOpenStatus(snap.data()?.status)) {
@@ -1422,7 +1423,7 @@ async function onCreateTable() {
         hostRoomId: null,
         updatedAt: fb.fs.serverTimestamp(),
       });
-      playerDoc = await getPlayer(fb, user.uid);
+      playerDoc = { ...playerDoc, hostRoomId: null };
     } catch (e) {
       console.warn('hostRoomId reclaim', e);
     }
@@ -1492,12 +1493,8 @@ async function doCreate(data) {
     }
     shareInfo = res;
     createDraft = { name: '', sb: 10, chips: DEFAULT_NEW_PLAYER_CHIPS };
-    // createRoom writes hostRoomId in the same txn; refresh local player doc
-    try {
-      playerDoc = await getPlayer(fb, user.uid);
-    } catch (e) {
-      console.warn('hostRoomId refresh', e);
-    }
+    // createRoom atomically writes this pointer; no read is needed before sharing.
+    playerDoc = { ...playerDoc, hostRoomId: res.roomId };
     screen = 'share';
   } catch (e) {
     console.error(e);
@@ -1570,7 +1567,7 @@ async function tryDeepLink(code, r) {
   }
 }
 
-async function enterRoom(id, { asHostSit = false } = {}) {
+async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
   const fb = getFirebase();
   const user = getUser();
   if (!fb || !user) return;
@@ -1639,23 +1636,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
   lastKnownSelfTableChips = 0;
   lobbyClosedSynced.delete(id);
 
-  // Ensure membership: try read; on permission-denied, need code path from lastRoom / URL
-  try {
-    await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', id));
-  } catch {
-    const last = getLastRoom();
-    if (last?.code) {
-      const joined = await joinByCode(fb, last.code, user.uid, id);
-      if (joined.ended || joined.error) {
-        joinEnded = true;
-        joinError = joined.error || '牌桌已結束';
-        screen = 'join';
-        paint();
-        return;
-      }
-    }
-  }
-
+  // Members subscribe directly; only denied subscriptions need the code join path.
   stopRoom = listenRoom(
     fb,
     id,
@@ -1735,7 +1716,7 @@ async function enterRoom(id, { asHostSit = false } = {}) {
           if (g.created) {
             toast(`第一次來，送你 ${r.config.newPlayerChips.toLocaleString('en-US')} 籌碼`);
           }
-          playerDoc = await getPlayer(fb, user.uid);
+          playerDoc = { uid: user.uid, ...g.player };
         } catch (e) {
           console.warn('grant', e);
         }
@@ -1821,8 +1802,8 @@ async function enterRoom(id, { asHostSit = false } = {}) {
         if (needHostSit) {
           try {
             assertMinimumBuyin(wholeBalance(playerDoc, id), r.config.bb);
-            await buyinAll(fb, user.uid, id, r.config.bb);
-            playerDoc = await getPlayer(fb, user.uid);
+            const buyin = await buyinAll(fb, user.uid, id, r.config.bb);
+            playerDoc = { uid: user.uid, ...buyin.player };
             await hostLoop?.seatPlayer(0, user.uid);
           } catch (e) {
             console.warn('host sit', e);
@@ -1902,7 +1883,24 @@ async function enterRoom(id, { asHostSit = false } = {}) {
         paintTableChrome();
       }
     },
-    (err) => {
+    async (err) => {
+      if (roomId !== id) return;
+      if (retryJoin && err?.code === 'permission-denied') {
+        const last = getLastRoom();
+        if (last?.code) {
+          try {
+            const joined = await joinByCode(fb, last.code, user.uid, id);
+            if (roomId !== id) return;
+            if (!joined.ended && !joined.error) {
+              await enterRoom(id, { asHostSit, retryJoin: false });
+              return;
+            }
+            joinError = joined.error || '牌桌已結束';
+          } catch (e) {
+            console.warn('join membership', e);
+          }
+        }
+      }
       console.warn(err);
       roomGoneFor = id;
       // Stats overlay open over this table: let its close run the lobby fallback (no card possible).
