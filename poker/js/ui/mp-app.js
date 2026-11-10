@@ -133,6 +133,7 @@ let lastRecvAt = Date.now();
 let prevPub = null;
 // Sound state is independent of animation queues and never writes room data.
 let stopSoundTick = null;
+let stopTurnHintTick = null;
 let stopSoundVisibility = null;
 let soundNeedsBaseline = true;
 let soundSeat = -1;
@@ -157,6 +158,7 @@ function resetRoomSound() {
 function startRoomSound() {
   initSound();
   stopSoundTick = onTick(tickRoomSound);
+  stopTurnHintTick = onTick(tickTurnHint);
   const onSoundVisibility = () => {
     stopSound();
     soundNeedsBaseline = true;
@@ -177,7 +179,7 @@ function tickRoomSound() {
   const pub = room.pub;
   if (pub.actor !== soundSeat || pub.actionSeq == null ||
       !['preflop', 'flop', 'turn', 'river'].includes(pub.phase)) return;
-  const rem = soundTurnRemaining(pub);
+  const rem = turnRemainingMs(pub);
   if (!soundWarned && hurryCrossed(soundRem, rem, MP_FX.timerWarnLastMs)) {
     soundWarned = true;
     playSound('hurry');
@@ -189,13 +191,24 @@ function tickRoomSound() {
 // same turn (presence/lobby writes) refresh lastRecvAt and must not restart the 5 s check.
 let soundClockKey = null;
 let soundClockAt = 0;
-function soundTurnRemaining(pub) {
-  const key = `${soundTurn}:${room?.deadlineAt}:${pub?.hostClockAt}`;
+function turnRemainingMs(pub) {
+  const key = `${soundHandKey(pub)}:${pub?.actionSeq}:${pub?.actor}:${room?.deadlineAt}:${pub?.hostClockAt}`;
   if (key !== soundClockKey) {
     soundClockKey = key;
     soundClockAt = lastRecvAt;
   }
   return remainingMs(room?.deadlineAt, pub?.hostClockAt, soundClockAt);
+}
+
+function tickTurnHint() {
+  const hint = $('#turnHint');
+  if (!hint) return;
+  const pub = room?.pub;
+  const between = !pub?.phase || pub.phase === 'lobby' || pub.phase === 'hand_over';
+  const rem = screen === 'table' && !between && pub.actor != null
+    ? turnRemainingMs(pub) : null;
+  const text = rem != null ? `${Math.ceil(rem / 1000)} 秒` : '';
+  if (hint.textContent !== text) hint.textContent = text;
 }
 
 function consumeRoomSound(previous, next, seat, skip) {
@@ -209,9 +222,9 @@ function consumeRoomSound(previous, next, seat, skip) {
   soundTurn = turn;
   if (newTurn) {
     soundWarned = false;
-    soundRem = soundTurnRemaining(next);
+    soundRem = turnRemainingMs(next);
   } else if (baseline) {
-    soundRem = soundTurnRemaining(next);
+    soundRem = turnRemainingMs(next);
   }
   const kinds = baseline ? [] : detectSoundEvents(previous, next, seat).filter((kind) => {
     const key = kind === 'deal' ? `deal:${next.phase}` : kind === 'turn' ? `turn:${turn}` : kind;
@@ -1010,6 +1023,7 @@ function paint() {
   const soloLobby = $('#lobbyScreen');
   const app = $('#app');
   const inTable = screen === 'table';
+  if (inTable || screen === 'share') dismissToast('正在確認牌桌…');
   // Table-only control — must not linger over lobby/stats after close-result
   if (!inTable) {
     const back = $('#btnBackLobby');
@@ -2150,14 +2164,7 @@ function renderSeatOverlays() {
       turnTitle.textContent = `等待 ${nm}`;
     }
   }
-  const rem = remainingMs(room.deadlineAt, pub.hostClockAt, lastRecvAt);
-  const hint = $('#turnHint');
-  if (hint) {
-    hint.textContent =
-      rem != null && !between && pub.actor != null
-        ? `${Math.ceil(rem / 1000)} 秒`
-        : '';
-  }
+  tickTurnHint();
 
   // Occupied seats for layout
   const occupied = [];
@@ -3255,6 +3262,8 @@ async function confirmLeaveTable() {
 function tearDownRoom() {
   stopSoundTick?.();
   stopSoundTick = null;
+  stopTurnHintTick?.();
+  stopTurnHintTick = null;
   stopSoundVisibility?.();
   stopSoundVisibility = null;
   resetRoomSound();
@@ -3377,6 +3386,14 @@ function renderMembersPanel() {
     return `<li><b>${esc(displayNameOf(uid))}</b><span>${role}</span></li>`;
   });
   panel.innerHTML = `<h3>成員（${rows.length}）</h3><ul>${rows.join('')}</ul>`;
+}
+
+function dismissToast(text) {
+  const el = $('#mpToast');
+  if (!el || el.textContent !== text) return;
+  clearTimeout(toastTimer);
+  toastTimer = 0;
+  el.hidden = true;
 }
 
 function toast(msg) {

@@ -88,13 +88,21 @@ const mpSource = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'u
 function soundRoom() {
   const played = [];
   const listeners = new Map();
+  const ticks = new Set();
+  let writes = 0;
+  let hintText = '';
+  const hint = { get textContent() { return hintText; }, set textContent(text) { hintText = text; writes++; } };
   let cancelled = false;
   const ctx = vm.createContext({
     detectSoundEvents, pickSound, hurryCrossed, soundHandKey,
     MP_FX: { timerWarnLastMs: 5000 }, screen: 'table', lastRecvAt: 0,
     room: { pub: pub({ actor: 0 }), deadlineAt: 10000 }, rem: 6000,
     remainingMs: () => ctx.rem, playSound: (kind) => { if (kind) played.push(kind); },
-    stopSound() {}, initSound() {}, onTick: () => () => { cancelled = true; },
+    $: (selector) => selector === '#turnHint' ? hint : null,
+    stopSound() {}, initSound() {}, onTick: (fn) => {
+      ticks.add(fn);
+      return () => { ticks.delete(fn); cancelled = true; };
+    },
     document: { hidden: false, addEventListener: (type, fn) => listeners.set(type, fn), removeEventListener() {} },
     window: { addEventListener() {}, removeEventListener() {} },
   });
@@ -104,7 +112,7 @@ function soundRoom() {
     ctx.room.pub = next;
     ctx.consumeRoomSound(previous, next, seat, skip);
   };
-  return { ctx, played, receive, listeners, cancelled: () => cancelled };
+  return { ctx, played, receive, listeners, ticks, hint, writes: () => writes, cancelled: () => cancelled };
 }
 
 test('room：同快照只選最高優先；低優先事件也消耗', () => {
@@ -252,4 +260,77 @@ test('room：同 turn 後續快照刷新 lastRecvAt，不會把快超時倒數�
   now = 27500;
   r.ctx.tickRoomSound();
   assert.deepEqual(r.played, ['hurry']);
+});
+
+
+test('room：同快照倒數持續減少，顯示 5 秒時與 hurry 同步跨線，文字未變不寫 DOM', () => {
+  const r = soundRoom();
+  let now = 1000;
+  r.ctx.remainingMs = (deadlineAt, hostClockAt, recvAt) =>
+    Math.max(0, deadlineAt - hostClockAt - (now - recvAt));
+  r.ctx.room.deadlineAt = 17000;
+  r.ctx.lastRecvAt = now;
+  r.receive(pub({ actor: 0, hostClockAt: 10000 }), true);
+  r.ctx.startRoomSound();
+  const tick = () => { for (const fn of r.ticks) fn(); };
+  tick();
+  assert.equal(r.hint.textContent, '7 秒');
+  now = 2000;
+  tick();
+  assert.equal(r.hint.textContent, '6 秒');
+  const writes = r.writes();
+  now = 2500;
+  tick();
+  assert.equal(r.writes(), writes);
+  assert.deepEqual(r.played, []);
+  now = 3000;
+  tick();
+  assert.equal(r.hint.textContent, '5 秒');
+  assert.deepEqual(r.played, ['hurry']);
+  vm.runInContext('stopSoundTick(); stopTurnHintTick();', r.ctx);
+  assert.equal(r.ticks.size, 0);
+});
+
+test('room：其他 actor 的倒數不受後續快照或入座影響，非回合清空提示', () => {
+  const r = soundRoom();
+  let now = 1000;
+  r.ctx.remainingMs = (deadlineAt, hostClockAt, recvAt) =>
+    Math.max(0, deadlineAt - hostClockAt - (now - recvAt));
+  r.ctx.room.deadlineAt = 20000;
+  r.ctx.lastRecvAt = now;
+  r.receive(pub({ actor: 1, hostClockAt: 10000 }), true, -1);
+  r.ctx.tickTurnHint();
+  assert.equal(r.hint.textContent, '10 秒');
+  now = 4000;
+  r.ctx.lastRecvAt = now;
+  r.receive(pub({ actor: 1, hostClockAt: 10000 }), false, 0);
+  r.ctx.tickTurnHint();
+  assert.equal(r.hint.textContent, '7 秒');
+  for (const snapshot of [pub({ phase: 'hand_over' }), pub({ phase: 'lobby' }), pub({ actor: null })]) {
+    r.ctx.room.pub = snapshot;
+    r.ctx.tickTurnHint();
+    assert.equal(r.hint.textContent, '');
+  }
+  r.ctx.room.pub = pub();
+  r.ctx.screen = 'share';
+  r.ctx.tickTurnHint();
+  assert.equal(r.hint.textContent, '');
+});
+
+test('確認 toast：只隱藏指定訊息並取消 timer，其他 toast 保留', () => {
+  const el = { textContent: '正在確認牌桌…', hidden: false };
+  const cleared = [];
+  const ctx = vm.createContext({ $: () => el, toastTimer: 42, clearTimeout: (id) => cleared.push(id) });
+  vm.runInContext(mpSource.slice(mpSource.indexOf('function dismissToast('), mpSource.indexOf('function toast(')), ctx);
+  ctx.dismissToast('正在確認牌桌…');
+  assert.equal(el.hidden, true);
+  assert.equal(ctx.toastTimer, 0);
+  assert.deepEqual(cleared, [42]);
+  el.textContent = '已複製';
+  el.hidden = false;
+  ctx.toastTimer = 43;
+  ctx.dismissToast('正在確認牌桌…');
+  assert.equal(el.hidden, false);
+  assert.equal(ctx.toastTimer, 43);
+  assert.deepEqual(cleared, [42]);
 });
