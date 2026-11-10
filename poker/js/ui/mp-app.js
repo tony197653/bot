@@ -1055,7 +1055,7 @@ function paint() {
   const soloLobby = $('#lobbyScreen');
   const app = $('#app');
   const inTable = screen === 'table';
-  if (inTable || screen === 'share') dismissToast('正在確認牌桌…');
+  if (inTable || screen === 'share' || screen === 'create') dismissToast('正在確認牌桌…');
   // Table-only control — must not linger over lobby/stats after close-result
   if (!inTable) {
     const back = $('#btnBackLobby');
