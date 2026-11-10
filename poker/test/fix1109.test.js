@@ -14,7 +14,7 @@ test('所有進桌入口：第一筆網路讀取前立即顯示牌桌載入畫�
     doc: () => 'room', getDoc: () => { events.push('read'); return new Promise(() => {}); },
   } }), getUser: () => ({ uid: 'u' }), closingFreeze: false, hostSitPending: false,
   closeResultDismissedFor: null, closeResultShownFor: null, roomId: null, room: null,
-  tearDownRoom() {}, lobbyClosedSynced: new Set(),
+  startRoomSound() {}, tearDownRoom() {}, lobbyClosedSynced: new Set(),
   paintEnterShell() { events.push('paint'); }, getLastRoom: () => ({ name: '牌桌' }),
   lastKnownSelfTableChips: 0, pendingCloseReturnChips: null, closeResultChipsShown: 0,
   });
