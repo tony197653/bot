@@ -44,6 +44,7 @@ test('大廳頭像同步顯示本人 ps-sheet；讀取未返回及後續快照�
     $: () => root, stopOpenTables: null, openTables: [{ id: 'r' }],
     listenOpenTables: (_fb, cb) => { snapshot = cb; return () => {}; },
     lobbyExitSuppressMine: false, isRoomOpenStatus: () => true,
+    lobbySweepRows: [], sweepLobbyTables: async () => {}, isLobbyRoomSuppressed: () => false,
     patchOpenTables: r => { assert.equal(r.nodes.find(n => n.act === 'avatar'), avatar); return true; },
     paint: () => assert.fail('一般快照不應重建大廳'), console,
   });

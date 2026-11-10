@@ -2,6 +2,7 @@
  * Table 「‹ 大廳」 confirm: cancel stays; host closes; guest leaves; no 我的牌桌.
  */
 import { describe, it } from 'node:test';
+import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -77,7 +78,8 @@ describe('‹ 大廳 leave confirm（source contracts）', () => {
       app.indexOf('function showLeaveTableConfirm'),
       app.indexOf('let statsMode'),
     );
-    assert.doesNotMatch(show, /isHandInProgress|toastLeaveAfterHand/);
+    assert.doesNotMatch(show, /toastLeaveAfterHand/);
+    assert.match(show, /isHandInProgress\(\)/);
     assert.match(show, /el\.id = 'mpLeaveConfirm'/);
     assert.match(show, /el\.hidden = false/);
     assert.match(show, /void confirmLeaveTable\(\)/);
@@ -149,5 +151,65 @@ describe('收桌即時回饋與單次讀取（source contracts）', () => {
     assert.match(stop, /clearInterval\(tickTimer\)/);
     assert.match(stop, /clearNextHandTimer\(\)/);
     assert.match(stop, /clearTimeout\(timer\)/);
+  });
+});
+
+// Execute the actual dialog functions with a minimal DOM, including button clicks.
+
+describe('收桌確認實際互動', () => {
+  const app = read('js/ui/mp-app.js');
+  function harness(phase = 'lobby', uid = 'host') {
+    const elements = new Map(), handlers = new Map();
+    let closes = 0;
+    const ctx = vm.createContext({
+      document: {
+        getElementById: id => elements.get(id),
+        createElement: () => ({ setAttribute() {}, hidden: true }),
+        body: { appendChild: el => elements.set(el.id, el) },
+      },
+      $: (selector, el) => ({ addEventListener: (_event, fn) => handlers.set(`${el.id}:${selector}`, fn) }),
+      room: { hostUid: 'host', pub: { phase } }, getUser: () => ({ uid }),
+      doCloseRoom: () => { closes++; },
+      mpCloseRoom: () => { throw new Error('不應顯示第二次確認'); },
+    });
+    for (const [start, end] of [
+      ['function showHostAloneLeaveDialog()', '/** Hand live'],
+      ['function isHandInProgress(', '/**\n * Table'],
+      ['function showLeaveTableConfirm()', 'let statsMode'],
+      ['function showCloseRoomConfirm(', '\nexport function mpCloseRoom()'],
+    ]) vm.runInContext(app.slice(app.indexOf(start), app.indexOf(end, app.indexOf(start))), ctx);
+    return { ctx, elements, handlers, closes: () => closes };
+  }
+  it('房主獨坐僅一個對話框，按一次收桌直接啟動關桌', () => {
+    const h = harness();
+    h.ctx.showHostAloneLeaveDialog();
+    assert.equal(h.elements.size, 1);
+    const modal = h.elements.get('mpHostAlone');
+    assert.match(modal.innerHTML, /桌上只剩你，要收桌嗎？玩家籌碼會結帳回帳戶/);
+    h.handlers.get('mpHostAlone:#mpHostAloneClose')();
+    assert.equal(h.closes(), 1);
+    assert.equal(modal.hidden, true);
+    assert.equal(h.elements.has('mpCloseConfirm'), false);
+  });
+  it('牌局中兩個房主確認入口皆說明作廢；手間與訪客文案正確', () => {
+    for (const phase of ['lobby', 'hand_over', 'flop']) {
+      const h = harness(phase);
+      h.ctx.showCloseRoomConfirm(() => {});
+      h.ctx.showLeaveTableConfirm();
+      const close = h.elements.get('mpCloseConfirm').innerHTML;
+      const leave = h.elements.get('mpLeaveConfirm').innerHTML;
+      if (phase === 'flop') {
+        assert.match(close, /這一手會作廢，已下注的籌碼退回，所有人照桌上籌碼結帳回帳戶/);
+        assert.match(leave, /是否離開並收桌？這一手會作廢，已下注的籌碼退回/);
+      } else {
+        assert.match(close, /確定收桌？玩家將結帳回帳戶。/);
+        assert.match(leave, /是否離開並收桌？玩家將結帳回帳戶。/);
+        assert.doesNotMatch(close + leave, /作廢/);
+      }
+      const guest = harness(phase, 'guest');
+      guest.ctx.showLeaveTableConfirm();
+      assert.match(guest.elements.get('mpLeaveConfirm').innerHTML, /是否離開牌局？/);
+      assert.doesNotMatch(guest.elements.get('mpLeaveConfirm').innerHTML, /作廢|並收桌/);
+    }
   });
 });

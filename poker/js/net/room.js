@@ -16,6 +16,10 @@ function emuTimeout(name, fallback) {
   const value = Number(new URLSearchParams(location.search).get(name));
   return Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
+/** 閒置收桌門檻：正式站固定 30 分鐘；模擬器可用 ?staleMs= 縮短。 */
+export function idleCloseMs() {
+  return emuTimeout('staleMs', IDLE_CLOSE_MS);
+}
 export function hostAloneCloseMs() {
   return emuTimeout('aloneMs', HOST_ALONE_CLOSE_MS);
 }
@@ -243,7 +247,7 @@ export async function createSingleTable(fb, opts) {
 }
 
 /** 非房主先成為成員；只關房，不更動任何人的籌碼。 */
-export async function maybeAutoCloseSingleTable(fb, roomId, uid, now = Date.now()) {
+export async function maybeAutoCloseSingleTable(fb, roomId, uid, now = Date.now(), onStale) {
   const { db, fs } = fb;
   const ref = fs.doc(db, 'pokerRooms', roomId);
   let snap = await fs.getDoc(ref);
@@ -257,7 +261,57 @@ export async function maybeAutoCloseSingleTable(fb, roomId, uid, now = Date.now(
   }
   snap = await fs.getDoc(ref);
   room = snap.data();
-  return maybeAutoCloseIdleRoom(fb, { ...room, id: roomId }, now, emuTimeout('staleMs', IDLE_CLOSE_MS));
+  return maybeAutoCloseIdleRoom(fb, { ...room, id: roomId }, now, emuTimeout('staleMs', IDLE_CLOSE_MS), onStale);
+}
+
+/** Lobby sweep: bounded reads, no chip writes; restore visibility if closing fails. */
+const lobbySweepState = new WeakMap();
+export async function sweepStaleTable(fb, row, uid, now = Date.now(), onVisibilityChange = () => {}) {
+  if (!fb || !uid || !row?.id || !isRoomOpenStatus(row.status) || row.seatUids?.includes(uid)) return false;
+  if (isLobbyRoomSuppressed(row.id)) return true;
+  // getFirebase() returns a new wrapper each time; the Firestore instance is stable.
+  const key = fb.db;
+  let checks = lobbySweepState.get(key);
+  if (!checks) lobbySweepState.set(key, checks = new Map());
+  const previous = checks.get(row.id);
+  if (previous?.inflight || (previous && now - previous.at < 30_000)) return false;
+  const check = { at: now, inflight: true };
+  checks.set(row.id, check);
+  let hidden = false;
+  const hide = () => {
+    hidden = true;
+    noteLobbyRoomClosed(row.id);
+    onVisibilityChange();
+  };
+  try {
+    const { db, fs } = fb;
+    const ref = fs.doc(db, 'pokerRooms', row.id);
+    const snap = await fs.getDoc(ref);
+    if (!snap.exists()) return false;
+    const room = snap.data();
+    if (room.seatUids?.includes(uid)) return false;
+    if (room.status === 'closed') { hide(); return true; }
+    if (!isRoomOpenStatus(room.status) ||
+        now - (room.updatedAt?.toMillis?.() || 0) <= emuTimeout('staleMs', IDLE_CLOSE_MS)) return false;
+    let closed;
+    if (room.code === SINGLE_TABLE_CODE) {
+      closed = await maybeAutoCloseSingleTable(fb, row.id, uid, now, hide);
+    } else {
+      if (!room.members?.includes(uid)) await fs.updateDoc(ref, { members: fs.arrayUnion(uid) });
+      closed = await maybeAutoCloseIdleRoom(fb, { ...room, id: row.id }, now,
+        emuTimeout('staleMs', IDLE_CLOSE_MS), hide);
+    }
+    if (closed) return true;
+  } catch {
+    // Permission/network failures leave the lobby row available.
+  } finally {
+    check.inflight = false;
+  }
+  if (hidden) {
+    closedLobbySuppress.delete(row.id);
+    onVisibilityChange();
+  }
+  return false;
 }
 
 export function hostIsOnlySeated(room) {
@@ -697,7 +751,7 @@ export async function closeRoom(fb, roomId, { auto = false, closedRoom = null } 
  * L4: if room idle ≥30m (updatedAt + all member presence), auto-close.
  * @returns {Promise<boolean>} true if closed
  */
-export async function maybeAutoCloseIdleRoom(fb, room, now = Date.now(), staleMs = IDLE_CLOSE_MS) {
+export async function maybeAutoCloseIdleRoom(fb, room, now = Date.now(), staleMs = idleCloseMs(), onStale) {
   if (!room?.id || room.status === 'closed') return false;
   if (room.code === SINGLE_TABLE_CODE && (!hostIsOnlySeated(room) ||
       !['lobby', 'hand_over'].includes(room.pub?.phase))) return false;
@@ -713,6 +767,7 @@ export async function maybeAutoCloseIdleRoom(fb, room, now = Date.now(), staleMs
       const beat = d.data()?.beat?.toMillis?.() || 0;
       if (now - beat <= staleMs) return false;
     }
+    onStale?.();
     await closeRoom(fb, room.id, { auto: true });
     return true;
   } catch {

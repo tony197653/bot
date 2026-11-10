@@ -101,7 +101,7 @@ test('收桌確認按鈕：網路返回前同步顯示收桌中', async t => {
   const modal = { hidden: true };
   const ctx = vm.createContext({ document: { getElementById: id => id === 'mpCloseConfirm' ? modal : button },
     $: selector => ({ addEventListener: (_event, handler) => { handlers[selector] = handler; } }),
-    getFirebase: () => ({}), room: {}, closingFreeze: false,
+    getFirebase: () => ({}), room: {}, isHandInProgress: () => false, closingFreeze: false,
     startHostClose: () => { pending = new Promise(r => setTimeout(() => { completed++; r(); }, 300)); return pending; },
   });
   vm.runInContext(section('function showCloseRoomConfirm(', '\nexport function mpCloseRoom()') + app.slice(app.indexOf('function doCloseRoom()')), ctx);
