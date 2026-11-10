@@ -15,7 +15,7 @@ import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 import * as roomNet from '../js/net/room.js';
 import * as ledger from '../js/net/ledger.js';
-import { assertMinimumBuyin, wholeBalance, buyinOptions, DEFAULT_NEW_PLAYER_CHIPS } from '../js/net/buyin-policy.js';
+import { createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, DEFAULT_NEW_PLAYER_CHIPS } from '../js/net/buyin-policy.js';
 
 globalThis.crypto ||= webcrypto;
 const app = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
@@ -67,7 +67,7 @@ function fakeFirebase(delay = 0) {
 function harness(fb) {
   const noop = () => {};
   const ctx = vm.createContext({
-    ...roomNet, ...ledger, assertMinimumBuyin, wholeBalance, buyinOptions, DEFAULT_NEW_PLAYER_CHIPS,
+    ...roomNet, ...ledger, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, DEFAULT_NEW_PLAYER_CHIPS,
     console, Date, Promise, getFirebase: () => fb, getUser: () => ({ uid: 'u', displayName: 'Host' }),
     playerDoc: structuredClone(fb.docs.get('pokerPlayers/u')), screen: 'lobby', rescueOk: false,
     createDraft: {}, creating: false, createError: '', shareInfo: null,

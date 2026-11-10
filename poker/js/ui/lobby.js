@@ -3,6 +3,8 @@
  * 我的牌桌 state classes (.mp-mine.is-host / .is-guest / .is-settle) for BD restyle.
  */
 
+import { canAffordBlinds, createRoomBuyinError, defaultCreateBuyin } from '../net/buyin-policy.js';
+
 import { formatCode, shareUrl, ROOM_CONST } from '../net/room.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -711,8 +713,9 @@ function wireLobbyMenu(root) {
 }
 
 export function renderCreateRoom(root, vm) {
-  const { defaults, onCancel, onSubmit, onDraft, creating, error } = vm;
+  const { defaults, onCancel, onSubmit, onDraft, creating, error, bank = null } = vm;
   const chipsHintId = 'mpCreateChipsHint';
+  let submitError = error;
   root.innerHTML = `
     <div class="mp-shell mp-create">
       <header class="mp-top">
@@ -737,11 +740,11 @@ export function renderCreateRoom(root, vm) {
         <label class="mp-affix">
           <span>攜入籌碼</span>
           <div class="mp-affix-row">
-            <input name="chips" id="mpCreateChips" type="number" inputmode="numeric" min="1000" max="100000" step="500" value="${defaults.chips}" aria-describedby="${chipsHintId}">
+            <input name="chips" id="mpCreateChips" type="number" inputmode="numeric" min="1000" max="100000" step="500" value="${defaults.chips}" aria-describedby="${chipsHintId} mpCreateLiveErr">
           </div>
           <small id="${chipsHintId}">入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。1,000–100,000，每次 500。</small>
+          <p class="mp-err" id="mpCreateLiveErr" role="status" ${error ? '' : 'hidden'}>${esc(error || '')}</p>
         </label>
-        <p class="mp-err" id="mpCreateLiveErr" ${error ? '' : 'hidden'}>${esc(error || '')}</p>
         <div class="mp-rules">
           <h3>固定規則</h3>
           <ul>
@@ -766,31 +769,54 @@ export function renderCreateRoom(root, vm) {
       chips: Number(fd.get('chips')) || defaults.chips,
     });
   };
-  const validateChips = () => {
-    const n = Number(chipsIn?.value);
-    let msg = '';
-    if (!Number.isFinite(n)) msg = '請輸入起始籌碼數字';
-    else if (n < 1000 || n > 100000) msg = '起始籌碼要在 1,000–100,000 之間';
-    else if (n % 500) msg = '起始籌碼必須是 500 的倍數';
-    if (liveErr) {
-      if (msg || error) {
-        liveErr.hidden = false;
-        liveErr.textContent = msg || error;
-      } else {
-        liveErr.hidden = true;
-        liveErr.textContent = '';
+  const blinds = [...(form?.querySelectorAll('input[name="blinds"]') || [])];
+  const submit = form?.querySelector('button[type="submit"]');
+  const validateChips = (adjust = false) => {
+    for (const input of blinds) {
+      const bb = Number(input.value.split('/')[1]);
+      input.disabled = !canAffordBlinds(bank, bb);
+      input.setAttribute('aria-disabled', String(input.disabled));
+    }
+    let selected = blinds.find(input => input.checked);
+    if (selected?.disabled) {
+      const affordable = blinds.filter(input => !input.disabled).at(-1);
+      if (affordable) {
+        selected.checked = false;
+        affordable.checked = true;
+        selected = affordable;
       }
     }
+    const [sb, bb] = (selected?.value || '10/20').split('/').map(Number);
+    if (adjust && chipsIn) chipsIn.value = defaultCreateBuyin(Number(chipsIn.value), bb, bank);
+    const msg = createRoomBuyinError(Number(chipsIn?.value), sb, bb, bank);
+    if (liveErr) {
+      liveErr.hidden = !(msg || submitError);
+      liveErr.textContent = msg || submitError || '';
+    }
+    if (submit) submit.disabled = !!creating || !!msg;
     return !msg;
   };
-  form?.addEventListener('input', () => {
+  const update = (adjust) => {
+    submitError = '';
+    validateChips(adjust);
     persist();
-    validateChips();
-  });
-  form?.addEventListener('change', () => {
-    persist();
-    validateChips();
-  });
+  };
+  form?.addEventListener('input', () => update(false));
+  form?.addEventListener('change', () => update(true));
+  for (const input of blinds) {
+    input.closest?.('label')?.addEventListener('click', (e) => {
+      if (!input.disabled) return;
+      e.preventDefault();
+      const [sb, bb] = input.value.split('/').map(Number);
+      const msg = createRoomBuyinError(Number(chipsIn?.value) || 0, sb, bb, bank);
+      if (liveErr && msg) {
+        liveErr.hidden = false;
+        liveErr.textContent = msg;
+      }
+    });
+  }
+  validateChips(true);
+  persist();
   form?.addEventListener('submit', (e) => {
     e.preventDefault();
     if (creating) return;

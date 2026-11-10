@@ -53,7 +53,7 @@ import {
   nightKeyOf,
   readCachedPlayer,
 } from '../net/ledger.js';
-import { DEFAULT_NEW_PLAYER_CHIPS, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
 import {
   createIntentSender,
@@ -1265,6 +1265,7 @@ function paint() {
     root.classList.remove('mp-root-table');
     renderCreateRoom(root, {
       defaults: createDraft,
+      bank: playerDoc?.bank ?? null,
       creating,
       error: createError,
       onDraft: (d) => {
@@ -1668,6 +1669,13 @@ async function doCreate(data) {
       String(data.name || '').trim() || `${displayName}的牌桌`;
     await silentlySettleClosedBinding();
     playerDoc = await getPlayer(fb, user.uid);
+    const buyinError = createRoomBuyinError(data.newPlayerChips, data.sb, data.bb, playerDoc?.bank ?? null);
+    if (buyinError) {
+      createError = buyinError;
+      creating = false;
+      paint();
+      return;
+    }
     const res = await createSingleTable(fb, {
       uid: user.uid,
       name: tableName,
