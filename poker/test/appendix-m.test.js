@@ -45,7 +45,7 @@ describe('附錄 M — 房號與錯誤契約', () => {
     assert.match(src, /沒人在線 30 分鐘，已自動收桌/);
     const closedBlock = src.slice(
       src.indexOf("if (r.status === 'closed')"),
-      src.indexOf("if (r.status === 'closed')") + 1600,
+      src.indexOf('        paintTableChrome();', src.indexOf("if (r.status === 'closed')")),
     );
     assert.match(closedBlock, /showCloseResultCard/);
     assert.match(closedBlock, /silentlySettleClosedBinding/);

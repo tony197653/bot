@@ -534,3 +534,19 @@ export function readCachedPlayer(uid) {
     return null;
   }
 }
+
+/** Read the current player's recorded cashout without changing settlement. */
+export async function readSelfCashoutAmount(fb, uid, roomId, sessionNo) {
+  if (!uid || !roomId || sessionNo == null) return null;
+  try {
+    const { db, fs } = fb;
+    const snap = await fs.getDoc(fs.doc(
+      db, 'pokerPlayers', uid, 'ledger', `${roomId}_${sessionNo}_cashout`,
+    ));
+    if (!snap.exists()) return null;
+    const amount = snap.data()?.amount;
+    return typeof amount === 'number' && Number.isFinite(amount) ? amount : null;
+  } catch {
+    return null;
+  }
+}

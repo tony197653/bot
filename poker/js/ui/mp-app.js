@@ -49,6 +49,7 @@ import {
   fetchNightBoard,
   selfRescueCashout,
   settleClosedRoomBinding,
+  readSelfCashoutAmount,
   nightKeyOf,
   readCachedPlayer,
 } from '../net/ledger.js';
@@ -657,6 +658,8 @@ const lobbyClosedSynced = new Set();
 let pendingCloseReturnChips = null;
 /** Last known chips for this player at the current table (survives host cashout-before-close). */
 let lastKnownSelfTableChips = 0;
+let lastKnownSelfTableChipsRoomId = null;
+let lastKnownSelfSessionNo = null;
 /** After voluntary ‹ 大廳 confirm: never show 我的牌桌／繼續 until unbound. */
 let lobbyExitSuppressMine = false;
 /** @type {any[]} */
@@ -1832,6 +1835,8 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
   closeResultChipsShown = 0;
   pendingCloseReturnChips = null;
   lastKnownSelfTableChips = 0;
+  lastKnownSelfTableChipsRoomId = null;
+  lastKnownSelfSessionNo = null;
   lobbyClosedSynced.delete(id);
 
   paintEnterShell(getLastRoom()?.name);
@@ -1868,7 +1873,10 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
           const s = Array.isArray(r.seatUids) ? r.seatUids.indexOf(u) : -1;
           if (s >= 0) {
             lastKnownSelfTableChips = Number(r.stacks?.[s]) || 0;
+            lastKnownSelfTableChipsRoomId = id;
+            lastKnownSelfSessionNo = r.sess?.[s]?.sessionNo ?? null;
           } else if (
+            lastKnownSelfTableChipsRoomId !== id &&
             playerDoc?.tableRoomId === id &&
             Number(playerDoc?.inPlay) > 0
           ) {
@@ -1896,7 +1904,11 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         }
         const auto =
           !!(r.lobby?.autoClosed || r.autoClosed || r.pub?.autoClosed) || r.closedBy === 'auto';
-        // Prefer pending / settle / last-known stack (never show 0 after a real return)
+        const cashoutSessionNo = lastKnownSelfSessionNo ?? playerDoc?.sessionNo;
+        const cashoutAmount = await readSelfCashoutAmount(
+          fb, user.uid, id, cashoutSessionNo,
+        );
+        // Ledger is authoritative; retain pending / settle / last-known as fallback.
         let chips =
           pendingCloseReturnChips != null
             ? Number(pendingCloseReturnChips) || 0
@@ -1915,6 +1927,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         if (!(chips > 0) && lastKnownSelfTableChips > 0) {
           chips = lastKnownSelfTableChips;
         }
+        if (cashoutAmount > 0) chips = cashoutAmount;
         showCloseResultCard({ chips, auto });
         pendingCloseReturnChips = null;
         paintTableChrome();
@@ -3310,6 +3323,8 @@ async function confirmLeaveTable() {
 }
 
 function tearDownRoom() {
+  lastKnownSelfTableChipsRoomId = null;
+  lastKnownSelfSessionNo = null;
   stopTurnClock();
   stopSoundVisibility?.();
   stopSoundVisibility = null;
