@@ -83,6 +83,8 @@ import { openPersonalStats, shouldToastClosedFallback } from './personal-stats.j
 import { STATS_ENABLED } from '../stats/host-runtime.js';
 import { createFirestoreStatsAdapter } from '../stats/firestore-adapter.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
+import { onTick } from './ticker.js';
+import { detectSoundEvents, pickSound, hurryCrossed, soundHandKey, initSound, playSound, stopSound, isSoundOn, setSoundOn } from './sound.js';
 import { cardHtml, cardBackPair, heroBackPair, fmtChips, paintBoardSlots, raisePresetsMarkup, raisePanelCopy } from './cards-dom.js';
 import { mapSeatsClockwise } from './seating.js';
 import { prefersReducedMotion } from './fx.js';
@@ -129,6 +131,107 @@ let stopHole = null;
 let lastRecvAt = Date.now();
 /** @type {object|null} */
 let prevPub = null;
+// Sound state is independent of animation queues and never writes room data.
+let stopSoundTick = null;
+let stopSoundVisibility = null;
+let soundNeedsBaseline = true;
+let soundSeat = -1;
+let soundHand = null;
+let soundConsumed = new Set();
+let soundTurn = null;
+let soundRem = null;
+let soundWarned = false;
+
+function resetRoomSound() {
+  stopSound();
+  soundNeedsBaseline = true;
+  soundSeat = -1;
+  soundHand = null;
+  soundConsumed.clear();
+  soundTurn = null;
+  soundRem = null;
+  soundWarned = false;
+  soundClockKey = null;
+}
+
+function startRoomSound() {
+  initSound();
+  stopSoundTick = onTick(tickRoomSound);
+  const onSoundVisibility = () => {
+    stopSound();
+    soundNeedsBaseline = true;
+    soundRem = null;
+  };
+  document.addEventListener('visibilitychange', onSoundVisibility);
+  window.addEventListener('offline', onSoundVisibility);
+  window.addEventListener('online', onSoundVisibility);
+  stopSoundVisibility = () => {
+    document.removeEventListener('visibilitychange', onSoundVisibility);
+    window.removeEventListener('offline', onSoundVisibility);
+    window.removeEventListener('online', onSoundVisibility);
+  };
+}
+
+function tickRoomSound() {
+  if (soundNeedsBaseline || screen !== 'table' || document.hidden || !room?.pub || soundSeat < 0) return;
+  const pub = room.pub;
+  if (pub.actor !== soundSeat || pub.actionSeq == null ||
+      !['preflop', 'flop', 'turn', 'river'].includes(pub.phase)) return;
+  const rem = soundTurnRemaining(pub);
+  if (!soundWarned && hurryCrossed(soundRem, rem, MP_FX.timerWarnLastMs)) {
+    soundWarned = true;
+    playSound('hurry');
+  }
+  soundRem = rem;
+}
+
+// Anchor the countdown at the first snapshot of each armed deadline: later snapshots of the
+// same turn (presence/lobby writes) refresh lastRecvAt and must not restart the 5 s check.
+let soundClockKey = null;
+let soundClockAt = 0;
+function soundTurnRemaining(pub) {
+  const key = `${soundTurn}:${room?.deadlineAt}:${pub?.hostClockAt}`;
+  if (key !== soundClockKey) {
+    soundClockKey = key;
+    soundClockAt = lastRecvAt;
+  }
+  return remainingMs(room?.deadlineAt, pub?.hostClockAt, soundClockAt);
+}
+
+function consumeRoomSound(previous, next, seat, skip) {
+  const hand = soundHandKey(next);
+  const baseline = skip || soundNeedsBaseline || seat !== soundSeat;
+  if (hand !== soundHand || seat !== soundSeat) soundConsumed.clear();
+  soundHand = hand;
+  soundSeat = seat;
+  const turn = `${hand}:${next.actionSeq}:${next.actor}`;
+  const newTurn = turn !== soundTurn;
+  soundTurn = turn;
+  if (newTurn) {
+    soundWarned = false;
+    soundRem = soundTurnRemaining(next);
+  } else if (baseline) {
+    soundRem = soundTurnRemaining(next);
+  }
+  const kinds = baseline ? [] : detectSoundEvents(previous, next, seat).filter((kind) => {
+    const key = kind === 'deal' ? `deal:${next.phase}` : kind === 'turn' ? `turn:${turn}` : kind;
+    if (kind === 'bet') return true;
+    if (soundConsumed.has(key)) return false;
+    soundConsumed.add(key);
+    return true;
+  });
+  // Consume visible phases/results even when the snapshot is deliberately silent.
+  if (baseline) {
+    stopSound();
+    soundConsumed.add(`deal:${next.phase}`);
+    soundConsumed.add(`turn:${turn}`);
+    if (Number(next.winnerPayouts?.[seat]) > 0 || next.winners?.some((pot) => pot.seats?.includes(seat))) soundConsumed.add('win');
+  }
+  soundNeedsBaseline = false;
+  if (seat < 0) stopSound();
+  else playSound(pickSound(kinds));
+}
+
 let joinDigits = '';
 let shareInfo = null;
 let createError = '';
@@ -1658,6 +1761,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
 
   tearDownRoom();
   roomId = id;
+  startRoomSound();
   // Fresh enter of an open table resets dismiss guard
   closeResultDismissedFor = null;
   closeResultShownFor = null;
@@ -1690,6 +1794,9 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         return;
       }
       lastRecvAt = Date.now();
+      if (first) {
+        consumeRoomSound(null, r.pub || {}, r.seatUids.indexOf(user.uid), true);
+      }
       // Track self stack while still seated / bound — host may cash out before status=closed
       {
         const u = getUser()?.uid;
@@ -1706,6 +1813,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         }
       }
       if (r.status === 'closed') {
+        resetRoomSound();
         // M2 #5: result card — do not auto-kick to lobby
         clearLastRoom();
         // Soft-leave / already dismissed: settle + one lobby live refresh (no loop)
@@ -1936,6 +2044,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
           late,
           wasHidden: document.visibilityState === 'hidden',
         });
+        consumeRoomSound(prevPub, r.pub || {}, r.seatUids.indexOf(user.uid), diff.skip || (r.pub?.actionSeq ?? 0) < (prevPub?.actionSeq ?? 0));
         animQ?.push(diff.events, { skip: diff.skip });
         prevPub = r.pub;
         paintTableChrome();
@@ -3144,6 +3253,11 @@ async function confirmLeaveTable() {
 }
 
 function tearDownRoom() {
+  stopSoundTick?.();
+  stopSoundTick = null;
+  stopSoundVisibility?.();
+  stopSoundVisibility = null;
+  resetRoomSound();
   closingFreeze = false;
   hostSitPending = false;
   stopRoom?.();
@@ -3176,8 +3290,21 @@ function ensureMpMenu() {
   const pop = $('#menuPop');
   if (!pop || pop.dataset.mpMenu === '1') return;
   pop.dataset.mpMenu = '1';
+  const mute = $('#btnMute');
+  if (mute) {
+    const paintSoundToggle = () => {
+      mute.textContent = isSoundOn() ? '音效：開' : '音效：關';
+      mute.setAttribute('aria-pressed', String(isSoundOn()));
+    };
+    paintSoundToggle();
+    mute.onclick = () => {
+      if (screen !== 'table' || !roomId) return;
+      setSoundOn(!isSoundOn());
+      paintSoundToggle();
+    };
+  }
   // Hide solo-only / duplicate exits in MP (PL: ‹ 大廳 + 收桌 cover 大廳／結束牌局)
-  // 計時／暫停／全螢幕／音效：先維持現況，等 PL 通知再動
+  // 計時／暫停沿用既有行為；保留全螢幕及音效入口
   $('#btnTimerCfg')?.classList.add('hidden');
   $('#btnPauseMenu')?.classList.add('hidden');
   $('#btnLobby')?.classList.add('hidden');
@@ -3219,6 +3346,8 @@ function ensureMpMenu() {
 
 function removeMpMenuExtras() {
   $('#mpMenuExtras')?.remove();
+  const mute = $('#btnMute');
+  if (mute) mute.onclick = null;
   const pop = $('#menuPop');
   if (pop) delete pop.dataset.mpMenu;
   $('#btnTimerCfg')?.classList.remove('hidden');

@@ -78,7 +78,7 @@ function harness(fb) {
     stopRoom: null, hostLoop: null, presence: null, intents: null, stopHole: null,
     animQ: null, lastRecvAt: 0, nameCache: {}, getLastRoom: () => null,
     enterOpenTable: noop, silentlySettleClosedBinding: async () => {},
-    tearDownRoom: noop, paintEnterShell: noop, paintTableChrome: noop, cachePlayerName: noop,
+    consumeRoomSound: noop, startRoomSound: noop, tearDownRoom: noop, paintEnterShell: noop, paintTableChrome: noop, cachePlayerName: noop,
     startPresence: () => ({}), createIntentSender: () => ({}), listenHole: noop,
     qaStatsOpts: () => ({}), displayNameOf: () => 'Host', createAnimQueue: () => ({}),
     toast: () => { ctx.feedback ??= fb.calls.length; },
