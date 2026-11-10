@@ -51,6 +51,29 @@ for (const status of ['swept', 'missing', 'open', 'denied']) {
   });
 }
 
+test('回桌確認遇到暫時網路錯誤：不進桌、不誤顯示收桌結果', async () => {
+  let settles = 0, entries = 0, results = 0, cleared = 0, paints = 0;
+  const context = vm.createContext({
+    screen: 'lobby', room: null, confirmedLobbyRoom: null, closeResultDismissedFor: null,
+    getFirebase: () => ({ db: {}, fs: {
+      doc: () => 'room', getDoc: async () => { throw new Error('unavailable'); },
+    } }),
+    maybeAutoCloseIdleRoom: async () => false,
+    isRoomOpenStatus: (s) => s === 'lobby',
+    getLastRoom: () => ({ roomId: 'r' }), clearLastRoom: () => cleared++,
+    silentlySettleClosedBinding: async () => { settles++; return 0; },
+    showCloseResultCard: () => results++,
+    enterRoom: async () => entries++, paint: () => paints++,
+  });
+  await vm.runInContext(`${confirmation}\ncontinueMyTable('r')`, context);
+  assert.equal(entries, 0);
+  assert.equal(settles, 0);
+  assert.equal(results, 0);
+  assert.equal(cleared, 0);
+  assert.equal(paints, 1);
+  assert.equal(context.screen, 'lobby');
+});
+
 test('我的牌桌缺資料顯示 —，真實零籌碼保留 0', () => {
   const context = vm.createContext({ fmtChips: String, formatCode: (s) => s.padStart(3, '0'), esc: String, CHEV_SVG: '' });
   const build = between(lobby, 'function buildMyCard', 'export function fmtChips');

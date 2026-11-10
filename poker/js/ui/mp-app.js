@@ -684,7 +684,6 @@ async function confirmContinueRoom(id) {
   if (!fb || !id) return {};
   let snap = null;
   let didClose = false;
-  let unknown = false;
   try {
     const ref = fb.fs.doc(fb.db, 'pokerRooms', id);
     snap = await fb.fs.getDoc(ref);
@@ -692,14 +691,15 @@ async function confirmContinueRoom(id) {
       didClose = await maybeAutoCloseIdleRoom(fb, { id, ...snap.data() });
       if (didClose) snap = await fb.fs.getDoc(ref);
     }
-  } catch {
-    unknown = true;
-    snap = null;
+  } catch (e) {
+    const msg = String(e?.code || e?.message || e);
+    if (/permission-denied|not-found|不存在/i.test(msg)) snap = null;
+    else return {};
   }
   if (snap?.exists() && isRoomOpenStatus(snap.data()?.status)) {
     return { room: { id, ...snap.data() } };
   }
-  // Missing, closed, or unreadable (permission-denied after sweep): settle, no continue card.
+  // Missing, closed, or unreadable after sweep (permission-denied): settle, no continue card.
   confirmedLobbyRoom = null;
   if (room?.id === id) room = { ...room, status: 'closed' };
   if (getLastRoom()?.roomId === id) clearLastRoom();
