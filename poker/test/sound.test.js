@@ -88,22 +88,32 @@ const mpSource = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'u
 function soundRoom() {
   const played = [];
   const listeners = new Map();
-  const ticks = new Set();
+  const timers = new Map();
+  let timerId = 0;
+  let now = 0;
   let writes = 0;
   let hintText = '';
   const hint = { get textContent() { return hintText; }, set textContent(text) { hintText = text; writes++; } };
-  let cancelled = false;
   const ctx = vm.createContext({
     detectSoundEvents, pickSound, hurryCrossed, soundHandKey,
     MP_FX: { timerWarnLastMs: 5000 }, screen: 'table', lastRecvAt: 0,
     room: { pub: pub({ actor: 0 }), deadlineAt: 10000 }, rem: 6000,
     remainingMs: () => ctx.rem, playSound: (kind) => { if (kind) played.push(kind); },
     $: (selector) => selector === '#turnHint' ? hint : null,
-    stopSound() {}, initSound() {}, onTick: (fn) => {
-      ticks.add(fn);
-      return () => { ticks.delete(fn); cancelled = true; };
+    stopSound() {}, initSound() {},
+    setTimeout: (fn, delay) => {
+      const id = ++timerId;
+      timers.set(id, { fn, delay, at: now + delay });
+      return id;
     },
-    document: { hidden: false, addEventListener: (type, fn) => listeners.set(type, fn), removeEventListener() {} },
+    clearTimeout: (id) => timers.delete(id),
+    document: { hidden: false,
+      addEventListener: (type, fn) => {
+        if (!listeners.has(type)) listeners.set(type, new Set());
+        listeners.get(type).add(fn);
+      },
+      removeEventListener: (type, fn) => listeners.get(type)?.delete(fn),
+    },
     window: { addEventListener() {}, removeEventListener() {} },
   });
   vm.runInContext(mpSource.slice(mpSource.indexOf('// Sound state is independent'), mpSource.indexOf("let joinDigits = '';")), ctx);
@@ -111,8 +121,22 @@ function soundRoom() {
     const previous = ctx.room.pub;
     ctx.room.pub = next;
     ctx.consumeRoomSound(previous, next, seat, skip);
+    ctx.turnClockTick();
   };
-  return { ctx, played, receive, listeners, ticks, hint, writes: () => writes, cancelled: () => cancelled };
+  const advance = (ms) => {
+    const target = now + ms;
+    while (true) {
+      const next = [...timers].sort((a, b) => a[1].at - b[1].at)[0];
+      if (!next || next[1].at > target) break;
+      ctx.rem -= next[1].at - now;
+      now = next[1].at;
+      timers.delete(next[0]);
+      next[1].fn();
+    }
+    ctx.rem -= target - now;
+    now = target;
+  };
+  return { ctx, played, receive, listeners, timers, advance, hint, writes: () => writes };
 }
 
 test('room：同快照只選最高優先；低優先事件也消耗', () => {
@@ -159,16 +183,16 @@ test('room：skip 重立倒數基線，低於門檻不補，未入座不播', ()
   r.ctx.tickRoomSound();
   assert.deepEqual(r.played, []);
 });
-test('room：背景返回先等新快照，ticker 可取消且不重畫', () => {
+test('room：背景返回先等新快照，timer 可取消且不重畫', () => {
   const r = soundRoom();
   r.ctx.startRoomSound();
   r.receive(pub({ actor: 0 }), true);
-  r.listeners.get('visibilitychange')();
+  for (const fn of r.listeners.get('visibilitychange')) fn();
   r.ctx.rem = 4000;
   r.ctx.tickRoomSound();
   assert.deepEqual(r.played, []);
-  vm.runInContext('stopSoundTick(); resetRoomSound();', r.ctx);
-  assert.equal(r.cancelled(), true);
+  vm.runInContext('stopTurnClock(); resetRoomSound();', r.ctx);
+  assert.equal(r.timers.size, 0);
 });
 
 test('播放器：五檔預載、手勢解鎖、優先中斷、關閉停聲及恢復不補播', async () => {
@@ -265,30 +289,26 @@ test('room：同 turn 後續快照刷新 lastRecvAt，不會把快超時倒數�
 
 test('room：同快照倒數持續減少，顯示 5 秒時與 hurry 同步跨線，文字未變不寫 DOM', () => {
   const r = soundRoom();
-  let now = 1000;
-  r.ctx.remainingMs = (deadlineAt, hostClockAt, recvAt) =>
-    Math.max(0, deadlineAt - hostClockAt - (now - recvAt));
-  r.ctx.room.deadlineAt = 17000;
-  r.ctx.lastRecvAt = now;
-  r.receive(pub({ actor: 0, hostClockAt: 10000 }), true);
+  r.ctx.rem = 7000;
+  r.receive(pub({ actor: 0 }), true);
   r.ctx.startRoomSound();
-  const tick = () => { for (const fn of r.ticks) fn(); };
-  tick();
   assert.equal(r.hint.textContent, '7 秒');
-  now = 2000;
-  tick();
+  r.advance(1015);
   assert.equal(r.hint.textContent, '6 秒');
   const writes = r.writes();
-  now = 2500;
-  tick();
+  r.advance(500);
   assert.equal(r.writes(), writes);
   assert.deepEqual(r.played, []);
-  now = 3000;
-  tick();
+  r.advance(500);
   assert.equal(r.hint.textContent, '5 秒');
   assert.deepEqual(r.played, ['hurry']);
-  vm.runInContext('stopSoundTick(); stopTurnHintTick();', r.ctx);
-  assert.equal(r.ticks.size, 0);
+  r.advance(1000);
+  assert.deepEqual(r.played, ['hurry']);
+  // Run the actual teardown's timer cancellation before unrelated room cleanup.
+  vm.runInContext(mpSource.slice(mpSource.indexOf('function tearDownRoom()'),
+    mpSource.indexOf('  closingFreeze = false;', mpSource.indexOf('function tearDownRoom()'))) + '}', r.ctx);
+  r.ctx.tearDownRoom();
+  assert.equal(r.timers.size, 0);
 });
 
 test('room：其他 actor 的倒數不受後續快照或入座影響，非回合清空提示', () => {
@@ -333,4 +353,33 @@ test('確認 toast：只隱藏指定訊息並取消 timer，其他 toast 保留'
   assert.equal(el.hidden, false);
   assert.equal(ctx.toastTimer, 43);
   assert.deepEqual(cleared, [42]);
+});
+
+
+test('room：無有效回合或背景不排程，有效回合對齊下一個整秒邊界', () => {
+  const r = soundRoom();
+  r.ctx.rem = 7300;
+  r.receive(pub({ actor: 0 }), true);
+  assert.equal(r.timers.size, 1);
+  assert.equal([...r.timers.values()][0].delay, 315);
+  for (const snapshot of [pub({ phase: 'hand_over' }), pub({ phase: 'lobby' }), pub({ actor: null })]) {
+    r.receive(snapshot);
+    assert.equal(r.timers.size, 0);
+  }
+  r.ctx.room.pub = pub({ actor: 0 });
+  r.ctx.screen = 'share';
+  r.ctx.scheduleTurnClock();
+  assert.equal(r.timers.size, 0);
+  r.ctx.screen = 'table';
+  r.ctx.startRoomSound();
+  r.ctx.document.hidden = true;
+  for (const fn of r.listeners.get('visibilitychange')) fn();
+  assert.equal(r.timers.size, 0);
+  r.ctx.document.hidden = false;
+  for (const fn of r.listeners.get('visibilitychange')) fn();
+  assert.equal(r.timers.size, 1);
+  assert.equal([...r.timers.values()][0].delay, 315);
+  r.ctx.rem = 0;
+  r.ctx.scheduleTurnClock();
+  assert.equal(r.timers.size, 0);
 });

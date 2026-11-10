@@ -83,7 +83,6 @@ import { openPersonalStats, shouldToastClosedFallback } from './personal-stats.j
 import { STATS_ENABLED } from '../stats/host-runtime.js';
 import { createFirestoreStatsAdapter } from '../stats/firestore-adapter.js';
 import { MP_FX, mpDuration } from './fx-mp.js';
-import { onTick } from './ticker.js';
 import { detectSoundEvents, pickSound, hurryCrossed, soundHandKey, initSound, playSound, stopSound, isSoundOn, setSoundOn } from './sound.js';
 import { cardHtml, cardBackPair, heroBackPair, fmtChips, paintBoardSlots, raisePresetsMarkup, raisePanelCopy } from './cards-dom.js';
 import { mapSeatsClockwise } from './seating.js';
@@ -132,8 +131,7 @@ let lastRecvAt = Date.now();
 /** @type {object|null} */
 let prevPub = null;
 // Sound state is independent of animation queues and never writes room data.
-let stopSoundTick = null;
-let stopTurnHintTick = null;
+let turnClockTimer = null;
 let stopSoundVisibility = null;
 let soundNeedsBaseline = true;
 let soundSeat = -1;
@@ -157,21 +155,43 @@ function resetRoomSound() {
 
 function startRoomSound() {
   initSound();
-  stopSoundTick = onTick(tickRoomSound);
-  stopTurnHintTick = onTick(tickTurnHint);
+  turnClockTick();
   const onSoundVisibility = () => {
     stopSound();
     soundNeedsBaseline = true;
     soundRem = null;
   };
+  const onTurnClockVisibility = () => turnClockTick();
   document.addEventListener('visibilitychange', onSoundVisibility);
+  document.addEventListener('visibilitychange', onTurnClockVisibility);
   window.addEventListener('offline', onSoundVisibility);
   window.addEventListener('online', onSoundVisibility);
   stopSoundVisibility = () => {
     document.removeEventListener('visibilitychange', onSoundVisibility);
+    document.removeEventListener('visibilitychange', onTurnClockVisibility);
     window.removeEventListener('offline', onSoundVisibility);
     window.removeEventListener('online', onSoundVisibility);
   };
+}
+
+function stopTurnClock() {
+  if (turnClockTimer != null) clearTimeout(turnClockTimer);
+  turnClockTimer = null;
+}
+
+function scheduleTurnClock() {
+  stopTurnClock();
+  const pub = room?.pub;
+  if (screen !== 'table' || document.hidden || !pub?.phase ||
+      pub.phase === 'lobby' || pub.phase === 'hand_over' || pub.actor == null) return;
+  const rem = turnRemainingMs(pub);
+  if (rem > 0) turnClockTimer = setTimeout(turnClockTick, (rem % 1000 || 1000) + 15);
+}
+
+function turnClockTick() {
+  tickTurnHint();
+  tickRoomSound();
+  scheduleTurnClock();
 }
 
 function tickRoomSound() {
@@ -2164,7 +2184,7 @@ function renderSeatOverlays() {
       turnTitle.textContent = `等待 ${nm}`;
     }
   }
-  tickTurnHint();
+  turnClockTick();
 
   // Occupied seats for layout
   const occupied = [];
@@ -3260,10 +3280,7 @@ async function confirmLeaveTable() {
 }
 
 function tearDownRoom() {
-  stopSoundTick?.();
-  stopSoundTick = null;
-  stopTurnHintTick?.();
-  stopTurnHintTick = null;
+  stopTurnClock();
   stopSoundVisibility?.();
   stopSoundVisibility = null;
   resetRoomSound();
