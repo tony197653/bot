@@ -815,9 +815,9 @@ export function renderShareRoom(root, vm) {
       </header>
       <p class="mp-table-name">${esc(name)}</p>
       <p class="mp-meta">點連結加入</p>
-      <button type="button" class="mp-btn-primary" data-act="share">分享連結</button>
+      <button type="button" class="mp-b2" data-act="share">分享連結</button>
       <button type="button" class="mp-b2" data-act="copy">複製連結</button>
-      <button type="button" class="mp-b4" data-act="enter">進入牌桌</button>
+      <button type="button" class="mp-btn-primary" data-act="enter">進入牌桌</button>
       <p class="mp-url">${esc(url)}</p>
     </div>`;
   wire(root, {
