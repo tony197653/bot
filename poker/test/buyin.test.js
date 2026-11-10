@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { DEFAULT_NEW_PLAYER_CHIPS, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../js/net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../js/net/buyin-policy.js';
 import { buyinAll, buyinAmount, ensurePlayerGrant } from '../js/net/ledger.js';
 
 const source = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
@@ -300,7 +300,7 @@ test('開桌遇到既有桌：依該桌大盲阻擋，留在大廳；先結算�
   const events=[],messages=[];
   const ctx=vm.createContext({
     getFirebase:()=>({}),getUser:()=>({uid:'u',displayName:'玩家'}),
-    createDraft:{},creating:false,createError:'',screen:'create',playerDoc:{bank:99999},
+    createRoomBuyinError,createDraft:{},creating:false,createError:'',screen:'create',playerDoc:{bank:99999},
     paint:()=>events.push('paint'),toast:msg=>messages.push(msg),console,
     silentlySettleClosedBinding:async()=>events.push('settle'),
     getPlayer:async()=>{events.push('read');return {bank:2000,tableRoomId:null};},

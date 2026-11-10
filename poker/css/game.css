@@ -1044,6 +1044,8 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-seg-item{position:relative}
 .mp-seg-item input{position:absolute;opacity:0;pointer-events:none}
 .mp-seg-item span,.mp-seg-item{display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:var(--radius-sm);border:1px solid rgba(214,180,90,.28);font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--ink);width:100%}
+.mp-seg-item:has(input:disabled),.mp-seg-item input:disabled+span{cursor:not-allowed}
+.mp-seg-item input:disabled+span{opacity:.4}
 .mp-seg-item input:checked+span,.mp-seg-item.is-on{background:var(--accent);color:var(--accentink);border-color:transparent}
 .mp-rules{padding:12px 14px;border-radius:var(--radius-md);background:rgba(0,0,0,.25);font-size:13px;color:var(--mute)}
 .mp-rules h3{font-size:13px;color:var(--ink);margin-bottom:6px}

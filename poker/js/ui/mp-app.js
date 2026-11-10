@@ -28,6 +28,8 @@ import {
   joinByRoomId,
   listenRoom,
   listenOpenTables,
+  sweepStaleTable,
+  isLobbyRoomSuppressed,
   getLastRoom,
   rememberLastRoom,
   clearLastRoom,
@@ -47,10 +49,11 @@ import {
   fetchNightBoard,
   selfRescueCashout,
   settleClosedRoomBinding,
+  readSelfCashoutAmount,
   nightKeyOf,
   readCachedPlayer,
 } from '../net/ledger.js';
-import { DEFAULT_NEW_PLAYER_CHIPS, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
 import {
   createIntentSender,
@@ -550,14 +553,14 @@ function showHostAloneLeaveDialog() {
   }
   el.innerHTML = `
     <div class="mp-close-result-card">
-      <h2 id="mpHostAloneT">桌上只剩你，不能交給別人。要結束的話請收桌，或等有人入座</h2>
+      <h2 id="mpHostAloneT">桌上只剩你，要收桌嗎？</h2>
       <button type="button" class="mp-btn-primary" id="mpHostAloneClose">收桌</button>
       <button type="button" class="mp-btn-ghost" id="mpHostAloneCancel">先不要</button>
     </div>`;
   el.hidden = false;
   $('#mpHostAloneClose', el)?.addEventListener('click', () => {
     el.hidden = true;
-    mpCloseRoom();
+    doCloseRoom();
   });
   $('#mpHostAloneCancel', el)?.addEventListener('click', () => {
     el.hidden = true;
@@ -587,7 +590,11 @@ function showLeaveTableConfirm() {
   }
   el.innerHTML = `
     <div class="mp-close-result-card">
-      <h2 id="mpLeaveConfirmT">是否離開牌局？</h2>
+      <h2 id="mpLeaveConfirmT">${room.hostUid === getUser()?.uid
+        ? isHandInProgress()
+          ? '是否離開並收桌？這一手會作廢，已下注的籌碼退回'
+          : '是否離開並收桌？玩家將結帳回帳戶。'
+        : '是否離開牌局？'}</h2>
       <button type="button" class="mp-btn-primary" id="mpLeaveConfirmOk">確認離開</button>
       <button type="button" class="mp-btn-ghost" id="mpLeaveConfirmCancel">取消</button>
     </div>`;
@@ -651,10 +658,14 @@ const lobbyClosedSynced = new Set();
 let pendingCloseReturnChips = null;
 /** Last known chips for this player at the current table (survives host cashout-before-close). */
 let lastKnownSelfTableChips = 0;
+let lastKnownSelfTableChipsRoomId = null;
+let lastKnownSelfSessionNo = null;
 /** After voluntary ‹ 大廳 confirm: never show 我的牌桌／繼續 until unbound. */
 let lobbyExitSuppressMine = false;
 /** @type {any[]} */
 let openTables = [];
+let lobbySweepRows = [];
+let lobbySweepInflight = false;
 /** @type {(() => void)|null} */
 let stopOpenTables = null;
 /** Toast once when auto-unseated while away (附錄 L5). */
@@ -908,8 +919,9 @@ export async function startMpApp() {
     paint();
   });
 
-  // takeover poll
+  // takeover poll; reuse its clock for the throttled lobby sweep.
   setInterval(() => {
+    void sweepLobbyTables();
     const fb = getFirebase();
     const u = getUser();
     if (!fb || !u || !room || room.hostUid === u.uid) return;
@@ -1043,7 +1055,7 @@ function paint() {
   const soloLobby = $('#lobbyScreen');
   const app = $('#app');
   const inTable = screen === 'table';
-  if (inTable || screen === 'share') dismissToast('正在確認牌桌…');
+  if (inTable || screen === 'share' || screen === 'create') dismissToast('正在確認牌桌…');
   // Table-only control — must not linger over lobby/stats after close-result
   if (!inTable) {
     const back = $('#btnBackLobby');
@@ -1082,6 +1094,7 @@ function paint() {
     if (app) app.classList.add('hidden');
     silenceSoloScreens();
     ensureOpenTablesListen();
+    void sweepLobbyTables();
     if (pendingAwayUnseatToast) {
       pendingAwayUnseatToast = false;
       awayLobbyStatus = '已自動離座';
@@ -1217,7 +1230,7 @@ function paint() {
       player: playerDoc,
       myTable,
       openTables: openTables.filter(
-        (t) => t.id !== myTable?.roomId && isRoomOpenStatus(t.status),
+        (t) => t.id !== myTable?.roomId && !isLobbyRoomSuppressed(t.id) && isRoomOpenStatus(t.status),
       ),
       joinDigits,
       joinError,
@@ -1252,6 +1265,7 @@ function paint() {
     root.classList.remove('mp-root-table');
     renderCreateRoom(root, {
       defaults: createDraft,
+      bank: playerDoc?.bank ?? null,
       creating,
       error: createError,
       onDraft: (d) => {
@@ -1396,6 +1410,24 @@ function paintEnterShell(name) {
   set('#btns', (el) => (el.innerHTML = ''));
 }
 
+async function sweepLobbyTables() {
+  const fb = getFirebase();
+  const user = getUser();
+  if (screen !== 'lobby' || !fb || !user || lobbySweepInflight) return;
+  lobbySweepInflight = true;
+  try {
+    for (const row of lobbySweepRows) {
+      if (screen !== 'lobby' || getUser()?.uid !== user.uid) break;
+      if (row.id === playerDoc?.tableRoomId) continue;
+      await sweepStaleTable(fb, row, user.uid, Date.now(), () => {
+        if (screen === 'lobby') paint();
+      });
+    }
+  } finally {
+    lobbySweepInflight = false;
+  }
+}
+
 function ensureOpenTablesListen() {
   if (stopOpenTables) return;
   const fb = getFirebase();
@@ -1404,12 +1436,14 @@ function ensureOpenTablesListen() {
     fb,
     (rows) => {
       const hadTable = openTables.length > 0;
+      lobbySweepRows = rows;
       openTables = rows.slice(0, 1);
+      void sweepLobbyTables();
       if (screen !== 'lobby') return;
       // 一般快照只更新清單，保留手機 pointerdown 到 click 之間的頭像節點。
       const root = $('#mpRoot');
       const mine = lobbyExitSuppressMine ? null : playerDoc?.tableRoomId || playerDoc?.hostRoomId;
-      const listed = openTables.filter(t => t.id !== mine && isRoomOpenStatus(t.status));
+      const listed = openTables.filter(t => t.id !== mine && !isLobbyRoomSuppressed(t.id) && isRoomOpenStatus(t.status));
       if (hadTable === (openTables.length > 0) && root && patchOpenTables(root, listed)) return;
       // 單桌出現／消失時，開桌入口也必須同步更新。
       paint();
@@ -1635,6 +1669,13 @@ async function doCreate(data) {
       String(data.name || '').trim() || `${displayName}的牌桌`;
     await silentlySettleClosedBinding();
     playerDoc = await getPlayer(fb, user.uid);
+    const buyinError = createRoomBuyinError(data.newPlayerChips, data.sb, data.bb, playerDoc?.bank ?? null);
+    if (buyinError) {
+      createError = buyinError;
+      creating = false;
+      paint();
+      return;
+    }
     const res = await createSingleTable(fb, {
       uid: user.uid,
       name: tableName,
@@ -1802,6 +1843,8 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
   closeResultChipsShown = 0;
   pendingCloseReturnChips = null;
   lastKnownSelfTableChips = 0;
+  lastKnownSelfTableChipsRoomId = null;
+  lastKnownSelfSessionNo = null;
   lobbyClosedSynced.delete(id);
 
   paintEnterShell(getLastRoom()?.name);
@@ -1838,7 +1881,10 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
           const s = Array.isArray(r.seatUids) ? r.seatUids.indexOf(u) : -1;
           if (s >= 0) {
             lastKnownSelfTableChips = Number(r.stacks?.[s]) || 0;
+            lastKnownSelfTableChipsRoomId = id;
+            lastKnownSelfSessionNo = r.sess?.[s]?.sessionNo ?? null;
           } else if (
+            lastKnownSelfTableChipsRoomId !== id &&
             playerDoc?.tableRoomId === id &&
             Number(playerDoc?.inPlay) > 0
           ) {
@@ -1866,7 +1912,11 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         }
         const auto =
           !!(r.lobby?.autoClosed || r.autoClosed || r.pub?.autoClosed) || r.closedBy === 'auto';
-        // Prefer pending / settle / last-known stack (never show 0 after a real return)
+        const cashoutSessionNo = lastKnownSelfSessionNo ?? playerDoc?.sessionNo;
+        const cashoutAmount = await readSelfCashoutAmount(
+          fb, user.uid, id, cashoutSessionNo,
+        );
+        // Ledger is authoritative; retain pending / settle / last-known as fallback.
         let chips =
           pendingCloseReturnChips != null
             ? Number(pendingCloseReturnChips) || 0
@@ -1885,6 +1935,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
         if (!(chips > 0) && lastKnownSelfTableChips > 0) {
           chips = lastKnownSelfTableChips;
         }
+        if (cashoutAmount > 0) chips = cashoutAmount;
         showCloseResultCard({ chips, auto });
         pendingCloseReturnChips = null;
         paintTableChrome();
@@ -3280,6 +3331,8 @@ async function confirmLeaveTable() {
 }
 
 function tearDownRoom() {
+  lastKnownSelfTableChipsRoomId = null;
+  lastKnownSelfSessionNo = null;
   stopTurnClock();
   stopSoundVisibility?.();
   stopSoundVisibility = null;
@@ -3531,7 +3584,7 @@ async function performHostCloseRoomInner(opts = {}) {
   return chips;
 }
 
-/** Styled second confirm for 收桌 (same component as 「是否離開牌局？」); replaces the browser-native dialog. */
+/** Styled confirm for 收桌 (same component as 「是否離開牌局？」); replaces the browser-native dialog. */
 function showCloseRoomConfirm(onOk) {
   let el = document.getElementById('mpCloseConfirm');
   if (!el) {
@@ -3545,7 +3598,9 @@ function showCloseRoomConfirm(onOk) {
   }
   el.innerHTML = `
     <div class="mp-close-result-card">
-      <h2 id="mpCloseConfirmT">確定收桌？玩家將結帳回帳戶。</h2>
+      <h2 id="mpCloseConfirmT">${isHandInProgress()
+        ? '確定收桌？這一手會作廢，已下注的籌碼退回，所有人照桌上籌碼結帳回帳戶。'
+        : '確定收桌？玩家將結帳回帳戶。'}</h2>
       <button type="button" class="mp-btn-primary" id="mpCloseConfirmOk">確認收桌</button>
       <button type="button" class="mp-btn-ghost" id="mpCloseConfirmCancel">取消</button>
     </div>`;
