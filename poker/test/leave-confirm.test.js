@@ -185,7 +185,8 @@ describe('收桌確認實際互動', () => {
     h.ctx.showHostAloneLeaveDialog();
     assert.equal(h.elements.size, 1);
     const modal = h.elements.get('mpHostAlone');
-    assert.match(modal.innerHTML, /桌上只剩你，要收桌嗎？玩家籌碼會結帳回帳戶/);
+    assert.match(modal.innerHTML, /桌上只剩你，要收桌嗎？/);
+    assert.doesNotMatch(modal.innerHTML, /玩家籌碼會結帳回帳戶/);
     h.handlers.get('mpHostAlone:#mpHostAloneClose')();
     assert.equal(h.closes(), 1);
     assert.equal(modal.hidden, true);

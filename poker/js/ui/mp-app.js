@@ -553,7 +553,7 @@ function showHostAloneLeaveDialog() {
   }
   el.innerHTML = `
     <div class="mp-close-result-card">
-      <h2 id="mpHostAloneT">桌上只剩你，要收桌嗎？玩家籌碼會結帳回帳戶</h2>
+      <h2 id="mpHostAloneT">桌上只剩你，要收桌嗎？</h2>
       <button type="button" class="mp-btn-primary" id="mpHostAloneClose">收桌</button>
       <button type="button" class="mp-btn-ghost" id="mpHostAloneCancel">先不要</button>
     </div>`;
