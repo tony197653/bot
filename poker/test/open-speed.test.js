@@ -68,6 +68,7 @@ function harness(fb) {
   const noop = () => {};
   const ctx = vm.createContext({
     ...roomNet, ...ledger, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, DEFAULT_NEW_PLAYER_CHIPS,
+    setTimeout: () => 1, clearTimeout: () => {}, enterRoomTimeout: null,
     console, Date, Promise, getFirebase: () => fb, getUser: () => ({ uid: 'u', displayName: 'Host' }),
     playerDoc: structuredClone(fb.docs.get('pokerPlayers/u')), screen: 'lobby', rescueOk: false,
     createDraft: {}, creating: false, createError: '', shareInfo: null,

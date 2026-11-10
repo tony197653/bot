@@ -65,7 +65,7 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     assert.doesNotMatch(lobby, /!autoResumeTried/);
     assert.match(lobby, /const continueId =[\s\S]*playerDoc\?\.tableRoomId[\s\S]*playerDoc\?\.hostRoomId/);
     assert.match(lobby, /const myTable =[\s\S]*roomId: continueId/);
-    assert.match(lobby, /onContinue:\s*\(\) => myTable && enterRoom\(myTable\.roomId\)/);
+    assert.match(lobby, /onContinue:\s*\(\) => myTable && continueMyTable\(myTable\.roomId\)/);
   });
 
   it('回大廳／看戰績 走 dismiss helpers；不得再把 autoResumeTried 清成 false', () => {
@@ -159,8 +159,10 @@ describe('收桌結果卡 → 大廳／戰績（source contracts）', () => {
     assert.match(block, /settledChanged/);
     assert.match(block, /lobbyBindKey/);
     assert.match(block, /changed \|\| settledChanged/);
-    // Must re-read after maybeAutoCloseIdleRoom (stale open snapshot)
-    assert.match(block, /didClose/);
+    // Shared confirmation re-reads after the existing sweep closes a room.
+    const confirm = app.slice(app.indexOf('async function confirmContinueRoom'), app.indexOf('async function continueMyTable'));
+    assert.match(confirm, /didClose/);
+    assert.match(confirm, /if \(didClose\) snap = await fb.fs.getDoc/);
     // No bare unconditional re-paint on closed pointer
     assert.doesNotMatch(
       block,

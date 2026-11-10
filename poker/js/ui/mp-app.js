@@ -428,7 +428,7 @@ async function dismissCloseResultToLobby() {
   if (closeInFlight) {
     // 0.2 秒回饋：先切大廳；收桌／結帳在背景跑完才拆 host loop
     const pending = closeInFlight;
-    closeResultDismissedFor = roomId || room?.id || null;
+    closeResultDismissedFor = roomId || room?.id || closeResultShownFor || null;
     hideCloseResultCard();
     clearRoomUrlParams();
     clearLastRoom();
@@ -441,7 +441,7 @@ async function dismissCloseResultToLobby() {
     try { await pending; } catch { return; }
     if (screen !== 'lobby') return;
   }
-  const closedId = roomId || room?.id || null;
+  const closedId = roomId || room?.id || closeResultShownFor || null;
   closeResultDismissedFor = closedId;
   hideCloseResultCard();
   clearRoomUrlParams();
@@ -460,7 +460,7 @@ async function dismissCloseResultToLobby() {
 
 async function dismissCloseResultToStats() {
   if (closeInFlight) await closeInFlight.catch(() => {});
-  const closedId = roomId || room?.id || null;
+  const closedId = roomId || room?.id || closeResultShownFor || null;
   closeResultDismissedFor = closedId;
   hideCloseResultCard();
   clearRoomUrlParams();
@@ -472,11 +472,11 @@ async function dismissCloseResultToStats() {
 }
 
 /** M2 #5: stay on table with result card; do not auto-kick. */
-function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry } = {}) {
-  const rid = roomId || room?.id || null;
+function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry, roomId: ridOpt } = {}) {
+  const rid = ridOpt || roomId || room?.id || null;
   // User already chose 回大廳／看戰績 — late closed snapshots must not re-open the card
   if (rid && closeResultDismissedFor === rid) return;
-  if (screen !== 'table' && screen !== 'linking' && state === 'done') return;
+  if (screen !== 'table' && screen !== 'linking' && screen !== 'lobby' && state === 'done') return;
   const existing = document.getElementById('mpCloseResult');
   if (state === 'done' && existing?.dataset.state === 'pending' && closeInFlight) return;
   const n = Number(chips) || 0;
@@ -674,6 +674,67 @@ let pendingAwayUnseatToast = false;
 let awayLobbyStatus = null;
 /** Lobby idle/rescue getDoc: only on bind change or ≥30s (not every paint). */
 const LOBBY_IDLE_CHECK_MS = 30_000;
+let confirmedLobbyRoom = null;
+let enterRoomTimeout = null;
+
+// Reuse the existing idle-close decision, then re-read its result.
+// Returns { room } when still open, or { closed, chips, auto } when gone/closed.
+async function confirmContinueRoom(id) {
+  const fb = getFirebase();
+  if (!fb || !id) return {};
+  let snap = null;
+  let didClose = false;
+  let unknown = false;
+  try {
+    const ref = fb.fs.doc(fb.db, 'pokerRooms', id);
+    snap = await fb.fs.getDoc(ref);
+    if (snap.exists()) {
+      didClose = await maybeAutoCloseIdleRoom(fb, { id, ...snap.data() });
+      if (didClose) snap = await fb.fs.getDoc(ref);
+    }
+  } catch {
+    unknown = true;
+    snap = null;
+  }
+  if (snap?.exists() && isRoomOpenStatus(snap.data()?.status)) {
+    return { room: { id, ...snap.data() } };
+  }
+  // Missing, closed, or unreadable (permission-denied after sweep): settle, no continue card.
+  confirmedLobbyRoom = null;
+  if (room?.id === id) room = { ...room, status: 'closed' };
+  if (getLastRoom()?.roomId === id) clearLastRoom();
+  const chips = await silentlySettleClosedBinding();
+  const data = snap?.exists() ? snap.data() : null;
+  const auto = !!(
+    didClose ||
+    data?.lobby?.autoClosed ||
+    data?.autoClosed ||
+    data?.pub?.autoClosed ||
+    data?.closedBy === 'auto'
+  );
+  return { closed: true, chips, auto };
+}
+
+function revealClosedFromLobby(id, { chips = 0, auto = false } = {}) {
+  if (!id || closeResultDismissedFor === id) return;
+  showCloseResultCard({ chips, auto, roomId: id });
+}
+
+async function continueMyTable(id) {
+  try {
+    const confirmed = await confirmContinueRoom(id);
+    if (screen !== 'lobby') return;
+    confirmedLobbyRoom = confirmed.room || null;
+    if (confirmed.room) await enterRoom(id, { fromContinue: true });
+    else {
+      if (confirmed.closed) revealClosedFromLobby(id, confirmed);
+      paint();
+    }
+  } catch {
+    if (screen === 'lobby') paint();
+  }
+}
+
 let lobbyIdleCheckAt = 0;
 let lobbyIdleCheckKey = '';
 let lobbyIdleCheckInflight = false;
@@ -1117,7 +1178,7 @@ function paint() {
     ) {
       awayLobbyStatus = null;
     }
-    const last = getLastRoom();
+    const cachedLast = getLastRoom();
     // Closed tables: never show 我的牌桌 (settle is silent). Open bind only.
     // Voluntary ‹ 大廳 exit: suppress 我的牌桌／繼續 until tableRoomId clears.
     if (lobbyExitSuppressMine && !playerDoc?.tableRoomId && !playerDoc?.hostRoomId) {
@@ -1130,6 +1191,7 @@ function paint() {
         : playerDoc?.hostRoomId && !rescueOk
           ? playerDoc.hostRoomId
           : null;
+    const last = cachedLast?.roomId === continueId ? cachedLast : null;
     // Stay in the lobby after load/sign-in; enter only through 我的牌桌／繼續.
     // Soft-leave live close still comes from listenRoom → silentlySettle + paint.
     // This getDoc path is only for lobby-entry / bind change / ~30s idle-close.
@@ -1141,43 +1203,16 @@ function paint() {
         .then(async (changed) => {
           let settledChanged = false;
           try {
-            const fb = getFirebase();
-            const tid = playerDoc?.tableRoomId || playerDoc?.hostRoomId;
-            if (fb && tid) {
-              const snap = await fb.fs.getDoc(
-                fb.fs.doc(fb.db, 'pokerRooms', tid),
-              );
-              if (snap.exists()) {
-                const data = snap.data();
-                const didClose = await maybeAutoCloseIdleRoom(fb, {
-                  id: tid,
-                  ...data,
-                });
-                let closed = data?.status === 'closed';
-                if (didClose) {
-                  try {
-                    const again = await fb.fs.getDoc(
-                      fb.fs.doc(fb.db, 'pokerRooms', tid),
-                    );
-                    closed =
-                      !again.exists() || again.data()?.status === 'closed';
-                  } catch {
-                    closed = true;
-                  }
-                }
-                if (closed && screen === 'lobby') {
-                  const before = lobbyBindKey();
-                  await syncAfterRoomClosed();
-                  settledChanged = before !== lobbyBindKey();
-                }
-              } else if (screen === 'lobby') {
-                const before = lobbyBindKey();
-                await syncAfterRoomClosed();
-                settledChanged = before !== lobbyBindKey();
-              }
+            const tid = continueId;
+            if (tid) {
+              const before = lobbyBindKey();
+              const confirmed = await confirmContinueRoom(tid);
+              confirmedLobbyRoom = confirmed.room || null;
+              if (confirmed.closed) revealClosedFromLobby(tid, confirmed);
+              settledChanged = before !== lobbyBindKey() || !!confirmedLobbyRoom || !!confirmed.closed;
             }
           } catch {
-            /* ignore */
+            /* keep last confirmedLobbyRoom on a failed re-check */
           }
           if ((changed || settledChanged) && screen === 'lobby') paint();
         })
@@ -1185,42 +1220,45 @@ function paint() {
           lobbyIdleCheckInflight = false;
         });
     }
+    const liveRoom = room?.id === continueId && isRoomOpenStatus(room.status)
+      ? room
+      : confirmedLobbyRoom?.id === continueId ? confirmedLobbyRoom : null;
     const seatIdx =
-      room?.seatUids
-        ? room.seatUids.indexOf(authState.user?.uid)
+      liveRoom?.seatUids
+        ? liveRoom.seatUids.indexOf(authState.user?.uid)
         : last?.seat;
     const stackChips =
-      seatIdx >= 0 && Array.isArray(room?.stacks)
-        ? room.stacks[seatIdx]
+      seatIdx >= 0 && Array.isArray(liveRoom?.stacks)
+        ? liveRoom.stacks[seatIdx]
         : null;
     const myTable =
-      continueId && (playerDoc?.tableRoomId || playerDoc?.hostRoomId || rescueOk)
+      continueId && liveRoom && (playerDoc?.tableRoomId || playerDoc?.hostRoomId || rescueOk)
         ? {
             roomId: continueId,
-            code: room?.code || last?.code || '',
-            name: room?.name || last?.name || '牌桌',
+            code: liveRoom?.code || last?.code || '',
+            name: liveRoom?.name || last?.name || '—',
             chips:
               stackChips != null
                 ? stackChips
-                : last?.chips ?? playerDoc?.inPlay,
+                : playerDoc?.inPlay ?? last?.chips,
             seat: seatIdx >= 0 ? seatIdx : last?.seat ?? null,
             seated:
-              Array.isArray(room?.seatUids)
-                ? room.seatUids.filter(Boolean).length
-                : room?.lobby?.seated ?? 0,
+              Array.isArray(liveRoom?.seatUids)
+                ? liveRoom.seatUids.filter(Boolean).length
+                : liveRoom?.lobby?.seated ?? null,
             blinds:
-              room?.lobby?.blinds ||
-              (room?.config
-                ? `${room.config.sb}/${room.config.bb}`
-                : '10/20'),
+              liveRoom?.lobby?.blinds ||
+              (liveRoom?.config
+                ? `${liveRoom.config.sb}/${liveRoom.config.bb}`
+                : '—'),
             hostName:
-              room?.lobby?.hostName ||
-              (room?.hostUid ? displayNameOf(room.hostUid) : '房主'),
+              liveRoom?.lobby?.hostName ||
+              (liveRoom?.hostUid ? displayNameOf(liveRoom.hostUid) : '房主'),
             phase:
-              room?.status === 'playing' ||
-              (room?.pub?.phase &&
-                room.pub.phase !== 'lobby' &&
-                room.pub.phase !== 'hand_over')
+              liveRoom?.status === 'playing' ||
+              (liveRoom?.pub?.phase &&
+                liveRoom.pub.phase !== 'lobby' &&
+                liveRoom.pub.phase !== 'hand_over')
                 ? 'playing'
                 : 'lobby',
           }
@@ -1240,7 +1278,7 @@ function paint() {
       rescueAvailable: rescueOk,
       rescueReason,
       rescueChips,
-      onContinue: () => myTable && enterRoom(myTable.roomId),
+      onContinue: () => myTable && continueMyTable(myTable.roomId),
       onCreate: () => {
         void onCreateTable();
       },
@@ -1398,14 +1436,15 @@ function paintEnterShell(name) {
     const el = $(sel);
     if (el) fn(el);
   };
-  set('#roomTitle', (el) => (el.textContent = name || '週五牌局'));
+  set('#btnBackLobby', (el) => (el.hidden = false));
+  set('#roomTitle', (el) => (el.textContent = name || '—'));
   set('#roomMeta', (el) => (el.innerHTML = ''));
   set('#seats', (el) => el.querySelectorAll('.mp-empty-seat, .seat:not(.hero)').forEach((n) => n.remove()));
   set('#bets', (el) => (el.innerHTML = ''));
   set('#board', (el) => (el.innerHTML = ''));
   set('#heroHole', (el) => (el.innerHTML = ''));
   set('#heroName', (el) => (el.textContent = me));
-  set('#heroChips', (el) => (el.textContent = fmtChips(Number(playerDoc?.bank) || 0)));
+  set('#heroChips', (el) => (el.textContent = (playerDoc?.inPlay ?? getLastRoom()?.chips) != null ? fmtChips(playerDoc?.inPlay ?? getLastRoom()?.chips) : '—'));
   set('#heroAv', (el) => (el.innerHTML = `<span>${esc(me.slice(0, 1))}</span>`));
   set('#btns', (el) => (el.innerHTML = ''));
 }
@@ -1773,7 +1812,7 @@ async function tryDeepLink(code, r) {
   }
 }
 
-async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
+async function enterRoom(id, { asHostSit = false, retryJoin = true, fromContinue = false } = {}) {
   const fb = getFirebase();
   const user = getUser();
   if (!fb || !user) return;
@@ -1837,8 +1876,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
   tearDownRoom();
   roomId = id;
   startRoomSound();
-  // Fresh enter of an open table resets dismiss guard
-  closeResultDismissedFor = null;
+  // Preserve a dismissed result for this same room.
   closeResultShownFor = null;
   closeResultChipsShown = 0;
   pendingCloseReturnChips = null;
@@ -1847,13 +1885,19 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
   lastKnownSelfSessionNo = null;
   lobbyClosedSynced.delete(id);
 
-  paintEnterShell(getLastRoom()?.name);
+  const last = getLastRoom();
+  paintEnterShell(last?.roomId === id ? last.name : null);
+  enterRoomTimeout = setTimeout(() => {
+    if (roomId === id && screen === 'table' && !room) goLobbyClean();
+  }, 3000);
 
   // Members subscribe directly; only denied subscriptions need the code join path.
   stopRoom = listenRoom(
     fb,
     id,
     async (r) => {
+      if (roomId !== id) return;
+      clearTimeout(enterRoomTimeout);
       const first = !room;
       const previousSelfSeat = room?.seatUids?.indexOf(user.uid) ?? -1;
       const wasBusted = previousSelfSeat >= 0 && (room.stacks?.[previousSelfSeat] === 0 ||
@@ -2144,7 +2188,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
             const joined = await joinByCode(fb, last.code, user.uid, id);
             if (roomId !== id) return;
             if (!joined.ended && !joined.error) {
-              await enterRoom(id, { asHostSit, retryJoin: false });
+              await enterRoom(id, { asHostSit, retryJoin: false, fromContinue });
               return;
             }
             joinError = joined.error || '牌桌已結束';
@@ -2153,10 +2197,16 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true } = {}) {
           }
         }
       }
+      if (roomId !== id) return;
       console.warn(err);
       roomGoneFor = id;
       // Stats overlay open over this table: let its close run the lobby fallback (no card possible).
       if (document.getElementById('psHost')) return;
+      clearTimeout(enterRoomTimeout);
+      if (fromContinue) {
+        goLobbyClean();
+        return;
+      }
       joinEnded = true;
       screen = 'join';
       paint();
@@ -2168,7 +2218,7 @@ function paintTableChrome() {
   // Host loop keeps running in lobby (§6.2) — skip DOM work off-table
   const back = $('#btnBackLobby');
   if (!room || screen !== 'table') {
-    if (back) back.hidden = true;
+    if (back) back.hidden = screen !== 'table';
     return;
   }
   // 收桌中：保留最後一格正常牌桌，結果卡蓋在上面
@@ -3338,6 +3388,8 @@ function tearDownRoom() {
   stopSoundVisibility = null;
   resetRoomSound();
   closingFreeze = false;
+  clearTimeout(enterRoomTimeout);
+  confirmedLobbyRoom = null;
   hostSitPending = false;
   stopRoom?.();
   stopRoom = null;
@@ -3403,7 +3455,10 @@ function ensureMpMenu() {
     if (back) {
       back.dataset.mpWired = '1';
       back.addEventListener('click', () => {
-        if (!room) return;
+        if (!room) {
+          goLobbyClean();
+          return;
+        }
         closeMpMenu();
         showLeaveTableConfirm();
       });

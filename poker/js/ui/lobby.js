@@ -138,15 +138,15 @@ function buildMyCard(vm) {
   const statusWord =
     kind === 'settle' ? '待結帳' : kind === 'host' ? '我是房主' : '已入座';
 
-  const name = myTable?.name || '牌桌';
-  const code = formatCode(myTable?.code || '');
-  const blinds = myTable?.blinds || '10/20';
+  const name = myTable?.name || '—';
+  const code = myTable?.code ? formatCode(myTable.code) : '—';
+  const blinds = myTable?.blinds || '—';
   const seated = myTable?.seated != null ? myTable.seated : '—';
   const seatLabel =
     myTable?.seat != null && myTable.seat >= 0 ? myTable.seat + 1 : '—';
-  const chips = fmtChips(
-    needRescue ? settleAmt : (myTable?.chips ?? inPlay),
-  );
+  const chipValue = needRescue ? settleAmt : (myTable?.chips ?? player?.inPlay);
+  const chips = chipValue != null && Number.isFinite(Number(chipValue))
+    ? fmtChips(chipValue) : '—';
   const hostName = myTable?.hostName || '房主';
 
   let tag;
