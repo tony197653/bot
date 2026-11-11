@@ -1,0 +1,800 @@
+[
+  {
+    "id": "vo01",
+    "type": "字彙",
+    "lesson": "日常名詞",
+    "difficulty": "易",
+    "stem": "It's raining hard outside. Don't forget to take your ____ with you.",
+    "options": [
+      "umbrella",
+      "comb",
+      "pencil",
+      "ruler"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（umbrella）。雨傘。外面雨下很大，提醒對方帶雨傘最合理。選項二（comb）：梳子，和下雨無關。選項三（pencil）：鉛筆，和下雨無關。選項四（ruler）：尺，和下雨無關。"
+  },
+  {
+    "id": "vo02",
+    "type": "字彙",
+    "lesson": "一般動詞",
+    "difficulty": "易",
+    "stem": "My little brother is only five, so he can't ____ the words in this newspaper yet.",
+    "options": [
+      "eat",
+      "wear",
+      "read",
+      "drive"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（read）。閱讀。五歲小孩還看不懂報紙上的字，read the words 搭配最合理。選項一（eat）：吃，不能「吃」報紙上的字。選項二（wear）：穿戴，不能接 words。選項四（drive）：開車，和報紙上的字無關。"
+  },
+  {
+    "id": "vo03",
+    "type": "字彙",
+    "lesson": "形容詞",
+    "difficulty": "易",
+    "stem": "Today is Sunday. The bookstore is ____ today, so we can't buy anything there. Let's go tomorrow.",
+    "options": [
+      "closed",
+      "open",
+      "full",
+      "busy"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（closed）。關門的。書店今天沒開，所以買不到東西、要明天再去，前後因果吻合。選項二（open）：營業中，若有營業就買得到，和 can't buy 矛盾。選項三（full）：客滿的，人多不代表買不到東西，也不用改天去。選項四（busy）：忙碌的，店很忙仍然可以買東西，因果不成立。"
+  },
+  {
+    "id": "vo04",
+    "type": "字彙",
+    "lesson": "職業名詞",
+    "difficulty": "易",
+    "stem": "Amy has a fever and a bad cough, so her mother is taking her to see a ____.",
+    "options": [
+      "farmer",
+      "waiter",
+      "doctor",
+      "singer"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（doctor）。醫生。發燒又咳嗽，應該去看醫生。選項一（farmer）：農夫，和生病無關。選項二（waiter）：服務生，和生病無關。選項四（singer）：歌手，和生病無關。"
+  },
+  {
+    "id": "vo05",
+    "type": "字彙",
+    "lesson": "情緒形容詞",
+    "difficulty": "中",
+    "stem": "Ken was so ____ about the trip to Japan that he couldn't sleep the night before.",
+    "options": [
+      "tired",
+      "bored",
+      "careful",
+      "excited"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（excited）。興奮的。be excited about 表示對某事感到興奮，興奮到前一晚睡不著，語意合理。選項一（tired）：疲累的，累了應該更好睡，和 couldn't sleep 矛盾；而且 tired 不和 about 搭配表達期待。選項二（bored）：感到無聊的，對要去日本旅行感到無聊卻睡不著，語意不通。選項三（careful）：小心的，be careful about 是「對…小心」，不會造成睡不著。"
+  },
+  {
+    "id": "vo06",
+    "type": "字彙",
+    "lesson": "片語動詞 turn off",
+    "difficulty": "中",
+    "stem": "Please ____ the light when you leave the room. We need to save energy.",
+    "options": [
+      "turn on",
+      "put on",
+      "turn off",
+      "take off"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（turn off）。關掉（電器）。離開房間時關燈才能節省能源。選項一（turn on）：打開，開燈會浪費能源，和 save energy 矛盾。選項二（put on）：穿上、戴上，用於衣物，不能用於燈。選項四（take off）：脫下（衣物）或（飛機）起飛，不能用於燈。"
+  },
+  {
+    "id": "vo07",
+    "type": "字彙",
+    "lesson": "一般動詞",
+    "difficulty": "中",
+    "stem": "This bridge is very old and is no longer safe. The city is going to ____ a new one next year.",
+    "options": [
+      "break",
+      "build",
+      "borrow",
+      "miss"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（build）。建造。舊橋不安全，所以市政府要蓋一座新的，a new one 指 a new bridge。選項一（break）：打破，不會去打破一座「新」橋。選項三（borrow）：借入，橋不能用借的。選項四（miss）：錯過、想念，和蓋新橋的語意無關。"
+  },
+  {
+    "id": "vo08",
+    "type": "字彙",
+    "lesson": "一般動詞",
+    "difficulty": "中",
+    "stem": "Jenny always ____ her homework before she watches TV. She is a good student.",
+    "options": [
+      "loses",
+      "finishes",
+      "hates",
+      "breaks"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（finishes）。完成。先寫完功課再看電視，符合「好學生」的描述。選項一（loses）：遺失，總是弄丟功課不符合好學生。選項三（hates）：討厭，討厭功課和看電視前的時間順序搭不起來，也不符合好學生。選項四（breaks）：打破，不能用在 homework。"
+  },
+  {
+    "id": "vo09",
+    "type": "字彙",
+    "lesson": "片語動詞 cool down",
+    "difficulty": "中",
+    "stem": "The soup is too hot. Let it ____ down before you drink it.",
+    "options": [
+      "cool",
+      "warm",
+      "burn",
+      "heat"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（cool）。cool down 是「冷卻、變涼」。湯太燙，先讓它變涼再喝。選項二（warm）：warm 是「變暖」，湯已經太燙，不需要再變熱；而且一般說 warm up。選項三（burn）：燃燒、燙傷，burn down 是「燒毀」，不合語意。選項四（heat）：加熱，湯已太燙不需加熱；也沒有 heat down 的說法。"
+  },
+  {
+    "id": "vo10",
+    "type": "字彙",
+    "lesson": "片語動詞 put off",
+    "difficulty": "中",
+    "stem": "We have to ____ the meeting until next Friday because the manager is sick today.",
+    "options": [
+      "put on",
+      "give up",
+      "put off",
+      "look for"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（put off）。延期。經理今天生病，所以會議延到下週五，until next Friday 是關鍵。選項一（put on）：穿上、上演，不能用於延後會議。選項二（give up）：放棄，放棄會議就不會有 until next Friday。選項四（look for）：尋找，找會議不合語意。"
+  },
+  {
+    "id": "vo11",
+    "type": "字彙",
+    "lesson": "provide A with B",
+    "difficulty": "難",
+    "stem": "After the earthquake, many people lost their homes. The government ____ them with food, water, and places to stay.",
+    "options": [
+      "promised",
+      "produced",
+      "protected",
+      "provided"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（provided）。provide A with B 是「提供 B 給 A」，政府提供災民食物、水和住處，語意與句型都正確。選項一（promised）：承諾，用法是 promise sb. sth. 或 promise to V，不和 with 搭配；而且災後需要的是實際「提供」，不是只有承諾。選項二（produced）：生產、製造，不能說「生產災民」。選項三（protected）：保護，常用 protect A from B（保護 A 免於 B），protect them with food 語意不通。"
+  },
+  {
+    "id": "vo12",
+    "type": "字彙",
+    "lesson": "一般動詞 judge",
+    "difficulty": "難",
+    "stem": "Don't ____ others by their looks. Try to get to know them first.",
+    "options": [
+      "judge",
+      "guess",
+      "treat",
+      "count"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（judge）。評斷。judge others by their looks 是「以貌取人」，後句「先去認識他們」正好相呼應。選項二（guess）：猜測，guess others 不是正確搭配。選項三（treat）：對待，treat 後通常接 well、badly 或 like…，不和 by their looks 搭配成評價的意思。選項四（count）：計算、數，與以貌取人無關。"
+  },
+  {
+    "id": "vo13",
+    "type": "字彙",
+    "lesson": "轉折副詞 luckily",
+    "difficulty": "難",
+    "stem": "The traffic was terrible this morning. ____, I was not late for school because I left home very early.",
+    "options": [
+      "Finally",
+      "Luckily",
+      "Suddenly",
+      "Usually"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（Luckily）。幸運地。交通很糟，但幸好我很早出門沒遲到，是由壞轉好的語氣。選項一（Finally）：終於，強調經過一段時間後才發生，和「沒有遲到」的轉折語氣不合。選項三（Suddenly）：突然，沒遲到不是突然發生的事。選項四（Usually）：通常，只說今天早上的事，不是習慣。"
+  },
+  {
+    "id": "gr01",
+    "type": "文法句型",
+    "lesson": "現在進行式",
+    "difficulty": "易",
+    "stem": "Look! The children ____ soccer in the park now.",
+    "options": [
+      "play",
+      "played",
+      "are playing",
+      "have played"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（are playing）。Look! 和 now 表示正在發生，用現在進行式 be + V-ing，主詞複數用 are。選項一（play）：現在簡單式表示習慣，不能搭配 Look! 和 now。選項二（played）：過去式，和 now 矛盾。選項四（have played）：現在完成式，不能表示「此刻正在」。"
+  },
+  {
+    "id": "gr02",
+    "type": "文法句型",
+    "lesson": "比較級",
+    "difficulty": "易",
+    "stem": "My bag is heavy, but Tina's bag is even ____ than mine.",
+    "options": [
+      "heavy",
+      "heaviest",
+      "heavier",
+      "more heavy"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（heavier）。有 than 要用比較級；heavy 字尾子音加 y，去 y 加 ier；even 用來加強比較級。選項一（heavy）：原級不能接 than。選項二（heaviest）：最高級，不能接 than。選項四（more heavy）：heavy 是 -y 結尾的兩音節形容詞，比較級直接變 heavier，不加 more。"
+  },
+  {
+    "id": "gr03",
+    "type": "文法句型",
+    "lesson": "過去簡單式",
+    "difficulty": "易",
+    "stem": "We ____ to the beach with our cousins last weekend.",
+    "options": [
+      "went",
+      "go",
+      "goes",
+      "will go"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（went）。last weekend 是過去時間，用過去式；go 的過去式是不規則的 went。選項二（go）：現在式，和 last weekend 不合。選項三（goes）：第三人稱單數現在式，主詞是 We 也不合。選項四（will go）：未來式，和 last weekend 矛盾。"
+  },
+  {
+    "id": "gr04",
+    "type": "文法句型",
+    "lesson": "疑問詞 how",
+    "difficulty": "易",
+    "stem": "— ____ do you go to school?\n— By bus.",
+    "options": [
+      "What",
+      "Where",
+      "Who",
+      "How"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（How）。回答 By bus（搭公車）是交通方式，問「如何」用 How。選項一（What）：問「什麼」，回答會是事物。選項二（Where）：問地點，回答會是地方。選項三（Who）：問人，回答會是人名。"
+  },
+  {
+    "id": "gr05",
+    "type": "文法句型",
+    "lesson": "現在完成式",
+    "difficulty": "中",
+    "stem": "I ____ in Hsinchu since I was six years old.",
+    "options": [
+      "lived",
+      "have lived",
+      "am living",
+      "will live"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（have lived）。since + 過去時間點表示「從那時一直到現在」，要用現在完成式 have + p.p.。選項一（lived）：過去式只說過去的事，不能接 since 表示持續到現在。選項三（am living）：現在進行式不搭配 since 表示持續期間。選項四（will live）：未來式和 since 矛盾。"
+  },
+  {
+    "id": "gr06",
+    "type": "文法句型",
+    "lesson": "關係代名詞 who",
+    "difficulty": "中",
+    "stem": "The girl ____ is talking to our teacher is my sister.",
+    "options": [
+      "which",
+      "what",
+      "whose",
+      "who"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（who）。先行詞 the girl 是人，且在子句中當主詞，用關係代名詞 who。選項一（which）：which 用於事物或動物，不用於人。選項二（what）：what 本身含先行詞，前面不能再有 the girl。選項三（whose）：whose 表示所有格，後面要接名詞，例如 whose bag。"
+  },
+  {
+    "id": "gr07",
+    "type": "文法句型",
+    "lesson": "被動語態",
+    "difficulty": "中",
+    "stem": "This temple ____ more than two hundred years ago.",
+    "options": [
+      "built",
+      "was built",
+      "is building",
+      "has built"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（was built）。寺廟是「被建造」，用被動語態 be + p.p.；ago 表示過去，用 was built。選項一（built）：主動語態表示寺廟自己蓋東西，不合理。選項三（is building）：現在進行式主動，意思是寺廟正在蓋東西，也和 ago 不合。選項四（has built）：現在完成式主動，不合語意，也不能搭配 ago。"
+  },
+  {
+    "id": "gr08",
+    "type": "文法句型",
+    "lesson": "動名詞 enjoy V-ing",
+    "difficulty": "中",
+    "stem": "My grandfather enjoys ____ in the park every morning.",
+    "options": [
+      "walk",
+      "to walk",
+      "walked",
+      "walking"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（walking）。enjoy 後面接動名詞 V-ing。選項一（walk）：enjoy 後面不能接原形動詞。選項二（to walk）：enjoy 後面不接不定詞 to V。選項三（walked）：enjoy 後面不能接過去式。"
+  },
+  {
+    "id": "gr09",
+    "type": "文法句型",
+    "lesson": "連接詞 although",
+    "difficulty": "中",
+    "stem": "____ it was raining, the students still finished the race.",
+    "options": [
+      "Because",
+      "Before",
+      "So",
+      "Although"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（Although）。雖然在下雨，學生仍跑完比賽，前後是讓步關係；still 也提示「儘管如此」。選項一（Because）：因為下雨所以跑完比賽，因果不合理。選項二（Before）：「下雨之前」和 still 的語氣不合。選項三（So）：so 表示結果，不能放在句首帶出前面的原因子句，再接另一個主要子句。"
+  },
+  {
+    "id": "gr10",
+    "type": "文法句型",
+    "lesson": "間接問句",
+    "difficulty": "中",
+    "stem": "Excuse me. Could you tell me where ____?",
+    "options": [
+      "the post office is",
+      "is the post office",
+      "does the post office",
+      "the post office does"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（the post office is）。間接問句要用直述句語序：疑問詞 + 主詞 + 動詞，所以是 where the post office is。選項二（is the post office）：這是直接問句的倒裝語序，放在 tell me 後面要改成直述句語序。選項三（does the post office）：多了助動詞 does，且缺少主要動詞，句子不完整。選項四（the post office does）：does 在這裡沒有可代替的動詞，語意不完整；表示位置要用 be 動詞。"
+  },
+  {
+    "id": "gr11",
+    "type": "文法句型",
+    "lesson": "與現在事實相反的假設",
+    "difficulty": "難",
+    "stem": "If I ____ you, I would say sorry to her.",
+    "options": [
+      "am",
+      "will be",
+      "were",
+      "have been"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（were）。「如果我是你」不可能成真，用與現在事實相反的假設語氣：If + 主詞 + were…, 主詞 + would + V；所有人稱都可用 were。選項一（am）：是可能發生的條件句用法，但「我是你」不可能成真，且後句用 would。選項二（will be）：if 子句不用 will 表示未來。選項四（have been）：現在完成式不能用在這種假設句。"
+  },
+  {
+    "id": "gr12",
+    "type": "文法句型",
+    "lesson": "感官動詞 hear",
+    "difficulty": "難",
+    "stem": "I heard someone ____ my name when I was walking out of the library.",
+    "options": [
+      "to call",
+      "call",
+      "called",
+      "calls"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（call）。感官動詞 hear + 受詞 + 原形動詞，表示聽到某人做某事（hear sb. V-ing 也可，但不是選項）。選項一（to call）：感官動詞後面不接 to V（主動）。選項三（called）：hear sb. called 是被動概念，但「某人叫我的名字」是主動。選項四（calls）：受詞後面不能接有人稱變化的動詞。"
+  },
+  {
+    "id": "gr13",
+    "type": "文法句型",
+    "lesson": "過去分詞當形容詞",
+    "difficulty": "難",
+    "stem": "The book ____ by many students is about a brave dog.",
+    "options": [
+      "loved",
+      "loving",
+      "was loved",
+      "loves"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（loved）。句子已有主要動詞 is，空格修飾 the book；書是「被」喜愛，用過去分詞 loved（= which is loved）。選項二（loving）：現在分詞表示主動，書不會主動去愛別人。選項三（was loved）：句子已有動詞 is，再放 was loved 會出現兩個主要動詞。選項四（loves）：同樣會造成兩個主要動詞，句子不成立。"
+  },
+  {
+    "id": "cl01",
+    "type": "克漏字題組",
+    "lesson": "不定詞 want to V",
+    "difficulty": "易",
+    "group": "c1",
+    "passage": "Last Saturday, my family went to an animal shelter（動物收容所）. We wanted __(1)__ a dog. There were many dogs there, but one small brown dog kept looking at me. The worker told us that he __(2)__ there three months ago, and nobody wanted him because he was old. I felt sad for him. \"Can we take him home?\" I asked my parents. They looked at each other and smiled.\n\nNow Lucky lives with us. Every morning, I take him for a walk __(3)__ I go to school. He is not young, __(4)__ he is the best friend I have ever had.",
+    "stem": "Choose the best answer for blank (1).",
+    "options": [
+      "getting",
+      "got",
+      "to get",
+      "get"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（to get）。want 後面接不定詞 to V，want to get a dog 表示想要養一隻狗。選項一（getting）：want 後面不接動名詞。選項二（got）：want 後面不能直接接過去式。選項四（get）：want 後面不能直接接原形動詞。"
+  },
+  {
+    "id": "cl02",
+    "type": "克漏字題組",
+    "lesson": "過去簡單式 ago",
+    "difficulty": "易",
+    "group": "c1",
+    "passage": "Last Saturday, my family went to an animal shelter（動物收容所）. We wanted __(1)__ a dog. There were many dogs there, but one small brown dog kept looking at me. The worker told us that he __(2)__ there three months ago, and nobody wanted him because he was old. I felt sad for him. \"Can we take him home?\" I asked my parents. They looked at each other and smiled.\n\nNow Lucky lives with us. Every morning, I take him for a walk __(3)__ I go to school. He is not young, __(4)__ he is the best friend I have ever had.",
+    "stem": "Choose the best answer for blank (2).",
+    "options": [
+      "came",
+      "comes",
+      "has come",
+      "will come"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（came）。three months ago 是過去時間，要用過去式 came。選項二（comes）：現在式和 ago 不合。選項三（has come）：現在完成式不能和 ago 連用。選項四（will come）：未來式和 ago 矛盾。"
+  },
+  {
+    "id": "cl03",
+    "type": "克漏字題組",
+    "lesson": "時間連接詞 before",
+    "difficulty": "中",
+    "group": "c1",
+    "passage": "Last Saturday, my family went to an animal shelter（動物收容所）. We wanted __(1)__ a dog. There were many dogs there, but one small brown dog kept looking at me. The worker told us that he __(2)__ there three months ago, and nobody wanted him because he was old. I felt sad for him. \"Can we take him home?\" I asked my parents. They looked at each other and smiled.\n\nNow Lucky lives with us. Every morning, I take him for a walk __(3)__ I go to school. He is not young, __(4)__ he is the best friend I have ever had.",
+    "stem": "Choose the best answer for blank (3).",
+    "options": [
+      "before",
+      "after",
+      "because",
+      "so"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（before）。每天早上「上學前」先帶狗散步，時間順序合理。選項二（after）：「上學後」人已在學校，不可能在早上帶狗散步。選項三（because）：「因為我去上學所以遛狗」因果不合理。選項四（so）：so 表示結果，「遛狗，所以去上學」因果不合理。"
+  },
+  {
+    "id": "cl04",
+    "type": "克漏字題組",
+    "lesson": "對等連接詞 but",
+    "difficulty": "中",
+    "group": "c1",
+    "passage": "Last Saturday, my family went to an animal shelter（動物收容所）. We wanted __(1)__ a dog. There were many dogs there, but one small brown dog kept looking at me. The worker told us that he __(2)__ there three months ago, and nobody wanted him because he was old. I felt sad for him. \"Can we take him home?\" I asked my parents. They looked at each other and smiled.\n\nNow Lucky lives with us. Every morning, I take him for a walk __(3)__ I go to school. He is not young, __(4)__ he is the best friend I have ever had.",
+    "stem": "Choose the best answer for blank (4).",
+    "options": [
+      "so",
+      "but",
+      "or",
+      "because"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（but）。牠不年輕「但」是我最好的朋友，前後語氣轉折，用 but。選項一（so）：so 表示結果，「不年輕所以是最好的朋友」因果不合理。選項三（or）：or 表示選擇，不合語意。選項四（because）：「不年輕，因為牠是最好的朋友」因果顛倒且不合理。"
+  },
+  {
+    "id": "cl05",
+    "type": "克漏字題組",
+    "lesson": "助動詞 couldn't",
+    "difficulty": "易",
+    "group": "c2",
+    "passage": "Many students today spend hours on their phones every day. To help them pay more attention to the world around them, Sunshine Junior High School held a \"No Phone Day\" last Friday. On that day, students __(1)__ use their phones from 8 a.m. to 4 p.m.\n\nAt first, many of them were worried. \"What will I do during lunch break __(2)__ my phone?\" one student asked. But the day turned out to be fun. Some students played basketball, and __(3)__ read books in the library or talked with friends. \"I talked more with my classmates in one day than in a whole week,\" said Amy, one of the students.\n\nMost students said they enjoyed the day. __(4)__, the school is planning to hold \"No Phone Day\" once a month.",
+    "stem": "Choose the best answer for blank (1).",
+    "options": [
+      "could",
+      "had to",
+      "must",
+      "couldn't"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（couldn't）。活動名稱是「無手機日」，所以學生「不能」使用手機；last Friday 是過去，用 couldn't。選項一（could）：「可以」使用手機和無手機日矛盾。選項二（had to）：「必須」使用手機和活動目的相反。選項三（must）：「必須」使用手機和活動目的相反，且全文敘述的是過去的事。"
+  },
+  {
+    "id": "cl06",
+    "type": "克漏字題組",
+    "lesson": "介系詞 without",
+    "difficulty": "中",
+    "group": "c2",
+    "passage": "Many students today spend hours on their phones every day. To help them pay more attention to the world around them, Sunshine Junior High School held a \"No Phone Day\" last Friday. On that day, students __(1)__ use their phones from 8 a.m. to 4 p.m.\n\nAt first, many of them were worried. \"What will I do during lunch break __(2)__ my phone?\" one student asked. But the day turned out to be fun. Some students played basketball, and __(3)__ read books in the library or talked with friends. \"I talked more with my classmates in one day than in a whole week,\" said Amy, one of the students.\n\nMost students said they enjoyed the day. __(4)__, the school is planning to hold \"No Phone Day\" once a month.",
+    "stem": "Choose the best answer for blank (2).",
+    "options": [
+      "with",
+      "about",
+      "without",
+      "for"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（without）。沒有手機的午休要做什麼？學生擔心的是「沒有」手機，用 without。選項一（with）：「有手機」就不必擔心，和 were worried 矛盾。選項二（about）：about my phone（關於手機）放在這裡語意不通。選項四（for）：for my phone（為了手機）語意不通。"
+  },
+  {
+    "id": "cl07",
+    "type": "克漏字題組",
+    "lesson": "不定代名詞 some…others",
+    "difficulty": "中",
+    "group": "c2",
+    "passage": "Many students today spend hours on their phones every day. To help them pay more attention to the world around them, Sunshine Junior High School held a \"No Phone Day\" last Friday. On that day, students __(1)__ use their phones from 8 a.m. to 4 p.m.\n\nAt first, many of them were worried. \"What will I do during lunch break __(2)__ my phone?\" one student asked. But the day turned out to be fun. Some students played basketball, and __(3)__ read books in the library or talked with friends. \"I talked more with my classmates in one day than in a whole week,\" said Amy, one of the students.\n\nMost students said they enjoyed the day. __(4)__, the school is planning to hold \"No Phone Day\" once a month.",
+    "stem": "Choose the best answer for blank (3).",
+    "options": [
+      "another",
+      "the other",
+      "others",
+      "other"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（others）。Some…, and others… 是「有些人…，其他人…」，others 是複數代名詞，可單獨當主詞。選項一（another）：another 指「另一個」單數，後面動詞 read 和多人的語意不合。選項二（the other）：the other 單獨使用指兩者中的另一個，不能指一群學生。選項四（other）：other 是形容詞，後面要接名詞，例如 other students。"
+  },
+  {
+    "id": "cl08",
+    "type": "克漏字題組",
+    "lesson": "轉承語 as a result",
+    "difficulty": "難",
+    "group": "c2",
+    "passage": "Many students today spend hours on their phones every day. To help them pay more attention to the world around them, Sunshine Junior High School held a \"No Phone Day\" last Friday. On that day, students __(1)__ use their phones from 8 a.m. to 4 p.m.\n\nAt first, many of them were worried. \"What will I do during lunch break __(2)__ my phone?\" one student asked. But the day turned out to be fun. Some students played basketball, and __(3)__ read books in the library or talked with friends. \"I talked more with my classmates in one day than in a whole week,\" said Amy, one of the students.\n\nMost students said they enjoyed the day. __(4)__, the school is planning to hold \"No Phone Day\" once a month.",
+    "stem": "Choose the best answer for blank (4).",
+    "options": [
+      "However",
+      "For example",
+      "On the other hand",
+      "As a result"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（As a result）。前句說大部分學生喜歡這個活動，後句說學校打算每月舉辦一次，是「因此、結果」的關係。選項一（However）：「然而」表示轉折，但前後語意是順承，不是相反。選項二（For example）：「例如」要接前句的例子，後句不是例子。選項三（On the other hand）：「另一方面」用來帶出相對或不同的一面，但前後語意是順承，不是對比。"
+  },
+  {
+    "id": "cl09",
+    "type": "克漏字題組",
+    "lesson": "片語動詞 end up",
+    "difficulty": "中",
+    "group": "c3",
+    "passage": "Every year, millions of plastic（塑膠）straws are used only once and then thrown away. Most of them are not recycled, so they often __(1)__ in the ocean. Sea animals may eat them by mistake.\n\nIn July 2019, Taiwan began to ask some places, such as schools and fast food restaurants, to stop __(2)__ plastic straws to customers who eat in. Some people complained at first, but many shops soon found new ideas. Today, you can see straws __(3)__ of paper, glass, or even rice.\n\nOf course, the best way to help is to drink without a straw at all. If everyone makes a small change, together we can make a big __(4)__.",
+    "stem": "Choose the best answer for blank (1).",
+    "options": [
+      "give up",
+      "end up",
+      "wake up",
+      "grow up"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（end up）。end up 是「最後落得、最終到了」，沒被回收的吸管最後跑到海裡。選項一（give up）：放棄，吸管不會「放棄」在海裡。選項三（wake up）：醒來，不能用在吸管。選項四（grow up）：長大，不能用在吸管。"
+  },
+  {
+    "id": "cl10",
+    "type": "克漏字題組",
+    "lesson": "stop V-ing / stop to V",
+    "difficulty": "中",
+    "group": "c3",
+    "passage": "Every year, millions of plastic（塑膠）straws are used only once and then thrown away. Most of them are not recycled, so they often __(1)__ in the ocean. Sea animals may eat them by mistake.\n\nIn July 2019, Taiwan began to ask some places, such as schools and fast food restaurants, to stop __(2)__ plastic straws to customers who eat in. Some people complained at first, but many shops soon found new ideas. Today, you can see straws __(3)__ of paper, glass, or even rice.\n\nOf course, the best way to help is to drink without a straw at all. If everyone makes a small change, together we can make a big __(4)__.",
+    "stem": "Choose the best answer for blank (2).",
+    "options": [
+      "giving",
+      "to give",
+      "give",
+      "given"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（giving）。stop + V-ing 是「停止做某事」，政府要學校、速食店等場所停止提供塑膠吸管給內用客人。選項二（to give）：stop + to V 是「停下來（去）做另一件事」，意思變成停下來去提供吸管，和減塑相反。選項三（give）：stop 後面不能直接接原形動詞。選項四（given）：stop 後面不能接過去分詞。"
+  },
+  {
+    "id": "cl11",
+    "type": "克漏字題組",
+    "lesson": "過去分詞當形容詞 made of",
+    "difficulty": "難",
+    "group": "c3",
+    "passage": "Every year, millions of plastic（塑膠）straws are used only once and then thrown away. Most of them are not recycled, so they often __(1)__ in the ocean. Sea animals may eat them by mistake.\n\nIn July 2019, Taiwan began to ask some places, such as schools and fast food restaurants, to stop __(2)__ plastic straws to customers who eat in. Some people complained at first, but many shops soon found new ideas. Today, you can see straws __(3)__ of paper, glass, or even rice.\n\nOf course, the best way to help is to drink without a straw at all. If everyone makes a small change, together we can make a big __(4)__.",
+    "stem": "Choose the best answer for blank (3).",
+    "options": [
+      "made",
+      "making",
+      "make",
+      "to make"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（made）。straws made of paper 是「用紙做成的吸管」，吸管是被製作的，用過去分詞修飾 straws（= which are made of）。選項二（making）：現在分詞表示主動，吸管不會自己去做東西。選項三（make）：句子已有動詞 see，原形動詞不能修飾 straws。選項四（to make）：「要去製作」的意思不合，吸管是已經做好的。"
+  },
+  {
+    "id": "cl12",
+    "type": "克漏字題組",
+    "lesson": "搭配詞 make a difference",
+    "difficulty": "難",
+    "group": "c3",
+    "passage": "Every year, millions of plastic（塑膠）straws are used only once and then thrown away. Most of them are not recycled, so they often __(1)__ in the ocean. Sea animals may eat them by mistake.\n\nIn July 2019, Taiwan began to ask some places, such as schools and fast food restaurants, to stop __(2)__ plastic straws to customers who eat in. Some people complained at first, but many shops soon found new ideas. Today, you can see straws __(3)__ of paper, glass, or even rice.\n\nOf course, the best way to help is to drink without a straw at all. If everyone makes a small change, together we can make a big __(4)__.",
+    "stem": "Choose the best answer for blank (4).",
+    "options": [
+      "mistake",
+      "noise",
+      "promise",
+      "difference"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（difference）。make a difference 是「產生影響、帶來改變」，每個人小小改變，合起來就能帶來大改變。選項一（mistake）：make a mistake 是「犯錯」，和呼籲減塑的語意相反。選項二（noise）：make noise 是「製造噪音」，和全文無關。選項三（promise）：make a promise 是「做出承諾」，但前句說的是實際行動帶來的結果，語意不合。"
+  },
+  {
+    "id": "re01",
+    "type": "閱讀題組",
+    "lesson": "細節題",
+    "difficulty": "易",
+    "group": "r1",
+    "passage": "Hsinchu City Library — Summer Reading Camp\n\nFor: Students aged 12–15\nDate: July 15 – July 19 (Monday to Friday)\nTime: 9:00 a.m. – 12:00 p.m.\nCost: NT$500 (FREE for students with a library card)\n\nActivities:\n• Monday & Tuesday: Book talks with famous writers\n• Wednesday: Make your own comic book\n• Thursday: Visit a printing factory (9:00 a.m. – 3:00 p.m.; please bring your own lunch)\n• Friday: Show and Share — read your own story to your family at the library\n\nHow to join: Sign up at the front desk before July 10. Only 30 places!",
+    "stem": "Who can join this camp?",
+    "options": [
+      "A 10-year-old boy who loves comic books",
+      "A parent who wants to learn to write",
+      "A 14-year-old student who likes reading",
+      "A 17-year-old high school student"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（A 14-year-old student who likes reading）。海報寫 For: Students aged 12–15，14 歲的學生符合資格。選項一（A 10-year-old boy who loves comic books）：10 歲不在 12–15 歲的範圍內。選項二（A parent who wants to learn to write）：活動對象是學生，不是家長；家長只在週五來聽故事。選項四（A 17-year-old high school student）：17 歲超過 15 歲的上限。"
+  },
+  {
+    "id": "re02",
+    "type": "閱讀題組",
+    "lesson": "細節題",
+    "difficulty": "易",
+    "group": "r1",
+    "passage": "Hsinchu City Library — Summer Reading Camp\n\nFor: Students aged 12–15\nDate: July 15 – July 19 (Monday to Friday)\nTime: 9:00 a.m. – 12:00 p.m.\nCost: NT$500 (FREE for students with a library card)\n\nActivities:\n• Monday & Tuesday: Book talks with famous writers\n• Wednesday: Make your own comic book\n• Thursday: Visit a printing factory (9:00 a.m. – 3:00 p.m.; please bring your own lunch)\n• Friday: Show and Share — read your own story to your family at the library\n\nHow to join: Sign up at the front desk before July 10. Only 30 places!",
+    "stem": "On which day will the students leave the library for an activity?",
+    "options": [
+      "Monday",
+      "Thursday",
+      "Wednesday",
+      "Friday"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（Thursday）。週四要參觀印刷廠（Visit a printing factory），需要離開圖書館，還要自備午餐。選項一（Monday）：週一是和作家的讀書座談，沒有提到外出。選項三（Wednesday）：週三是自己做漫畫書，沒有提到外出。選項四（Friday）：週五是讀自己的故事給家人聽，沒有提到外出。"
+  },
+  {
+    "id": "re03",
+    "type": "閱讀題組",
+    "lesson": "推論題",
+    "difficulty": "中",
+    "group": "r1",
+    "passage": "Hsinchu City Library — Summer Reading Camp\n\nFor: Students aged 12–15\nDate: July 15 – July 19 (Monday to Friday)\nTime: 9:00 a.m. – 12:00 p.m.\nCost: NT$500 (FREE for students with a library card)\n\nActivities:\n• Monday & Tuesday: Book talks with famous writers\n• Wednesday: Make your own comic book\n• Thursday: Visit a printing factory (9:00 a.m. – 3:00 p.m.; please bring your own lunch)\n• Friday: Show and Share — read your own story to your family at the library\n\nHow to join: Sign up at the front desk before July 10. Only 30 places!",
+    "stem": "Mia, 13, has a library card and wants to join the camp. Which is true for her?",
+    "options": [
+      "She can sign up on July 12.",
+      "She needs to bring her lunch every day.",
+      "She will meet famous writers on Friday.",
+      "She does not have to pay for the camp."
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（She does not have to pay for the camp.）。海報寫 FREE for students with a library card，Mia 有借書證所以免費。選項一（She can sign up on July 12.）：報名要在 July 10 之前，7 月 12 日已經太晚。選項二（She needs to bring her lunch every day.）：只有週四參觀印刷廠要自備午餐，其他天中午 12 點就結束。選項三（She will meet famous writers on Friday.）：和作家座談是週一和週二，週五是分享故事。"
+  },
+  {
+    "id": "re04",
+    "type": "閱讀題組",
+    "lesson": "主旨題（寫信目的）",
+    "difficulty": "易",
+    "group": "r2",
+    "passage": "From: Emma Brown\nTo: Ivy Chen\nSubject: My first week in Taiwan\n\nDear Ivy,\n\nHow are you? I have been in Taichung for a week now, and everything here is new to me. My host family, the Wangs, are very nice. Mrs. Wang cooks for me every night, and her son, Leo, rides his bike with me to school.\n\nSchool here starts at 7:30 a.m. — an hour earlier than my school in Canada! I'm always sleepy in the first class. Students here also clean their classrooms by themselves. At first I thought it was strange, but now I think it's a good idea. It teaches us to take care of the place we use every day.\n\nThe hardest part is the language. I can say \"xie xie\" and \"ni hao,\" but I can't understand my classmates when they talk fast. Leo said he would teach me ten new Chinese words every day. In return, I'll help him with his English.\n\nNext weekend, the Wangs will take me to Sun Moon Lake. I'll send you some pictures!\n\nLove,\nEmma",
+    "stem": "Why did Emma write this e-mail?",
+    "options": [
+      "To invite Ivy to go to Sun Moon Lake",
+      "To tell her friend about her new life in Taiwan",
+      "To ask Ivy to teach her Chinese",
+      "To thank her host family for the dinners"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（To tell her friend about her new life in Taiwan）。整封信都在分享到台灣第一週的生活：寄宿家庭、學校、語言，所以目的是向朋友介紹新生活。選項一（To invite Ivy to go to Sun Moon Lake）：去日月潭是寄宿家庭要帶 Emma 去，沒有邀請 Ivy。選項三（To ask Ivy to teach her Chinese）：教她中文的是 Leo，不是 Ivy。選項四（To thank her host family for the dinners）：收信人是 Ivy 不是寄宿家庭，晚餐只是信中一個細節。"
+  },
+  {
+    "id": "re05",
+    "type": "閱讀題組",
+    "lesson": "詞意／句意題",
+    "difficulty": "中",
+    "group": "r2",
+    "passage": "From: Emma Brown\nTo: Ivy Chen\nSubject: My first week in Taiwan\n\nDear Ivy,\n\nHow are you? I have been in Taichung for a week now, and everything here is new to me. My host family, the Wangs, are very nice. Mrs. Wang cooks for me every night, and her son, Leo, rides his bike with me to school.\n\nSchool here starts at 7:30 a.m. — an hour earlier than my school in Canada! I'm always sleepy in the first class. Students here also clean their classrooms by themselves. At first I thought it was strange, but now I think it's a good idea. It teaches us to take care of the place we use every day.\n\nThe hardest part is the language. I can say \"xie xie\" and \"ni hao,\" but I can't understand my classmates when they talk fast. Leo said he would teach me ten new Chinese words every day. In return, I'll help him with his English.\n\nNext weekend, the Wangs will take me to Sun Moon Lake. I'll send you some pictures!\n\nLove,\nEmma",
+    "stem": "What does Emma mean by \"In return, I'll help him with his English\"?",
+    "options": [
+      "She wants to do something for Leo because he will help her.",
+      "She will go back to Canada to study English.",
+      "She thinks Leo's English is better than hers.",
+      "She will stop learning Chinese for a while."
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（She wants to do something for Leo because he will help her.）。In return 是「作為回報」。Leo 每天教她十個中文字，她就幫 Leo 學英文來回報。選項二（She will go back to Canada to study English.）：return 在這裡不是「回去」，而且 Emma 是要幫 Leo 學英文，不是自己去學。選項三（She thinks Leo's English is better than hers.）：Emma 是要幫 Leo 學英文，表示她的英文比較好，選項說法相反。選項四（She will stop learning Chinese for a while.）：信中說 Leo 每天教她中文，沒有要停止學中文。"
+  },
+  {
+    "id": "re06",
+    "type": "閱讀題組",
+    "lesson": "推論題",
+    "difficulty": "中",
+    "group": "r2",
+    "passage": "From: Emma Brown\nTo: Ivy Chen\nSubject: My first week in Taiwan\n\nDear Ivy,\n\nHow are you? I have been in Taichung for a week now, and everything here is new to me. My host family, the Wangs, are very nice. Mrs. Wang cooks for me every night, and her son, Leo, rides his bike with me to school.\n\nSchool here starts at 7:30 a.m. — an hour earlier than my school in Canada! I'm always sleepy in the first class. Students here also clean their classrooms by themselves. At first I thought it was strange, but now I think it's a good idea. It teaches us to take care of the place we use every day.\n\nThe hardest part is the language. I can say \"xie xie\" and \"ni hao,\" but I can't understand my classmates when they talk fast. Leo said he would teach me ten new Chinese words every day. In return, I'll help him with his English.\n\nNext weekend, the Wangs will take me to Sun Moon Lake. I'll send you some pictures!\n\nLove,\nEmma",
+    "stem": "Which of the following is true?",
+    "options": [
+      "Emma cleans her classroom because her teacher punishes her.",
+      "Emma can understand her classmates when they talk fast.",
+      "Emma has already visited Sun Moon Lake.",
+      "Emma's school in Canada starts at 8:30 a.m."
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（Emma's school in Canada starts at 8:30 a.m.）。台灣學校 7:30 上課，比加拿大早一小時，所以加拿大的學校 8:30 上課。選項一（Emma cleans her classroom because her teacher punishes her.）：打掃是台灣學生的日常，Emma 認為這能教大家愛惜環境，沒有提到處罰。選項二（Emma can understand her classmates when they talk fast.）：信中說同學講話快時她聽不懂，和選項相反。選項三（Emma has already visited Sun Moon Lake.）：去日月潭是 Next weekend（下週末），還沒去。"
+  },
+  {
+    "id": "re07",
+    "type": "閱讀題組",
+    "lesson": "表格判讀",
+    "difficulty": "易",
+    "group": "r3",
+    "passage": "Hsinchu to Taipei — Weekend Train Times\n\nTrain       | Leaves Hsinchu | Arrives Taipei | Adult Ticket\nExpress 102 | 08:10          | 09:15          | NT$180\nLocal 2135  | 08:25          | 10:05          | NT$120\nExpress 106 | 09:40          | 10:45          | NT$180\nLocal 2141  | 10:00          | 11:40          | NT$120\n\n* Children under 12 and people over 65 pay half price.\n* Express trains do not stop at small stations.\n\nSara (15) and her grandmother (70) are taking the train from Hsinchu to Taipei this Saturday. They need to arrive at Taipei Station before 11:00 a.m. to meet Sara's aunt, and they want to spend as little money as possible.",
+    "stem": "How long does Express 106 take to go from Hsinchu to Taipei?",
+    "options": [
+      "45 minutes",
+      "1 hour and 5 minutes",
+      "1 hour and 40 minutes",
+      "2 hours"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（1 hour and 5 minutes）。Express 106 於 09:40 從新竹出發，10:45 到台北，共 1 小時 5 分鐘。選項一（45 minutes）：把 10:45 的「45 分」誤當成車程，實際是 1 小時 5 分。選項三（1 hour and 40 minutes）：這是 Local 2135 或 Local 2141 的車程。選項四（2 hours）：沒有任何一班車要開 2 小時。"
+  },
+  {
+    "id": "re08",
+    "type": "閱讀題組",
+    "lesson": "表格判讀（條件篩選）",
+    "difficulty": "中",
+    "group": "r3",
+    "passage": "Hsinchu to Taipei — Weekend Train Times\n\nTrain       | Leaves Hsinchu | Arrives Taipei | Adult Ticket\nExpress 102 | 08:10          | 09:15          | NT$180\nLocal 2135  | 08:25          | 10:05          | NT$120\nExpress 106 | 09:40          | 10:45          | NT$180\nLocal 2141  | 10:00          | 11:40          | NT$120\n\n* Children under 12 and people over 65 pay half price.\n* Express trains do not stop at small stations.\n\nSara (15) and her grandmother (70) are taking the train from Hsinchu to Taipei this Saturday. They need to arrive at Taipei Station before 11:00 a.m. to meet Sara's aunt, and they want to spend as little money as possible.",
+    "stem": "Which train should Sara and her grandmother take?",
+    "options": [
+      "Express 102",
+      "Express 106",
+      "Local 2135",
+      "Local 2141"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（Local 2135）。要在 11:00 前到台北，可選 Express 102、Local 2135、Express 106；其中最便宜的是 Local 2135（NT$120，10:05 到）。選項一（Express 102）：可以準時到，但票價 NT$180 比 Local 2135 貴，不符合「盡量省錢」。選項二（Express 106）：可以準時到，但票價 NT$180 比較貴。選項四（Local 2141）：11:40 才到台北，超過 11:00。"
+  },
+  {
+    "id": "re09",
+    "type": "閱讀題組",
+    "lesson": "表格判讀（計算）",
+    "difficulty": "難",
+    "group": "r3",
+    "passage": "Hsinchu to Taipei — Weekend Train Times\n\nTrain       | Leaves Hsinchu | Arrives Taipei | Adult Ticket\nExpress 102 | 08:10          | 09:15          | NT$180\nLocal 2135  | 08:25          | 10:05          | NT$120\nExpress 106 | 09:40          | 10:45          | NT$180\nLocal 2141  | 10:00          | 11:40          | NT$120\n\n* Children under 12 and people over 65 pay half price.\n* Express trains do not stop at small stations.\n\nSara (15) and her grandmother (70) are taking the train from Hsinchu to Taipei this Saturday. They need to arrive at Taipei Station before 11:00 a.m. to meet Sara's aunt, and they want to spend as little money as possible.",
+    "stem": "How much will Sara and her grandmother pay in total for the train they should take?",
+    "options": [
+      "NT$120",
+      "NT$240",
+      "NT$270",
+      "NT$180"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（NT$180）。兩人搭 Local 2135。Sara 15 歲付全票 NT$120；奶奶 70 歲超過 65 歲付半價 NT$60，合計 NT$180。選項一（NT$120）：只算了一個人的全票，或誤以為兩人都半價（60+60）。選項二（NT$240）：兩人都付全票，忘了奶奶超過 65 歲可以半價。選項三（NT$270）：這是搭快車（180+90）的金額，但應搭比較便宜的 Local 2135。"
+  },
+  {
+    "id": "re10",
+    "type": "閱讀題組",
+    "lesson": "主旨題",
+    "difficulty": "中",
+    "group": "r4",
+    "passage": "Why Do We Yawn（打哈欠）?\n\nEveryone yawns. Babies even yawn before they are born. But why do we do it?\n\nFor a long time, people believed that we yawn because our bodies need more air. But when scientists asked people to breathe（呼吸）extra fresh air, they still yawned as often as before. So this idea is probably wrong.\n\nToday, many scientists think that yawning helps to cool down the brain（大腦）. Like a computer, the brain works best when it is not too hot. When we yawn, we take in a lot of air, and this may bring the brain's temperature down. In one study, people yawned less when they held something cold on their foreheads（額頭）.\n\nHere is another interesting fact: yawning is \"catching.\" When you see someone yawn, you will probably yawn, too. Studies show that people catch yawns more easily from their family members and close friends than from strangers. Some scientists believe this is because we care more about the feelings of people who are close to us.\n\nSo the next time you yawn in class, don't worry — maybe your brain is just trying to stay cool. But it might be a good idea not to let your teacher see it!",
+    "stem": "What is the reading mainly about?",
+    "options": [
+      "Some possible reasons why people yawn",
+      "How to stop yawning in class",
+      "Why babies yawn more than adults",
+      "How the brain works like a computer"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（Some possible reasons why people yawn）。文章從標題 Why Do We Yawn? 開始，依序介紹「需要更多空氣」「讓大腦降溫」等說法，以及打哈欠會傳染，主旨是打哈欠的可能原因。選項二（How to stop yawning in class）：最後一段只是幽默提醒，全文沒有教人如何停止打哈欠。選項三（Why babies yawn more than adults）：只提到嬰兒在出生前就會打哈欠，沒有比較嬰兒和大人誰比較常打哈欠。選項四（How the brain works like a computer）：電腦只是用來比喻大腦怕熱，不是全文重點。"
+  },
+  {
+    "id": "re11",
+    "type": "閱讀題組",
+    "lesson": "細節推論（支持論點）",
+    "difficulty": "難",
+    "group": "r4",
+    "passage": "Why Do We Yawn（打哈欠）?\n\nEveryone yawns. Babies even yawn before they are born. But why do we do it?\n\nFor a long time, people believed that we yawn because our bodies need more air. But when scientists asked people to breathe（呼吸）extra fresh air, they still yawned as often as before. So this idea is probably wrong.\n\nToday, many scientists think that yawning helps to cool down the brain（大腦）. Like a computer, the brain works best when it is not too hot. When we yawn, we take in a lot of air, and this may bring the brain's temperature down. In one study, people yawned less when they held something cold on their foreheads（額頭）.\n\nHere is another interesting fact: yawning is \"catching.\" When you see someone yawn, you will probably yawn, too. Studies show that people catch yawns more easily from their family members and close friends than from strangers. Some scientists believe this is because we care more about the feelings of people who are close to us.\n\nSo the next time you yawn in class, don't worry — maybe your brain is just trying to stay cool. But it might be a good idea not to let your teacher see it!",
+    "stem": "Which finding supports the idea that yawning helps to cool down the brain?",
+    "options": [
+      "People still yawned after breathing extra fresh air.",
+      "Babies yawn even before they are born.",
+      "People yawned less when they held something cold on their foreheads.",
+      "People catch yawns more easily from close friends."
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（People yawned less when they held something cold on their foreheads.）。額頭冰敷讓大腦比較涼，打哈欠就變少，正好支持「打哈欠是為了替大腦降溫」。選項一（People still yawned after breathing extra fresh air.）：這個結果是用來推翻「需要更多空氣」的說法，不是支持大腦降溫說。選項二（Babies yawn even before they are born.）：只說明人人都會打哈欠，和大腦降溫無關。選項四（People catch yawns more easily from close friends.）：這是在說打哈欠會傳染、和在乎他人感受有關，不是大腦降溫的證據。"
+  },
+  {
+    "id": "re12",
+    "type": "閱讀題組",
+    "lesson": "應用推論",
+    "difficulty": "難",
+    "group": "r4",
+    "passage": "Why Do We Yawn（打哈欠）?\n\nEveryone yawns. Babies even yawn before they are born. But why do we do it?\n\nFor a long time, people believed that we yawn because our bodies need more air. But when scientists asked people to breathe（呼吸）extra fresh air, they still yawned as often as before. So this idea is probably wrong.\n\nToday, many scientists think that yawning helps to cool down the brain（大腦）. Like a computer, the brain works best when it is not too hot. When we yawn, we take in a lot of air, and this may bring the brain's temperature down. In one study, people yawned less when they held something cold on their foreheads（額頭）.\n\nHere is another interesting fact: yawning is \"catching.\" When you see someone yawn, you will probably yawn, too. Studies show that people catch yawns more easily from their family members and close friends than from strangers. Some scientists believe this is because we care more about the feelings of people who are close to us.\n\nSo the next time you yawn in class, don't worry — maybe your brain is just trying to stay cool. But it might be a good idea not to let your teacher see it!",
+    "stem": "Based on the reading, which of the following is most likely to happen?",
+    "options": [
+      "Tom stops yawning after he breathes extra fresh air.",
+      "Tom yawns soon after he sees his best friend yawn.",
+      "Tom catches yawns more easily from strangers than from his family.",
+      "Tom yawns more after he holds something cold on his forehead."
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（Tom yawns soon after he sees his best friend yawn.）。文中說看到別人打哈欠自己也容易打哈欠，而且家人、好朋友打哈欠時更容易被傳染，所以這最可能發生。選項一（Tom stops yawning after he breathes extra fresh air.）：實驗顯示呼吸更多新鮮空氣後，人們打哈欠的次數並沒有變少。選項三（Tom catches yawns more easily from strangers than from his family.）：文中說的正好相反，從家人和好友身上比從陌生人身上更容易被傳染。選項四（Tom yawns more after he holds something cold on his forehead.）：文中說額頭拿著冰的東西時，打哈欠會變少，不是變多。"
+  }
+]
