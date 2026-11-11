@@ -796,5 +796,803 @@
     ],
     "answer": 1,
     "explain": "正解是選項二（Tom yawns soon after he sees his best friend yawn.）。文中說看到別人打哈欠自己也容易打哈欠，而且家人、好朋友打哈欠時更容易被傳染，所以這最可能發生。選項一（Tom stops yawning after he breathes extra fresh air.）：實驗顯示呼吸更多新鮮空氣後，人們打哈欠的次數並沒有變少。選項三（Tom catches yawns more easily from strangers than from his family.）：文中說的正好相反，從家人和好友身上比從陌生人身上更容易被傳染。選項四（Tom yawns more after he holds something cold on his forehead.）：文中說額頭拿著冰的東西時，打哈欠會變少，不是變多。"
+  },
+  {
+    "id": "vo14",
+    "type": "字彙",
+    "lesson": "感覺形容詞 thirsty",
+    "difficulty": "易",
+    "stem": "I just played basketball for two hours. I'm so ____. Can I have a glass of water?",
+    "options": [
+      "hungry",
+      "sleepy",
+      "short",
+      "thirsty"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（thirsty）。口渴的。打完兩小時籃球想要一杯水，最合理的是口渴。選項一（hungry）：肚子餓，餓了應該要食物，不是一杯水。選項二（sleepy）：想睡的，和要一杯水沒有關係。選項三（short）：矮的、短的，和要水無關。"
+  },
+  {
+    "id": "vo15",
+    "type": "字彙",
+    "lesson": "季節名詞",
+    "difficulty": "易",
+    "stem": "In Taiwan, it is usually very hot in ____, so many people like to go swimming.",
+    "options": [
+      "winter",
+      "summer",
+      "January",
+      "December"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（summer）。夏天。台灣夏天很熱，很多人喜歡去游泳。選項一（winter）：冬天，台灣冬天不會很熱。選項三（January）：一月是冬天，不會很熱。選項四（December）：十二月是冬天，不會很熱。"
+  },
+  {
+    "id": "vo16",
+    "type": "字彙",
+    "lesson": "場所名詞",
+    "difficulty": "易",
+    "stem": "I need to send this letter to my aunt in Canada. Where is the nearest ____?",
+    "options": [
+      "bakery",
+      "hospital",
+      "zoo",
+      "post office"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（post office）。郵局。要寄信到加拿大，應該找最近的郵局。選項一（bakery）：麵包店，不能寄信。選項二（hospital）：醫院，不能寄信。選項三（zoo）：動物園，不能寄信。"
+  },
+  {
+    "id": "vo17",
+    "type": "字彙",
+    "lesson": "親屬稱謂",
+    "difficulty": "易",
+    "stem": "My mother's brother is my ____. He often takes me fishing.",
+    "options": [
+      "cousin",
+      "uncle",
+      "aunt",
+      "nephew"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（uncle）。舅舅（叔叔、伯伯）。媽媽的兄弟是 uncle，代名詞 He 也吻合。選項一（cousin）：表（堂）兄弟姊妹，是 uncle 或 aunt 的孩子，不是媽媽的兄弟。選項三（aunt）：阿姨、姑姑，是女性，和 brother、He 不符。選項四（nephew）：姪子、外甥，是兄弟姊妹的兒子，輩分相反。"
+  },
+  {
+    "id": "vo18",
+    "type": "字彙",
+    "lesson": "lend 與 borrow",
+    "difficulty": "中",
+    "stem": "Can you ____ me your eraser? I forgot to bring mine.",
+    "options": [
+      "borrow",
+      "keep",
+      "lend",
+      "forget"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（lend）。lend 是「借出」，lend sb. sth. 是把東西借給某人；說話者忘了帶，請對方借他。選項一（borrow）：borrow 是「借入」，用法是 borrow sth. from sb.，不能說 borrow me your eraser。選項二（keep）：keep me your eraser 不合文法，語意也不通。選項四（forget）：forget me your eraser 不合文法，語意也不通。"
+  },
+  {
+    "id": "vo19",
+    "type": "字彙",
+    "lesson": "抽象名詞 habit",
+    "difficulty": "中",
+    "stem": "Brushing your teeth before you go to bed is a good ____. You should do it every night.",
+    "options": [
+      "hobby",
+      "habit",
+      "dream",
+      "reason"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（habit）。習慣。每天晚上都做的事，是一個好習慣。選項一（hobby）：嗜好，是休閒時喜歡做的事，刷牙不是嗜好。選項三（dream）：夢想，刷牙不是夢想。選項四（reason）：理由，句子沒有在說明原因。"
+  },
+  {
+    "id": "vo20",
+    "type": "字彙",
+    "lesson": "形容詞 convenient",
+    "difficulty": "中",
+    "stem": "Our new apartment is right next to a bus stop and a supermarket. Living here is very ____.",
+    "options": [
+      "convenient",
+      "dangerous",
+      "lonely",
+      "boring"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（convenient）。方便的。住在公車站和超市旁邊，生活很方便。選項二（dangerous）：危險的，住在公車站和超市旁不代表危險。選項三（lonely）：寂寞的，和附近有公車站、超市沒有關係。選項四（boring）：無聊的，前句說的是生活機能，不是有不有趣。"
+  },
+  {
+    "id": "vo21",
+    "type": "字彙",
+    "lesson": "片語 take care of",
+    "difficulty": "中",
+    "stem": "My parents are going on a business trip this weekend, so I have to ____ my little sister.",
+    "options": [
+      "take off",
+      "look like",
+      "take care of",
+      "laugh at"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（take care of）。照顧。爸媽出差，所以要照顧妹妹。選項一（take off）：脫下、起飛，不能接妹妹。選項二（look like）：看起來像，和爸媽出差的因果無關。選項四（laugh at）：嘲笑，不合理。"
+  },
+  {
+    "id": "vo22",
+    "type": "字彙",
+    "lesson": "否定副詞 hardly",
+    "difficulty": "中",
+    "stem": "The music at the party was so loud that I could ____ hear what my friend said.",
+    "options": [
+      "clearly",
+      "easily",
+      "loudly",
+      "hardly"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（hardly）。幾乎不。音樂太大聲，所以幾乎聽不到朋友說話。選項一（clearly）：清楚地，音樂很吵卻聽得很清楚，和 so…that 的因果矛盾。選項二（easily）：輕易地，同樣和音樂太吵的因果矛盾。選項三（loudly）：大聲地，用來形容發出聲音的方式，不能修飾「聽」。"
+  },
+  {
+    "id": "vo23",
+    "type": "字彙",
+    "lesson": "名詞 price",
+    "difficulty": "中",
+    "stem": "This T-shirt is on sale today. Its ____ is only NT$199, so I'm going to buy two.",
+    "options": [
+      "size",
+      "color",
+      "price",
+      "shape"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（price）。價格。特價、只要 NT$199，談的是價錢。選項一（size）：尺寸，不會用 NT$ 表示。選項二（color）：顏色，不會用 NT$ 表示。選項四（shape）：形狀，不會用 NT$ 表示。"
+  },
+  {
+    "id": "vo24",
+    "type": "字彙",
+    "lesson": "動詞 fail",
+    "difficulty": "難",
+    "stem": "Mark studied very hard for the math test, but he still ____ it. He felt very sad.",
+    "options": [
+      "passed",
+      "failed",
+      "missed",
+      "finished"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（failed）。考試不及格。but he still 表示「雖然很努力，結果還是…」，加上很難過，最合理的是沒考過。選項一（passed）：通過，努力讀書後通過不需要用 but still，也不會難過。選項三（missed）：錯過，句子沒提到他沒去考；而且他有努力準備。選項四（finished）：完成，寫完考試不會讓人因此難過，也和 but still 的轉折不合。"
+  },
+  {
+    "id": "vo25",
+    "type": "字彙",
+    "lesson": "名詞 experience",
+    "difficulty": "難",
+    "stem": "Working on my uncle's farm last summer was a great ____ for me. I learned a lot about plants and animals.",
+    "options": [
+      "exercise",
+      "example",
+      "excuse",
+      "experience"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（experience）。經驗。在農場工作、學到很多，是一次很棒的經驗。選項一（exercise）：運動、練習，學到動植物知識不是運動的重點。選項二（example）：例子，句子沒有在舉例。選項三（excuse）：藉口，和學到很多無關。"
+  },
+  {
+    "id": "vo26",
+    "type": "字彙",
+    "lesson": "性格形容詞 patient",
+    "difficulty": "難",
+    "stem": "Mr. Chen never gets angry when students ask the same question again and again. He is very ____.",
+    "options": [
+      "proud",
+      "honest",
+      "patient",
+      "nervous"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（patient）。有耐心的。學生一直問同樣的問題，他也不生氣，表示很有耐心。選項一（proud）：驕傲的，和不生氣、願意一再回答無關。選項二（honest）：誠實的，句子描述的是脾氣，不是說不說實話。選項四（nervous）：緊張的，和不生氣無關。"
+  },
+  {
+    "id": "gr14",
+    "type": "文法句型",
+    "lesson": "現在簡單式 第三人稱單數",
+    "difficulty": "易",
+    "stem": "My father usually ____ a cup of coffee in the morning.",
+    "options": [
+      "drink",
+      "drinking",
+      "to drink",
+      "drinks"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（drinks）。usually 表示習慣，用現在簡單式；主詞 My father 是第三人稱單數，動詞加 s。選項一（drink）：主詞是第三人稱單數，動詞要加 s。選項二（drinking）：句子缺少 be 動詞，V-ing 不能單獨當動詞。選項三（to drink）：不定詞不能當句子的主要動詞。"
+  },
+  {
+    "id": "gr15",
+    "type": "文法句型",
+    "lesson": "所有格代名詞",
+    "difficulty": "易",
+    "stem": "This is not my pencil. ____ is blue, and this one is red.",
+    "options": [
+      "Mine",
+      "My",
+      "Me",
+      "I"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（Mine）。空格當主詞，指「我的（鉛筆）」，用所有格代名詞 mine = my pencil。選項二（My）：所有格後面要接名詞，例如 My pencil。選項三（Me）：受格不能當主詞。選項四（I）：主格 I 意思是「我」，「我是藍色的」不合語意。"
+  },
+  {
+    "id": "gr16",
+    "type": "文法句型",
+    "lesson": "未來式 be going to",
+    "difficulty": "易",
+    "stem": "Look at those dark clouds. It ____ rain soon.",
+    "options": [
+      "rained",
+      "is going to",
+      "has rained",
+      "rains"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（is going to）。看見烏雲，推測「快要下雨了」，用 be going to + 原形動詞表示即將發生。選項一（rained）：過去式和 soon 不合。選項三（has rained）：現在完成式表示已經發生，和 soon 不合。選項四（rains）：現在簡單式後面不能再接原形動詞 rain，句子有兩個動詞。"
+  },
+  {
+    "id": "gr17",
+    "type": "文法句型",
+    "lesson": "否定祈使句",
+    "difficulty": "易",
+    "stem": "____ late for school again, Tom! The first class starts at 7:30.",
+    "options": [
+      "Don't be",
+      "Not be",
+      "Doesn't be",
+      "Don't"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（Don't be）。否定祈使句是 Don't + 原形動詞；late 是形容詞，前面要有 be 動詞。選項二（Not be）：祈使句的否定要用 Don't，不能只用 Not。選項三（Doesn't be）：祈使句不用 doesn't，而且 doesn't 不和 be 連用。選項四（Don't）：Don't 後面要接原形動詞，late 是形容詞，缺少 be。"
+  },
+  {
+    "id": "gr18",
+    "type": "文法句型",
+    "lesson": "過去進行式 when",
+    "difficulty": "中",
+    "stem": "I ____ a shower when the phone rang last night.",
+    "options": [
+      "am taking",
+      "was taking",
+      "take",
+      "have taken"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（was taking）。電話響的那一刻「正在」洗澡，用過去進行式 was/were + V-ing；last night 是過去。選項一（am taking）：現在進行式和 last night、rang 的時間不合。選項三（take）：現在式和過去時間不合。選項四（have taken）：現在完成式不能和 last night 連用。"
+  },
+  {
+    "id": "gr19",
+    "type": "文法句型",
+    "lesson": "關係代名詞 that（指物）",
+    "difficulty": "中",
+    "stem": "The cake ____ my mom made yesterday was really delicious.",
+    "options": [
+      "that",
+      "who",
+      "what",
+      "where"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（that）。先行詞 the cake 是物，在子句中當 made 的受詞，用 that（也可用 which）。選項二（who）：who 用於人，不用於蛋糕。選項三（what）：what 本身含先行詞，前面不能再有 the cake。選項四（where）：where 指地點，後面要接完整句子；made 缺少受詞，需要關係代名詞。"
+  },
+  {
+    "id": "gr20",
+    "type": "文法句型",
+    "lesson": "It is + 形容詞 + for sb. + to V",
+    "difficulty": "中",
+    "stem": "It is not easy ____ young children to sit still for an hour.",
+    "options": [
+      "of",
+      "with",
+      "to",
+      "for"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（for）。It is + 形容詞 + for + 人 + to V，表示「對某人來說做某事…」，easy 描述事情的難易，用 for。選項一（of）：It is + 形容詞 + of + 人 只用在形容人的個性（例如 kind、nice），easy 不是。選項二（with）：沒有 It is easy with sb. to V 的句型。選項三（to）：to young children to sit 出現兩個 to，句型錯誤。"
+  },
+  {
+    "id": "gr21",
+    "type": "文法句型",
+    "lesson": "too…to",
+    "difficulty": "中",
+    "stem": "My little brother is too young ____ to school by himself.",
+    "options": [
+      "going",
+      "goes",
+      "to go",
+      "go"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（to go）。too + 形容詞 + to V 表示「太…而不能…」，too 後接不定詞 to go。選項一（going）：too…to 的句型要接 to V，不接 V-ing。選項二（goes）：too…to 的句型要接 to V，不接有人稱變化的動詞。選項四（go）：前面已有 young，後面要用 to go，少了 to。"
+  },
+  {
+    "id": "gr22",
+    "type": "文法句型",
+    "lesson": "附加問句",
+    "difficulty": "中",
+    "stem": "Your brother can't swim, ____?",
+    "options": [
+      "can't he",
+      "can he",
+      "does he",
+      "doesn't he"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（can he）。附加問句「前否後肯」：前句用 can't，附加問句用肯定的 can；主詞 your brother 用代名詞 he。選項一（can't he）：前句已是否定，附加問句要用肯定。選項三（does he）：前句的助動詞是 can，附加問句也要用 can。選項四（doesn't he）：助動詞錯誤，而且前句否定時附加問句要肯定。"
+  },
+  {
+    "id": "gr23",
+    "type": "文法句型",
+    "lesson": "使役動詞 make",
+    "difficulty": "中",
+    "stem": "Mom made me ____ my room before I could go out with my friends.",
+    "options": [
+      "to clean",
+      "cleaning",
+      "clean",
+      "cleaned"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（clean）。使役動詞 make + 受詞 + 原形動詞，表示「叫某人做某事」。選項一（to clean）：make 的主動用法後面不接 to V。選項二（cleaning）：make 後面不接 V-ing。選項四（cleaned）：make sb. cleaned 是被動概念，但這裡是我自己去打掃，是主動。"
+  },
+  {
+    "id": "gr24",
+    "type": "文法句型",
+    "lesson": "spend／take／cost／pay",
+    "difficulty": "難",
+    "stem": "I ____ two hours on my science homework last night.",
+    "options": [
+      "took",
+      "spent",
+      "cost",
+      "paid"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（spent）。人 + spend + 時間或金錢 + on + 事物，表示「花時間在某事上」。選項一（took）：take 的句型是 It takes + 人 + 時間 + to V，主詞通常是 It 或事情，不說 I took two hours on…。選項三（cost）：cost 的主詞是物品，表示「花費金錢」，不能用人當主詞說花時間。選項四（paid）：pay 是付錢，不能付「兩小時」。"
+  },
+  {
+    "id": "gr25",
+    "type": "文法句型",
+    "lesson": "動名詞當主詞",
+    "difficulty": "難",
+    "stem": "____ English songs is a fun way to learn new words.",
+    "options": [
+      "Listen to",
+      "Listening to",
+      "Listened to",
+      "Listens to"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（Listening to）。句子的主要動詞是 is，空格要當主詞；動詞要當主詞時改成動名詞 Listening to。選項一（Listen to）：原形動詞不能當主詞。選項三（Listened to）：過去式不能當主詞，句子也會有兩個動詞。選項四（Listens to）：有人稱變化的動詞不能當主詞，句子會有兩個動詞。"
+  },
+  {
+    "id": "gr26",
+    "type": "文法句型",
+    "lesson": "否定附和 either",
+    "difficulty": "難",
+    "stem": "Tom doesn't like fish, and I don't, ____.",
+    "options": [
+      "either",
+      "too",
+      "neither",
+      "also"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（either）。否定句表示「也不」，句尾用 either（I don't, either. = Neither do I.）。選項二（too）：too 用在肯定句表示「也」，前面是否定句 I don't，不能用 too。選項三（neither）：neither 要放句首倒裝：and neither do I，不能放在句尾。選項四（also）：also 不放在否定句句尾表示「也不」。"
+  },
+  {
+    "id": "cl13",
+    "type": "克漏字題組",
+    "lesson": "助動詞 will（未來）",
+    "difficulty": "易",
+    "group": "c4",
+    "passage": "Notice to All Students\n\nOur school's Sports Day will be next Friday. Please read the following notes carefully.\n\n1. Come to school by 7:30 a.m. Students who come late __(1)__ not be able to join the first race.\n2. Bring your own water bottle. The school store will be closed __(2)__ that day.\n3. Each class will have __(3)__ own area on the playground. Please stay with your classmates.\n4. Parents are welcome to come and cheer for the students.\n5. After the games, every class should clean the area __(4)__ they sat.\n\nIf it rains, the races will move to the gym.\n\nSchool Office",
+    "stem": "Choose the best answer for blank (1).",
+    "options": [
+      "did",
+      "will",
+      "have",
+      "are"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（will）。通知講的是運動會當天（未來）的規定，遲到的學生「將」不能參加第一場比賽，用 will not be able to。選項一（did）：did not be 不合文法，did 後面不接 be；時間也不是過去。選項三（have）：have not be 不合文法。選項四（are）：are not be 不合文法，be 動詞後面不能再接原形 be。"
+  },
+  {
+    "id": "cl14",
+    "type": "克漏字題組",
+    "lesson": "時間介系詞 on",
+    "difficulty": "易",
+    "group": "c4",
+    "passage": "Notice to All Students\n\nOur school's Sports Day will be next Friday. Please read the following notes carefully.\n\n1. Come to school by 7:30 a.m. Students who come late __(1)__ not be able to join the first race.\n2. Bring your own water bottle. The school store will be closed __(2)__ that day.\n3. Each class will have __(3)__ own area on the playground. Please stay with your classmates.\n4. Parents are welcome to come and cheer for the students.\n5. After the games, every class should clean the area __(4)__ they sat.\n\nIf it rains, the races will move to the gym.\n\nSchool Office",
+    "stem": "Choose the best answer for blank (2).",
+    "options": [
+      "in",
+      "at",
+      "on",
+      "by"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（on）。特定的某一天前面用 on，on that day 指「運動會那天」。選項一（in）：in 用於月份、年份或一段較長時間，不用於特定某天。選項二（at）：at 用於時刻，例如 at 7:30。選項四（by）：by that day 是「在那天之前」，和「那天福利社不開」語意不合。"
+  },
+  {
+    "id": "cl15",
+    "type": "克漏字題組",
+    "lesson": "所有格 its",
+    "difficulty": "中",
+    "group": "c4",
+    "passage": "Notice to All Students\n\nOur school's Sports Day will be next Friday. Please read the following notes carefully.\n\n1. Come to school by 7:30 a.m. Students who come late __(1)__ not be able to join the first race.\n2. Bring your own water bottle. The school store will be closed __(2)__ that day.\n3. Each class will have __(3)__ own area on the playground. Please stay with your classmates.\n4. Parents are welcome to come and cheer for the students.\n5. After the games, every class should clean the area __(4)__ they sat.\n\nIf it rains, the races will move to the gym.\n\nSchool Office",
+    "stem": "Choose the best answer for blank (3).",
+    "options": [
+      "it's",
+      "their",
+      "his",
+      "its"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（its）。主詞 each class 是單數，「每一班都有自己的區域」用單數所有格 its own。選項一（it's）：it's 是 it is 的縮寫，不是所有格。選項二（their）：their 指複數名詞，each class 是單數。選項三（his）：his 指男性的人，不能指班級。"
+  },
+  {
+    "id": "cl16",
+    "type": "克漏字題組",
+    "lesson": "關係副詞 where",
+    "difficulty": "中",
+    "group": "c4",
+    "passage": "Notice to All Students\n\nOur school's Sports Day will be next Friday. Please read the following notes carefully.\n\n1. Come to school by 7:30 a.m. Students who come late __(1)__ not be able to join the first race.\n2. Bring your own water bottle. The school store will be closed __(2)__ that day.\n3. Each class will have __(3)__ own area on the playground. Please stay with your classmates.\n4. Parents are welcome to come and cheer for the students.\n5. After the games, every class should clean the area __(4)__ they sat.\n\nIf it rains, the races will move to the gym.\n\nSchool Office",
+    "stem": "Choose the best answer for blank (4).",
+    "options": [
+      "where",
+      "which",
+      "who",
+      "when"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（where）。先行詞 the area 是地點，後面 they sat 是完整句子，用關係副詞 where（= in which）。選項二（which）：which 要在子句中當主詞或受詞，但 they sat 已完整；要寫成 in which 才對。選項三（who）：who 用於人，先行詞是地點。選項四（when）：when 用於時間，先行詞是地點。"
+  },
+  {
+    "id": "cl17",
+    "type": "克漏字題組",
+    "lesson": "動詞 answer the phone",
+    "difficulty": "易",
+    "group": "c5",
+    "passage": "Ben was walking home from school when he saw a wallet on the ground. He picked it up and looked inside. There was NT$3,000 in it, and there was also a card with a name and a phone number.\n\nFor a moment, Ben thought about the new basketball shoes he wanted. Then he thought about how worried the owner must be. He called the number on the card. An old woman __(1)__ the phone.\n\n\"Thank you so much! That money is for my grandson's school trip,\" she said. An hour later, she came to Ben's house to get her wallet. She wanted to give Ben NT$500, but he said no. \"__(2)__ honest boy you are!\" the woman said.\n\nBen didn't tell anyone about it, so he was surprised when the principal __(3)__ the woman's letter to the whole school the next morning. Ben's face turned red, but he felt __(4)__ of what he had done.",
+    "stem": "Choose the best answer for blank (1).",
+    "options": [
+      "answered",
+      "asked",
+      "called",
+      "told"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（answered）。answer the phone 是「接電話」，Ben 打電話過去，是老太太接起電話。選項二（asked）：ask the phone 不是正確搭配。選項三（called）：call 是「打電話」，是 Ben 打給她，不是她打電話。選項四（told）：tell the phone 不是正確搭配。"
+  },
+  {
+    "id": "cl18",
+    "type": "克漏字題組",
+    "lesson": "感嘆句 What a/an",
+    "difficulty": "中",
+    "group": "c5",
+    "passage": "Ben was walking home from school when he saw a wallet on the ground. He picked it up and looked inside. There was NT$3,000 in it, and there was also a card with a name and a phone number.\n\nFor a moment, Ben thought about the new basketball shoes he wanted. Then he thought about how worried the owner must be. He called the number on the card. An old woman __(1)__ the phone.\n\n\"Thank you so much! That money is for my grandson's school trip,\" she said. An hour later, she came to Ben's house to get her wallet. She wanted to give Ben NT$500, but he said no. \"__(2)__ honest boy you are!\" the woman said.\n\nBen didn't tell anyone about it, so he was surprised when the principal __(3)__ the woman's letter to the whole school the next morning. Ben's face turned red, but he felt __(4)__ of what he had done.",
+    "stem": "Choose the best answer for blank (2).",
+    "options": [
+      "How",
+      "What an",
+      "What",
+      "How an"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（What an）。感嘆句 What + a/an + 形容詞 + 單數名詞 + 主詞 + 動詞；honest 的 h 不發音，開頭是母音，用 an。選項一（How）：How + 形容詞 + 主詞 + 動詞，例如 How honest you are!，後面不能再接名詞 boy。選項三（What）：單數可數名詞 boy 前面要有 a 或 an。選項四（How an）：How 後面直接接形容詞，不接 an。"
+  },
+  {
+    "id": "cl19",
+    "type": "克漏字題組",
+    "lesson": "過去簡單式（不規則動詞 read）",
+    "difficulty": "中",
+    "group": "c5",
+    "passage": "Ben was walking home from school when he saw a wallet on the ground. He picked it up and looked inside. There was NT$3,000 in it, and there was also a card with a name and a phone number.\n\nFor a moment, Ben thought about the new basketball shoes he wanted. Then he thought about how worried the owner must be. He called the number on the card. An old woman __(1)__ the phone.\n\n\"Thank you so much! That money is for my grandson's school trip,\" she said. An hour later, she came to Ben's house to get her wallet. She wanted to give Ben NT$500, but he said no. \"__(2)__ honest boy you are!\" the woman said.\n\nBen didn't tell anyone about it, so he was surprised when the principal __(3)__ the woman's letter to the whole school the next morning. Ben's face turned red, but he felt __(4)__ of what he had done.",
+    "stem": "Choose the best answer for blank (3).",
+    "options": [
+      "reads",
+      "will read",
+      "read",
+      "has read"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（read）。前面是 was surprised，事情發生在過去，要用過去式；read 的過去式拼法相同，也寫 read。選項一（reads）：現在式和全文過去的時間不合。選項二（will read）：未來式和 was surprised、the next morning 的過去敘述不合。選項四（has read）：現在完成式不能描述過去某個特定時間（the next morning）發生的事。"
+  },
+  {
+    "id": "cl20",
+    "type": "克漏字題組",
+    "lesson": "be proud of",
+    "difficulty": "難",
+    "group": "c5",
+    "passage": "Ben was walking home from school when he saw a wallet on the ground. He picked it up and looked inside. There was NT$3,000 in it, and there was also a card with a name and a phone number.\n\nFor a moment, Ben thought about the new basketball shoes he wanted. Then he thought about how worried the owner must be. He called the number on the card. An old woman __(1)__ the phone.\n\n\"Thank you so much! That money is for my grandson's school trip,\" she said. An hour later, she came to Ben's house to get her wallet. She wanted to give Ben NT$500, but he said no. \"__(2)__ honest boy you are!\" the woman said.\n\nBen didn't tell anyone about it, so he was surprised when the principal __(3)__ the woman's letter to the whole school the next morning. Ben's face turned red, but he felt __(4)__ of what he had done.",
+    "stem": "Choose the best answer for blank (4).",
+    "options": [
+      "afraid",
+      "tired",
+      "full",
+      "proud"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（proud）。feel proud of 是「以…為榮」。Ben 拾金不昧被公開表揚，雖然臉紅，但為自己做的事感到驕傲。選項一（afraid）：afraid of 是「害怕」，做了好事被稱讚不會害怕。選項二（tired）：tired of 是「厭倦」，不合語意。選項三（full）：full of 是「充滿」，felt full of what he had done 語意不通。"
+  },
+  {
+    "id": "cl21",
+    "type": "克漏字題組",
+    "lesson": "介系詞 for（用途）",
+    "difficulty": "中",
+    "group": "c6",
+    "passage": "Grandma: Kevin, can you help me make dumplings? We need fifty of them __(1)__ dinner tonight.\nKevin: Sure! But I've never made them before.\nGrandma: Don't worry. It's easy. Put a little meat in the middle of the dumpling skin（水餃皮）, like this.\nKevin: OK. How about this one?\nGrandma: Too much meat! If you put in too much, the dumpling __(2)__ break when we cook it.\nKevin: Sorry. Let me try again… Look! Mine looks __(3)__ a small boat.\nGrandma: That's a good-looking boat. You learn fast.\nKevin: Grandma, who taught you to make dumplings?\nGrandma: My mother did, when I was about your age. Now it's my turn __(4)__ you.",
+    "stem": "Choose the best answer for blank (1).",
+    "options": [
+      "of",
+      "with",
+      "for",
+      "at"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（for）。for dinner 表示「晚餐要用的」，說明做五十顆水餃的用途。選項一（of）：fifty of them 已用過 of，of dinner 語意不通。選項二（with）：with dinner 是「和晚餐一起」，不是做水餃的目的。選項四（at）：at dinner 是「在吃晚餐時」，但水餃要先做好，不是晚餐時才需要。"
+  },
+  {
+    "id": "cl22",
+    "type": "克漏字題組",
+    "lesson": "if 條件句（主要子句用 will）",
+    "difficulty": "中",
+    "group": "c6",
+    "passage": "Grandma: Kevin, can you help me make dumplings? We need fifty of them __(1)__ dinner tonight.\nKevin: Sure! But I've never made them before.\nGrandma: Don't worry. It's easy. Put a little meat in the middle of the dumpling skin（水餃皮）, like this.\nKevin: OK. How about this one?\nGrandma: Too much meat! If you put in too much, the dumpling __(2)__ break when we cook it.\nKevin: Sorry. Let me try again… Look! Mine looks __(3)__ a small boat.\nGrandma: That's a good-looking boat. You learn fast.\nKevin: Grandma, who taught you to make dumplings?\nGrandma: My mother did, when I was about your age. Now it's my turn __(4)__ you.",
+    "stem": "Choose the best answer for blank (2).",
+    "options": [
+      "did",
+      "will",
+      "was",
+      "has"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（will）。if 子句用現在式表示條件，主要子句用 will + 原形動詞表示可能的結果。選項一（did）：主要子句說的是未來可能的結果，不能用過去式；did break 也和 when we cook it 的時間不合。選項三（was）：was break 不合文法。選項四（has）：has break 不合文法，has 後面要接過去分詞。"
+  },
+  {
+    "id": "cl23",
+    "type": "克漏字題組",
+    "lesson": "look like",
+    "difficulty": "難",
+    "group": "c6",
+    "passage": "Grandma: Kevin, can you help me make dumplings? We need fifty of them __(1)__ dinner tonight.\nKevin: Sure! But I've never made them before.\nGrandma: Don't worry. It's easy. Put a little meat in the middle of the dumpling skin（水餃皮）, like this.\nKevin: OK. How about this one?\nGrandma: Too much meat! If you put in too much, the dumpling __(2)__ break when we cook it.\nKevin: Sorry. Let me try again… Look! Mine looks __(3)__ a small boat.\nGrandma: That's a good-looking boat. You learn fast.\nKevin: Grandma, who taught you to make dumplings?\nGrandma: My mother did, when I was about your age. Now it's my turn __(4)__ you.",
+    "stem": "Choose the best answer for blank (3).",
+    "options": [
+      "alike",
+      "as",
+      "like",
+      "same"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（like）。look like + 名詞 是「看起來像…」。選項一（alike）：alike 是「相像的」，用法如 They look alike，後面不接名詞。選項二（as）：look as 後面不能直接接名詞表示「像」。選項四（same）：same 前面要有 the，而且要說 the same as，不能直接接 a small boat。"
+  },
+  {
+    "id": "cl24",
+    "type": "克漏字題組",
+    "lesson": "it's one's turn to V",
+    "difficulty": "難",
+    "group": "c6",
+    "passage": "Grandma: Kevin, can you help me make dumplings? We need fifty of them __(1)__ dinner tonight.\nKevin: Sure! But I've never made them before.\nGrandma: Don't worry. It's easy. Put a little meat in the middle of the dumpling skin（水餃皮）, like this.\nKevin: OK. How about this one?\nGrandma: Too much meat! If you put in too much, the dumpling __(2)__ break when we cook it.\nKevin: Sorry. Let me try again… Look! Mine looks __(3)__ a small boat.\nGrandma: That's a good-looking boat. You learn fast.\nKevin: Grandma, who taught you to make dumplings?\nGrandma: My mother did, when I was about your age. Now it's my turn __(4)__ you.",
+    "stem": "Choose the best answer for blank (4).",
+    "options": [
+      "teaching",
+      "teach",
+      "taught",
+      "to teach"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（to teach）。It's one's turn to V 是「輪到某人做某事」。以前媽媽教奶奶，現在輪到奶奶教 Kevin。選項一（teaching）：turn 後面不接 V-ing 表示輪到做某事。選項二（teach）：turn 後面要用 to V，不能直接接原形動詞。選項三（taught）：turn 後面不能接過去式。"
+  },
+  {
+    "id": "re13",
+    "type": "閱讀題組",
+    "lesson": "菜單判讀",
+    "difficulty": "易",
+    "group": "r5",
+    "passage": "Mama Lee's Noodle House\n\nNOODLES\n• Beef Noodles ........ NT$150\n• Chicken Noodles ..... NT$120\n• Vegetable Noodles ... NT$100\n\nSIDE DISHES\n• Dumplings (8) ....... NT$60\n• Green Salad ......... NT$50\n\nDRINKS\n• Black Tea ........... NT$30\n• Fruit Juice ......... NT$45\n\nTODAY'S SPECIAL (Tuesday to Friday only)\nOrder any noodles with a black tea and get NT$20 off!\n\nOpen: 11:00 a.m. – 8:30 p.m.\nClosed on Mondays",
+    "stem": "Which noodles are the cheapest?",
+    "options": [
+      "Vegetable Noodles",
+      "Beef Noodles",
+      "Chicken Noodles",
+      "Dumplings"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（Vegetable Noodles）。三種麵中，Vegetable Noodles 只要 NT$100，最便宜。選項二（Beef Noodles）：牛肉麵 NT$150，是最貴的麵。選項三（Chicken Noodles）：雞肉麵 NT$120，比蔬菜麵貴。選項四（Dumplings）：水餃是小菜（SIDE DISHES），不是麵。"
+  },
+  {
+    "id": "re14",
+    "type": "閱讀題組",
+    "lesson": "細節題（營業時間）",
+    "difficulty": "易",
+    "group": "r5",
+    "passage": "Mama Lee's Noodle House\n\nNOODLES\n• Beef Noodles ........ NT$150\n• Chicken Noodles ..... NT$120\n• Vegetable Noodles ... NT$100\n\nSIDE DISHES\n• Dumplings (8) ....... NT$60\n• Green Salad ......... NT$50\n\nDRINKS\n• Black Tea ........... NT$30\n• Fruit Juice ......... NT$45\n\nTODAY'S SPECIAL (Tuesday to Friday only)\nOrder any noodles with a black tea and get NT$20 off!\n\nOpen: 11:00 a.m. – 8:30 p.m.\nClosed on Mondays",
+    "stem": "When can people NOT eat at Mama Lee's Noodle House?",
+    "options": [
+      "At 12:00 noon on Monday",
+      "At 7:00 p.m. on Tuesday",
+      "At 11:30 a.m. on Saturday",
+      "At 8:00 p.m. on Sunday"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（At 12:00 noon on Monday）。菜單寫 Closed on Mondays，星期一公休，中午也不能去吃。選項二（At 7:00 p.m. on Tuesday）：星期二有營業，晚上七點在 11:00 a.m.–8:30 p.m. 之間。選項三（At 11:30 a.m. on Saturday）：星期六有營業，11:30 已開門。選項四（At 8:00 p.m. on Sunday）：星期日有營業，八點還沒打烊。"
+  },
+  {
+    "id": "re15",
+    "type": "閱讀題組",
+    "lesson": "計算題",
+    "difficulty": "中",
+    "group": "r5",
+    "passage": "Mama Lee's Noodle House\n\nNOODLES\n• Beef Noodles ........ NT$150\n• Chicken Noodles ..... NT$120\n• Vegetable Noodles ... NT$100\n\nSIDE DISHES\n• Dumplings (8) ....... NT$60\n• Green Salad ......... NT$50\n\nDRINKS\n• Black Tea ........... NT$30\n• Fruit Juice ......... NT$45\n\nTODAY'S SPECIAL (Tuesday to Friday only)\nOrder any noodles with a black tea and get NT$20 off!\n\nOpen: 11:00 a.m. – 8:30 p.m.\nClosed on Mondays",
+    "stem": "On Wednesday, Joe orders beef noodles and a black tea. How much does he pay?",
+    "options": [
+      "NT$180",
+      "NT$150",
+      "NT$130",
+      "NT$160"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（NT$160）。星期三在特價日（週二到週五）內，麵加紅茶折 NT$20：150＋30－20＝160。選項一（NT$180）：150＋30＝180，忘了扣掉特價的 NT$20。選項二（NT$150）：只算了牛肉麵的錢，沒加紅茶也沒扣折扣。選項三（NT$130）：這是雞肉麵加紅茶再折 NT$20（120＋30－20）的價錢，但 Joe 點的是牛肉麵。"
+  },
+  {
+    "id": "re16",
+    "type": "閱讀題組",
+    "lesson": "細節題",
+    "difficulty": "易",
+    "group": "r6",
+    "passage": "Lily ran the slowest in her class. Every time her class had a race, she came in last, and some classmates laughed at her.\n\nOne day, she decided to change. Every morning, she got up at six and ran around the park near her home. At first, she could run for only five minutes before she had to stop. Her legs hurt, and she wanted to give up. But she kept going.\n\nThree months later, the school held a race. Lily didn't win. But for the first time, she didn't come in last. When she got to the end, her teacher gave her a big smile. \"You're not the fastest,\" he said, \"but you're the one who has improved the most.\"\n\nLily smiled, too. For her, that was even better than winning.",
+    "stem": "What did Lily do to change?",
+    "options": [
+      "She ran in the park every morning.",
+      "She asked her classmates to stop laughing.",
+      "She took running classes after school.",
+      "She stopped joining races at school."
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（She ran in the park every morning.）。文中說她每天早上六點起床，到家附近的公園跑步。選項二（She asked her classmates to stop laughing.）：文中沒有提到她要求同學不要笑。選項三（She took running classes after school.）：她是自己早上去公園跑，沒有提到上課。選項四（She stopped joining races at school.）：她三個月後還參加了學校的比賽。"
+  },
+  {
+    "id": "re17",
+    "type": "閱讀題組",
+    "lesson": "情緒推論",
+    "difficulty": "中",
+    "group": "r6",
+    "passage": "Lily ran the slowest in her class. Every time her class had a race, she came in last, and some classmates laughed at her.\n\nOne day, she decided to change. Every morning, she got up at six and ran around the park near her home. At first, she could run for only five minutes before she had to stop. Her legs hurt, and she wanted to give up. But she kept going.\n\nThree months later, the school held a race. Lily didn't win. But for the first time, she didn't come in last. When she got to the end, her teacher gave her a big smile. \"You're not the fastest,\" he said, \"but you're the one who has improved the most.\"\n\nLily smiled, too. For her, that was even better than winning.",
+    "stem": "How did Lily feel at the end of the story?",
+    "options": [
+      "Happy, even though she didn't win",
+      "Sad, because she didn't win the race",
+      "Angry, because her classmates laughed at her",
+      "Tired, so she wanted to give up running"
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（Happy, even though she didn't win）。她沒有得名，但老師說她進步最多，她也笑了，覺得這比贏還好。選項二（Sad, because she didn't win the race）：她笑了，還覺得比贏還好，並不難過。選項三（Angry, because her classmates laughed at her）：同學嘲笑是故事開頭的事，結尾她是開心的。選項四（Tired, so she wanted to give up running）：想放棄是剛開始練跑時的心情，結尾沒有提到。"
+  },
+  {
+    "id": "re18",
+    "type": "閱讀題組",
+    "lesson": "主旨題（寓意）",
+    "difficulty": "中",
+    "group": "r6",
+    "passage": "Lily ran the slowest in her class. Every time her class had a race, she came in last, and some classmates laughed at her.\n\nOne day, she decided to change. Every morning, she got up at six and ran around the park near her home. At first, she could run for only five minutes before she had to stop. Her legs hurt, and she wanted to give up. But she kept going.\n\nThree months later, the school held a race. Lily didn't win. But for the first time, she didn't come in last. When she got to the end, her teacher gave her a big smile. \"You're not the fastest,\" he said, \"but you're the one who has improved the most.\"\n\nLily smiled, too. For her, that was even better than winning.",
+    "stem": "What does the story want to tell us?",
+    "options": [
+      "Winning a race is the most important thing.",
+      "Working hard can help us become better than before.",
+      "We should laugh at people who are slow.",
+      "Only people who run fast can enjoy sports."
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（Working hard can help us become better than before.）。Lily 每天練跑，雖然沒得名，卻進步最多，故事強調努力能讓自己進步。選項一（Winning a race is the most important thing.）：結尾說進步比贏還好，和選項相反。選項三（We should laugh at people who are slow.）：同學嘲笑 Lily 不是故事要傳達的價值。選項四（Only people who run fast can enjoy sports.）：故事中跑得慢的 Lily 也從跑步中得到成就感，選項說法錯誤。"
+  },
+  {
+    "id": "re19",
+    "type": "閱讀題組",
+    "lesson": "圖表判讀",
+    "difficulty": "易",
+    "group": "r7",
+    "passage": "How Do Students at Green Hill Junior High Get to School?\n\nThe school asked all 400 students this question last month. Here are the results:\n\nWay to school          | Number of students\nWalk                   | 120\nTake the bus           | 100\nRide a bike            | 80\nParents drive them     | 60\nOther                  | 40\n\nThe school wants more students to walk or ride bikes to school. Starting next semester, students who walk or ride a bike to school every day for a whole month will get a free notebook.",
+    "stem": "How do most students at Green Hill Junior High get to school?",
+    "options": [
+      "They walk.",
+      "They take the bus.",
+      "They ride bikes.",
+      "Their parents drive them."
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（They walk.）。走路的人數 120 人最多。選項二（They take the bus.）：搭公車 100 人，比走路少。選項三（They ride bikes.）：騎腳踏車 80 人，比走路少。選項四（Their parents drive them.）：家長接送 60 人，比走路少。"
+  },
+  {
+    "id": "re20",
+    "type": "閱讀題組",
+    "lesson": "圖表判讀（比例）",
+    "difficulty": "中",
+    "group": "r7",
+    "passage": "How Do Students at Green Hill Junior High Get to School?\n\nThe school asked all 400 students this question last month. Here are the results:\n\nWay to school          | Number of students\nWalk                   | 120\nTake the bus           | 100\nRide a bike            | 80\nParents drive them     | 60\nOther                  | 40\n\nThe school wants more students to walk or ride bikes to school. Starting next semester, students who walk or ride a bike to school every day for a whole month will get a free notebook.",
+    "stem": "Which is true about the students who take the bus?",
+    "options": [
+      "They are half of all the students.",
+      "They are fewer than the students who ride bikes.",
+      "They will get a free notebook next semester.",
+      "They are one out of every four students."
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（They are one out of every four students.）。搭公車 100 人，全校 400 人，100÷400＝1/4，也就是每四人中有一人。選項一（They are half of all the students.）：一半是 200 人，搭公車只有 100 人。選項二（They are fewer than the students who ride bikes.）：搭公車 100 人，比騎腳踏車的 80 人多。選項三（They will get a free notebook next semester.）：送筆記本的對象是走路或騎腳踏車上學滿一個月的學生，不是搭公車的。"
+  },
+  {
+    "id": "re21",
+    "type": "閱讀題組",
+    "lesson": "綜合推論",
+    "difficulty": "難",
+    "group": "r7",
+    "passage": "How Do Students at Green Hill Junior High Get to School?\n\nThe school asked all 400 students this question last month. Here are the results:\n\nWay to school          | Number of students\nWalk                   | 120\nTake the bus           | 100\nRide a bike            | 80\nParents drive them     | 60\nOther                  | 40\n\nThe school wants more students to walk or ride bikes to school. Starting next semester, students who walk or ride a bike to school every day for a whole month will get a free notebook.",
+    "stem": "Based on the reading, which of the following is true?",
+    "options": [
+      "The school wants more parents to drive their children to school.",
+      "Fewer students ride bikes than get a ride from their parents.",
+      "More students walk or ride bikes than take the bus or get a ride from their parents.",
+      "A student who walks to school for one week will get a free notebook."
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（More students walk or ride bikes than take the bus or get a ride from their parents.）。走路＋騎車＝120＋80＝200 人；搭公車＋家長接送＝100＋60＝160 人，200 大於 160。選項一（The school wants more parents to drive their children to school.）：學校希望更多學生走路或騎車，不是讓家長開車接送。選項二（Fewer students ride bikes than get a ride from their parents.）：騎車 80 人，比家長接送的 60 人多。選項四（A student who walks to school for one week will get a free notebook.）：要連續一整個月（a whole month）每天走路或騎車才有，一週不夠。"
+  },
+  {
+    "id": "re22",
+    "type": "閱讀題組",
+    "lesson": "主旨題（問題所在）",
+    "difficulty": "中",
+    "group": "r8",
+    "passage": "Dear Aunt Sue,\n\nMy best friend, Jill, and I have been friends since we were six. But this year we are in different classes, and she has made a lot of new friends. Now she often eats lunch with them and forgets to wait for me after school. I feel lonely and a little angry. Should I tell her how I feel, or should I just find new friends, too?\n\nLeft Behind\n\nDear Left Behind,\n\nIt's natural to feel this way. When we grow up, our friendships often change, too. But change doesn't always mean the end. Jill may not know that you feel hurt. Find a quiet time and talk to her. Be honest, but don't blame her. Say \"I miss spending time with you,\" not \"You forgot about me.\"\n\nAt the same time, try to make some new friends in your own class. Having more friends doesn't mean you care less about your old ones. A good friendship has room for other people.\n\nAunt Sue",
+    "stem": "What is Left Behind's problem?",
+    "options": [
+      "She doesn't like her new class.",
+      "Jill said something bad about her.",
+      "She has too many friends to take care of.",
+      "Her best friend spends less time with her now."
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（Her best friend spends less time with her now.）。來信說好友 Jill 分到不同班、交了新朋友，常和別人吃午餐、放學也忘了等她。選項一（She doesn't like her new class.）：信中沒有說她不喜歡新班級。選項二（Jill said something bad about her.）：信中沒有提到 Jill 說她壞話。選項三（She has too many friends to take care of.）：她的問題是覺得寂寞，不是朋友太多。"
+  },
+  {
+    "id": "re23",
+    "type": "閱讀題組",
+    "lesson": "應用推論",
+    "difficulty": "難",
+    "group": "r8",
+    "passage": "Dear Aunt Sue,\n\nMy best friend, Jill, and I have been friends since we were six. But this year we are in different classes, and she has made a lot of new friends. Now she often eats lunch with them and forgets to wait for me after school. I feel lonely and a little angry. Should I tell her how I feel, or should I just find new friends, too?\n\nLeft Behind\n\nDear Left Behind,\n\nIt's natural to feel this way. When we grow up, our friendships often change, too. But change doesn't always mean the end. Jill may not know that you feel hurt. Find a quiet time and talk to her. Be honest, but don't blame her. Say \"I miss spending time with you,\" not \"You forgot about me.\"\n\nAt the same time, try to make some new friends in your own class. Having more friends doesn't mean you care less about your old ones. A good friendship has room for other people.\n\nAunt Sue",
+    "stem": "Which of the following would Aunt Sue most likely suggest Left Behind say to Jill?",
+    "options": [
+      "\"You never wait for me. You're a bad friend.\"",
+      "\"Please don't talk to your new friends.\"",
+      "\"I don't need you. I have new friends now.\"",
+      "\"I really miss eating lunch with you.\""
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（\"I really miss eating lunch with you.\"）。Aunt Sue 建議誠實說出感受但不要責怪對方，例如 I miss spending time with you，這句最符合。選項一（\"You never wait for me. You're a bad friend.\"）：這是在責怪 Jill，Aunt Sue 說 don't blame her。選項二（\"Please don't talk to your new friends.\"）：Aunt Sue 說好的友誼容得下其他人，不會要 Jill 不跟新朋友說話。選項三（\"I don't need you. I have new friends now.\"）：這是賭氣的話，既不誠實表達想念，也會傷害友誼。"
+  },
+  {
+    "id": "re24",
+    "type": "閱讀題組",
+    "lesson": "句意推論",
+    "difficulty": "難",
+    "group": "r8",
+    "passage": "Dear Aunt Sue,\n\nMy best friend, Jill, and I have been friends since we were six. But this year we are in different classes, and she has made a lot of new friends. Now she often eats lunch with them and forgets to wait for me after school. I feel lonely and a little angry. Should I tell her how I feel, or should I just find new friends, too?\n\nLeft Behind\n\nDear Left Behind,\n\nIt's natural to feel this way. When we grow up, our friendships often change, too. But change doesn't always mean the end. Jill may not know that you feel hurt. Find a quiet time and talk to her. Be honest, but don't blame her. Say \"I miss spending time with you,\" not \"You forgot about me.\"\n\nAt the same time, try to make some new friends in your own class. Having more friends doesn't mean you care less about your old ones. A good friendship has room for other people.\n\nAunt Sue",
+    "stem": "What does Aunt Sue mean by \"A good friendship has room for other people\"?",
+    "options": [
+      "Good friends should share the same room.",
+      "People should have only one best friend.",
+      "Good friends can still be close when they have other friends.",
+      "You need a big house to make many friends."
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（Good friends can still be close when they have other friends.）。room 在這裡是「空間、餘地」，意思是好的友誼不怕彼此有其他朋友，感情依然可以很好。選項一（Good friends should share the same room.）：room 不是指房間，這裡是比喻「容納的空間」。選項二（People should have only one best friend.）：Aunt Sue 鼓勵交新朋友，和選項相反。選項四（You need a big house to make many friends.）：把 room 誤解成實際的空間，和交朋友無關。"
   }
 ]
