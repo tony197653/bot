@@ -44,14 +44,30 @@ const TYPES=['字彙','文法句型','克漏字題組','閱讀題組'];
 const GROUP_TYPES=TYPES.slice(2);
 const LETTERS='ABCD';
 const main=document.getElementById('main');
-let bank=[],selected=new Set(TYPES),prepared=[],round=[],responses=[],index=0,mode='home',redo=false,loaded=false,failed=false;let ctx;
-function armAudio(){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;if(!ctx)ctx=new C();if(ctx.state==='suspended')ctx.resume();}catch{}}
-document.addEventListener('pointerdown',armAudio,true);
-document.addEventListener('keydown',armAudio,true);
+let bank=[],selected=new Set(TYPES),prepared=[],round=[],responses=[],index=0,mode='home',redo=false,loaded=false,failed=false;let ctx,sfxBuf={},sfxNeedsRecovery=false,sfxLock=null;
+function audioCtor(){return window.AudioContext||window.webkitAudioContext;}
+function respectSilentSwitch(){try{if(navigator.audioSession)navigator.audioSession.type='auto';}catch{}}
+function cacheSfx(force){if(!ctx)return;if(force)sfxBuf={};if(sfxBuf.ok)return;sfxBuf.ok=renderSfx(SFX.ok,ctx);sfxBuf.score=renderSfx(SFX.score,ctx);sfxBuf.bad=padSfx(renderSfx(SFX.bad,ctx),.05);}
+function padSfx(buf,extra){const sr=buf.sampleRate,n=buf.length+Math.round(extra*sr),out=ctx.createBuffer(1,n,sr);out.getChannelData(0).set(buf.getChannelData(0));return out;}
+function playSilentUnlock(){if(!ctx||ctx.state==='closed')return;const src=ctx.createBufferSource();src.buffer=ctx.createBuffer(1,1,ctx.sampleRate);src.connect(ctx.destination);try{src.start(0);}catch{}}
+function bindCtxState(ac){ac.onstatechange=()=>{if(ac.state==='interrupted'||ac.state==='suspended'||ac.state==='closed')sfxNeedsRecovery=true;else if(ac.state==='running'&&ac===ctx)sfxNeedsRecovery=false;};}
+function withTimeout(p,ms){let t;return Promise.race([p,new Promise((_,rej)=>{t=setTimeout(()=>rej(Error('timeout')),ms);})]).finally(()=>clearTimeout(t));}
+async function recreateCtx(){const C=audioCtor();if(!C)return;const old=ctx;sfxBuf={};ctx=null;if(old){try{old.onstatechange=null;}catch{}try{await withTimeout(old.close(),300);}catch{try{old.close();}catch{}}}ctx=new C();bindCtxState(ctx);if(ctx.state!=='running'){try{await withTimeout(ctx.resume(),300);}catch{}}playSilentUnlock();cacheSfx(true);if(ctx.state==='running')sfxNeedsRecovery=false;}
+function inUserGesture(){try{return !!(navigator.userActivation&&navigator.userActivation.isActive);}catch{return false;}}
+async function ensureRunning(allowCreate){if(allowCreate==null)allowCreate=inUserGesture();if(sfxLock)return sfxLock;sfxLock=(async()=>{try{respectSilentSwitch();const C=audioCtor();if(!C)return;if(ctx&&ctx.state==='closed'){try{ctx.onstatechange=null;}catch{}ctx=null;sfxBuf={};sfxNeedsRecovery=true;}if(!ctx){if(!allowCreate)return;ctx=new C();bindCtxState(ctx);}const bad=()=>!ctx||ctx.state==='closed'||ctx.state==='interrupted'||ctx.state==='suspended'||sfxNeedsRecovery&&ctx.state!=='running';if(bad()){if(ctx&&ctx.state!=='closed'){try{await withTimeout(ctx.resume(),300);}catch{if(allowCreate){await recreateCtx();return;}sfxNeedsRecovery=true;return;}}if(!ctx||ctx.state!=='running'){if(allowCreate){await recreateCtx();return;}sfxNeedsRecovery=true;return;}}if(ctx.state!=='running'){try{await withTimeout(ctx.resume(),300);}catch{if(allowCreate){await recreateCtx();return;}sfxNeedsRecovery=true;return;}if(ctx.state!=='running'){if(allowCreate){await recreateCtx();return;}sfxNeedsRecovery=true;return;}}cacheSfx();if(allowCreate)playSilentUnlock();}catch{}})();try{await sfxLock;}finally{sfxLock=null;}}
+async function armAudio(){try{await ensureRunning(true);}catch{}}
+async function recoverInBackground(){try{await ensureRunning(false);}catch{}}
+function onUnlockGesture(){armAudio();}
+document.addEventListener('pointerdown',onUnlockGesture,true);
+document.addEventListener('touchend',onUnlockGesture,true);
+document.addEventListener('keydown',onUnlockGesture,true);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')recoverInBackground();});
+window.addEventListener('pageshow',recoverInBackground);
+window.addEventListener('focus',recoverInBackground);
 const SFX={ok:{peak:.22,len:.32,voices:[{f:587.33,s:0,d:.26,g:.15,a:.012,r:.2,sine:.85,tri:.15},{f:739.99,s:.09,d:.24,g:.14,a:.012,r:.18,sine:.85,tri:.15}]},score:{peak:.22,len:.62,voices:[{f:349.23,s:0,d:.46,g:.12,a:.016,r:.28,sine:1,tri:.08},{f:440,s:.12,d:.44,g:.12,a:.016,r:.28,sine:1,tri:.08},{f:523.25,s:.24,d:.42,g:.11,a:.016,r:.26,sine:1,tri:.08}]},bad:{peak:.11,len:.2,voices:[{f:392,s:0,d:.2,g:.1,a:.005,r:.15,sine:.92,tri:.08}]}};
 function sfxEnv(n,sr,attack,release){let a=Math.max(1,Math.round(attack*sr)),r=Math.max(1,Math.round(release*sr));if(a+r>n){const s=n/(a+r);a=Math.max(1,Math.round(a*s));r=Math.max(1,n-a);}const env=new Float64Array(n).fill(1);for(let i=0;i<a;i++)env[i]=i/a;for(let i=0;i<r;i++){const x=r===1?1:1-i/(r-1);env[n-r+i]=x*x;}return env;}
 function renderSfx(spec,ac){const sr=ac.sampleRate,n=Math.round(spec.len*sr),buf=new Float64Array(n);for(const v of spec.voices){const i0=Math.round(v.s*sr);let ln=Math.round(v.d*sr);if(i0>=n||ln<=0)continue;ln=Math.min(ln,n-i0);const env=sfxEnv(ln,sr,v.a,v.r),parts=(v.p||[]).map(p=>({ratio:p[0],amp:p[1],pe:sfxEnv(ln,sr,v.a,Math.min(v.d,v.r*p[2]))}));for(let i=0;i<ln;i++){const t=i/sr;let w=v.sine*Math.sin(2*Math.PI*v.f*t);if(v.tri)w+=v.tri*(2*Math.abs(2*((v.f*t)%1)-1)-1);for(const p of parts)w+=p.amp*Math.sin(2*Math.PI*v.f*p.ratio*t)*p.pe[i];buf[i0+i]+=v.g*env[i]*w;}}let peak=0,mean=0;for(let i=0;i<n;i++){const a=Math.abs(buf[i]);if(a>peak)peak=a;mean+=buf[i];}mean/=n;const out=ac.createBuffer(1,n,sr),ch=out.getChannelData(0);if(peak>0){const k=spec.peak/peak;for(let i=0;i<n;i++)ch[i]=(buf[i]-mean)*k;}return out;}
-function playSfx(kind){try{armAudio();if(!ctx)return;const spec=SFX[kind];if(!spec)return;const src=ctx.createBufferSource();src.buffer=renderSfx(spec,ctx);src.connect(ctx.destination);src.start();}catch{}}
+async function playSfx(kind){try{await ensureRunning(true);if(!ctx||ctx.state!=='running')await ensureRunning(true);if(!ctx||ctx.state!=='running')return;cacheSfx();const buf=sfxBuf[kind];if(!buf)return;const src=ctx.createBufferSource();src.buffer=buf;src.connect(ctx.destination);src.start(ctx.currentTime+.01);}catch{}}
 const shuffle=items=>{const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 // Question content is text; only explicitly allowed source tags survive.
 function rich(value){
