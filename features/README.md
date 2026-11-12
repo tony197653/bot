@@ -1,4 +1,4 @@
-# 功能庫網頁（/bot/features/）
+功能庫網頁已併入 `/bot/templates/#features`；資料仍然只改本資料夾的 `features.json`
 
 網頁內容全部來自同資料夾的 `features.json`。每月更新只要改這個檔，**不必動 `index.html`**。
 
@@ -31,7 +31,7 @@
 `fetch` 不能直接開檔案（file://），要用簡單伺服器：
 
 ```
-cd features && python3 -m http.server 8000
+python3 -m http.server 8000
 ```
 
-再開 http://localhost:8000/
+在 repo 根目錄執行後，再開 http://localhost:8000/templates/#features
