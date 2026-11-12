@@ -32,8 +32,8 @@ html{scrollbar-gutter:stable;overflow-y:scroll;overflow-x:hidden;overflow-x:clip
 #lib-templates main{padding:26px 0 52px}
 #lib-templates .panel>h2{font-size:20px;font-weight:600;margin:0 0 2px}
 #lib-templates .lead{margin:0 0 14px;color:var(--mute);font-size:17px}
-#lib-templates .js .panel[data-hidden]{display:none}
-html:not(.js) .panel #lib-templates{margin-bottom:48px}
+.js #lib-templates .panel[data-hidden]{display:none}
+html:not(.js) #lib-templates .panel{margin-bottom:48px}
 #lib-templates .jump-row{position:relative}
 #lib-templates .jump-row[hidden]{display:none}
 #lib-templates .jump-row::after{content:"";position:absolute;inset:0 0 0 auto;width:24px;pointer-events:none;background:linear-gradient(to right,transparent,var(--bg))}
@@ -519,6 +519,7 @@ html[data-lib="components"]{scroll-padding-top:84px;scrollbar-gutter:stable;over
   #lib-components .cat-head h2{font-size:21px}
 }
 @media  (hover:none){#lib-components .kbd-hint{display:none}}
+@media  (max-width:799px){#lib-components .kbd-hint{display:none}}
 @media  (prefers-reduced-motion:reduce){
   html[data-lib="components"]{scroll-behavior:auto}
   #lib-components *,#lib-components *::before,#lib-components *::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
