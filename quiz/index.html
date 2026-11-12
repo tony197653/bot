@@ -13,7 +13,7 @@
 <style>
 :root {
   color-scheme: light;
-  --bg: #f5f3ee;
+  --bg: #e8e7e3;
   --paper: #fffefa;
   --ink: #343d32;
   --muted: #62675c;
@@ -44,7 +44,7 @@ h1 { margin: 0; font-size: 1.75rem; font-weight: 700; line-height: 1.3; letter-s
   justify-content: space-between;
   height: 72px;
   padding: 16px 20px;
-  border: 1px solid var(--line);
+  border: 2px solid var(--frame);
   border-radius: var(--r);
   background: var(--paper);
   box-shadow: var(--shadow);
@@ -59,7 +59,7 @@ h2 a { color: inherit; text-decoration: none; outline: none; }
 h2 a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r); }
 .card:has(a:focus-visible) { outline: 2px solid var(--c); outline-offset: 3px; }
 .count { color: var(--muted); font-size: .875rem; font-weight: 500; line-height: 1.5; letter-spacing: .04em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.disabled { background: transparent; border-color: var(--line-soft); box-shadow: none; cursor: default; }
+.disabled { background: transparent; border-color: var(--frame); box-shadow: none; cursor: default; }
 .disabled h2 { opacity: .45; }
 .tag { display: inline-flex; align-items: center; gap: 6px; font-size: .875rem; font-weight: 500; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
 .l2 { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); }
@@ -94,23 +94,23 @@ h2 a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r)
   <h1>國中會考複習</h1>
   <p class="subtitle">選一科開始練習。</p>
   <ul class="subjects" aria-label="科目">
-    <li class="card c1" style="--c:#64745b">
+    <li class="card c1" style="--c:#64745b;--frame:#b7bcaf">
       <h2><a href="../chinese-quiz/" aria-label="國文，100 題">國文</a></h2>
       <span class="count">100 題</span>
     </li>
-    <li class="card c1" style="--c:#4e7197">
+    <li class="card c1" style="--c:#4e7197;--frame:#768597">
       <h2><a href="../english-quiz/" aria-label="英文，100 題">英文</a></h2>
       <span class="count">100 題</span>
     </li>
-    <li class="card c1" style="--c:#7b6e3b">
+    <li class="card c1" style="--c:#7b6e3b;--frame:#88846e">
       <h2><a href="../social-quiz/" aria-label="社會，100 題">社會</a></h2>
       <span class="count">100 題</span>
     </li>
-    <li class="card c1" style="--c:#667077">
+    <li class="card c1" style="--c:#667077;--frame:#808487">
       <h2><a href="../science-quiz/" aria-label="自然，100 題">自然</a></h2>
       <span class="count">100 題</span>
     </li>
-    <li class="card disabled" style="--c:#7e6a93" aria-label="數學，即將推出">
+    <li class="card disabled" style="--c:#7e6a93;--frame:#8e8598" aria-label="數學，即將推出">
       <h2>數學</h2>
       <span class="tag l2"><i aria-hidden="true"></i>即將推出</span>
     </li>
