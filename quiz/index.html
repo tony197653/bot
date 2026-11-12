@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="國中會考五科複習測驗入口。">
+<title>國中會考複習</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect fill=%22%23343d32%22 width=%2232%22 height=%2232%22 rx=%226%22/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&amp;display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f5f3ee;
+  --paper: #fffefa;
+  --ink: #343d32;
+  --muted: #62675c;
+  --line: #878d7f;
+  --line-soft: #dfe1d7;
+  --dot-off: #a9aca3;
+  --r: 12px;
+  --shadow: 0 1px 2px rgba(52,61,50,.05), 0 4px 16px rgba(52,61,50,.05);
+  --shadow-up: 0 2px 4px rgba(52,61,50,.06), 0 14px 32px rgba(52,61,50,.10);
+  --ease: cubic-bezier(.2,.7,.2,1);
+  -webkit-text-size-adjust: 100%;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif;
+}
+main { padding: 48px 16px 112px; margin-inline: auto; }
+h1 { margin: 0; font-size: 1.75rem; font-weight: 700; line-height: 1.3; letter-spacing: .02em; }
+.subtitle { margin: 8px 0 0; color: var(--muted); font-size: 1.0625rem; font-weight: 400; line-height: 1.75; letter-spacing: .02em; }
+.subjects { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; margin: 32px 0 0; padding: 0; list-style: none; }
+.card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.c1 {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease);
+}
+h2 { margin: 0; color: var(--c); font-size: 1.375rem; font-weight: 600; line-height: 1.2; letter-spacing: .04em; white-space: nowrap; }
+h2 a { color: inherit; text-decoration: none; outline: none; }
+h2 a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r); }
+.card:has(a:focus-visible) { outline: 2px solid var(--c); outline-offset: 3px; }
+.count { color: var(--muted); font-size: .875rem; font-weight: 500; line-height: 1.5; letter-spacing: .04em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.disabled { background: transparent; border-color: var(--line-soft); box-shadow: none; cursor: default; }
+.disabled h2 { opacity: .45; }
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: .875rem; font-weight: 500; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
+.l2 { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); }
+.l2 i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dot-off); }
+@media (hover:hover) and (pointer:fine) {
+  .c1:hover { transform: translateY(-4px); border-color: var(--c); box-shadow: var(--shadow-up); }
+}
+.c1.pressed { transform: scale(.97); transition: transform .12s ease-out, box-shadow .22s var(--ease), border-color .22s var(--ease); }
+@media (min-width:800px) {
+  main { padding: 96px 32px 64px; }
+  h1 { font-size: 2.5rem; }
+  .subjects { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 16px; margin-top: 48px; }
+  .card { height: 200px; padding: 16px; flex-direction: column; align-items: flex-start; }
+  h2 { font-size: 2rem; }
+}
+@media (min-width:1120px) {
+  main { max-width: 1120px; padding: 120px 0 64px; }
+  .subjects { gap: 24px; }
+  .card { height: 240px; padding: 24px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .c1, .c1:hover, .c1.pressed { transform: none; transition: border-color .22s var(--ease); box-shadow: var(--shadow); }
+}
+@media (prefers-contrast:more) {
+  .card { border-color: var(--ink); }
+}
+/* 已檢查減少透明：本頁沒有半透明材質，不需降級。 */
+</style>
+</head>
+<body>
+<main>
+  <h1>國中會考複習</h1>
+  <p class="subtitle">選一科開始練習。</p>
+  <ul class="subjects" aria-label="科目">
+    <li class="card c1" style="--c:#64745b">
+      <h2><a href="../chinese-quiz/" aria-label="國文，100 題">國文</a></h2>
+      <span class="count">100 題</span>
+    </li>
+    <li class="card c1" style="--c:#4e7197">
+      <h2><a href="../english-quiz/" aria-label="英文，100 題">英文</a></h2>
+      <span class="count">100 題</span>
+    </li>
+    <li class="card c1" style="--c:#7b6e3b">
+      <h2><a href="../social-quiz/" aria-label="社會，100 題">社會</a></h2>
+      <span class="count">100 題</span>
+    </li>
+    <li class="card c1" style="--c:#667077">
+      <h2><a href="../science-quiz/" aria-label="自然，100 題">自然</a></h2>
+      <span class="count">100 題</span>
+    </li>
+    <li class="card disabled" style="--c:#7e6a93" aria-label="數學，即將推出">
+      <h2>數學</h2>
+      <span class="tag l2"><i aria-hidden="true"></i>即將推出</span>
+    </li>
+  </ul>
+</main>
+<script>
+document.querySelectorAll('.c1').forEach(card => {
+  card.addEventListener('pointerdown', event => {
+    if (!event.isPrimary || event.button !== 0) return;
+    if (card.hasPointerCapture(event.pointerId)) card.releasePointerCapture(event.pointerId);
+    card.classList.add('pressed');
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(type => {
+    card.addEventListener(type, () => card.classList.remove('pressed'));
+  });
+});
+</script>
+</body>
+</html>
