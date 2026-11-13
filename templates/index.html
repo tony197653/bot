@@ -252,7 +252,7 @@ html[data-lib="components"]{scroll-padding-top:84px;scrollbar-gutter:stable;over
 #lib-components nav.toc .wrap.fade-r{--fr:var(--toc-fade)}
 #lib-components nav.toc .wrap::-webkit-scrollbar{display:none}
 #lib-components nav.toc a{flex:none;flex-shrink:0;white-space:nowrap;display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;color:var(--ink);text-decoration:none;font-size:0.875rem;border:1px solid transparent;transition:background .2s var(--ease),border-color .2s var(--ease);line-height:1.5}
-#lib-components nav.toc a span{font-weight:600;color:var(--sage);font-variant-numeric:tabular-nums}
+#lib-components nav.toc a span{font-weight:600;color:var(--sage-deep);font-variant-numeric:tabular-nums}
 @media  (hover:hover) and (pointer:fine){#lib-components nav.toc a:hover{background:var(--surface);border-color:var(--line)}}
 #lib-components nav.toc a.on{background:var(--surface);border-color:var(--line);box-shadow:var(--shadow)}
 
@@ -474,7 +474,7 @@ html[data-lib="components"]{scroll-padding-top:84px;scrollbar-gutter:stable;over
 #lib-components .l2.live i{background:#6E9A5F;box-shadow:0 0 0 0 rgba(110,154,95,.5);animation:pulse 2s infinite}
 @keyframes pulse{70%{box-shadow:0 0 0 6px rgba(110,154,95,0)}100%{box-shadow:0 0 0 0 rgba(110,154,95,0)}}
 #lib-components .l3{padding:5px 8px;border-radius:var(--r-sm);font-size:0.6875rem;font-weight:600;letter-spacing:.02em;line-height:1.4}
-#lib-components .l3.k{background:var(--black);color:#fff}#lib-components .l3.o{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}#lib-components .l3.a{background:#C9622F;color:#fff}
+#lib-components .l3.k{background:var(--black);color:#fff}#lib-components .l3.o{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}#lib-components .l3.a{background:#B0521F;color:#fff}
 #lib-components .l5box{position:relative;display:inline-grid;place-items:center;width:46px;height:46px;border-radius:var(--r);background:#fff;border:1px solid var(--line);color:var(--ink)}
 #lib-components .l5box svg{width:22px;height:22px}
 #lib-components .l5{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--danger);color:#fff;font-size:0.6875rem;font-weight:600;display:grid;place-items:center;border:2px solid var(--bg);font-variant-numeric:tabular-nums;line-height:1.4}
@@ -764,7 +764,7 @@ html[data-lib="components"].dlg-lock{overflow:hidden}
 #lib-components .p4 .hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px;font-size:0.8125rem;color:var(--mute);line-height:1.5}
 #lib-components .p4 .hd b{color:var(--ink);font-size:0.875rem;font-weight:500;line-height:1.5}
 #lib-components .p4 ol{display:flex}
-#lib-components .p4 li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;height:46px;padding:0 6px 0 18px;margin-left:-11px;background:#E2E3DC;color:var(--mute);font-size:0.875rem;white-space:nowrap;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%,14px 50%);transition:background .35s var(--ease),color .35s var(--ease);line-height:1.5}
+#lib-components .p4 li{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;height:46px;padding:0 6px 0 18px;margin-left:-11px;background:#E2E3DC;color:var(--mute-on-soft);font-size:0.875rem;white-space:nowrap;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%,14px 50%);transition:background .35s var(--ease),color .35s var(--ease);line-height:1.5}
 #lib-components .p4 li:first-child{margin-left:0;padding-left:6px;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%);border-radius:var(--r-sm) 0 0 var(--r-sm)}
 #lib-components .p4 li:last-child{padding-right:6px;clip-path:polygon(0 0,100% 0,100% 100%,0 100%,14px 50%);border-radius:0 var(--r-sm) var(--r-sm) 0}
 #lib-components .p4 li .sn{font-weight:600;font-variant-numeric:tabular-nums}
@@ -1554,7 +1554,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
     <article class="spec"><div class="spec-head"><span class="code">T4</span><div><h3>分列卡片</h3><p>圓角白條分列，滑過時浮現淡<span class="nw">淡陰影。</span></p></div></div>
       <div class="stage plain"><p class="sample-tag">範例資料・駐店陶藝師</p><div class="tbl-wrap"><table class="t4">
         <thead><tr><th>陶藝師</th><th>專長</th><th class="num">本月作品</th></tr></thead>
-        <tbody><tr><td><div class="who"><span class="av" style="background:#66745F">森</span>森田葵</div></td><td>柴燒</td><td class="num">14</td></tr><tr><td><div class="who"><span class="av" style="background:#9C7C74">許</span>許雅涵</div></td><td>青瓷釉</td><td class="num">9</td></tr><tr><td><div class="who"><span class="av" style="background:#5F6B78">歐</span>歐陽承恩</div></td><td>拉坯</td><td class="num">21</td></tr></tbody></table></div></div></article>
+        <tbody><tr><td><div class="who"><span class="av" style="background:#66745F">森</span>森田葵</div></td><td>柴燒</td><td class="num">14</td></tr><tr><td><div class="who"><span class="av" style="background:#7E625B">許</span>許雅涵</div></td><td>青瓷釉</td><td class="num">9</td></tr><tr><td><div class="who"><span class="av" style="background:#5F6B78">歐</span>歐陽承恩</div></td><td>拉坯</td><td class="num">21</td></tr></tbody></table></div></div></article>
 
     <article class="spec"><div class="spec-head"><span class="code">T5</span><div><h3>密集報表</h3><p>密集格線與固定表頭，可在框<span class="nw">內捲動。</span></p></div></div>
       <div class="stage plain"><p class="sample-tag">範例資料・各通路週報（框內可捲動）</p><div class="t5-wrap"><table class="t5 js-sort">
