@@ -25,3 +25,45 @@
 /* Give each flag enough space to show its design at its native aspect ratio. */
 .wonder-head{min-height:64px;gap:18px;align-items:center}.wonder-head>span{flex:1}.wonder-head img{width:96px;height:64px;object-fit:contain;object-position:right center;flex-shrink:0;filter:drop-shadow(0 2px 5px #0003)}.detail-flag{width:150px;height:100px;object-fit:contain;object-position:left center;margin-bottom:20px}.record-country-links img{width:36px;height:25px}.country-card img.flag{width:48px;height:34px}
 @media(max-width:650px){.wonder-head{min-height:80px}.wonder-head img{width:120px;height:80px}.detail-flag{width:156px;height:104px}.country-card img.flag{width:38px;height:28px}}.map-controls button:disabled{opacity:.35;cursor:default}
+
+/* 閱讀字級：說明 16、單位 16、探索連結 14、分類 13。拿掉說明截斷，加大後仍要看完整段。 */
+.wonder-card p,
+.plain p,
+.feature p,
+dialog p{
+  font-size:16px;
+  line-height:1.7;
+}
+.wonder-card p{
+  display:block;
+  -webkit-line-clamp:unset;
+  overflow:visible;
+}
+.wonder-value small,
+.metric span,
+.record-detail-value small{
+  font-size:16px;
+  font-family:sans-serif;
+  font-weight:500;
+  line-height:1.4;
+}
+.wonder-bottom{
+  font-size:14px;
+  line-height:1.5;
+}
+.wonder-head{
+  font-size:13px;
+  line-height:1.5;
+}
+
+/* 約、逾等約略詞不跟數字一起放大強調，字級與顏色比照單位。 */
+.wonder-value .approx,
+.record-detail-value .approx{
+  font-family:sans-serif;
+  font-size:14px;
+  font-weight:400;
+  font-style:normal;
+  color:var(--muted);
+  letter-spacing:0;
+  margin-right:.2em;
+}
