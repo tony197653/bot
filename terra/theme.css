@@ -21,3 +21,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline-color:#9d7b38}.
   font-weight:500;
   color:#5e4a22;
 }
+
+/* 洲按鈕邊框：未選也看得見，選中仍用金色。 */
+#filters button{border-color:#adc7d066}
+#filters button.active{border-color:#ddc591aa}
