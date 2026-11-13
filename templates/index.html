@@ -29,7 +29,7 @@ html{scrollbar-gutter:stable;overflow-y:scroll;overflow-x:hidden;overflow-x:clip
 #lib-templates [role=tab][aria-selected=true]{color:var(--ink);font-weight:600}
 #lib-templates :focus-visible{outline:2px solid var(--sage);outline-offset:2px;border-radius:var(--r-sm);box-shadow:var(--halo)}
 #lib-templates [role=tab]:focus-visible{outline-offset:-2px}
-#lib-templates main.wrap{padding-block:64px 52px}
+#lib-templates main.wrap{padding-block:32px 52px}
 #lib-templates .panel>h2{scroll-margin-top:calc(var(--stick-h) + 24px);font-size:1.5rem;margin:0 0 2px;line-height:1.3;font-weight:600}
 #lib-templates .lead{margin:0 0 14px;color:var(--mute);font-size:1.0625rem;line-height:1.6;font-weight:400}
 .js #lib-templates .panel[data-hidden]{display:none}
@@ -44,7 +44,7 @@ html:not(.js) #lib-templates .panel{margin-bottom:48px}
 #lib-templates .jump a{display:inline-flex;align-items:center;gap:4px;min-height:44px;white-space:nowrap;touch-action:manipulation;font-size:1rem;text-decoration:none;color:var(--mute);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px;line-height:1;font-weight:500}
 @media  (hover:hover) and (pointer:fine){#lib-templates .jump a:hover{color:var(--ink);border-color:var(--sage)}}
 #lib-templates .jump a[aria-current=true]{color:var(--surface);background:var(--sage);border-color:var(--sage)}
-#lib-templates .cat{padding-top:24px;scroll-margin-top:calc(var(--stick-h) + 24px)}
+#lib-templates .cat{padding-top:24px;scroll-margin-top:var(--stick-h)}
 #lib-templates .cath{scroll-margin-top:calc(var(--stick-h) + 24px);display:flex;align-items:center;gap:10px;font-size:1.5rem;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line);line-height:1.3;font-weight:600}
 #lib-templates .ck{font-size:0.6875rem;color:var(--surface);background:var(--sage);border-radius:var(--r-xs);width:24px;text-align:center;line-height:1.4}
 #lib-templates .grid{display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
@@ -2103,7 +2103,8 @@ const featureLibrary=(function(){
     if(!o||!o.name) return '';
     var gh=/^https:\/\/github\.com\//.test(o.url||'');
     var label=gh?'GitHub':'官方文件';
-    var name=o.url?'<a class="lnk" href="'+esc(o.url)+'" target="_blank" rel="noopener">'+esc(o.name)+'</a><span class="src">'+label+' ↗</span>':esc(o.name);
+    var nameText=esc(o.name).replace(/firebase-record-sync/g,'<span class="nw">firebase-record-sync</span>');
+    var name=o.url?'<a class="lnk" href="'+esc(o.url)+'" target="_blank" rel="noopener">'+nameText+'</a><span class="src">'+label+' ↗</span>':nameText;
     return '<div class="opt">'+name+(o.note?'<span class="why">'+esc(o.note).replace(/([\u4e00-\u9fff]{3}[。．.]?)$/,'<span class="nw">$1</span>')+'</span>':'')+'</div>';
   }
 
