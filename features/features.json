@@ -34,7 +34,7 @@
       "name": "登入",
       "status": "候選",
       "skill": "",
-      "primary": { "name": "Firebase Authentication（Google 登入）", "url": "https://github.com/firebase/firebase-js-sdk", "note": "跟 Firestore 同專案，50K MAU 免費" },
+      "primary": { "name": "Firebase Authentication（Google 登入）", "url": "https://github.com/firebase/firebase-js-sdk", "note": "跟 Firestore 同專案，有 50K MAU 免費額度" },
       "alternatives": [
         { "name": "Supabase Auth", "url": "https://github.com/supabase/supabase-js", "note": "50K MAU 免費，專案改用 Supabase 時一起用" }
       ]
@@ -43,7 +43,7 @@
       "name": "雲端資料庫",
       "status": "已驗證",
       "skill": "firebase-record-sync",
-      "primary": { "name": "Cloud Firestore", "url": "https://github.com/firebase/firebase-js-sdk", "note": "每日 50K 讀／20K 寫免費；手機電腦紀錄必同步（見技能 firebase-record-sync）" },
+      "primary": { "name": "Cloud Firestore", "url": "https://github.com/firebase/firebase-js-sdk", "note": "每日免費 50K 讀／20K 寫，需同步紀錄。" },
       "alternatives": [
         { "name": "Supabase", "url": "https://github.com/supabase/supabase", "note": "要 SQL 時用；閒置 1 週會暫停" }
       ]
@@ -52,7 +52,7 @@
       "name": "排行榜／紀錄",
       "status": "已驗證",
       "skill": "firebase-record-sync",
-      "primary": { "name": "Firestore＋firebase-record-sync", "url": "https://github.com/firebase/firebase-js-sdk", "note": "含只准加分規則與 localStorage 備援" },
+      "primary": { "name": "Firestore＋firebase-record-sync", "url": "https://github.com/firebase/firebase-js-sdk", "note": "含只准加分規則，也有本機備援。" },
       "alternatives": [
         { "name": "Supabase 資料表＋RLS", "url": "https://github.com/supabase/supabase", "note": "整個專案已用 Supabase 時才換" }
       ]
@@ -178,6 +178,6 @@
       ]
     },
     {"name": "AI 生圖", "status": "候選", "skill": "", "primary": {"name": "Cloudflare Workers AI FLUX-1-schnell（Worker 代理）", "url": "https://developers.cloudflare.com/workers-ai/models/flux-1-schnell/", "note": "無浮水印，每天約 170 張免費；金鑰只在 Worker"}, "alternatives": [{"name": "AI Horde", "url": "https://github.com/Haidra-Org/AI-Horde", "note": "免費無浮水印，但會排隊、較慢"}]},
-    {"name": "AI 問答", "status": "已驗證", "skill": "", "primary": {"name": "Cloudflare Workers AI 文字模型（Worker binding）", "url": "https://developers.cloudflare.com/workers-ai/platform/pricing/", "note": "免另外金鑰、可串流，與生圖共用每日額度"}, "alternatives": [{"name": "Groq 免費方案（gpt-oss-120b）", "url": "https://github.com/groq/groq-typescript", "note": "免綁卡、每天 1,000 次、速度快"}, {"name": "Google Gemini API 免費層", "url": "https://github.com/googleapis/js-genai", "note": "額度數字未確認；輸入會被拿去改進產品，不能送個資"}, {"name": "OpenRouter :free 模型", "url": "https://github.com/OpenRouterTeam/ai-sdk-provider", "note": "免費模型每天 50 次，可用模型會變"}]}
+    {"name": "AI 問答", "status": "已驗證", "skill": "", "primary": {"name": "Cloudflare Workers AI 文字模型（Worker binding）", "url": "https://developers.cloudflare.com/workers-ai/platform/pricing/", "note": "免另外金鑰、可串流，每日額度與生圖共用。"}, "alternatives": [{"name": "Groq 免費方案（gpt-oss-120b）", "url": "https://github.com/groq/groq-typescript", "note": "免綁卡、每天 1,000 次、速度快"}]}
   ]
 }
