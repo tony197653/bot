@@ -22,7 +22,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
   const env = await initializeTestEnvironment({ projectId, firestore: {
     host, port: Number(port), rules: readFileSync(new URL('./firestore.rules', import.meta.url), 'utf8'),
   } });
-  const seed = async (minutes = 2 + 10 / 60, phase = 'flop', full = false) => {
+  const seed = async (minutes = 70 / 60, phase = 'flop', full = false) => {
     seats = full ? ['host','friend','p2','p3','p4','p5'] : ['host','friend','','','',''];
     await env.clearFirestore();
     await env.withSecurityRulesDisabled(async c => {
@@ -81,7 +81,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
     });
   };
   try {
-    await t.test('任一已登入非成員，2 分 10 秒可退款並清空全桌；原座位玩家重送不重複退款', async () => {
+    await t.test('任一已登入非成員，70 秒可退款並清空全桌；原座位玩家重送不重複退款', async () => {
       await seed();
       await assertSucceeds(close('outsider'));
       const od = env.authenticatedContext('outsider').firestore();
@@ -99,7 +99,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
     ]) await t.test(`${name}必須拒絕`, async () => {
       await seed(); await assertFails(close('friend', options));
     });
-    await t.test('1 分 50 秒不得收桌', async () => { await seed(1 + 50 / 60); await assertFails(close('friend')); });
+    await t.test('50 秒不得收桌', async () => { await seed(50 / 60); await assertFails(close('friend')); });
     await t.test('舊房間但房主剛重連，拒絕退款', async () => {
       await seed();
       await env.withSecurityRulesDisabled(c => fs.updateDoc(
@@ -141,7 +141,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
         b.set(fs.doc(d,'pokerCodes','000'),{roomId:id,hostUid:'outsider',createdAt:fs.serverTimestamp(),expiresAt:fs.Timestamp.fromMillis(Date.now()+86400000)});
         return b.commit();
       };
-      await seed(1 + 50 / 60); await assertFails(reopen());
+      await seed(50 / 60); await assertFails(reopen());
       await seed(); await assertSucceeds(close('outsider')); await assertSucceeds(reopen());
     });
     await t.test('多人競爭只成功一次', async () => {
@@ -171,7 +171,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
       await assertSucceeds(close('outsider'));
     });
     await t.test('滿六席進行中有下注，一筆 transaction 退款成功且每人只退一次', async () => {
-      await seed(2 + 10 / 60,'flop',true);
+      await seed(70 / 60,'flop',true);
       await assertSucceeds(close('outsider'));
       const d=env.authenticatedContext('outsider').firestore();
       for (const u of seats) {
@@ -182,7 +182,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
       assert.equal(await close('friend'),false);
     });
     await t.test('產品 closeDisconnectedRoom：滿六席進行中，一筆交易退款；第二次回 false', async () => {
-      await seed(2 + 10 / 60, 'turn', true);
+      await seed(70 / 60, 'turn', true);
       const d = env.authenticatedContext('outsider').firestore();
       assert.equal(await closeDisconnectedRoom({ db: d, fs, uid: 'outsider' }, roomId), true);
       for (const u of seats) {
@@ -194,7 +194,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
       assert.equal(await closeDisconnectedRoom({ db: d, fs, uid: 'outsider' }, roomId), false);
     });
     await t.test('產品 closeDisconnectedRoom：六席三人同時搶收只成功一次、籌碼只加一次', async () => {
-      await seed(2 + 10 / 60, 'flop', true);
+      await seed(70 / 60, 'flop', true);
       const ctx = u => ({ db: env.authenticatedContext(u).firestore(), fs, uid: u });
       const res = await Promise.allSettled([ctx('outsider'), ctx('p2'), ctx('x9')]
         .map(c => closeDisconnectedRoom(c, roomId)));
@@ -206,7 +206,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
       for (const u of seats) assert.equal((await fs.getDoc(fs.doc(d, 'pokerPlayers', u))).data().bank, 2100);
     });
     await t.test('產品 closeDisconnectedRoom：1 分 50 秒回 false 且規則也拒絕', async () => {
-      await seed(1 + 50 / 60, 'flop', true);
+      await seed(50 / 60, 'flop', true);
       const d = env.authenticatedContext('outsider').firestore();
       assert.equal(await closeDisconnectedRoom({ db: d, fs, uid: 'outsider' }, roomId), false);
       // 客戶端時鐘快 20 秒也不能騙過規則（request.time 為準）
@@ -219,7 +219,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
         status:'closed',closedBy:'auto',closedAt:fs.serverTimestamp()}));
     });
     await t.test('舊路徑：非成員讀 lobby 房、grant/buyin/seat、房主 closeAll', async () => {
-      await seed(1,'lobby');
+      await seed(0.5,'lobby');
       const hostDb = env.authenticatedContext('host').firestore();
       let r = (await fs.getDoc(fs.doc(hostDb,'pokerRooms',roomId))).data();
       await env.withSecurityRulesDisabled(c => fs.updateDoc(fs.doc(c.firestore(),'pokerRooms',roomId),{status:'lobby'}));
@@ -240,7 +240,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
       await assertSucceeds(hostCloseAllBatch({db:hostDb,fs},{hostUid:'host',roomId,room:r,displayNameOf:u=>u}));
     });
     await t.test('舊路徑：房主逐座 cashout', async () => {
-      await seed(1,'lobby');
+      await seed(0.5,'lobby');
       const d = env.authenticatedContext('host').firestore();
       for (const seat of [0,1]) {
         const r = (await fs.getDoc(fs.doc(d,'pokerRooms',roomId))).data();
@@ -254,7 +254,7 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
       }
     });
     await t.test('未到收桌門檻不能任意改別人 bank', async () => {
-      await seed(1);
+      await seed(0.5);
       await assertFails(fs.updateDoc(fs.doc(env.authenticatedContext('friend').firestore(),
         'pokerPlayers', 'host'), { bank: 999999 }));
     });

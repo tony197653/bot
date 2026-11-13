@@ -160,7 +160,7 @@ test('fix1109：零手數收桌／第三人入座／禁止房主任意移錢', a
     });
     await t.test('房主離線獨坐：HD1113 T+2 非房主收桌即退回帳戶並回收 000，之後結算不重複', async () => {
       const original = await seed();
-      const stale = fs.Timestamp.fromMillis(Date.now() - (2 * 60_000 + 10_000));
+      const stale = fs.Timestamp.fromMillis(Date.now() - (60_000 + 10_000));
       await env.withSecurityRulesDisabled(async c => {
         const d = c.firestore();
         await fs.updateDoc(roomRef(d), {

@@ -44,8 +44,8 @@ service cloud.firestore {
       let hp = presencePath(id, r.hostUid);
       // HD1113 r2: guests write the room too, so the host beat decides; updatedAt only without a beat.
       return roomOpen(r.status) && (exists(hp)
-        ? get(hp).data.beat < request.time - duration.value(2, 'm')
-        : r.updatedAt < request.time - duration.value(2, 'm'));
+        ? get(hp).data.beat < request.time - duration.value(60, 's')
+        : r.updatedAt < request.time - duration.value(60, 's'));
     }
     function disconnectAmount(r, i) {
       return betweenHands(r.pub) ? r.stacks[i]

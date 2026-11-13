@@ -50,7 +50,7 @@ test('房主既有 tick：30 分鐘前不關閉，牌局中不關閉，手間只
   } finally { loop.stop(); globalThis.document = previous; t.mock.timers.reset(); }
 });
 
-test('離線收桌入口未到 2 分鐘不可收', async () => {
+test('離線收桌入口未到 60 秒不可收', async () => {
   let writes=0;
   const fs={doc:(_, ...p)=>p.join('/'),runTransaction:async(_,fn)=>fn({
     get:async p=>({exists:()=>true,data:()=>p.includes('presence')?{beat:{toMillis:()=>1000}}:base()}),
@@ -59,7 +59,7 @@ test('離線收桌入口未到 2 分鐘不可收', async () => {
   assert.equal(writes,0);
 });
 
-test('獨坐 timeout 覆寫僅限 localhost emulator；斷線收桌固定 2 分鐘',async()=>{
+test('獨坐 timeout 覆寫僅限 localhost emulator；斷線收桌固定 60 秒',async()=>{
   const prev=globalThis.location;
   try {
     for(const [hostname,search,expected] of [
@@ -68,7 +68,7 @@ test('獨坐 timeout 覆寫僅限 localhost emulator；斷線收桌固定 2 分�
       ['example.com','?emu=1&aloneMs=8000',HOST_ALONE_CLOSE_MS],
     ]) {
       globalThis.location={hostname,search};assert.equal(hostAloneCloseMs(),expected);
-      assert.equal((await import('../js/net/host-disconnect.js')).HOST_CLOSE_MS,120000);
+      assert.equal((await import('../js/net/host-disconnect.js')).HOST_CLOSE_MS,60000);
     }
   } finally {globalThis.location=prev;}
 });

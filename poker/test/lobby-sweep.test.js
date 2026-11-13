@@ -13,8 +13,8 @@ function fixture(beat) {
   fs.runTransaction=async()=>false;
   return {db:{},fs};
 }
-test('T+2 大廳隱藏，房主恢復後重新顯示',async()=>{
-  _resetLobbyClosedSuppress(); const fb=fixture(now-120000);
+test('T+60 秒大廳隱藏，房主恢復後重新顯示',async()=>{
+  _resetLobbyClosedSuppress(); const fb=fixture(now-60000);
   assert.equal(await sweepStaleTable(fb,row,'guest',now),true);
   assert.equal(isLobbyRoomSuppressed('r'),true);
   const get=fb.fs.getDoc;
@@ -22,8 +22,8 @@ test('T+2 大廳隱藏，房主恢復後重新顯示',async()=>{
   assert.equal(await sweepStaleTable(fb,row,'guest',now+10000),false);
   assert.equal(isLobbyRoomSuppressed('r'),false);
 });
-test('2 分鐘內不隱藏，讀取失敗不冒充房主失聯',async()=>{
-  _resetLobbyClosedSuppress(); const fb=fixture(now-119000);
+test('60 秒內不隱藏，讀取失敗不冒充房主失聯',async()=>{
+  _resetLobbyClosedSuppress(); const fb=fixture(now-59000);
   assert.equal(await sweepStaleTable(fb,row,'guest',now),false);
   fb.fs.getDoc=async()=>{throw Error('unavailable');};
   assert.equal(await sweepStaleTable(fb,row,'guest',now+10000),false);

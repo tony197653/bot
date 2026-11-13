@@ -1045,16 +1045,21 @@ export async function startMpApp() {
   });
 
   // takeover poll replaced: wait for the original host, then close at T+2.
-  let disconnectClosePending = false;
+  let disconnectClosePending = false, disconnectCloseStartedAt = 0;
   setInterval(() => {
     void sweepLobbyTables();
     updateHostDisconnect();
     const fb = getFirebase(), u = getUser();
+    const dbg = globalThis.window?.__hdDebug ? (...a) => console.info('[HDDBG]', Date.now(), ...a) : null;
+    dbg?.('tick', {room: !!room, status: room?.status, pending: disconnectClosePending, beat: hostBeatMs, upd: hostRoomUpdatedMs, vis: globalThis.document?.visibilityState});
+    // HD1113 r4: a hung close transaction must not block retries (watchdog 8s).
+    if (disconnectClosePending && Date.now() - disconnectCloseStartedAt > 8000) disconnectClosePending = false;
     if (!fb || !u || !room || room.status === 'closed' || disconnectClosePending) return;
     if (disconnectState(hostAliveMs(hostBeatMs, hostRoomUpdatedMs)).reclaim) {
-      disconnectClosePending = true;
-      closeDisconnectedRoom({...fb,uid:u.uid},roomId).catch(e => console.warn('[disconnect] close',e))
-        .finally(() => { disconnectClosePending = false; });
+      disconnectClosePending = true; disconnectCloseStartedAt = Date.now();
+      const t0 = disconnectCloseStartedAt; dbg?.('close start');
+      closeDisconnectedRoom({...fb,uid:u.uid},roomId).then(r => dbg?.('close done', r, Date.now()-t0)).catch(e => { dbg?.('close err', String(e?.message||e), Date.now()-t0); console.warn('[disconnect] close',e); })
+        .finally(() => { if (disconnectCloseStartedAt === t0) disconnectClosePending = false; });
     }
   }, 2000);
 }
@@ -3362,7 +3367,7 @@ function watchLeaveSettlement(fb, uid, leavingRoomId, hostWasPaused = false) {
   stopLeaveSettlement?.();
   const bankBefore = Number(playerDoc?.bank) || 0;
   const sessionNo = playerDoc?.sessionNo;
-  showSettlementNotice('mpLeaveSettle', hostWasPaused ? '結算中…籌碼最晚 2 分鐘內回到帳戶' : '結算中…這手已蓋牌，打完會把剩下的籌碼結帳');
+  showSettlementNotice('mpLeaveSettle', hostWasPaused ? '結算中…籌碼最晚 1 分鐘內回到帳戶' : '結算中…這手已蓋牌，打完會把剩下的籌碼結帳');
   let stopped = false;
   let timer;
   const stop = () => {

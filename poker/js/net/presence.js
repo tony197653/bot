@@ -72,10 +72,12 @@ export function startPresence(fb, roomId, uid, opts) {
     const vis = doc.visibilityState === 'visible';
     if (opts.isHost()) {
       // Hidden host still beats while it keeps writing the room (it is alive, just backgrounded).
+      // HD1113 r4: T+60s close → host beats every ~10s, so a lost host is closed 50–70s after it drops.
+      // Hidden host still beats while it keeps writing the room (it is alive, just backgrounded).
       const writing = now() - (opts.lastRoomWriteAt() || 0) < 1.5 * HOST_IDLE_BEAT_MS;
       if (!vis && !writing) return;
       if (vis) void refreshCode();
-      if (now() - lastBeatAt >= 1.5 * HOST_IDLE_BEAT_MS) beat(vis); // 15s threshold on a 10s tick → beats every ~20s even with setDoc latency
+      if (now() - lastBeatAt >= 0.8 * HOST_IDLE_BEAT_MS) beat(vis);
       return;
     }
     if (!vis) return;

@@ -2,11 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { disconnectState, refundAtSeat, resumeDeadline, DISCONNECT_COPY, closeDisconnectedRoom, hostLivenessMs, hostAliveMs, HOST_PAUSE_MS, HOST_CLOSE_MS } from '../js/net/host-disconnect.js';
 const minute = 60_000;
-test('HD1113：45 秒內閃斷不提示，45 秒到 2 分鐘暫停，T+2 隱藏並收桌', () => {
-  assert.equal(HOST_PAUSE_MS, 45000); assert.equal(HOST_CLOSE_MS, 120000);
-  assert.deepEqual(disconnectState(1000,45999),{paused:false,hidden:false,reclaim:false});
-  assert.deepEqual(disconnectState(1000,46000),{paused:true,hidden:false,reclaim:false});
-  assert.deepEqual(disconnectState(1000,121000),{paused:true,hidden:true,reclaim:true});
+test('HD1113 r4：20 秒內閃斷不提示，20 秒到 60 秒暫停，T+60 秒隱藏並收桌', () => {
+  assert.equal(HOST_PAUSE_MS, 20000); assert.equal(HOST_CLOSE_MS, 60000);
+  assert.deepEqual(disconnectState(1000,20999),{paused:false,hidden:false,reclaim:false});
+  assert.deepEqual(disconnectState(1000,21000),{paused:true,hidden:false,reclaim:false});
+  assert.deepEqual(disconnectState(1000,60999),{paused:true,hidden:false,reclaim:false});
+  assert.deepEqual(disconnectState(1000,61000),{paused:true,hidden:true,reclaim:true});
 });
 test('HD1113：回來繼續與 deadline 延長', () => {
   assert.equal(resumeDeadline(50000, 10000, 100000), 140000);

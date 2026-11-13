@@ -4,8 +4,8 @@ export const DISCONNECT_COPY = Object.freeze({
   paused: '房主連線中斷，等待回來', returned: '房主已回來',
   closed: '原牌桌已關閉，籌碼已回到帳戶',
 });
-export const HOST_PAUSE_MS = 45_000;
-export const HOST_CLOSE_MS = 120_000;
+export const HOST_PAUSE_MS = 20_000;
+export const HOST_CLOSE_MS = 60_000;
 export function hostLivenessMs(room, presenceSnapOrBeat) {
   const beat = typeof presenceSnapOrBeat === 'number' ? presenceSnapOrBeat
     : presenceSnapOrBeat?.exists?.() ? presenceSnapOrBeat.data().beat?.toMillis?.()
