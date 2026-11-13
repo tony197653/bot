@@ -3349,11 +3349,11 @@ function showSettlementNotice(id, message, done = false) {
 let stopLeaveSettlement = null;
 
 /** Watch deferred host cashout after a mid-hand guest exit, for at most 3 minutes. */
-function watchLeaveSettlement(fb, uid, leavingRoomId) {
+function watchLeaveSettlement(fb, uid, leavingRoomId, hostWasPaused = false) {
   stopLeaveSettlement?.();
   const bankBefore = Number(playerDoc?.bank) || 0;
   const sessionNo = playerDoc?.sessionNo;
-  showSettlementNotice('mpLeaveSettle', '結算中…這手已蓋牌，打完會把剩下的籌碼結帳');
+  showSettlementNotice('mpLeaveSettle', hostWasPaused ? '結算中…籌碼最晚 2 分鐘內回到帳戶' : '結算中…這手已蓋牌，打完會把剩下的籌碼結帳');
   let stopped = false;
   let timer;
   const stop = () => {
@@ -3441,10 +3441,11 @@ async function confirmLeaveTable() {
     // Same path as 離座: LEAVE intent (mid-hand folds first; host cashout between hands)
     const midHand = isHandInProgress();
     const leavingRoomId = roomId;
+    const hostWasPaused = hostPaused;
     await requestLeave();
     if (midHand) {
       goLobbyClean();
-      watchLeaveSettlement(fb, uid, leavingRoomId);
+      watchLeaveSettlement(fb, uid, leavingRoomId, hostWasPaused);
       return;
     }
     // Wait until chips settled / bind cleared (host processes LEAVE)
