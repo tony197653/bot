@@ -23,6 +23,7 @@
 | `alternatives` | 備選，陣列，每筆格式同 `primary`；可放一個以上 |
 
 - `url` 盡量放 GitHub repo；網址以 `https://github.com/` 開頭會標「GitHub」，其他網址（沒有公開 repo 的服務）自動標「官方文件」。
+- 站內可試用的樣本用相對網址（例如 `../features/touch/?mode=pinch`），會標「試用樣本」並在同一分頁打開；樣本頁放在 `features/` 底下各自的資料夾（目前有 `features/touch/`）。
 - `_說明`：給人看的備註，網頁不讀它。
 - JSON 不能寫註解，字串要用雙引號，最後一筆後面不能有逗號。改完可貼到 https://jsonlint.com 檢查。
 
