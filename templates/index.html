@@ -29,8 +29,8 @@ html{scrollbar-gutter:stable;overflow-y:scroll;overflow-x:hidden;overflow-x:clip
 #lib-templates [role=tab][aria-selected=true]{color:var(--ink);font-weight:600}
 #lib-templates :focus-visible{outline:2px solid var(--sage);outline-offset:2px;border-radius:var(--r-sm);box-shadow:var(--halo)}
 #lib-templates [role=tab]:focus-visible{outline-offset:-2px}
-#lib-templates main{padding:26px 0 52px}
-#lib-templates .panel>h2{font-size:1.5rem;margin:0 0 2px;line-height:1.3;font-weight:600}
+#lib-templates main.wrap{padding-block:64px 52px}
+#lib-templates .panel>h2{scroll-margin-top:calc(var(--stick-h) + 24px);font-size:1.5rem;margin:0 0 2px;line-height:1.3;font-weight:600}
 #lib-templates .lead{margin:0 0 14px;color:var(--mute);font-size:1.0625rem;line-height:1.6;font-weight:400}
 .js #lib-templates .panel[data-hidden]{display:none}
 html:not(.js) #lib-templates .panel{margin-bottom:48px}
@@ -44,11 +44,11 @@ html:not(.js) #lib-templates .panel{margin-bottom:48px}
 #lib-templates .jump a{display:inline-flex;align-items:center;gap:4px;min-height:44px;white-space:nowrap;touch-action:manipulation;font-size:1rem;text-decoration:none;color:var(--mute);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px;line-height:1;font-weight:500}
 @media  (hover:hover) and (pointer:fine){#lib-templates .jump a:hover{color:var(--ink);border-color:var(--sage)}}
 #lib-templates .jump a[aria-current=true]{color:var(--surface);background:var(--sage);border-color:var(--sage)}
-#lib-templates .cat{padding-top:22px;scroll-margin-top:calc(var(--stick-h) + 8px)}
-#lib-templates .cath{display:flex;align-items:center;gap:10px;font-size:1.5rem;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line);line-height:1.3;font-weight:600}
+#lib-templates .cat{padding-top:24px;scroll-margin-top:calc(var(--stick-h) + 24px)}
+#lib-templates .cath{scroll-margin-top:calc(var(--stick-h) + 24px);display:flex;align-items:center;gap:10px;font-size:1.5rem;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line);line-height:1.3;font-weight:600}
 #lib-templates .ck{font-size:0.6875rem;color:var(--surface);background:var(--sage);border-radius:var(--r-xs);width:24px;text-align:center;line-height:1.4}
 #lib-templates .grid{display:grid;grid-template-columns:minmax(0,1fr);gap:24px}
-#lib-templates .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;scroll-margin-top:calc(var(--stick-h) + 8px)}
+#lib-templates .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;scroll-margin-top:calc(var(--stick-h) + 24px)}
 #lib-templates .th{display:block;aspect-ratio:3/2;background:#E4E6E0;border-bottom:1px solid var(--line);overflow:hidden}
 #lib-templates .th img{display:block;width:100%;height:100%;object-fit:cover}
 #lib-templates .body{padding:22px;min-width:0;overflow-wrap:anywhere;display:flex;flex-direction:column;flex:1}
@@ -156,7 +156,9 @@ html:not(.js) #lib-templates .panel{margin-bottom:48px}
 #lib-features .s1[aria-checked="true"]{background:var(--sage)}
 #lib-features .s1[aria-checked="true"] .k{transform:translateX(20px)}
 #lib-features .s1[aria-checked="true"]:active .k{transform:translateX(15px)}
-#lib-features .count{color:var(--mute);font-size:0.875rem;font-variant-numeric:tabular-nums;line-height:1.5}
+#lib-features .count{margin-bottom:20px;color:var(--mute);font-size:0.875rem;font-variant-numeric:tabular-nums;line-height:1.5}
+#lib-features .why{text-wrap:pretty;line-break:strict}
+#lib-features .nw{white-space:nowrap}
 #lib-features .count b{color:var(--ink);font-weight:600}
 
 /* 表格：T1 極簡細線 */
@@ -998,7 +1000,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 /* 第 10 條：三庫字級角色，16px = 1rem。 */
 #lib-templates .src,#lib-templates .taste li,#lib-templates .legend{font-size:0.8125rem;font-weight:400;line-height:1.5}
-#lib-templates .note,#lib-templates .lead,.library-guide{font-weight:400;line-height:1.6}
+#lib-templates .note,#lib-templates .lead,.library-guide{font-weight:400;line-height:1.6;text-wrap:pretty;line-break:strict}
 #lib-templates .st,#lib-templates .lic,#lib-templates .lic.ref,#lib-templates .lic.pro,#lib-templates .lic.tool{line-height:1.4}
 #lib-templates .links a,#lib-components .sugg button{font-size:1rem;font-weight:500;line-height:1}
 #lib-features .fname{font-size:1.0625rem;font-weight:600;line-height:1.6}#lib-features .why,#lib-features .lnk{font-size:1.0625rem;font-weight:400;line-height:1.6}
@@ -1028,11 +1030,11 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://astro-nano-demo.vercel.app/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M1</span><h3>Astro Nano</h3></div>
 <p class="src">GitHub · markhorn-dev</p><div class="tags"><span class="st st-a">A</span><span class="lic open">開源 MIT</span></div>
-<p class="note">極簡個人網站：留白、細字與深淺模式。</p><p class="links"><a href="https://astro-nano-demo.vercel.app/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/markhorn-dev/astro-nano" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="m2">
+<p class="note">極簡個人站：留白、細字與<span class="nw">深淺模式。</span></p><p class="links"><a href="https://astro-nano-demo.vercel.app/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/markhorn-dev/astro-nano" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="m2">
 <a class="th" href="https://picocss.com/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M2</span><h3>Pico CSS</h3></div>
 <p class="src">GitHub · picocss</p><div class="tags"><span class="st st-a">A</span><span class="lic open">開源 MIT</span></div>
-<p class="note">極簡 CSS，參考照片與留白；不跟全黑按鍵。</p><p class="links"><a href="https://picocss.com/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/picocss/pico" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="m3">
+<p class="note">極簡 CSS，參考照片與留白；不跟全<span class="nw">黑按鍵。</span></p><p class="links"><a href="https://picocss.com/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/picocss/pico" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="m3">
 <a class="th" href="https://www.behance.net/gallery/203244241/Online-store-Decor-Japanese-style-%28design-concept%29" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M3</span><h3>日式家飾線上商店</h3></div>
 <p class="src">Behance</p><div class="tags"><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
@@ -1044,20 +1046,20 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://www.webnode.com/zh/template-detail/blh2zj/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M5</span><h3>生活美學部落格模板</h3></div>
 <p class="src">Webnode</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 可套用</span></div>
-<p class="note">白底細字、三欄照片，可在 Webnode 套用。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/blh2zj/" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="m6">
+<p class="note">白底細字、三欄照片，可在 Webnode 直接套用。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/blh2zj/" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="m6">
 <a class="th" href="https://tony197653.github.io/bot/minimal-slide/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M6</span><h3>極簡簡報風網頁</h3></div>
 <p class="src">自製 · 參考 PAPAYA 大師級簡報</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">滿版照片、一行大標，把簡報搬到網頁。</p><p class="links"><a href="https://tony197653.github.io/bot/minimal-slide/" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="m7">
+<p class="note">滿版照片、一行大標，把簡報搬<span class="nw">到網頁。</span></p><p class="links"><a href="https://tony197653.github.io/bot/minimal-slide/" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="m7">
 <a class="th" href="https://tony197653.github.io/bot/one-hero/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/m7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">M7</span><h3>單一主角捲動網頁</h3></div>
 <p class="src">自製 · 參考 GPT-6 Astra 官網</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">鏡頭隨捲動變化，結尾回到正中間。</p><p class="links"><a href="https://tony197653.github.io/bot/one-hero/" target="_blank" rel="noopener">看範例</a></p></div></article></div></section>
-<section class="panel" id="p-content" role="tabpanel" aria-labelledby="t-content" data-hidden><h2>內容展示</h2><p class="lead">作品、文章、新聞、旅遊這類「讓人看」的網頁。</p><section class="cat" id="c-p" aria-labelledby="h-p"><h3 class="cath" id="h-p"><span class="ck">P</span>攝影作品集</h3><div class="grid"><article class="card" id="p1">
+<p class="note">鏡頭隨捲動變化，結尾回到<span class="nw">正中間。</span></p><p class="links"><a href="https://tony197653.github.io/bot/one-hero/" target="_blank" rel="noopener">看範例</a></p></div></article></div></section>
+<section class="panel" id="p-content" role="tabpanel" aria-labelledby="t-content" data-hidden><h2>內容展示</h2><p class="lead">作品、文章、新聞與旅遊，都是給人<span class="nw">看的網頁。</span></p><section class="cat" id="c-p" aria-labelledby="h-p"><h3 class="cath" id="h-p"><span class="ck">P</span>攝影作品集</h3><div class="grid"><article class="card" id="p1">
 <a class="th" href="https://dribbble.com/shots/27563444-Minimal-Editorial-Photography-Website-UI" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">P1</span><h3>極簡編輯風攝影師網站</h3></div>
 <p class="src">Dribbble · Falah Studio</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">黑白肖像、細明體引言，像安靜的攝影師專訪。</p><p class="links"><a href="https://dribbble.com/shots/27563444-Minimal-Editorial-Photography-Website-UI" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="p2">
+<p class="note">黑白肖像、細明體引言，像安靜的攝影<span class="nw">師專訪。</span></p><p class="links"><a href="https://dribbble.com/shots/27563444-Minimal-Editorial-Photography-Website-UI" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="p2">
 <a class="th" href="https://aura.build/templates/aris-photograph" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">P2</span><h3>鼠尾草綠攝影作品集</h3></div>
 <p class="src">Aura · Photography Portfolio Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic pro">Aura PRO · $19</span></div>
@@ -1065,27 +1067,27 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://www.webnode.com/zh/template-detail/6855e8/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">P3</span><h3>霧色方格攝影師</h3></div>
 <p class="src">Webnode · 攝影師模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">低彩度風景照、白底三欄，適合莫蘭迪作品集。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/6855e8/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-6855e8-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="p4">
+<p class="note">低彩度風景照、白底三欄，適合莫蘭迪<span class="nw">作品集。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/6855e8/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-6855e8-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="p4">
 <a class="th" href="https://www.webnode.com/zh/template-detail/8pbjec/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">P4</span><h3>婚禮攝影作品頁</h3></div>
 <p class="src">Webnode · 婚禮攝影師模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">細襯線標題、照片方格，適合人像作品。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/8pbjec/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-8pbjec-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="p5">
+<p class="note">細襯線標題、照片方格，適合人<span class="nw">像作品。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/8pbjec/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-8pbjec-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="p5">
 <a class="th" href="https://dribbble.com/shots/20566686-PHOTOGRAPHER-PORTFOLIO" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">P5</span><h3>底片攝影作品集</h3></div>
 <p class="src">Dribbble · Blaze Smith</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">一行標題搭留白，下方底片照片牆讓照片說話。</p><p class="links"><a href="https://dribbble.com/shots/20566686-PHOTOGRAPHER-PORTFOLIO" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="p6">
+<p class="note">一行標題搭留白，下方底片照片牆讓照<span class="nw">片說話。</span></p><p class="links"><a href="https://dribbble.com/shots/20566686-PHOTOGRAPHER-PORTFOLIO" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="p6">
 <a class="th" href="https://edge.ghost.io/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">P6</span><h3>Ghost Edge 攝影主題</h3></div>
 <p class="src">GitHub · TryGhost</p><div class="tags"><span class="st st-a">A</span><span class="lic open">開源 MIT</span></div>
-<p class="note">Ghost 開源攝影主題：照片格可點開看大圖。</p><p class="links"><a href="https://edge.ghost.io/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/TryGhost/Edge" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="p7">
+<p class="note">Ghost 開源攝影主題：照片格可點開<span class="nw">看大圖。</span></p><p class="links"><a href="https://edge.ghost.io/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/TryGhost/Edge" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="p7">
 <a class="th" href="https://aura.build/templates/create-a-modern-8" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">P7</span><h3>雙媒材攝影工作室</h3></div>
 <p class="src">Aura · Photography &amp; Videography Studio Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">米白底、細長襯線字與留白，讓照片當主角。</p><p class="links"><a href="https://aura.build/templates/create-a-modern-8" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="p8">
+<p class="note">米白底、細長襯線字與留白，讓照片<span class="nw">當主角。</span></p><p class="links"><a href="https://aura.build/templates/create-a-modern-8" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="p8">
 <a class="th" href="https://www.webnode.com/zh/template-detail/6xuaj7/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/p8.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">P8</span><h3>黑白人像攝影集</h3></div>
 <p class="src">Webnode · 攝影作品模板</p><div class="tags"><span class="st st-a">A</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">黑白大圖、角落小字，像安靜的攝影集。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/6xuaj7/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-6xuaj7-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-b" aria-labelledby="h-b"><h3 class="cath" id="h-b"><span class="ck">B</span>部落格／文章</h3><div class="grid"><article class="card" id="b1">
+<p class="note">黑白大圖、角落小字，像安靜的<span class="nw">攝影集。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/6xuaj7/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-6xuaj7-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-b" aria-labelledby="h-b"><h3 class="cath" id="h-b"><span class="ck">B</span>部落格／文章</h3><div class="grid"><article class="card" id="b1">
 <a class="th" href="https://dribbble.com/shots/27660596-Travertine-Journal-Index-UI-Interior-Design-Website-Framer" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">B1</span><h3>Travertine 室內設計手記</h3></div>
 <p class="src">Dribbble · Anubhav · Stellar UI</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
@@ -1093,15 +1095,15 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://dribbble.com/shots/6114934-Magazine-Article-Page" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">B2</span><h3>雜誌風文章頁</h3></div>
 <p class="src">Dribbble · Zuairia · Ofspace</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">大標、引言與穿插照片，適合長文閱讀。</p><p class="links"><a href="https://dribbble.com/shots/6114934-Magazine-Article-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="b3">
+<p class="note">大標、引言與穿插照片，適合長<span class="nw">文閱讀。</span></p><p class="links"><a href="https://dribbble.com/shots/6114934-Magazine-Article-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="b3">
 <a class="th" href="https://www.webnode.com/zh/template-detail/88qzm0/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">B3</span><h3>健康食譜部落格</h3></div>
 <p class="src">Webnode · 美食部落格模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">食材大照片配白底文章列表，像日系料理雜誌。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/88qzm0/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-88qzm0-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="b4">
+<p class="note">食材大照片配白底文章列表，像日系料<span class="nw">理雜誌。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/88qzm0/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-88qzm0-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="b4">
 <a class="th" href="https://www.webnode.com/zh/template-detail/1zufa0/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">B4</span><h3>家居風尚部落格</h3></div>
 <p class="src">Webnode · 家居風尚部落格模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">灰綠拼貼與文章卡片，資訊豐富又有留白。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/1zufa0/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-1zufa0-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="b5">
+<p class="note">灰綠拼貼與文章卡片，資訊豐富又<span class="nw">有留白。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/1zufa0/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-1zufa0-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="b5">
 <a class="th" href="https://aura.build/templates/zero-waste-blog-40" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">B5</span><h3>零浪費生活部落格</h3></div>
 <p class="src">Aura · Zero-Waste Frugality Blog Template</p><div class="tags"><span class="st st-g">G</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
@@ -1109,15 +1111,15 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://dribbble.com/shots/27736036-THE-URBAN-JOURNAL-EDITORIAL-MAGAZINE-STYLE-BLOG-WEBSITE-DESIGN" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">B6</span><h3>The Urban Journal 城市誌</h3></div>
 <p class="src">Dribbble · Favour Olusanya</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">兩欄文章卡片配側欄「本週熱門」，照片色調一致，文章<span class="nw">多也不亂。</span></p><p class="links"><a href="https://dribbble.com/shots/27736036-THE-URBAN-JOURNAL-EDITORIAL-MAGAZINE-STYLE-BLOG-WEBSITE-DESIGN" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="b7">
+<p class="note">兩欄文章卡配側欄「本週熱門」，色調一致，文章多也不亂。</p><p class="links"><a href="https://dribbble.com/shots/27736036-THE-URBAN-JOURNAL-EDITORIAL-MAGAZINE-STYLE-BLOG-WEBSITE-DESIGN" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="b7">
 <a class="th" href="https://aura.build/templates/lumina-creative-44" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">B7</span><h3>創意札記文章頁</h3></div>
 <p class="src">Aura · Creative Journal Blog Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">左側目錄、右側文章大圖，像 Notion 好讀。</p><p class="links"><a href="https://aura.build/templates/lumina-creative-44" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="b8">
+<p class="note">左側目錄、右側文章大圖，像 Notion 一樣好讀。</p><p class="links"><a href="https://aura.build/templates/lumina-creative-44" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="b8">
 <a class="th" href="https://www.webnode.com/zh/template-detail/9sc3fa/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/b8.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">B8</span><h3>當代畫家部落格</h3></div>
 <p class="src">Webnode · 藝術部落格模板</p><div class="tags"><span class="st st-a">A</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">文章配作者介紹，像乾淨的雙欄創作筆記。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/9sc3fa/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-9sc3fa-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-n" aria-labelledby="h-n"><h3 class="cath" id="h-n"><span class="ck">N</span>新聞／雜誌</h3><div class="grid"><article class="card" id="n1">
+<p class="note">文章配作者介紹，像乾淨的雙欄創<span class="nw">作筆記。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/9sc3fa/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-9sc3fa-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section><section class="cat" id="c-n" aria-labelledby="h-n"><h3 class="cath" id="h-n"><span class="ck">N</span>新聞／雜誌</h3><div class="grid"><article class="card" id="n1">
 <a class="th" href="https://dribbble.com/shots/27566737-Editoria-Modern-Editorial-Magazine" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">N1</span><h3>Editoria 編輯雜誌</h3></div>
 <p class="src">Dribbble · Julia Zahorodnia</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
@@ -1125,23 +1127,23 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://dribbble.com/shots/27765775-M-rekkep-Magazine-Website-Reading-App" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">N2</span><h3>Mürekkep 文化雜誌</h3></div>
 <p class="src">Dribbble · Schwiena</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">米色紙感、襯線大標，含網站與 App 設計。</p><p class="links"><a href="https://dribbble.com/shots/27765775-M-rekkep-Magazine-Website-Reading-App" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="n3">
+<p class="note">米色紙感、襯線大標，網站與 App <span class="nw">設計都有。</span></p><p class="links"><a href="https://dribbble.com/shots/27765775-M-rekkep-Magazine-Website-Reading-App" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="n3">
 <a class="th" href="https://headline.ghost.io/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">N3</span><h3>Ghost Headline 新聞主題</h3></div>
 <p class="src">GitHub · TryGhost</p><div class="tags"><span class="st st-h">H</span><span class="st st-a">A</span><span class="lic open">開源 MIT</span></div>
-<p class="note">Ghost 開源新聞主題：分類、頭條大圖與列表。</p><p class="links"><a href="https://headline.ghost.io/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/TryGhost/Headline" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="n4">
+<p class="note">Ghost 開源新聞主題：分類、頭條大圖<span class="nw">與列表。</span></p><p class="links"><a href="https://headline.ghost.io/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/TryGhost/Headline" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="n4">
 <a class="th" href="https://www.aura.build/templates/soundscape-editorial-17" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">N4</span><h3>Soundscape 音樂文化期刊</h3></div>
 <p class="src">Aura · 音樂文化期刊模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">白底細線配黑白照片，安靜的音樂文章列表。</p><p class="links"><a href="https://www.aura.build/templates/soundscape-editorial-17" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="n5">
+<p class="note">白底細線配黑白照片，安靜的音樂文<span class="nw">章列表。</span></p><p class="links"><a href="https://www.aura.build/templates/soundscape-editorial-17" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="n5">
 <a class="th" href="https://www.webnode.com/zh/template-detail/5mco50/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">N5</span><h3>政治新聞部落格</h3></div>
 <p class="src">Webnode · 政治新聞部落格模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">置中報頭、分類與照片，簡單的線上報紙。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/5mco50/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-5mco50-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="n6">
+<p class="note">置中報頭、分類與照片，簡單的線<span class="nw">上報紙。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/5mco50/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-5mco50-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="n6">
 <a class="th" href="https://aura.build/templates/digital-trust-10" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">N6</span><h3>數位信任期刊</h3></div>
 <p class="src">Aura · Digital Trust Journal Template</p><div class="tags"><span class="st st-a">A</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">淺灰底、襯線標題與藍色強調，像新聞專題。</p><p class="links"><a href="https://aura.build/templates/digital-trust-10" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="n7">
+<p class="note">淺灰底、襯線標題與藍色強調，像新<span class="nw">聞專題。</span></p><p class="links"><a href="https://aura.build/templates/digital-trust-10" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="n7">
 <a class="th" href="https://aura.build/templates/vintage-newspaper-75" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/n7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">N7</span><h3>復古報紙頭版</h3></div>
 <p class="src">Aura · Vintage Newspaper Landing Page Template</p><div class="tags"><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
@@ -1149,15 +1151,15 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://aura.build/templates/yunjian-retreat" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">T1</span><h3>雲間山居</h3></div>
 <p class="src">Aura · Yunjian Mountain Retreat</p><div class="tags"><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">雲霧山景配細字，安靜的東方水墨感。</p><p class="links"><a href="https://aura.build/templates/yunjian-retreat" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="t2">
+<p class="note">雲霧山景配細字，安靜的東方<span class="nw">水墨感。</span></p><p class="links"><a href="https://aura.build/templates/yunjian-retreat" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="t2">
 <a class="th" href="https://dribbble.com/shots/27651514-Wellnit-Japanese-Mountain-Retreat-Website" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">T2</span><h3>Wellnit 日式山中靜養</h3></div>
 <p class="src">Dribbble · Stacy More</p><div class="tags"><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">和室木格窗、暖光照片與大標，日系靜養感。</p><p class="links"><a href="https://dribbble.com/shots/27651514-Wellnit-Japanese-Mountain-Retreat-Website" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="t3">
+<p class="note">和室木格窗、暖光照片與大標，日系<span class="nw">靜養感。</span></p><p class="links"><a href="https://dribbble.com/shots/27651514-Wellnit-Japanese-Mountain-Retreat-Website" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="t3">
 <a class="th" href="https://dribbble.com/shots/26396406-Lunar-Resort-Luxury-Hotel-Website-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">T3</span><h3>Lunar 山林度假村</h3></div>
 <p class="src">Dribbble · Shuvo</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">森林湖畔大圖、細明體，設施房型留白多。</p><p class="links"><a href="https://dribbble.com/shots/26396406-Lunar-Resort-Luxury-Hotel-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="t4">
+<p class="note">森林湖畔大圖、細明體，設施房型<span class="nw">留白多。</span></p><p class="links"><a href="https://dribbble.com/shots/26396406-Lunar-Resort-Luxury-Hotel-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="t4">
 <a class="th" href="https://aura.build/templates/editorial-stays-92" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">T4</span><h3>荒野秘境住宿</h3></div>
 <p class="src">Aura · Editorial Stays Booking Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
@@ -1169,7 +1171,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://www.webnode.com/zh/template-detail/d8jiby/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">T6</span><h3>山林小木屋住宿</h3></div>
 <p class="src">Webnode · 山居飯店模板</p><div class="tags"><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">峽灣紅屋配房型、價格與預約，旅店可套用。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/d8jiby/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-d8jiby-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="t7">
+<p class="note">峽灣紅屋配房型、價格與預約，旅店<span class="nw">可套用。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/d8jiby/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-d8jiby-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="t7">
 <a class="th" href="https://dribbble.com/shots/27383882-Boutique-Hotel-Website-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">T7</span><h3>精品旅館與 Spa</h3></div>
 <p class="src">Dribbble · 212 Heights</p><div class="tags"><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
@@ -1181,7 +1183,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://www.webnode.com/zh/template-detail/8yr0vf/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t9.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">T9</span><h3>旅行家湯姆札記</h3></div>
 <p class="src">Webnode · 旅遊札記模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">海景大圖、細字與遊記，充滿旅行感。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/8yr0vf/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-8yr0vf-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="t10">
+<p class="note">海景大圖、細字與遊記，充滿<span class="nw">旅行感。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/8yr0vf/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-8yr0vf-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="t10">
 <a class="th" href="https://aura.build/templates/koisei" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t10.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">T10</span><h3>戀生 日本文化之旅</h3></div>
 <p class="src">Aura · Koisei Luxury Cultural Journey Landing Page Template</p><div class="tags"><span class="st st-g">G</span><span class="lic pro">Aura PRO</span></div>
@@ -1189,12 +1191,12 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://www.webnode.com/zh/template-detail/5s82ds/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/t11.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">T11</span><h3>查寧頓城小鎮導覽</h3></div>
 <p class="src">Webnode · 城市模板</p><div class="tags"><span class="st st-h">H</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">湖畔照片配活動、住宿與交通，景點資訊齊全。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/5s82ds/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-5s82ds-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section></section>
+<p class="note">湖畔照片配活動、住宿與交通，景點資<span class="nw">訊齊全。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/5s82ds/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-5s82ds-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article></div></section></section>
 <section class="panel" id="p-biz" role="tabpanel" aria-labelledby="t-biz" data-hidden><h2>商業品牌</h2><p class="lead">介紹產品、店家和公司的網頁。</p><section class="cat" id="c-l" aria-labelledby="h-l"><h3 class="cath" id="h-l"><span class="ck">L</span>產品介紹／登陸頁</h3><div class="grid"><article class="card" id="l1">
 <a class="th" href="https://dribbble.com/shots/27099446-Vella-Botanical-Skincare-Landing-Page" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/l1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">L1</span><h3>Vella 植物保養品</h3></div>
 <p class="src">Dribbble · Growmelab</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">灰綠底、深綠按鈕，產品照搭苔蘚樹葉。</p><p class="links"><a href="https://dribbble.com/shots/27099446-Vella-Botanical-Skincare-Landing-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="l2">
+<p class="note">灰綠底、深綠按鈕，產品照搭苔<span class="nw">蘚樹葉。</span></p><p class="links"><a href="https://dribbble.com/shots/27099446-Vella-Botanical-Skincare-Landing-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="l2">
 <a class="th" href="https://aura.build/templates/asagiri-38matcha" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/l2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">L2</span><h3>朝霧抹茶</h3></div>
 <p class="src">Aura · Artisanal Matcha E-commerce Landing Page Template</p><div class="tags"><span class="st st-g">G</span><span class="lic pro">Aura PRO</span></div>
@@ -1206,7 +1208,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://www.aura.build/templates/luxury-furniture-50" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/l4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">L4</span><h3>永續生活用品電商</h3></div>
 <p class="src">Aura · 永續電商模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">大理石檯面上的真實商品照，墨綠與米白的大地色，商品頁乾淨。</p><p class="links"><a href="https://www.aura.build/templates/luxury-furniture-50" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="l5">
+<p class="note">大理石檯面上的真實商品照，墨綠與米白的大地色，商品<span class="nw">頁乾淨。</span></p><p class="links"><a href="https://www.aura.build/templates/luxury-furniture-50" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="l5">
 <a class="th" href="https://www.webnode.com/zh/template-detail/9ml6w6/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/l5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">L5</span><h3>手作木製玩具</h3></div>
 <p class="src">Webnode · 木製玩具模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span><span class="lic pro">商店功能需付費</span></div>
@@ -1226,7 +1228,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://dribbble.com/shots/26575979-Mmterserah-Restaurant-Website-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/r2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">R2</span><h3>東京料理餐廳</h3></div>
 <p class="src">Dribbble · Dujima Studio</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">暖白底散放主廚料理照，橘字可換土色。</p><p class="links"><a href="https://dribbble.com/shots/26575979-Mmterserah-Restaurant-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="r3">
+<p class="note">暖白底散放主廚料理照，橘字可<span class="nw">換土色。</span></p><p class="links"><a href="https://dribbble.com/shots/26575979-Mmterserah-Restaurant-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="r3">
 <a class="th" href="https://dribbble.com/shots/3764903-Coffee-Lounge-Landing" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/r3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">R3</span><h3>Coffee &amp; Lounge 咖啡館</h3></div>
 <p class="src">Dribbble · Marko Cvijetic</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
@@ -1238,11 +1240,11 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://www.aura.build/templates/coffee-shop-landing-81" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/r5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">R5</span><h3>Soulful 街角咖啡店</h3></div>
 <p class="src">Aura · 咖啡店模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">店內真實照片配襯線大標，菜單和營業資訊分段清楚。</p><p class="links"><a href="https://www.aura.build/templates/coffee-shop-landing-81" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="r6">
+<p class="note">店內真實照片配襯線大標，菜單和營業資訊分<span class="nw">段清楚。</span></p><p class="links"><a href="https://www.aura.build/templates/coffee-shop-landing-81" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="r6">
 <a class="th" href="https://www.webnode.com/zh/template-detail/s8f1d5/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/r6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">R6</span><h3>綠意設計感咖啡廳</h3></div>
 <p class="src">Webnode · 咖啡廳模板</p><div class="tags"><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">淺綠底、明亮店內照，附菜單與預約。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/s8f1d5/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-s8f1d5-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="r7">
+<p class="note">淺綠底、明亮店內照，附菜單<span class="nw">與預約。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/s8f1d5/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-s8f1d5-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="r7">
 <a class="th" href="https://aura.build/templates/vietnamese-restaurant-29" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/r7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">R7</span><h3>越南餐廳菜單</h3></div>
 <p class="src">Aura · Vietnamese Restaurant Menu</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
@@ -1258,15 +1260,15 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://aura.build/templates/vellum-architecture" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/c2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">C2</span><h3>Vellum 建築室內設計</h3></div>
 <p class="src">Aura · Vellum Studio Architecture &amp; Interior Design Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic pro">Aura PRO</span></div>
-<p class="note">深色照片配淡色外框，強調空間光影。</p><p class="links"><a href="https://aura.build/templates/vellum-architecture" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="c3">
+<p class="note">深色照片配淡色外框，強調空<span class="nw">間光影。</span></p><p class="links"><a href="https://aura.build/templates/vellum-architecture" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="c3">
 <a class="th" href="https://www.webnode.com/zh/template-detail/04600f/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/c3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">C3</span><h3>室內設計工作室</h3></div>
 <p class="src">Webnode · 室內設計工作室模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">奶油色客廳與細字，適合設計或顧問公司。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/04600f/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-04600f-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="c4">
+<p class="note">奶油色客廳與細字，適合設計或顧<span class="nw">問公司。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/04600f/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-04600f-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="c4">
 <a class="th" href="https://dribbble.com/shots/27570135-Architecture-Studio-Website-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/c4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">C4</span><h3>Spaces shaped by nature 建築事務所</h3></div>
 <p class="src">Dribbble · Flick Studio</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">灰棕底、大標與建築照片，含服務與問答。</p><p class="links"><a href="https://dribbble.com/shots/27570135-Architecture-Studio-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="c5">
+<p class="note">灰棕底、大標與建築照片，含服務<span class="nw">與問答。</span></p><p class="links"><a href="https://dribbble.com/shots/27570135-Architecture-Studio-Website-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="c5">
 <a class="th" href="https://dribbble.com/shots/26913961-Interior-design-studio-website-design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/c5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">C5</span><h3>PeaceCraft 室內設計</h3></div>
 <p class="src">Dribbble · Wingly</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
@@ -1274,7 +1276,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://aura.build/templates/architectu-project-22" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/c6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">C6</span><h3>建築案例研究頁</h3></div>
 <p class="src">Aura · Architecture Project Case Study Page Template</p><div class="tags"><span class="st st-a">A</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">大字與細線分隔，極簡的公司官網。</p><p class="links"><a href="https://aura.build/templates/architectu-project-22" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="c7">
+<p class="note">大字與細線分隔，極簡的公<span class="nw">司官網。</span></p><p class="links"><a href="https://aura.build/templates/architectu-project-22" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="c7">
 <a class="th" href="https://www.webnode.com/zh/template-detail/a74b5c/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/c7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">C7</span><h3>白色建築工作坊</h3></div>
 <p class="src">Webnode · 建築工作坊模板</p><div class="tags"><span class="st st-a">A</span><span class="lic tool">Webnode 免費套用</span></div>
@@ -1287,7 +1289,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://dribbble.com/shots/26411398-Coffee-Roastery-E-commerce-UI-Kit-Quiz-Flow-Custom-Order-Page" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">Q1</span><h3>Alder &amp; Co. 咖啡測驗</h3></div>
 <p class="src">Dribbble · Nucleus UI</p><div class="tags"><span class="st st-g">G</span><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">米色卡片配咖啡照，一題一頁、三選一。</p><p class="links"><a href="https://dribbble.com/shots/26411398-Coffee-Roastery-E-commerce-UI-Kit-Quiz-Flow-Custom-Order-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="q2">
+<p class="note">米色卡片配咖啡照，一題一頁、<span class="nw">三選一。</span></p><p class="links"><a href="https://dribbble.com/shots/26411398-Coffee-Roastery-E-commerce-UI-Kit-Quiz-Flow-Custom-Order-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="q2">
 <a class="th" href="https://aura.build/templates/longevity-medicine66" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">Q2</span><h3>你的身體幾歲？測驗</h3></div>
 <p class="src">Aura · Longevity Medicine Quiz Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
@@ -1299,7 +1301,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://tony197653.github.io/bot/jev-quiz/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">Q4</span><h3>JEV 判斷模型小測驗</h3></div>
 <p class="src">自製 · tony197653/bot</p><div class="tags"><span class="st st-a">A</span><span class="lic open">自製可直接改</span></div>
-<p class="note">一題一頁四選一，即時解說，可重練錯題。</p><p class="links"><a href="https://tony197653.github.io/bot/jev-quiz/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/tony197653/bot/tree/main/jev-quiz" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="q5">
+<p class="note">一題一頁四選一，即時解說，可重<span class="nw">練錯題。</span></p><p class="links"><a href="https://tony197653.github.io/bot/jev-quiz/" target="_blank" rel="noopener">看範例</a><a href="https://github.com/tony197653/bot/tree/main/jev-quiz" target="_blank" rel="noopener">原始碼</a></p></div></article><article class="card" id="q5">
 <a class="th" href="https://tony197653.github.io/bot/chinese-quiz/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">Q5</span><h3>國三國文複習測驗</h3></div>
 <p class="src">自製 · tony197653/bot</p><div class="tags"><span class="st st-a">A</span><span class="lic open">自製可直接改</span></div>
@@ -1307,23 +1309,23 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://cursor.com/canvas/store-f23b2ebf-25d9-443d-a233-907a3ad03ea0/83f926ea-730e-4030-a6bd-86b4911af8c4" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">Q6</span><h3>羽蕎會考診斷測驗</h3></div>
 <p class="src">自製 · TU 的 Canvas</p><div class="tags"><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">交卷後看強弱表與詳解；私人題目只借版型。</p><p class="links"><a href="https://cursor.com/canvas/store-f23b2ebf-25d9-443d-a233-907a3ad03ea0/83f926ea-730e-4030-a6bd-86b4911af8c4" target="_blank" rel="noopener">看 Canvas（要登入）</a></p></div></article><article class="card" id="q7">
+<p class="note">交卷後看強弱表與詳解；私人題目只<span class="nw">借版型。</span></p><p class="links"><a href="https://cursor.com/canvas/store-f23b2ebf-25d9-443d-a233-907a3ad03ea0/83f926ea-730e-4030-a6bd-86b4911af8c4" target="_blank" rel="noopener">看 Canvas（要登入）</a></p></div></article><article class="card" id="q7">
 <div class="th"><img src="thumbs/q7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></div>
 <div class="body"><div class="row1"><span class="code">Q7</span><h3>參考書轉數位考題網</h3></div>
 <p class="src">自製 · PL 規劃中</p><div class="tags"><span class="st st-a">A</span><span class="l2 live"><i></i>開發中</span></div>
-<p class="note">參考書轉線上題庫；縮圖為安靜高級樣張。</p><p class="links"><span class="pending">上線後補連結</span></p></div></article><article class="card" id="q8">
+<p class="note">參考書轉線上題庫；縮圖為安靜高<span class="nw">級樣張。</span></p><p class="links"><span class="pending">上線後補連結</span></p></div></article><article class="card" id="q8">
 <a class="th" href="https://dribbble.com/shots/26870860-NEEDED-Quiz-Page-E-com-Product" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q8.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">Q8</span><h3>NEEDED 問答頁</h3></div>
 <p class="src">Dribbble · Designkast</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">進度條、照片配選項，手機也可做練習題。</p><p class="links"><a href="https://dribbble.com/shots/26870860-NEEDED-Quiz-Page-E-com-Product" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="q9">
+<p class="note">進度條、照片配選項，手機也可做<span class="nw">練習題。</span></p><p class="links"><a href="https://dribbble.com/shots/26870860-NEEDED-Quiz-Page-E-com-Product" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="q9">
 <a class="th" href="https://dribbble.com/shots/26790826-Crescite-Beauty-Skincare-Quiz-Page-Redesign" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/q9.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">Q9</span><h3>Crescite 膚質測驗</h3></div>
 <p class="src">Dribbble · Designkast</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">題數進度配柔光人像，圓角選項乾淨好點。</p><p class="links"><a href="https://dribbble.com/shots/26790826-Crescite-Beauty-Skincare-Quiz-Page-Redesign" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="cat" id="c-e" aria-labelledby="h-e"><h3 class="cath" id="h-e"><span class="ck">E</span>學習／課程</h3><div class="grid"><article class="card" id="e1">
+<p class="note">題數進度配柔光人像，圓角選項乾<span class="nw">淨好點。</span></p><p class="links"><a href="https://dribbble.com/shots/26790826-Crescite-Beauty-Skincare-Quiz-Page-Redesign" target="_blank" rel="noopener">看範例</a></p></div></article></div></section><section class="cat" id="c-e" aria-labelledby="h-e"><h3 class="cath" id="h-e"><span class="ck">E</span>學習／課程</h3><div class="grid"><article class="card" id="e1">
 <a class="th" href="https://aura.build/templates/soluna-yoga-studio-43" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">E1</span><h3>Soluna 瑜珈教室</h3></div>
 <p class="src">Aura · Soluna Premium Yoga Studio Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">黑白人像、圓形裁切與灰綠點綴，節奏舒服。</p><p class="links"><a href="https://aura.build/templates/soluna-yoga-studio-43" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="e2">
+<p class="note">黑白人像、圓形裁切與灰綠點綴，節<span class="nw">奏舒服。</span></p><p class="links"><a href="https://aura.build/templates/soluna-yoga-studio-43" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="e2">
 <a class="th" href="https://www.webnode.com/zh/template-detail/e79jde/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">E2</span><h3>經典芭蕾學院</h3></div>
 <p class="src">Webnode · 芭蕾學院模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
@@ -1335,11 +1337,11 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://www.webnode.com/zh/template-detail/8f2d0a/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">E4</span><h3>居家音樂課程</h3></div>
 <p class="src">Webnode · 音樂學院模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
-<p class="note">吉他師生照配樂譜底紋，附課程與線上預約。</p><p class="links"><a href="https://www.webnode.com/zh/template-detail/8f2d0a/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-8f2d0a-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="e5">
+<p class="note">吉他師生照配樂譜底紋，附課程與線<span class="nw">上預約。</span></p><p class="links"><a href="https://www.webnode.com/zh/template-detail/8f2d0a/" target="_blank" rel="noopener">Webnode 頁面</a><a href="https://demo-template-8f2d0a-zh-tw.webnode.page" target="_blank" rel="noopener">看 Demo</a></p></div></article><article class="card" id="e5">
 <a class="th" href="https://aura.build/templates/education-landing-7" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">E5</span><h3>AI 教育課程首頁</h3></div>
 <p class="src">Aura · AI Education Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">綠色襯線大標，配色清爽、留白多。</p><p class="links"><a href="https://aura.build/templates/education-landing-7" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="e6">
+<p class="note">綠色襯線大標，配色清爽、<span class="nw">留白多。</span></p><p class="links"><a href="https://aura.build/templates/education-landing-7" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="e6">
 <a class="th" href="https://dribbble.com/shots/26630396--EduVerse-Online-Course-Website" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">E6</span><h3>EduVerse 線上課程</h3></div>
 <p class="src">Dribbble · Attractive UI</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
@@ -1347,11 +1349,11 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://aura.build/templates/ai-study-companion-81" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">E7</span><h3>Cherry Note 讀書夥伴</h3></div>
 <p class="src">Aura · Cherry Note AI Study Companion Landing Page Template</p><div class="tags"><span class="st st-a">A</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">白底輕盈排版，適合讀書工具首頁。</p><p class="links"><a href="https://aura.build/templates/ai-study-companion-81" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="e8">
+<p class="note">白底輕盈排版，適合讀書工<span class="nw">具首頁。</span></p><p class="links"><a href="https://aura.build/templates/ai-study-companion-81" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="e8">
 <a class="th" href="https://dribbble.com/shots/26015717-Tidemy-Online-Course-Website" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e8.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">E8</span><h3>Tidemy 課程網站</h3></div>
 <p class="src">Dribbble · Odama</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">學習大照片、課程分類與價格，綠字可改灰綠。</p><p class="links"><a href="https://dribbble.com/shots/26015717-Tidemy-Online-Course-Website" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="e9">
+<p class="note">學習大照片、課程分類與價格，綠字可<span class="nw">改灰綠。</span></p><p class="links"><a href="https://dribbble.com/shots/26015717-Tidemy-Online-Course-Website" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="e9">
 <a class="th" href="https://www.webnode.com/zh/template-detail/e6hszl/" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/e9.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">E9</span><h3>網球學院課程</h3></div>
 <p class="src">Webnode · 網球學院模板</p><div class="tags"><span class="st st-g">G</span><span class="lic tool">Webnode 免費套用</span></div>
@@ -1371,15 +1373,15 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://dribbble.com/shots/24264404-Hotel-Dashboard" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">D2</span><h3>飯店空間儀表板</h3></div>
 <p class="src">Dribbble · Pradip Karki</p><div class="tags"><span class="st st-g">G</span><span class="st st-h">H</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">客廳照片配房間列表與設備卡，灰米色柔和。</p><p class="links"><a href="https://dribbble.com/shots/24264404-Hotel-Dashboard" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="d3">
+<p class="note">客廳照片配房間列表與設備卡，灰米<span class="nw">色柔和。</span></p><p class="links"><a href="https://dribbble.com/shots/24264404-Hotel-Dashboard" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="d3">
 <a class="th" href="https://dribbble.com/shots/27114636-Hotel-Booking-Software-Dashboard-UI-Design" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">D3</span><h3>LuxStay 訂房後台</h3></div>
 <p class="src">Dribbble · Olack</p><div class="tags"><span class="st st-h">H</span><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">選單、房型照片與訂單明細，兼顧照片資料。</p><p class="links"><a href="https://dribbble.com/shots/27114636-Hotel-Booking-Software-Dashboard-UI-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="d4">
+<p class="note">選單、房型照片與訂單明細，兼顧照<span class="nw">片資料。</span></p><p class="links"><a href="https://dribbble.com/shots/27114636-Hotel-Booking-Software-Dashboard-UI-Design" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="d4">
 <a class="th" href="https://www.aura.build/templates/market-booking-91" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d4.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">D4</span><h3>市集攤商預約後台</h3></div>
 <p class="src">Aura · 市集預約後台模板</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">白底資訊密集的後台，攤商資料、預約和商品照片都排在同一頁。</p><p class="links"><a href="https://www.aura.build/templates/market-booking-91" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="d5">
+<p class="note">白底資訊密集的後台，攤商資料、預約和商品照片都排在<span class="nw">同一頁。</span></p><p class="links"><a href="https://www.aura.build/templates/market-booking-91" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="d5">
 <a class="th" href="https://aura.build/templates/sellsdash-admin-91" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">D5</span><h3>SellsDash 銷售後台</h3></div>
 <p class="src">Aura · SellsDash Admin Dashboard Template</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
@@ -1387,7 +1389,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://aura.build/templates/46mjIY" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">D6</span><h3>使用者管理後台</h3></div>
 <p class="src">Aura · User Authentication Admin Panel</p><div class="tags"><span class="st st-a">A</span><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
-<p class="note">Meng To 淺色管理面板，側欄卡片比例標準。</p><p class="links"><a href="https://aura.build/templates/46mjIY" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="d7">
+<p class="note">Meng To 淺色管理面板，側欄卡片比<span class="nw">例標準。</span></p><p class="links"><a href="https://aura.build/templates/46mjIY" target="_blank" rel="noopener">到 Aura 看</a></p></div></article><article class="card" id="d7">
 <a class="th" href="https://aura.build/templates/fitness-admin-52" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/d7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">D7</span><h3>健身管理儀表板</h3></div>
 <p class="src">Aura · Fitness Admin Dashboard UI Template</p><div class="tags"><span class="st st-h">H</span><span class="lic aura">Aura 免費 Remix</span></div>
@@ -1395,11 +1397,11 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://dribbble.com/shots/24856145-Login-Page-Japanese-Aesthetic" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/s1.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">S1</span><h3>日式美學登入頁</h3></div>
 <p class="src">Dribbble · Soraya Woest</p><div class="tags"><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">簡單表單配淡粉櫻花山水，日系清新。</p><p class="links"><a href="https://dribbble.com/shots/24856145-Login-Page-Japanese-Aesthetic" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="s2">
+<p class="note">簡單表單配淡粉櫻花山水，日<span class="nw">系清新。</span></p><p class="links"><a href="https://dribbble.com/shots/24856145-Login-Page-Japanese-Aesthetic" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="s2">
 <a class="th" href="https://dribbble.com/shots/27103844-Login-Sign-Up" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/s2.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">S2</span><h3>Vella 綠葉登入頁</h3></div>
 <p class="src">Dribbble · Growmelab</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">極簡表單配綠葉肌膚照，與 L1 同一套。</p><p class="links"><a href="https://dribbble.com/shots/27103844-Login-Sign-Up" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="s3">
+<p class="note">極簡表單配綠葉肌膚照，與 L1 <span class="nw">同一套。</span></p><p class="links"><a href="https://dribbble.com/shots/27103844-Login-Sign-Up" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="s3">
 <a class="th" href="https://aura.build/templates/ZJFzFDg" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/s3.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">S3</span><h3>天氣 App 登入頁</h3></div>
 <p class="src">Aura · User Login Interface with Social Options</p><div class="tags"><span class="st st-a">A</span><span class="st st-g">G</span><span class="lic aura">Aura 免費 Remix</span></div>
@@ -1411,15 +1413,15 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <a class="th" href="https://dribbble.com/shots/25747920-Login-Page-with-Testimonial" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/s5.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">S5</span><h3>附推薦語的登入頁</h3></div>
 <p class="src">Dribbble · Dmitry Sergushkin</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">登入表單配木屋庭園照與推薦語，常見耐看。</p><p class="links"><a href="https://dribbble.com/shots/25747920-Login-Page-with-Testimonial" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="s6">
+<p class="note">登入表單配木屋庭園照與推薦語，常<span class="nw">見耐看。</span></p><p class="links"><a href="https://dribbble.com/shots/25747920-Login-Page-with-Testimonial" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="s6">
 <a class="th" href="https://dribbble.com/shots/24494696-Sign-In-Page" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/s6.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">S6</span><h3>Morva 雲天登入頁</h3></div>
 <p class="src">Dribbble · Morva Labs</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">淡藍雲天照片上放一張置中的白色卡片，安靜輕盈。</p><p class="links"><a href="https://dribbble.com/shots/24494696-Sign-In-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="s7">
+<p class="note">淡藍雲天照片上放一張置中的白色卡片，安<span class="nw">靜輕盈。</span></p><p class="links"><a href="https://dribbble.com/shots/24494696-Sign-In-Page" target="_blank" rel="noopener">看範例</a></p></div></article><article class="card" id="s7">
 <a class="th" href="https://dribbble.com/shots/10829383-Flatstep-Registration-Form" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true"><img src="thumbs/s7.jpg" width="720" height="480" alt="" loading="lazy" decoding="async"></a>
 <div class="body"><div class="row1"><span class="code">S7</span><h3>Flatstep 註冊頁</h3></div>
 <p class="src">Dribbble · Maria Brilkova</p><div class="tags"><span class="st st-a">A</span><span class="lic ref">僅參考視覺</span></div>
-<p class="note">白色表單配一張床邊木櫃的室內照，安靜、溫暖、沒有多<span class="nw">餘的東西。</span></p><p class="links"><a href="https://dribbble.com/shots/10829383-Flatstep-Registration-Form" target="_blank" rel="noopener">看範例</a></p></div></article></div></section></section>
+<p class="note">白表單配床邊木櫃照，安靜溫暖，沒有多餘的東西。</p><p class="links"><a href="https://dribbble.com/shots/10829383-Flatstep-Registration-Form" target="_blank" rel="noopener">看範例</a></p></div></article></div></section></section>
 <footer class="legend">
 <p>A、G、H 是你問卷裡的風格代號。「開源」可以直接拿原始碼來改；「僅參考視覺」是設計稿，只借它的長相；「Webnode 可套用」在 Webnode 裡直接選用；「自製可直接改」是我們自己做的頁面；「開發中」還沒上線，上線後再補連結。</p>
 <p>4 個分頁是最愛、內容、商業、工具，一共 98 個。編號是類型字母加序號：P 攝影、B 部落格、N 新聞、T 旅遊／住宿、L 產品、R 餐廳、C 公司、Q 測驗、E 課程、D 儀表板、S 登入，共 11 類；M 是你的最愛。來源寫在卡片上。「Aura 免費 Remix」可在 Aura 上複製改用（一般要先登入）；「Aura PRO」要付費會員或單買。「Webnode 免費套用」在 Webnode 免費方案就能選，「商店功能需付費」是要真的賣東西時得升級網路商店方案。</p>
@@ -1492,7 +1494,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <header class="top">
   <div class="wrap">
     <p class="lead">元件可點來試；按鈕推薦 B1 主色膠囊。</p>
-    <div class="meta"><span>共 <b>14 類 46 個</b></span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
+    <div class="meta"><span>共 <b>14 類 46 個</b></span><span>示範情境為虛構「小森陶房」，數字是<span class="nw">範例資料。</span></span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
   </div>
 </header>
 
@@ -1519,42 +1521,42 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <!-- 按鈕 -->
 <section class="cat" id="buttons">
-  <div class="cat-head"><h2>按鈕</h2><p>每組有一般、處理中（按下去看）和停用三種狀態。</p></div>
+  <div class="cat-head"><h2>按鈕</h2><p>每組有一般、處理中（按下去看）和停用三<span class="nw">種狀態。</span></p></div>
   <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">B1</span><div><h3>主色膠囊</h3><p>全圓角實心主色、白字，適合主要動作。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">B1</span><div><h3>主色膠囊</h3><p>全圓角實心主色、白字，適合主<span class="nw">要動作。</span></p></div></div>
       <div class="stage"><button class="btn b1 js-load"><span class="lbl"><span class="lbl-idle">送出訂單</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>送出中</span></span></button><button class="btn b1" disabled>已售完</button></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">B2</span><div><h3>細框透明</h3><p>細框透明底，適合次要動作；聚焦時出現雙環。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">B2</span><div><h3>細框透明</h3><p>細框透明底，適合次要動作；聚焦時出<span class="nw">現雙環。</span></p></div></div>
       <div class="stage"><button class="btn b2 js-load"><span class="lbl"><span class="lbl-idle">儲存草稿</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>儲存中</span></span></button><button class="btn b2" disabled>無法匯出</button></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">B4</span><div><h3>淡底填色</h3><p>淡色底配深色字；按下時底色加深。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">B4</span><div><h3>淡底填色</h3><p>淡色底配深色字；按下時底<span class="nw">色加深。</span></p></div></div>
       <div class="stage"><button class="btn b4 js-load"><span class="lbl"><span class="lbl-idle">加入收藏</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>處理中</span></span></button><button class="btn b4" disabled>已收藏</button></div></article>
   </div>
 </section>
 
 <!-- 表格 -->
 <section class="cat" id="tables">
-  <div class="cat-head"><h2>表格</h2><p>表頭可點來排序，T3 可勾選。以下皆為範例資料。</p></div>
+  <div class="cat-head"><h2>表格</h2><p>表頭可點來排序，T3 可勾選。以下皆為範<span class="nw">例資料。</span></p></div>
   <div class="grid wide">
-    <article class="spec"><div class="spec-head"><span class="code">T1</span><div><h3>極簡細線</h3><p>只用細分隔線和灰色表頭，留白最多；點表頭可升降冪排序。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">T1</span><div><h3>極簡細線</h3><p>只用細分隔線和灰色表頭，留白最多；點表頭可升降<span class="nw">冪排序。</span></p></div></div>
       <div class="stage plain"><p class="sample-tag">範例資料・本月訂單</p><div class="tbl-wrap"><table class="t1 js-sort">
         <thead><tr><th><button class="sort" data-k="0">品項<span class="ar"></span></button></th><th class="num"><button class="sort" data-k="1" data-n>數量<span class="ar"></span></button></th><th class="num"><button class="sort" data-k="2" data-n>金額<span class="ar"></span></button></th></tr></thead>
         <tbody><tr><td>霧白長頸瓶</td><td class="num">12</td><td class="num">NT$ 14,280</td></tr><tr><td>灰釉深盤</td><td class="num">31</td><td class="num">NT$ 20,770</td></tr><tr><td>米黃小茶杯</td><td class="num">48</td><td class="num">NT$ 9,120</td></tr><tr><td>粗陶花器</td><td class="num">7</td><td class="num">NT$ 11,935</td></tr></tbody></table></div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">T2</span><div><h3>綠頭斑馬紋</h3><p>實心莫蘭迪綠表頭配隔行淡底，長表格也不會看錯行。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">T2</span><div><h3>綠頭斑馬紋</h3><p>實心莫蘭迪綠表頭配隔行淡底，長表格也不會<span class="nw">看錯行。</span></p></div></div>
       <div class="stage plain"><p class="sample-tag">範例資料・體驗課報名</p><div class="tbl-wrap"><table class="t2 js-sort">
         <thead><tr><th><button class="sort" data-k="0">日期<span class="ar"></span></button></th><th><button class="sort" data-k="1">課程<span class="ar"></span></button></th><th class="num"><button class="sort" data-k="2" data-n>人數<span class="ar"></span></button></th></tr></thead>
         <tbody><tr><td>11 月 8 日</td><td>手捏小碗</td><td class="num">6</td></tr><tr><td>11 月 9 日</td><td>拉坯入門</td><td class="num">4</td></tr><tr><td>11 月 15 日</td><td>釉色調配</td><td class="num">9</td></tr><tr><td>11 月 22 日</td><td>手捏小碗</td><td class="num">5</td></tr><tr><td>11 月 29 日</td><td>柴燒觀摩</td><td class="num">12</td></tr></tbody></table></div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">T3</span><div><h3>勾選資料表</h3><p>可單選、全選；選中列的左側顯示綠線。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">T3</span><div><h3>勾選資料表</h3><p>可單選、全選；選中列的左側顯<span class="nw">示綠線。</span></p></div></div>
       <div class="stage plain"><div class="bar"><span>範例資料・待出貨</span><span class="js-count">已選 0 筆</span></div><div class="tbl-wrap"><table class="t3 js-select">
         <thead><tr><th style="width:36px"><input type="checkbox" class="chk js-all" aria-label="全選"></th><th>訂單</th><th>收件人</th><th class="num">金額</th></tr></thead>
         <tbody><tr><td><input type="checkbox" class="chk" aria-label="選取 #1043"></td><td>#1043</td><td>林品妤</td><td class="num">NT$ 2,380</td></tr><tr><td><input type="checkbox" class="chk" aria-label="選取 #1044"></td><td>#1044</td><td>陳冠廷</td><td class="num">NT$ 860</td></tr><tr><td><input type="checkbox" class="chk" aria-label="選取 #1046"></td><td>#1046</td><td>吳宜蓁</td><td class="num">NT$ 4,125</td></tr><tr><td><input type="checkbox" class="chk" aria-label="選取 #1047"></td><td>#1047</td><td>張書豪</td><td class="num">NT$ 1,540</td></tr></tbody></table></div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">T4</span><div><h3>分列卡片</h3><p>圓角白條分列，滑過時浮現淡淡陰影。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">T4</span><div><h3>分列卡片</h3><p>圓角白條分列，滑過時浮現淡<span class="nw">淡陰影。</span></p></div></div>
       <div class="stage plain"><p class="sample-tag">範例資料・駐店陶藝師</p><div class="tbl-wrap"><table class="t4">
         <thead><tr><th>陶藝師</th><th>專長</th><th class="num">本月作品</th></tr></thead>
         <tbody><tr><td><div class="who"><span class="av" style="background:#66745F">森</span>森田葵</div></td><td>柴燒</td><td class="num">14</td></tr><tr><td><div class="who"><span class="av" style="background:#9C7C74">許</span>許雅涵</div></td><td>青瓷釉</td><td class="num">9</td></tr><tr><td><div class="who"><span class="av" style="background:#5F6B78">歐</span>歐陽承恩</div></td><td>拉坯</td><td class="num">21</td></tr></tbody></table></div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">T5</span><div><h3>密集報表</h3><p>密集格線與固定表頭，可在框內捲動。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">T5</span><div><h3>密集報表</h3><p>密集格線與固定表頭，可在框<span class="nw">內捲動。</span></p></div></div>
       <div class="stage plain"><p class="sample-tag">範例資料・各通路週報（框內可捲動）</p><div class="t5-wrap"><table class="t5 js-sort">
         <thead><tr><th><button class="sort" data-k="0">通路<span class="ar"></span></button></th><th class="num"><button class="sort" data-k="1" data-n>營收<span class="ar"></span></button></th><th class="num"><button class="sort" data-k="2" data-n>週變化<span class="ar"></span></button></th><th>狀態</th></tr></thead>
         <tbody>
@@ -1572,47 +1574,47 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <!-- 卡片 -->
 <section class="cat" id="cards">
-  <div class="cat-head"><h2>卡片</h2><p>把滑鼠移上去看效果，手機上點一下也會觸發。</p></div>
+  <div class="cat-head"><h2>卡片</h2><p>把滑鼠移上去看效果，手機上點一下也<span class="nw">會觸發。</span></p></div>
   <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">C1</span><div><h3>留白文字卡</h3><p>白底細框，只放文字；滑過整張浮起 4px、框線加深。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">C1</span><div><h3>留白文字卡</h3><p>白底細框，只放文字；滑過整張浮起 4px、框<span class="nw">線加深。</span></p></div></div>
       <div class="stage"><a class="card c1" href="#cards"><small>課程・入門</small><h4 style="margin-top:6px">手捏小碗體驗</h4><p>兩小時做出一只自己的飯碗，三週後燒好寄到家。</p><div class="row"><small>每週六 14:00</small><small style="color:var(--ink);font-weight:600">NT$ 1,280</small></div></a></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">C3</span><div><h3>聚光數據卡</h3><p>淡綠光跟著滑鼠移動，邊框也會亮起。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">C3</span><div><h3>聚光數據卡</h3><p>淡綠光跟著滑鼠移動，邊框也<span class="nw">會亮起。</span></p></div></div>
       <div class="stage"><a class="card c3 js-spot" href="#cards"><small>本月營收（範例）</small><div class="big">NT$ 154,322</div><p>比上月多 3.84%，體驗課貢獻最多。</p></a></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">C5</span><div><h3>深色進度卡</h3><p>墨綠深底反白字，滑過邊框亮起一圈光暈，進度條往前推一點。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">C5</span><div><h3>深色進度卡</h3><p>墨綠深底反白字，滑過邊框亮起一圈光暈，進度條往前<span class="nw">推一點。</span></p></div></div>
       <div class="stage"><a class="card c5" href="#cards"><small>窯燒進度</small><h4 style="margin-top:6px">第 12 窯・柴燒</h4><p>已燒 34 小時，預計週四開窯。</p><div class="meter"><i></i></div></a></div></article>
   </div>
 </section>
 
 <!-- 輸入框 -->
 <section class="cat" id="inputs">
-  <div class="cat-head"><h2>輸入框</h2><p>上面一個點進去看聚焦樣式，下面一個是錯誤狀態；輸入內容會即時檢查。</p></div>
+  <div class="cat-head"><h2>輸入框</h2><p>上面一個點進去看聚焦樣式，下面一個是錯誤狀態；輸入內容會即<span class="nw">時檢查。</span></p></div>
   <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">I1</span><div><h3>細框聚焦環</h3><p>細灰框，聚焦時浮現藍灰光環。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">I1</span><div><h3>細框聚焦環</h3><p>細灰框，聚焦時浮現藍<span class="nw">灰光環。</span></p></div></div>
       <div class="stage col">
         <div class="field i1"><label for="i1a">收件人姓名</label><input id="i1a" class="in" placeholder="例如：林品妤"><span class="help">寫在包裹上的名字。</span></div>
         <div class="field i1 err js-email"><label for="i1b">電子郵件</label><input id="i1b" class="in" value="pinyu@mail" aria-invalid="true" aria-describedby="i1bh"><span class="help" id="i1bh">格式不完整，少了「.com」之類的結尾。</span></div>
       </div></article>
-    <article class="spec"><div class="spec-head"><span class="code">I2</span><div><h3>底線展開</h3><p>一條深色底線在聚焦時由左向右展開。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">I2</span><div><h3>底線展開</h3><p>一條深色底線在聚焦時由左向<span class="nw">右展開。</span></p></div></div>
       <div class="stage col">
         <div class="field i2"><label for="i2a">作品名稱</label><div class="ul"><input id="i2a" class="in" placeholder="例如：秋日灰釉盤"><span class="line"></span></div><span class="help">最多 20 個字。</span></div>
         <div class="field i2 err js-len"><label for="i2b">作品名稱</label><div class="ul"><input id="i2b" class="in" value="今年秋天在山上柴窯裡燒出來的第一只灰釉深盤" aria-invalid="true" aria-describedby="i2bh"><span class="line"></span></div><span class="help" id="i2bh">超過 20 個字，請縮短。</span></div>
       </div></article>
-    <article class="spec"><div class="spec-head"><span class="code">I3</span><div><h3>外框浮動標籤</h3><p>外框式標籤：聚焦時上移，框線加粗。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">I3</span><div><h3>外框浮動標籤</h3><p>外框式標籤：聚焦時上移，框<span class="nw">線加粗。</span></p></div></div>
       <div class="stage col">
         <div class="field i3"><div class="box"><input id="i3a" class="in" inputmode="tel" placeholder=" " aria-describedby="i3ah"><fieldset aria-hidden="true"><legend><span>手機號碼</span></legend></fieldset><label for="i3a">手機號碼</label></div><span class="help" id="i3ah">出貨時會傳簡訊通知。</span></div>
         <div class="field i3 err js-phone"><div class="box"><input id="i3b" class="in" inputmode="tel" placeholder=" " value="0912-34" aria-invalid="true" aria-describedby="i3bh"><fieldset aria-hidden="true"><legend><span>手機號碼</span></legend></fieldset><label for="i3b">手機號碼</label></div><span class="help" id="i3bh">手機號碼是 10 碼，目前只有 6 碼。</span></div>
       </div></article>
-    <article class="spec"><div class="spec-head"><span class="code">I4</span><div><h3>淡灰填色</h3><p>灰底無框，聚焦變白；錯誤時轉淡紅。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">I4</span><div><h3>淡灰填色</h3><p>灰底無框，聚焦變白；錯誤時<span class="nw">轉淡紅。</span></p></div></div>
       <div class="stage col">
         <div class="field i4"><label for="i4a">優惠碼</label><input id="i4a" class="in" placeholder="輸入 8 碼優惠碼"><span class="help">每筆訂單限用一組。</span></div>
         <div class="field i4 err js-code"><label for="i4b">優惠碼</label><input id="i4b" class="in" value="AUTUMN" aria-invalid="true" aria-describedby="i4bh"><span class="help" id="i4bh">找不到這組優惠碼，請確認大小寫。</span></div>
       </div></article>
-    <article class="spec"><div class="spec-head"><span class="code">I5</span><div><h3>前後綴組合</h3><p>數字靠右、左右帶單位，聚焦時整組亮框。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">I5</span><div><h3>前後綴組合</h3><p>數字靠右、左右帶單位，聚焦時整<span class="nw">組亮框。</span></p></div></div>
       <div class="stage col">
         <div class="field i5"><label for="i5a">訂製預算</label><div class="grp"><span>NT$</span><input id="i5a" class="in" inputmode="numeric" placeholder="3,000"><span>元</span></div><span class="help">最低 NT$ 3,000 起。</span></div>
         <div class="field i5 err js-min"><label for="i5b">訂製預算</label><div class="grp"><span>NT$</span><input id="i5b" class="in" inputmode="numeric" value="1,200" aria-invalid="true" aria-describedby="i5bh"><span>元</span></div><span class="help" id="i5bh">低於最低金額 NT$ 3,000。</span></div>
       </div></article>
-    <article class="spec"><div class="spec-head"><span class="code">I6</span><div><h3>填色底線標籤</h3><p>填色式標籤上移，底線從中央展開。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">I6</span><div><h3>填色底線標籤</h3><p>填色式標籤上移，底線從中<span class="nw">央展開。</span></p></div></div>
       <div class="stage col">
         <div class="field i6"><div class="box"><input id="i6a" class="in" inputmode="numeric" placeholder=" " aria-describedby="i6ah"><span class="bar" aria-hidden="true"></span><label for="i6a">統一編號</label></div><span class="help" id="i6ah">開公司發票才需要填。</span></div>
         <div class="field i6 err js-vat"><div class="box"><input id="i6b" class="in" inputmode="numeric" placeholder=" " value="2809917" aria-invalid="true" aria-describedby="i6bh"><span class="bar" aria-hidden="true"></span><label for="i6b">統一編號</label></div><span class="help" id="i6bh">統一編號是 8 碼數字，目前只有 7 碼。</span></div>
@@ -1624,11 +1626,11 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <section class="cat" id="labels">
   <div class="cat-head"><h2>標籤</h2><p>分類標籤（Tag）與狀態徽章（Badge）。</p></div>
   <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">L2</span><div><h3>細框圓點</h3><p>白底細框加狀態圓點，「進行中」的綠點會輕輕呼吸。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">L2</span><div><h3>細框圓點</h3><p>白底細框加狀態圓點，「進行中」的綠點會輕<span class="nw">輕呼吸。</span></p></div></div>
       <div class="stage"><span class="tag l2 live"><i></i>窯燒中</span><span class="tag l2"><i style="background:#C9A24A"></i>待上釉</span><span class="tag l2"><i style="background:#A9ACA3"></i>已封存</span></div></article>
     <article class="spec"><div class="spec-head"><span class="code">L3</span><div><h3>方角小標</h3><p>小圓角、粗字、實心或線框，像商品吊牌，適合「新品」「限量」。</p></div></div>
       <div class="stage"><span class="tag l3 k">新品</span><span class="tag l3 o">限量 30 件</span><span class="tag l3 a">最後 2 件</span></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">L5</span><div><h3>數字徽章</h3><p>疊在圖示右上角的紅色數字，或跟在文字後的淡綠計數。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">L5</span><div><h3>數字徽章</h3><p>疊在圖示右上角的紅色數字，或跟在文字後的淡<span class="nw">綠計數。</span></p></div></div>
       <div class="stage">
         <span class="l5box" aria-label="購物車，3 件商品"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14l-1.2 10.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg><span class="l5">3</span></span>
         <span class="l5box" aria-label="通知，12 則"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15L6 16Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="l5 soft">12</span></span>
@@ -1639,13 +1641,13 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <!-- 切換鈕 -->
 <section class="cat" id="switches">
-  <div class="cat-head"><h2>切換鈕</h2><p>每個都能實際切換，也可以用鍵盤空白鍵切換。</p></div>
+  <div class="cat-head"><h2>切換鈕</h2><p>每個都能實際切換，也可以用鍵盤空白<span class="nw">鍵切換。</span></p></div>
   <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">S1</span><div><h3>經典圓鈕</h3><p>仿 iOS 圓鈕，按住拉長、放開滑動。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">S1</span><div><h3>經典圓鈕</h3><p>仿 iOS 圓鈕，按住拉長、放<span class="nw">開滑動。</span></p></div></div>
       <div class="stage col" style="align-items:center"><div class="sw-row"><span id="s1a">出貨簡訊通知</span><button class="sw s1" role="switch" aria-checked="true" aria-labelledby="s1a"><span class="k"></span></button></div><div class="sw-row"><span id="s1b">電子報</span><button class="sw s1" role="switch" aria-checked="false" aria-labelledby="s1b"><span class="k"></span></button></div><div class="sw-row"><span id="s1c" style="color:var(--mute)">海外配送（暫停）</span><button class="sw s1" role="switch" aria-checked="false" aria-labelledby="s1c" disabled><span class="k"></span></button></div></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">S2</span><div><h3>細軌大鈕</h3><p>細細的軌道配一顆比軌道大的圓鈕，滑過時圓鈕外圍有淡淡光圈。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">S2</span><div><h3>細軌大鈕</h3><p>細細的軌道配一顆比軌道大的圓鈕，滑過時圓鈕外圍有淡<span class="nw">淡光圈。</span></p></div></div>
       <div class="stage col" style="align-items:center"><div class="sw-row"><span id="s2a">顯示售完商品</span><button class="sw s2" role="switch" aria-checked="false" aria-labelledby="s2a"><span class="k"></span></button></div><div class="sw-row"><span id="s2b">自動接受預約</span><button class="sw s2" role="switch" aria-checked="true" aria-labelledby="s2b"><span class="k"></span></button></div></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">S3</span><div><h3>分段滑塊</h3><p>在少數選項中做選擇，不用來換頁。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">S3</span><div><h3>分段滑塊</h3><p>在少數選項中做選擇，不用<span class="nw">來換頁。</span></p></div></div>
       <div class="stage col" style="align-items:center;gap:16px"><div class="seg js-seg" role="radiogroup" aria-label="顯示期間"><span class="ind"></span><button role="radio" aria-checked="true">本週</button><button role="radio" aria-checked="false">本月</button><button role="radio" aria-checked="false">今年</button></div><div class="seg js-seg" role="radiogroup" aria-label="排列方式"><span class="ind"></span><button role="radio" aria-checked="false">格狀</button><button role="radio" aria-checked="true">清單</button></div></div></article>
   </div>
 </section>
@@ -1654,20 +1656,20 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <!-- ================= D 對話框與抽屜 ================= -->
 <section class="cat" id="dialogs">
-  <div class="cat-head"><h2>對話框與抽屜</h2><p>背景慢慢淡入；按 Esc、點外側或關閉鈕都能關，關掉後焦點回到原本的按鈕。</p></div>
+  <div class="cat-head"><h2>對話框與抽屜</h2><p>背景慢慢淡入；按 Esc、點外側或關閉鈕都能關，關掉後焦點回到原本<span class="nw">的按鈕。</span></p></div>
   <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">D3</span><div><h3>右側明細抽屜</h3><p>右側滑入看明細，關閉後回到清單。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">D3</span><div><h3>右側明細抽屜</h3><p>右側滑入看明細，關閉後回<span class="nw">到清單。</span></p></div></div>
       <div class="stage"><button class="btn b4" data-open="#dlg-d3">查看訂單 #1046</button></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">D5</span><div><h3>左側導覽抽屜</h3><p>手機版的主選單，從左邊滑出，目前所在頁面用淡綠底標出。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">D5</span><div><h3>左側導覽抽屜</h3><p>手機版的主選單，從左邊滑出，目前所在頁面用淡綠<span class="nw">底標出。</span></p></div></div>
       <div class="stage"><button class="btn b2" data-open="#dlg-d5"><svg class="ico"><use href="#i-menu"/></svg>開啟選單</button></div></article>
   </div>
 </section>
 
 <!-- ================= G 分頁籤 ================= -->
 <section class="cat" id="tabs">
-  <div class="cat-head"><h2>分頁籤</h2><p>點選或用方向鍵切換，Home、End 跳到頭尾；指示條會平滑滑到新的分頁。</p></div>
+  <div class="cat-head"><h2>分頁籤</h2><p>點選或用方向鍵切換，Home、End 跳到頭尾；指示條會平滑滑到新<span class="nw">的分頁。</span></p></div>
   <div class="grid wide">
-    <article class="spec"><div class="spec-head"><span class="code">G1</span><div><h3>滑塊膠囊</h3><p>切換同層級頁或檢視，不是選項開關。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">G1</span><div><h3>滑塊膠囊</h3><p>切換同層級頁或檢視，不是選<span class="nw">項開關。</span></p></div></div>
       <div class="stage col"><div class="tabs g1">
         <div class="tl" role="tablist" aria-label="營收期間"><span class="tab-ind"></span>
           <button class="tab" role="tab" id="g1-t1" aria-controls="g1-pane1" aria-selected="true">本週</button>
@@ -1679,7 +1681,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
         <div class="tp" role="tabpanel" id="g1-pane3" aria-labelledby="g1-t3" tabindex="0" hidden><div class="mini"><div><b>NT$ 1,602,880</b>營收</div><div><b>1,935</b>筆訂單</div><div><b>131</b>堂體驗課</div></div></div>
       </div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">G2</span><div><h3>滑動底線＋計數</h3><p>底線標出分頁並帶計數，可左右捲動。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">G2</span><div><h3>滑動底線＋計數</h3><p>底線標出分頁並帶計數，可左<span class="nw">右捲動。</span></p></div></div>
       <div class="stage col"><div class="tabs g2">
         <div class="tl" role="tablist" aria-label="訂單狀態"><span class="tab-ind"></span>
           <button class="tab" role="tab" id="g2-t1" aria-controls="g2-pane1" aria-selected="true">待出貨<span class="cnt">4</span></button>
@@ -1693,7 +1695,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
         <div class="tp" role="tabpanel" id="g2-pane4" aria-labelledby="g2-t4" tabindex="0" hidden><h4>沒有封存的訂單</h4></div>
       </div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">G4</span><div><h3>直式側欄</h3><p>直式分頁以細線標示目前位置，適合設定頁。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">G4</span><div><h3>直式側欄</h3><p>直式分頁以細線標示目前位置，適合<span class="nw">設定頁。</span></p></div></div>
       <div class="stage col"><div class="tabs g4">
         <div class="tl" role="tablist" aria-label="商店設定" aria-orientation="vertical"><span class="tab-ind"></span>
           <button class="tab" role="tab" id="g4-t1" aria-controls="g4-pane1" aria-selected="true"><svg class="ico"><use href="#i-store"/></svg>基本資料</button>
@@ -1714,20 +1716,20 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <!-- ================= N 通知 ================= -->
 <section class="cat" id="toasts">
-  <div class="cat-head"><h2>通知</h2><p>多按幾次看堆疊；滑鼠移上去會展開並暫停計時，往右或往下滑可以關掉。</p></div>
+  <div class="cat-head"><h2>通知</h2><p>多按幾次看堆疊；滑鼠移上去會展開並暫停計時，往右或往下滑可<span class="nw">以關掉。</span></p></div>
   <div class="grid wide">
-    <article class="spec"><div class="spec-head"><span class="code">N1</span><div><h3>極簡白卡</h3><p>畫面上的提示，如「已儲存」「已送出」。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">N1</span><div><h3>極簡白卡</h3><p>畫面上的提示，如「已儲存」「<span class="nw">已送出」。</span></p></div></div>
       <div class="stage"><button class="btn b2 js-n1">儲存作品資料</button></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">N3</span><div><h3>處理中轉完成</h3><p>同則提示由處理中轉完成或失敗。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">N3</span><div><h3>處理中轉完成</h3><p>同則提示由處理中轉完成<span class="nw">或失敗。</span></p></div></div>
       <div class="stage"><button class="btn b4 js-n3" data-ok="1">上傳作品照片</button><button class="btn b2 js-n3" data-ok="0">模擬上傳失敗</button></div></article>
   </div>
 </section>
 
 <!-- ================= M 選單 ================= -->
 <section class="cat" id="menus">
-  <div class="cat-head"><h2>選單</h2><p>外框沿用 I1 的光環聚焦；上下鍵移動、Enter 選取、Esc 關閉，點外面也會收起。</p></div>
+  <div class="cat-head"><h2>選單</h2><p>外框沿用 I1 的光環聚焦；上下鍵移動、Enter 選取、Esc 關閉，點外面也<span class="nw">會收起。</span></p></div>
   <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">M1</span><div><h3>單選下拉</h3><p>十項內的單選下拉，附色票與選中勾記。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">M1</span><div><h3>單選下拉</h3><p>十項內的單選下拉，附色票與選<span class="nw">中勾記。</span></p></div></div>
       <div class="stage col" style="align-items:center"><div class="pw js-listbox">
         <span class="lb" id="m1-lb">釉色</span>
         <button type="button" class="trig" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="m1-list" aria-labelledby="m1-lb m1-val"><span class="val" id="m1-val"><span class="ph">請選擇釉色</span></span><svg class="ico chev"><use href="#i-chev"/></svg></button>
@@ -1742,7 +1744,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
       <div class="pw"><span class="lb" style="color:var(--mute)">窯別（本週不開放）</span><button type="button" class="trig" disabled><span class="val"><span class="ph">第 12 窯</span></span><svg class="ico chev"><use href="#i-chev"/></svg></button></div>
       </div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">M3</span><div><h3>動作選單</h3><p>收起次要動作，危險動作以紅字排最後。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">M3</span><div><h3>動作選單</h3><p>收起次要動作，危險動作以紅字<span class="nw">排最後。</span></p></div></div>
       <div class="stage mid"><div class="pw mw js-menu">
         <button type="button" class="btn b2" aria-haspopup="menu" aria-expanded="false" aria-controls="m3-menu"><svg class="ico"><use href="#i-dots"/></svg>更多動作</button>
         <div class="pop menu" role="menu" id="m3-menu" aria-label="作品動作">
@@ -1755,7 +1757,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
         </div>
       </div><p class="out" id="m3-out"></p></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">M6</span><div><h3>三線變叉</h3><p>點三線變叉、展開選單；再點收合。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">M6</span><div><h3>三線變叉</h3><p>點三線變叉、展開選單；再<span class="nw">點收合。</span></p></div></div>
       <div class="stage mid"><div class="mbar"><div class="mbw js-mbtn" data-out="m6-out">
         <button type="button" class="mbtn m6" aria-label="開啟選單" aria-haspopup="menu" aria-expanded="false" aria-controls="m6-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><line class="l1" x1="5" y1="7" x2="19" y2="7"/><line class="l2" x1="5" y1="12" x2="19" y2="12"/><line class="l3" x1="5" y1="17" x2="19" y2="17"/></svg></button>
         <div class="menu mbp l" role="menu" id="m6-menu" aria-label="功能清單">
@@ -1777,7 +1779,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
         </div>
       </div></div><p class="out" id="m7-out"></p></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">M8</span><div><h3>網站名稱／回首頁</h3><p>站名連結可回首頁，窄版只留字母方塊。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">M8</span><div><h3>網站名稱／回首頁</h3><p>站名連結可回首頁，窄版只留字<span class="nw">母方塊。</span></p></div></div>
       <div class="stage mid"><div class="mbar m8bar"><div class="mbw js-mbtn" data-out="m8-out">
         <button type="button" class="mbtn m6" aria-label="開啟選單" aria-haspopup="menu" aria-expanded="false" aria-controls="m8-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><line class="l1" x1="5" y1="7" x2="19" y2="7"/><line class="l2" x1="5" y1="12" x2="19" y2="12"/><line class="l3" x1="5" y1="17" x2="19" y2="17"/></svg></button>
         <div class="menu mbp l" role="menu" id="m8-menu" aria-label="功能清單">
@@ -1793,9 +1795,9 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <!-- ================= A 手風琴 ================= -->
 <section class="cat" id="accordions">
-  <div class="cat-head"><h2>手風琴</h2><p>高度平滑展開；上下鍵在標題間移動，Enter 或空白鍵開合。</p></div>
+  <div class="cat-head"><h2>手風琴</h2><p>高度平滑展開；上下鍵在標題間移動，Enter 或空白<span class="nw">鍵開合。</span></p></div>
   <div class="grid wide">
-    <article class="spec"><div class="spec-head"><span class="code">A1</span><div><h3>細線單開</h3><p>上下細線分隔，一次只展開一題。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">A1</span><div><h3>細線單開</h3><p>上下細線分隔，一次只展<span class="nw">開一題。</span></p></div></div>
       <div class="stage col"><div class="acc a1">
         <div class="acc-i open"><h3 class="acc-h"><button class="acc-b" aria-expanded="true"><span class="t">多久可以收到作品？</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region"><div><p class="acc-tx">現貨 3 個工作天內寄出；訂製品因為要等窯燒，大約 4 到 6 週。</p></div></div></div>
         <div class="acc-i"><h3 class="acc-h"><button class="acc-b" aria-expanded="false"><span class="t">可以用洗碗機和微波爐嗎？</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region" inert><div><p class="acc-tx">灰釉和青瓷都可以；金彩裝飾的作品請手洗，也不要微波。</p></div></div></div>
@@ -1803,7 +1805,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
         <div class="acc-i"><h3 class="acc-h"><button class="acc-b" aria-expanded="false" disabled><span class="t">海外寄送（暫停受理）</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region" inert><div><p class="acc-tx">暫停中。</p></div></div></div>
       </div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">A3</span><div><h3>日系問答</h3><p>Q、A 圓章搭虛線分隔，適合溫柔品牌頁。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">A3</span><div><h3>日系問答</h3><p>Q、A 圓章搭虛線分隔，適合溫柔<span class="nw">品牌頁。</span></p></div></div>
       <div class="stage col"><div class="acc a3" data-multi>
         <div class="acc-i"><h3 class="acc-h"><button class="acc-b" aria-expanded="false"><span class="qa q" aria-hidden="true">Q</span><span class="t">每一件的顏色都一樣嗎？</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region" inert><div><div class="acc-tx"><span class="qa a" aria-hidden="true">A</span><p>不會完全一樣。釉藥在窯裡流動，每件都有自己的表情，這正是手作的樂趣。</p></div></div></div></div>
         <div class="acc-i"><h3 class="acc-h"><button class="acc-b" aria-expanded="false"><span class="qa q" aria-hidden="true">Q</span><span class="t">可以刻字或訂製尺寸嗎？</span><svg class="ico chev"><use href="#i-chev"/></svg></button></h3><div class="acc-p" role="region" inert><div><div class="acc-tx"><span class="qa a" aria-hidden="true">A</span><p>可以，刻字每件加 NT$ 150；尺寸訂製請先來信討論。</p></div></div></div></div>
@@ -1815,10 +1817,10 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <!-- ================= P 載入更多與步驟條 ================= -->
 <section class="cat" id="paging">
-  <div class="cat-head"><h2>載入更多與步驟條</h2><p>載入更多用來接著看資料，步驟條用來走流程；按下面的按鈕實際操作。</p></div>
+  <div class="cat-head"><h2>載入更多與步驟條</h2><p>載入更多用來接著看資料，步驟條用來走流程；按下面的按鈕實<span class="nw">際操作。</span></p></div>
   <div class="grid wide">
 
-    <article class="spec"><div class="spec-head"><span class="code">P2</span><div><h3>載入更多</h3><p>往下接續載入，附已看數量與進度細線。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">P2</span><div><h3>載入更多</h3><p>往下接續載入，附已看數量與進<span class="nw">度細線。</span></p></div></div>
       <div class="stage mid"><div class="lm js-more" data-total="40" data-step="12">
         <div class="lm-grid" aria-hidden="true"></div>
         <div class="meterx"><i></i></div>
@@ -1826,7 +1828,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
         <div class="btns"><button class="btn b2 js-more-btn"><span class="lbl"><span class="lbl-idle">載入更多</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>載入中</span></span></button><button class="btn b2 js-more-reset" hidden>回到開頭</button></div>
       </div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">P3</span><div><h3>圓點步驟條</h3><p>完成變綠打勾；可點已完成圓點返回。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">P3</span><div><h3>圓點步驟條</h3><p>完成變綠打勾；可點已完成圓<span class="nw">點返回。</span></p></div></div>
       <div class="stage col"><div class="stp p3 js-steps" data-labels="選課程,填資料,付款,完成">
         <ol aria-label="報名步驟">
           <li><button class="sd" aria-label="第 1 步：選課程"><span class="sn">1</span><svg class="ico"><use href="#i-check"/></svg></button><span class="lab">選課程</span></li>
@@ -1838,7 +1840,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
         <p class="stp-msg" aria-live="polite"></p>
       </div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">P4</span><div><h3>日系流程條</h3><p>步驟數與名稱搭箭頭色帶，適合申請表單。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">P4</span><div><h3>日系流程條</h3><p>步驟數與名稱搭箭頭色帶，適合申<span class="nw">請表單。</span></p></div></div>
       <div class="stage col"><div class="stp p4 js-steps" data-labels="填寫資料,確認內容,送出申請,完成">
         <div class="hd"><span>步驟 <b class="js-n">1</b>／4</span><b class="js-name">填寫資料</b></div>
         <ol aria-label="申請流程">
@@ -1851,7 +1853,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
         <p class="stp-msg" aria-live="polite"></p>
       </div></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">P5</span><div><h3>直式進度軸</h3><p>直式進度軸：A 圓心呼吸，B 圈內滾動。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">P5</span><div><h3>直式進度軸</h3><p>直式進度軸：A 圓心呼吸，B 圈<span class="nw">內滾動。</span></p></div></div>
       <div class="stage col"><div class="p5-pair">
         <div class="p5-v"><p class="p5-lab"><span class="sc">P5-A</span>置中呼吸</p><div class="stp p5 p5a js-steps" data-labels="已下單,製作中,窯燒中,已出貨,已送達">
         <ol aria-label="訂單 #1046 進度">
@@ -1879,9 +1881,9 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <!-- ================= E 空狀態與骨架屏 ================= -->
 <section class="cat" id="empty">
-  <div class="cat-head"><h2>空狀態與骨架屏</h2><p>沒有資料時告訴對方下一步做什麼；資料還在路上時，先用骨架撐住版面不跳動。</p></div>
+  <div class="cat-head"><h2>空狀態與骨架屏</h2><p>沒有資料時告訴對方下一步做什麼；資料還在路上時，先用骨架撐住版面<span class="nw">不跳動。</span></p></div>
   <div class="grid wide">
-    <article class="spec"><div class="spec-head"><span class="code">E1</span><div><h3>線稿插圖空狀態</h3><p>線稿、說明與按鈕，適合首次使用的空清單。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">E1</span><div><h3>線稿插圖空狀態</h3><p>線稿、說明與按鈕，適合首次使用的<span class="nw">空清單。</span></p></div></div>
       <div class="stage mid js-e1">
         <div class="emp e1-empty">
           <svg class="art" viewBox="0 0 132 96" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1901,7 +1903,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
         </div>
       </div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">E2</span><div><h3>搜尋無結果</h3><p>附建議關鍵字與清除搜尋，方便重新查找。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">E2</span><div><h3>搜尋無結果</h3><p>附建議關鍵字與清除搜尋，方便重<span class="nw">新查找。</span></p></div></div>
       <div class="stage col js-e2" style="align-items:center">
         <div class="field i1" style="max-width:340px"><label for="e2-q" class="sr">搜尋作品</label><div class="srch-box"><svg class="ico"><use href="#i-search"/></svg><input id="e2-q" class="in" type="search" value="青花" placeholder="搜尋作品名稱" autocomplete="off"></div></div>
         <ul class="res" style="max-width:340px" aria-live="polite"></ul>
@@ -1914,7 +1916,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
         </div>
       </div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">E3</span><div><h3>卡片骨架屏</h3><p>灰塊模擬版面，淡光掃過後載入內容。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">E3</span><div><h3>卡片骨架屏</h3><p>灰塊模擬版面，淡光掃過後載<span class="nw">入內容。</span></p></div></div>
       <div class="stage col js-skel" style="align-items:center" data-ms="1600">
         <div class="skc sk-on" aria-busy="true"><span class="sr">作品載入中</span><div class="sk ph"></div><div class="sk ln1"></div><div class="sk ln2"></div><div class="sk ln3"></div><div class="ft"><div class="sk"></div><div class="sk pill"></div></div></div>
         <div class="skc real sk-off" hidden><div class="art2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><use href="#i-vase"/></svg></div><h5>霧白長頸瓶</h5><p>粉引系列，高 24 公分，適合插一兩枝乾燥花。</p><div class="ft"><b>NT$ 1,190</b><span class="tag l2"><i style="background:#6E9A5F"></i>現貨</span></div></div>
@@ -1926,12 +1928,12 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <!-- ================= K 指令面板 ================= -->
 <section class="cat" id="command">
-  <div class="cat-head"><h2>指令面板</h2><p>打字模糊篩選、上下鍵選、Enter 執行、Esc 關閉。<span class="kbd-hint">在頁面任何地方按 <span class="js-mod">Ctrl</span>+K 會打開 K1。</span></p></div>
+  <div class="cat-head"><h2>指令面板</h2><p>打字模糊篩選、上下鍵選、Enter 執行、Esc <span class="nw">可關閉。</span><span class="kbd-hint">在頁面任何地方按 <span class="js-mod">Ctrl</span>+K 會打開 K1。</span></p></div>
   <div class="grid wide">
-    <article class="spec"><div class="spec-head"><span class="code">K1</span><div><h3>經典指令面板</h3><p>搜尋框配分組清單，適合後台與工具頁。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">K1</span><div><h3>經典指令面板</h3><p>搜尋框配分組清單，適合後台與<span class="nw">工具頁。</span></p></div></div>
       <div class="stage mid"><button class="cmd-trig" data-open="#dlg-k1"><svg class="ico"><use href="#i-search"/></svg>搜尋功能或頁面<span class="kh kbd-hint"><span class="kbd js-mod">Ctrl</span><span class="kbd">K</span></span></button></div></article>
 
-    <article class="spec"><div class="spec-head"><span class="code">K2</span><div><h3>內嵌指令清單</h3><p>內嵌指令清單，適合快速動作區與手機首頁。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">K2</span><div><h3>內嵌指令清單</h3><p>內嵌指令清單，適合快速動作區與手<span class="nw">機首頁。</span></p></div></div>
       <div class="stage col k2"><div class="cmd js-cmd" data-set="basic" data-inline>
         <div class="cmd-in-w"><svg class="ico"><use href="#i-search"/></svg><input class="cmd-in" type="text" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-label="搜尋快速動作" placeholder="輸入動作，例如：新增"></div>
         <div class="cmd-list" role="listbox" aria-label="快速動作"></div>
@@ -2006,7 +2008,7 @@ var jumps=[].slice.call(nav.querySelectorAll('.jump'));
 var active='fav',frame=0,locked=null,settleTimer=0;
 function measure(){
   if(root.hidden)return;
-  document.documentElement.style.setProperty('--stick-h',(nav.offsetHeight+document.querySelector('.library-tabs').offsetHeight)+'px');
+  document.documentElement.style.setProperty('--stick-h',(nav.offsetHeight+document.querySelector('.library-tabs-bar').offsetHeight)+'px');
   var tab=nav.querySelector('[aria-selected=true]'),indicator=nav.querySelector('.tab-ind');
   indicator.style.width=tab.offsetWidth+'px';
   indicator.style.transform='translateX('+tab.offsetLeft+'px)';
@@ -2102,7 +2104,7 @@ const featureLibrary=(function(){
     var gh=/^https:\/\/github\.com\//.test(o.url||'');
     var label=gh?'GitHub':'官方文件';
     var name=o.url?'<a class="lnk" href="'+esc(o.url)+'" target="_blank" rel="noopener">'+esc(o.name)+'</a><span class="src">'+label+' ↗</span>':esc(o.name);
-    return '<div class="opt">'+name+(o.note?'<span class="why">'+esc(o.note)+'</span>':'')+'</div>';
+    return '<div class="opt">'+name+(o.note?'<span class="why">'+esc(o.note).replace(/([\u4e00-\u9fff]{3}[。．.]?)$/,'<span class="nw">$1</span>')+'</span>':'')+'</div>';
   }
 
   function render(){
