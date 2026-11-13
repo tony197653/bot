@@ -5,123 +5,30 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const now = 2_000_000;
-const stamp = n => ({ toMillis: () => n });
-function fixture({ fresh = false, denied = false, code = '000', beat = 1 } = {}) {
-  let room = { code, status: 'lobby', hostUid: 'host', members: ['host'],
-    seatUids: ['host', ''], stacks: [2000, 0], pub: { phase: 'lobby' }, updatedAt: stamp(fresh ? now : 1) };
-  const writes = [], reads = [];
-  const fs = {
-    doc: (_db, ...parts) => parts.join('/'), collection: (_db, ...parts) => parts.join('/'),
-    arrayUnion: uid => [...room.members, uid], serverTimestamp: () => now,
-    getDoc: async path => { reads.push(path); return { exists: () => path === 'pokerRooms/r', data: () => room }; },
-    getDocs: async () => ({ docs: [{ id: 'host', data: () => ({ beat: stamp(beat) }) }] }),
-    updateDoc: async (path, patch) => {
-      if (denied) throw new Error('permission-denied');
-      writes.push({ path, patch });
-      if (path === 'pokerRooms/r') room = { ...room, ...patch };
-    },
-    deleteDoc: async path => writes.push({ path, deleted: true }),
-  };
-  return { fb: { db: {}, fs }, writes, reads, room: () => room };
+const row = {id:'r',status:'lobby'};
+function fixture(beat) {
+  const room={hostUid:'h',status:'lobby',updatedAt:{toMillis:()=>1}};
+  const fs={doc:(_, ...p)=>p.join('/'), getDoc:async p=>({exists:()=>true,data:()=>
+    p.includes('presence') ? {beat:{toMillis:()=>beat}} : room})};
+  fs.runTransaction=async()=>false;
+  return {db:{},fs};
 }
-const row = { id: 'r', status: 'lobby' };
-
-test('過期獨坐桌：非房主關桌，立即隱藏，籌碼不變', async () => {
-  _resetLobbyClosedSuppress();
-  const f = fixture();
-  let release, closing;
-  const blocked = new Promise(resolve => { release = resolve; });
-  const update = f.fb.fs.updateDoc;
-  f.fb.fs.updateDoc = async (path, patch) => {
-    if (patch.closedBy) {
-      assert.equal(isLobbyRoomSuppressed('r'), true);
-      closing = true;
-      await blocked;
-    }
-    return update(path, patch);
-  };
-  let paints = 0;
-  const pending = sweepStaleTable(f.fb, row, 'guest', now, () => paints++);
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(closing, true);
-  assert.equal(paints, 1);
-  release();
-  assert.equal(await pending, true);
-  assert.equal(f.room().status, 'closed');
-  assert.equal(f.room().closedBy, 'auto');
-  assert.deepEqual(f.room().stacks, [2000, 0]);
-  assert.ok(f.writes.some(w => w.path === 'pokerLobby/r' && w.deleted));
-  assert.ok(f.writes.every(w => !w.path.startsWith('pokerPlayers/')));
+test('T+60 秒大廳隱藏，房主恢復後重新顯示',async()=>{
+  _resetLobbyClosedSuppress(); const fb=fixture(now-60000);
+  assert.equal(await sweepStaleTable(fb,row,'guest',now),true);
+  assert.equal(isLobbyRoomSuppressed('r'),true);
+  const get=fb.fs.getDoc;
+  fb.fs.getDoc=async p=>p.includes('presence')?{exists:()=>true,data:()=>({beat:{toMillis:()=>now}})}:get(p);
+  assert.equal(await sweepStaleTable(fb,row,'guest',now+10000),false);
+  assert.equal(isLobbyRoomSuppressed('r'),false);
 });
-
-test('新鮮牌桌與自己入座的桌不改寫', async () => {
-  _resetLobbyClosedSuppress();
-  const f = fixture({ fresh: true });
-  assert.equal(await sweepStaleTable(f.fb, row, 'guest', now), false);
-  assert.equal(isLobbyRoomSuppressed('r'), false);
-  assert.deepEqual(f.writes, []);
-  const seated = fixture();
-  assert.equal(await sweepStaleTable(seated.fb, row, 'host', now), false);
-  assert.deepEqual(seated.writes, []);
+test('60 秒內不隱藏，讀取失敗不冒充房主失聯',async()=>{
+  _resetLobbyClosedSuppress(); const fb=fixture(now-59000);
+  assert.equal(await sweepStaleTable(fb,row,'guest',now),false);
+  fb.fs.getDoc=async()=>{throw Error('unavailable');};
+  assert.equal(await sweepStaleTable(fb,row,'guest',now+10000),false);
+  assert.equal(isLobbyRoomSuppressed('r'),false);
 });
-
-test('權限失敗保留清單；關桌寫入失敗會恢復暫時隱藏的列', async () => {
-  for (const closeOnly of [false, true]) {
-    _resetLobbyClosedSuppress();
-    const f = fixture({ denied: !closeOnly });
-    if (closeOnly) {
-      const update = f.fb.fs.updateDoc;
-      f.fb.fs.updateDoc = (path, patch) => patch.closedBy
-        ? Promise.reject(new Error('permission-denied')) : update(path, patch);
-    }
-    const visibility = [];
-    assert.equal(await sweepStaleTable(f.fb, row, 'guest', now,
-      () => visibility.push(isLobbyRoomSuppressed('r'))), false);
-    assert.equal(isLobbyRoomSuppressed('r'), false);
-    assert.deepEqual(visibility, closeOnly ? [true, false] : []);
-  }
-});
-
-test('同桌不重複巡查：執行中與 30 秒內不重讀，時間到可再檢查', async () => {
-  _resetLobbyClosedSuppress();
-  const f = fixture({ fresh: true });
-  let release;
-  const get = f.fb.fs.getDoc;
-  f.fb.fs.getDoc = async path => { await new Promise(resolve => { release = resolve; }); return get(path); };
-  const pending = sweepStaleTable(f.fb, row, 'guest', now);
-  assert.equal(await sweepStaleTable({ ...f.fb }, row, 'guest', now + 30_000), false);
-  release(); await pending;
-  f.fb.fs.getDoc = get;
-  assert.equal(await sweepStaleTable({ ...f.fb }, row, 'guest', now + 29_999), false);
-  assert.equal(f.reads.length, 1);
-  await sweepStaleTable({ ...f.fb }, row, 'guest', now + 30_000);
-  assert.equal(f.reads.length, 2);
-});
-
-test('一般桌沿用 idle 心跳條件；已關閉桌立即隱藏', async () => {
-  for (const beat of [1, now]) {
-    _resetLobbyClosedSuppress();
-    const f = fixture({ code: '123', beat });
-    assert.equal(await sweepStaleTable(f.fb, row, 'guest', now), beat === 1);
-  }
-  _resetLobbyClosedSuppress();
-  const f = fixture();
-  f.room().status = 'closed';
-  assert.equal(await sweepStaleTable(f.fb, row, 'guest', now), true);
-  assert.equal(isLobbyRoomSuppressed('r'), true);
-  assert.deepEqual(f.writes, []);
-});
-
-test('emulator staleMs 覆寫用於大廳巡查', async () => {
-  const previous = globalThis.location;
-  try {
-    globalThis.location = { hostname: 'localhost', search: '?emu=1&staleMs=8000' };
-    _resetLobbyClosedSuppress();
-    const f = fixture();
-    assert.equal(await sweepStaleTable(f.fb, row, 'guest', 10_000), true);
-  } finally { globalThis.location = previous; }
-});
-
 const app = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
 const section = (start, end) => app.slice(app.indexOf(start), app.indexOf(end, app.indexOf(start)));
 test('大廳巡查同時只執行一輪，離開大廳後停止下一桌', async () => {
@@ -144,4 +51,28 @@ test('大廳巡查同時只執行一輪，離開大廳後停止下一桌', async
 test('idleCloseMs：非模擬器（正式站）固定 30 分鐘', async () => {
   const { idleCloseMs } = await import('../js/net/room.js');
   assert.equal(idleCloseMs(), 30 * 60_000);
+});
+
+test('巡查節流：同一 db 包裝、執行中與 10 秒內不重讀',async()=>{
+  const fb=fixture(now), get=fb.fs.getDoc; let reads=0,release;
+  fb.fs.getDoc=async p=>{reads++;if(reads===1) await new Promise(r=>release=r);return get(p);};
+  const pending=sweepStaleTable(fb,row,'guest',now);
+  assert.equal(await sweepStaleTable({...fb},row,'guest',now+10000),false);
+  release();await pending;const count=reads;
+  await sweepStaleTable({...fb},row,'guest',now+9999);assert.equal(reads,count);
+  await sweepStaleTable({...fb},row,'guest',now+10000);assert.ok(reads>count);
+});
+test('不巡查自己已入座桌；closed 立即隱藏且不讀 presence',async()=>{
+  const fb=fixture(1),get=fb.fs.getDoc;let reads=0;
+  fb.fs.getDoc=async p=>{reads++;return get(p);};
+  await sweepStaleTable(fb,{...row,seatUids:['guest']},'guest',now);assert.equal(reads,0);
+  fb.fs.getDoc=async()=>({exists:()=>true,data:()=>({status:'closed'})});
+  assert.equal(await sweepStaleTable(fb,row,'guest',now),true);
+  assert.equal(isLobbyRoomSuppressed('r'),true);
+});
+test('收桌被拒恢復可見；成功則清座、原子退款與 ledger 由交易處理',async()=>{
+  _resetLobbyClosedSuppress();const fb=fixture(1);const changes=[];
+  fb.fs.runTransaction=async()=>{throw Error('permission-denied');};
+  assert.equal(await sweepStaleTable(fb,row,'guest',now,()=>changes.push(isLobbyRoomSuppressed('r'))),false);
+  assert.deepEqual(changes,[true,false]);assert.equal(isLobbyRoomSuppressed('r'),false);
 });

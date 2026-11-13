@@ -50,10 +50,8 @@ export function startPresence(fb, roomId, uid, opts) {
   async function beat(vis) {
     if (stopped) return;
     void refreshCode();
-    if (opts.isHost()) {
-      const idle = now() - (opts.lastRoomWriteAt() || 0);
-      if (idle < HOST_IDLE_BEAT_MS) return;
-    }
+    // HD1113 r2: the host always beats, even right after a room write. Guests also write the
+    // room (leave/sit), so room.updatedAt cannot prove the host is alive; only the beat can.
     try {
       await fs.setDoc(ref, { beat: fs.serverTimestamp(), vis: !!vis });
       lastBeatAt = now();
@@ -71,11 +69,20 @@ export function startPresence(fb, roomId, uid, opts) {
   doc.addEventListener('visibilitychange', onVis);
   beat(doc.visibilityState === 'visible');
   timer = schedule(() => {
-    if (doc.visibilityState !== 'visible') return;
-    void refreshCode();
+    const vis = doc.visibilityState === 'visible';
     if (opts.isHost()) {
-      if (now() - lastBeatAt >= 1.5 * HOST_IDLE_BEAT_MS) beat(true); // 15s threshold on a 10s tick → beats every ~20s even with setDoc latency
-    } else if (now() - lastPlayerTickAt >= PLAYER_BEAT_MS) {
+      // Hidden host still beats while it keeps writing the room (it is alive, just backgrounded).
+      // HD1113 r4: T+60s close → host beats every ~10s, so a lost host is closed 50–70s after it drops.
+      // Hidden host still beats while it keeps writing the room (it is alive, just backgrounded).
+      const writing = now() - (opts.lastRoomWriteAt() || 0) < 1.5 * HOST_IDLE_BEAT_MS;
+      if (!vis && !writing) return;
+      if (vis) void refreshCode();
+      if (now() - lastBeatAt >= 0.8 * HOST_IDLE_BEAT_MS) beat(vis);
+      return;
+    }
+    if (!vis) return;
+    void refreshCode();
+    if (now() - lastPlayerTickAt >= PLAYER_BEAT_MS) {
       lastPlayerTickAt = now();
       beat(true);
     }

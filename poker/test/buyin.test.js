@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../js/net/buyin-policy.js';
 import { buyinAll, buyinAmount, ensurePlayerGrant } from '../js/net/ledger.js';
+import { hostAliveMs } from '../js/net/host-disconnect.js';
 
 const source = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
 function fakeFirebase(player) {
@@ -150,7 +151,7 @@ test('訪客入座先讀房主 presence：離線阻擋，近期活動或讀取�
     { name: '缺少 presence', missing: true, roomAge: 90_000, minutes: 29 },
     { name: '超過關桌時間', beatAge: 1_900_000, roomAge: 2_000_000, minutes: 1 },
     { name: '近期房主', beatAge: 10_000, roomAge: 180_000 },
-    { name: '近期房間更新', beatAge: 180_000, roomAge: 10_000 },
+    { name: '近期房間更新（客人寫入不算房主活動）', beatAge: 180_000, roomAge: 10_000, minutes: 27 },
     { name: '剛好 30 秒', beatAge: 30_000, roomAge: 180_000 },
     { name: '讀取失敗', fail: true, roomAge: 180_000 },
     { name: '房主本人', host: true, roomAge: 180_000 },
@@ -176,7 +177,7 @@ test('訪客入座先讀房主 presence：離線阻擋，近期活動或讀取�
         updatedAt: { toMillis: () => now - scenario.roomAge },
       },
       roomId: 'r', sittingBusy: false, playerDoc: { bank: 8765 },
-      assertMinimumBuyin, wholeBalance, buyinOptions,
+      assertMinimumBuyin, wholeBalance, buyinOptions, hostAliveMs,
       pickBuyinAmount: options => { events.push('picker'); return options.amount; },
       toast: msg => events.push(msg),
       buyinAmount: async () => { events.push('buyin'); },
@@ -290,7 +291,7 @@ test('hand_over 輸光者走既有 cashoutSeat，離座通知先回大廳再提�
   await ctx.drainSitLeaveInner();assert.deepEqual(events,[[0,'u',0]]);
   const begin=source.indexOf('      const previousSelfSeat');
   const end=source.indexOf('      lastRecvAt',begin);
-  const ui=vm.createContext({room:{seatUids:['u'],stacks:[0]},r:{status:'lobby',seatUids:[''],lastMoneyEvent:{type:'cashout',uid:'u',amount:0}},user:{uid:'u'},
+  const ui=vm.createContext({metadata:undefined,hostRoomUpdatedMs:null,hostBeatMs:null,hostLoop:null,watchHostBeat:()=>{},updateHostDisconnect:()=>{},fb:{},id:'r',room:{seatUids:['u'],stacks:[0]},r:{status:'lobby',seatUids:[''],lastMoneyEvent:{type:'cashout',uid:'u',amount:0}},user:{uid:'u'},
     goLobbyClean:()=>events.push('lobby'),toast:msg=>events.push(msg)});
   vm.runInContext('(function(){'+source.slice(begin,end)+'})()',ui);
   assert.deepEqual(events.slice(1),['lobby','籌碼輸光了，已離座回大廳']);
@@ -300,7 +301,7 @@ test('開桌遇到既有桌：依該桌大盲阻擋，留在大廳；先結算�
   const events=[],messages=[];
   const ctx=vm.createContext({
     getFirebase:()=>({}),getUser:()=>({uid:'u',displayName:'玩家'}),
-    createRoomBuyinError,createDraft:{},creating:false,createError:'',screen:'create',playerDoc:{bank:99999},
+    createAttempt: 0, createTimeoutMs: () => 15000, setTimeout, clearTimeout, createRoomBuyinError,createDraft:{},creating:false,createError:'',screen:'create',playerDoc:{bank:99999},
     paint:()=>events.push('paint'),toast:msg=>messages.push(msg),console,
     silentlySettleClosedBinding:async()=>events.push('settle'),
     getPlayer:async()=>{events.push('read');return {bank:2000,tableRoomId:null};},

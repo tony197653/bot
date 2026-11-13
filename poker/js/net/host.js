@@ -1,3 +1,4 @@
+import { resumeDeadline, HOST_PAUSE_MS } from './host-disconnect.js';
 /**
  * Host loop: intents → applyAction → write pub/hole; away; seating; money batches (§6.2).
  * Runs on any visible page while this client is host.
@@ -127,6 +128,30 @@ export function createHostLoop(fb, opts) {
   let lastLobbyListingKey = '';
   let running = false;
   /** @type {ReturnType<typeof setTimeout>|null} */
+  let connectionBeat = null;
+  let connectionLostAt = null;
+  function connectionPaused() {
+    const now = Date.now();
+    const lost = globalThis.navigator?.onLine === false ||
+      (connectionBeat != null && now - connectionBeat >= HOST_PAUSE_MS);
+    if (lost && connectionLostAt == null) connectionLostAt = connectionBeat ?? now;
+    return lost || connectionLostAt != null;
+  }
+  function observeHostBeat(beat) {
+    const now = Date.now();
+    const prior = connectionBeat;
+    connectionBeat = Math.max(connectionBeat ?? 0, beat);
+    if (now - beat >= HOST_PAUSE_MS) return;
+    const from = connectionLostAt ?? (prior != null && beat - prior >= HOST_PAUSE_MS ? prior : null);
+    if (from != null && engine && globalThis.navigator?.onLine !== false) {
+      engine = { ...engine, deadline: resumeDeadline(engine.deadline, from, now) };
+      connectionLostAt = null;
+      syncDeadlineFromEngine();
+      hostClockAt = now; // Publish the remaining budget, not a fresh full turn.
+      queueWrite();
+      afterEngineChange();
+    }
+  }
   let revealTimer = null;
   /** @type {ReturnType<typeof setTimeout>|null} */
   let nextHandTimer = null;
@@ -135,7 +160,9 @@ export function createHostLoop(fb, opts) {
   function delayHost(fn, ms) {
     const timer = setTimeout(() => {
       delayedTimers.delete(timer);
-      if (running && !closing && getRoom()?.status !== 'closed') fn();
+      if (running && !closing && getRoom()?.status !== 'closed') {
+        if (connectionPaused()) delayHost(fn, 1000); else fn();
+      }
     }, ms);
     delayedTimers.add(timer);
   }
@@ -424,6 +451,7 @@ export function createHostLoop(fb, opts) {
     nextHandTimer = setTimeout(() => {
       nextHandTimer = null;
       if (!running || !engine || getRoom()?.status === 'closed') return;
+      if (connectionPaused()) { scheduleNextHand(1000); return; }
       if (engine.phase !== PHASE.HAND_OVER || closing) return;
       // 規則只允許「進行中 → hand_over」那一筆改 stacks：結算還沒寫進房間前不開下一手
       const savedPub = getRoom()?.pub;
@@ -456,6 +484,7 @@ export function createHostLoop(fb, opts) {
       revealTimer = setTimeout(() => {
         revealTimer = null;
         if (!engine || engine.phase !== PHASE.SHOWDOWN) return;
+        if (connectionPaused()) return;
         applyAndPublish({ type: 'REVEAL_TIMEOUT' });
       }, REVEAL_MS + 30);
       return;
@@ -532,7 +561,7 @@ export function createHostLoop(fb, opts) {
   }
 
   async function processIntent(intentUid, data) {
-    if (closing || !running || getRoom()?.status === 'closed') return;
+    if (closing || !running || getRoom()?.status === 'closed' || connectionPaused()) return;
     const room = getRoom();
     if (!room || room.hostUid !== uid) return;
     if (!engine) ensureEngine(room);
@@ -849,6 +878,7 @@ export function createHostLoop(fb, opts) {
   }
 
   function startHand() {
+    if (connectionPaused()) return false;
     if (startingNext) return startingNext;
     if (engine?.phase !== PHASE.HAND_OVER) return startHandNow();
     clearNextHandTimer();
@@ -886,6 +916,7 @@ export function createHostLoop(fb, opts) {
   }
 
   function startHandNow() {
+    if (connectionPaused()) return false;
     if (closing || !running || getRoom()?.status === 'closed') return false;
     if (hostMustStopNewHand(true)) {
       quotaStop = true;
@@ -927,6 +958,7 @@ export function createHostLoop(fb, opts) {
   }
 
   function hostAction(action) {
+    if (connectionPaused()) return false;
     const room = getRoom();
     const seat =
       action.seat != null ? action.seat : room.seatUids.indexOf(uid);
@@ -996,7 +1028,7 @@ export function createHostLoop(fb, opts) {
   }
 
   function onTick() {
-    if (!running || !engine || closing) return;
+    if (!running || !engine || closing || connectionPaused()) return;
     const room = getRoom();
     if (!room || room.hostUid !== uid) return;
 
@@ -1155,6 +1187,7 @@ export function createHostLoop(fb, opts) {
     prepareClose,
     closeAll,
     seatPlayer,
+    observeHostBeat,
     getEngine: () => engine,
     lastRoomWriteAt: () => lastWriteAt,
     getAway: () => ({ ...away }),

@@ -95,6 +95,7 @@ function soundRoom() {
   let hintText = '';
   const hint = { get textContent() { return hintText; }, set textContent(text) { hintText = text; writes++; } };
   const ctx = vm.createContext({
+    hostPaused: false, stopHostBeat: null, hostReturnedTimer: null,
     detectSoundEvents, pickSound, hurryCrossed, soundHandKey,
     MP_FX: { timerWarnLastMs: 5000 }, screen: 'table', lastRecvAt: 0,
     room: { pub: pub({ actor: 0 }), deadlineAt: 10000 }, rem: 6000,

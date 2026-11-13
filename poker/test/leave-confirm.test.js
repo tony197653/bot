@@ -93,7 +93,7 @@ describe('‹ 大廳 leave confirm（source contracts）', () => {
     );
     assert.doesNotMatch(fn, /toastLeaveAfterHand|mpLeaveConfirm/);
     assert.match(fn, /const midHand = isHandInProgress\(\)/);
-    assert.match(fn, /if \(midHand\)\s*\{\s*goLobbyClean\(\);\s*watchLeaveSettlement\(fb, uid, leavingRoomId\);\s*return;/);
+    assert.match(fn, /if \(midHand\)\s*\{\s*goLobbyClean\(\);\s*watchLeaveSettlement\(fb, uid, leavingRoomId, hostWasPaused\);\s*return;/);
     assert.match(fn, /if \(isHost\)\s*\{[\s\S]{0,160}const hostMidHand = isHandInProgress\(\);[\s\S]*startHostClose\(\{ showResultCard: hostMidHand \}\)/);
     assert.match(fn, /await requestLeave\(\)/);
     assert.match(fn, /goLobbyClean\(\)/);

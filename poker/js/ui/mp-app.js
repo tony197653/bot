@@ -1,3 +1,4 @@
+import { disconnectState, closeDisconnectedRoom, DISCONNECT_COPY, hostLivenessMs, hostAliveMs } from '../net/host-disconnect.js';
 /**
  * Milestone-2 shell: auth → lobby → create/join → table (§2 / §13).
  * Solo hot-seat engine kept for ?solo=1 / internal use; no lobby menu entry.
@@ -23,6 +24,8 @@ import {
 } from '../net/firebase-config.js';
 import {
   createSingleTable,
+  findHostedOpenTable,
+  createTimeoutMs,
   findOpenTable,
   joinByCode,
   joinByRoomId,
@@ -130,6 +133,52 @@ let presence = null;
 let intents = null;
 /** @type {(() => void)|null} */
 let stopHole = null;
+let stopHostBeat = null;
+let hostBeatMs = null;
+let hostRoomUpdatedMs = null;
+let hostPaused = false;
+let hostReturned = false;
+let hostReturnedTimer = null;
+let hostBeatUid = null;
+function watchHostBeat(fb, id, r) {
+  if (hostBeatUid === r.hostUid) return;
+  stopHostBeat?.(); hostBeatUid = r.hostUid; hostBeatMs = null;
+  stopHostBeat = fb.fs.onSnapshot(fb.fs.doc(fb.db,'pokerRooms',id,'presence',r.hostUid), snap => {
+    if (roomId !== id || snap.metadata?.hasPendingWrites || snap.metadata?.fromCache) return;
+    const next = hostLivenessMs(null, snap);
+    if (Number.isFinite(next)) {
+      hostLoop?.observeHostBeat?.(Math.max(next, hostRoomUpdatedMs ?? 0));
+      hostBeatMs = next;
+      updateHostDisconnect();
+    }
+  }, () => {});
+}
+function updateHostDisconnect() {
+  if (!room) return;
+  if (room.status === 'closed') {
+    hostPaused = false;
+    hostReturned = false;
+    clearTimeout(hostReturnedTimer);
+    hostReturnedTimer = null;
+    const banner = $('#mpBanner');
+    banner?.classList.remove('mp-banner--hd');
+    if (banner && (banner.textContent === DISCONNECT_COPY.paused || banner.textContent === DISCONNECT_COPY.returned)) {
+      banner.hidden = true;
+      banner.textContent = '';
+    }
+    return;
+  }
+  const paused = disconnectState(hostAliveMs(hostBeatMs, hostRoomUpdatedMs)).paused;
+  if (hostPaused && !paused) {
+    hostReturned = true;
+    clearTimeout(hostReturnedTimer);
+    hostReturnedTimer = setTimeout(() => { hostReturned = false; paintTableChrome(); }, 4000);
+  }
+  if (paused) hostReturned = false;
+  const changed = hostPaused !== paused;
+  hostPaused = paused;
+  if (changed) { paintTableChrome(); tickTurnHint(); }
+}
 let lastRecvAt = Date.now();
 /** @type {object|null} */
 let prevPub = null;
@@ -198,7 +247,7 @@ function turnClockTick() {
 }
 
 function tickRoomSound() {
-  if (soundNeedsBaseline || screen !== 'table' || document.hidden || !room?.pub || soundSeat < 0) return;
+  if (hostPaused || soundNeedsBaseline || screen !== 'table' || document.hidden || !room?.pub || soundSeat < 0) return;
   const pub = room.pub;
   if (pub.actor !== soundSeat || pub.actionSeq == null ||
       !['preflop', 'flop', 'turn', 'river'].includes(pub.phase)) return;
@@ -228,7 +277,7 @@ function tickTurnHint() {
   if (!hint) return;
   const pub = room?.pub;
   const between = !pub?.phase || pub.phase === 'lobby' || pub.phase === 'hand_over';
-  const rem = screen === 'table' && !between && pub.actor != null
+  const rem = !hostPaused && screen === 'table' && !between && pub.actor != null
     ? turnRemainingMs(pub) : null;
   const text = rem != null ? `${Math.ceil(rem / 1000)} 秒` : '';
   if (hint.textContent !== text) hint.textContent = text;
@@ -272,6 +321,7 @@ let joinDigits = '';
 let shareInfo = null;
 let createError = '';
 let creating = false;
+let createAttempt = 0;
 let joining = false;
 let joinError = '';
 let joinEnded = false;
@@ -340,53 +390,62 @@ function hideCloseResultCard() {
  * Lobby must never show「已收桌／結帳離開」for a closed table.
  * @returns {Promise<number>} chips credited this call (0 if skipped/idempotent)
  */
-async function silentlySettleClosedBinding() {
+async function silentlySettleClosedBinding(isCurrent = () => true) {
+  let settledPlayer = playerDoc;
   const fb = getFirebase();
   const uid = getUser()?.uid;
   if (!fb || !uid) return 0;
   try {
-    playerDoc = await getPlayer(fb, uid);
+    settledPlayer = await getPlayer(fb, uid);
+    if (!isCurrent()) return 0;
   } catch {
     /* keep stale */
   }
-  const tid = playerDoc?.tableRoomId;
+  if (!isCurrent()) return 0;
+  const tid = settledPlayer?.tableRoomId;
   let credited = 0;
   if (tid) {
     try {
       const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
+      if (!isCurrent()) return 0;
       const closed = !snap.exists() || snap.data()?.status === 'closed';
       if (closed) {
-        const inPlayBefore = Number(playerDoc?.inPlay) || 0;
+        const inPlayBefore = Number(settledPlayer?.inPlay) || 0;
         const room = snap.exists()
           ? { id: tid, ...snap.data(), status: 'closed' }
           : { id: tid, status: 'closed', seatUids: [] };
         const res = await settleClosedRoomBinding(fb, uid, room);
+        if (!isCurrent()) return 0;
         if (typeof res?.amount === 'number') credited = res.amount;
         else if (res?.skipped || res?.idempotent) credited = 0;
         else credited = inPlayBefore;
+        if (!isCurrent()) return 0;
         try {
-          playerDoc = await getPlayer(fb, uid);
+          settledPlayer = await getPlayer(fb, uid);
+          if (!isCurrent()) return 0;
         } catch {
-          if (playerDoc) {
-            playerDoc = {
-              ...playerDoc,
+          if (settledPlayer) {
+            settledPlayer = {
+              ...settledPlayer,
               tableRoomId: null,
               inPlay: 0,
-              bank: (playerDoc.bank || 0) + credited,
-              total: (playerDoc.bank || 0) + credited,
+              bank: (settledPlayer.bank || 0) + credited,
+              total: (settledPlayer.bank || 0) + credited,
             };
           }
         }
       }
     } catch (e) {
+      if (!isCurrent()) return 0;
       console.warn('silent settle closed', e);
     }
   }
   // Clear host pointer at closed/missing room
-  const hid = playerDoc?.hostRoomId;
+  const hid = settledPlayer?.hostRoomId;
   if (hid && fb && uid) {
     try {
       const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', hid));
+      if (!isCurrent()) return 0;
       if (!snap.exists() || snap.data()?.status === 'closed') {
         try {
           await fb.fs.updateDoc(fb.fs.doc(fb.db, 'pokerPlayers', uid), {
@@ -396,21 +455,25 @@ async function silentlySettleClosedBinding() {
         } catch {
           /* rules may deny */
         }
+        if (!isCurrent()) return 0;
         try {
-          playerDoc = await getPlayer(fb, uid);
+          settledPlayer = await getPlayer(fb, uid);
+          if (!isCurrent()) return 0;
         } catch {
           /* keep going */
         }
-        if (playerDoc?.hostRoomId === hid) {
-          playerDoc = { ...playerDoc, hostRoomId: null };
+        if (settledPlayer?.hostRoomId === hid) {
+          settledPlayer = { ...settledPlayer, hostRoomId: null };
         }
       }
     } catch {
       /* ignore */
     }
   }
+  if (!isCurrent()) return 0;
+  playerDoc = settledPlayer;
   // Closed tables never use the rescue settle card
-  if (rescueReason === 'closed' || !playerDoc?.tableRoomId) {
+  if (rescueReason === 'closed' || !settledPlayer?.tableRoomId) {
     rescueOk = false;
     rescueReason = null;
     rescueChips = null;
@@ -472,7 +535,7 @@ async function dismissCloseResultToStats() {
 }
 
 /** M2 #5: stay on table with result card; do not auto-kick. */
-function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry, roomId: ridOpt } = {}) {
+function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry, roomId: ridOpt, disconnected = room?.closedBy === 'host-disconnect' } = {}) {
   const rid = ridOpt || roomId || room?.id || null;
   // User already chose 回大廳／看戰績 — late closed snapshots must not re-open the card
   if (rid && closeResultDismissedFor === rid) return;
@@ -480,13 +543,14 @@ function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry, r
   const existing = document.getElementById('mpCloseResult');
   if (state === 'done' && existing?.dataset.state === 'pending' && closeInFlight) return;
   const n = Number(chips) || 0;
+  const resultTitle = disconnected ? DISCONNECT_COPY.closed : `牌桌已收桌，你帶回 ${n.toLocaleString('en-US')} 籌碼`;
   // Already showing: never let a later 0 clobber a real return; upgrade if better
   if (state === 'done' && rid && closeResultShownFor === rid && existing?.dataset.state === 'done') {
     if (n > closeResultChipsShown) {
       closeResultChipsShown = n;
       const title = document.getElementById('mpCloseResultT');
       if (title) {
-        title.textContent = `牌桌已收桌，你帶回 ${n.toLocaleString('en-US')} 籌碼`;
+        title.textContent = resultTitle;
       }
     }
     return;
@@ -504,13 +568,13 @@ function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry, r
     el.setAttribute('aria-labelledby', 'mpCloseResultT');
     document.body.appendChild(el);
   }
-  const autoLine = auto
+  const autoLine = auto && !disconnected
     ? '<p class="mp-close-result-d">沒人在線 30 分鐘，已自動收桌</p>'
     : '';
   el.dataset.state = state;
   el.innerHTML = `
     <div class="mp-close-result-card">
-      <h2 id="mpCloseResultT">${state === 'pending' ? '結算中…' : state === 'failed' ? '結算沒有完成，請再按一次收桌' : `牌桌已收桌，你帶回 ${n.toLocaleString('en-US')} 籌碼`}</h2>
+      <h2 id="mpCloseResultT">${state === 'pending' ? '結算中…' : state === 'failed' ? '結算沒有完成，請再按一次收桌' : resultTitle}</h2>
       ${autoLine}
       <button type="button" class="mp-btn-primary" id="mpCloseLobby">回大廳</button>
       <button type="button" class="mp-b2" id="mpCloseStats">看戰績</button>
@@ -712,12 +776,12 @@ async function confirmContinueRoom(id) {
     data?.pub?.autoClosed ||
     data?.closedBy === 'auto'
   );
-  return { closed: true, chips, auto };
+  return { closed: true, chips, auto, disconnected: data?.closedBy === 'host-disconnect' };
 }
 
-function revealClosedFromLobby(id, { chips = 0, auto = false } = {}) {
+function revealClosedFromLobby(id, { chips = 0, auto = false, disconnected = false } = {}) {
   if (!id || closeResultDismissedFor === id) return;
-  showCloseResultCard({ chips, auto, roomId: id });
+  showCloseResultCard({ chips, auto, roomId: id, disconnected });
 }
 
 async function continueMyTable(id) {
@@ -980,19 +1044,23 @@ export async function startMpApp() {
     paint();
   });
 
-  // takeover poll; reuse its clock for the throttled lobby sweep.
+  // takeover poll replaced: wait for the original host, then close at T+2.
+  let disconnectClosePending = false, disconnectCloseStartedAt = 0;
   setInterval(() => {
     void sweepLobbyTables();
-    const fb = getFirebase();
-    const u = getUser();
-    if (!fb || !u || !room || room.hostUid === u.uid) return;
-    maybeTakeover(fb, room, u.uid, lastRecvAt, (pub) => ({
-      ...pub,
-      phase: 'hand_over',
-      voided: true,
-      board: [],
-      actor: null,
-    }));
+    updateHostDisconnect();
+    const fb = getFirebase(), u = getUser();
+    const dbg = globalThis.window?.__hdDebug ? (...a) => console.info('[HDDBG]', Date.now(), ...a) : null;
+    dbg?.('tick', {room: !!room, status: room?.status, pending: disconnectClosePending, beat: hostBeatMs, upd: hostRoomUpdatedMs, vis: globalThis.document?.visibilityState});
+    // HD1113 r4: a hung close transaction must not block retries (watchdog 8s).
+    if (disconnectClosePending && Date.now() - disconnectCloseStartedAt > 8000) disconnectClosePending = false;
+    if (!fb || !u || !room || room.status === 'closed' || disconnectClosePending) return;
+    if (disconnectState(hostAliveMs(hostBeatMs, hostRoomUpdatedMs)).reclaim) {
+      disconnectClosePending = true; disconnectCloseStartedAt = Date.now();
+      const t0 = disconnectCloseStartedAt; dbg?.('close start');
+      closeDisconnectedRoom({...fb,uid:u.uid},roomId).then(r => dbg?.('close done', r, Date.now()-t0)).catch(e => { dbg?.('close err', String(e?.message||e), Date.now()-t0); console.warn('[disconnect] close',e); })
+        .finally(() => { if (disconnectCloseStartedAt === t0) disconnectClosePending = false; });
+    }
   }, 2000);
 }
 
@@ -1607,7 +1675,7 @@ async function maybeRefreshRescue() {
     });
 
     // reason === 'closed' should be unreachable (handled above); keep gone-only card
-    if (decision.ok && decision.reason === 'gone') {
+    if (!hostPaused && decision.ok && decision.reason === 'gone') {
       rescueOk = true;
       rescueReason = 'gone';
       rescueChips = settled;
@@ -1699,6 +1767,15 @@ async function doCreate(data) {
     return;
   }
   if (creating) return;
+  const attempt = ++createAttempt;
+  const isCurrent = () => attempt === createAttempt;
+  const timeout = setTimeout(() => {
+    if (!isCurrent()) return;
+    ++createAttempt;
+    creating = false;
+    createError = '牌桌沒開成功，請再按一次';
+    paint();
+  }, createTimeoutMs());
   creating = true;
   createError = '';
   paint();
@@ -1706,16 +1783,21 @@ async function doCreate(data) {
     const displayName = user.displayName || '玩家';
     const tableName =
       String(data.name || '').trim() || `${displayName}的牌桌`;
-    await silentlySettleClosedBinding();
-    playerDoc = await getPlayer(fb, user.uid);
+    await silentlySettleClosedBinding(isCurrent);
+    if (!isCurrent()) return;
+    const freshPlayer = await getPlayer(fb, user.uid);
+    if (!isCurrent()) return;
+    playerDoc = freshPlayer;
+    let res = playerDoc?.hostRoomId ? await findHostedOpenTable(fb, user.uid) : null;
+    if (!isCurrent()) return;
     const buyinError = createRoomBuyinError(data.newPlayerChips, data.sb, data.bb, playerDoc?.bank ?? null);
-    if (buyinError) {
+    if (!res && buyinError) {
       createError = buyinError;
       creating = false;
       paint();
       return;
     }
-    const res = await createSingleTable(fb, {
+    if (!res) res = await createSingleTable(fb, {
       uid: user.uid,
       name: tableName,
       displayName,
@@ -1724,15 +1806,19 @@ async function doCreate(data) {
       bb: data.bb,
       newPlayerChips: data.newPlayerChips,
     });
+    if (!isCurrent()) return;
     if (res.existing) {
       // L3: already hosting → go straight back to that table
+      const existingPlayer = await getPlayer(fb, user.uid);
+      if (!isCurrent()) return;
+      playerDoc = existingPlayer;
       creating = false;
       screen = 'lobby';
-      playerDoc = await getPlayer(fb, user.uid);
       if (playerDoc?.tableRoomId !== res.roomId) {
         try { assertMinimumBuyin(playerDoc?.bank ?? res.config.newPlayerChips, res.config.bb); }
         catch (e) { toast(e.message); paint(); return; }
       }
+      clearTimeout(timeout);
       await enterRoom(res.roomId);
       return;
     }
@@ -1742,12 +1828,16 @@ async function doCreate(data) {
     playerDoc = { ...playerDoc, hostRoomId: res.roomId };
     screen = 'share';
   } catch (e) {
+    if (!isCurrent()) return;
     console.error(e);
     createError = friendlyError(
       e,
       '牌桌沒開成功，可能是網路斷了，請再按一次',
     );
+  } finally {
+    clearTimeout(timeout);
   }
+  if (!isCurrent()) return;
   creating = false;
   paint();
 }
@@ -1895,7 +1985,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true, fromContinue
   stopRoom = listenRoom(
     fb,
     id,
-    async (r) => {
+    async (r, metadata) => {
       if (roomId !== id) return;
       clearTimeout(enterRoomTimeout);
       const first = !room;
@@ -1903,6 +1993,13 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true, fromContinue
       const wasBusted = previousSelfSeat >= 0 && (room.stacks?.[previousSelfSeat] === 0 ||
         room.pub?.seats?.[previousSelfSeat]?.chips === 0);
       room = r;
+      if (!metadata?.hasPendingWrites && !metadata?.fromCache) {
+        hostRoomUpdatedMs = r.updatedAt?.toMillis?.() ?? hostRoomUpdatedMs;
+        const live = Math.max(hostBeatMs ?? 0, hostRoomUpdatedMs ?? 0);
+        if (live) hostLoop?.observeHostBeat?.(live);
+      }
+      watchHostBeat(fb, id, r);
+      updateHostDisconnect();
       const ownZeroCashout = r.lastMoneyEvent?.type === 'cashout' &&
         r.lastMoneyEvent.uid === user.uid && r.lastMoneyEvent.amount === 0;
       if (previousSelfSeat >= 0 && (wasBusted || ownZeroCashout) &&
@@ -2468,6 +2565,7 @@ function renderActBar() {
   const mySeat = room.seatUids.indexOf(user?.uid);
   const pub = room.pub || {};
   const isHost = room.hostUid === user?.uid;
+  if (hostPaused) { btns.innerHTML = '<div class="mp-spec">等待房主回來</div>'; lockMpRaisePanel(); return; }
   const seatedCount = room.seatUids.filter(Boolean).length;
   const between = pub.phase === 'lobby' || pub.phase === 'hand_over' || !pub.phase;
 
@@ -2960,7 +3058,7 @@ async function sitDown(seat) {
         );
         const hostBeatMs = hp.exists() ? hp.data()?.beat?.toMillis?.() ?? 0 : 0;
         const updatedAtMs = room.updatedAt?.toMillis?.() || 0;
-        const age = Date.now() - Math.max(hostBeatMs, updatedAtMs);
+        const age = Date.now() - (hostAliveMs(hostBeatMs, updatedAtMs) ?? 0);
         if (age > 30_000) {
           const minutes = Math.max(1, Math.ceil((30 * 60_000 - age) / 60_000));
           toast(`房主已離線，暫時無法入座；牌桌約 ${minutes} 分鐘後會自動關閉，之後就能開新牌桌`);
@@ -3030,7 +3128,10 @@ async function requestLeave() {
 
 function renderBanner() {
   const el = $('#mpBanner');
-  if (!el || !room) return;
+  if (!el) return;
+  el.classList.toggle('mp-banner--hd', !!room && (hostPaused || hostReturned));
+  if (!room) return;
+  if (hostPaused || hostReturned) { el.hidden = false; el.textContent = hostPaused ? DISCONNECT_COPY.paused : DISCONNECT_COPY.returned; return; }
   const user = getUser();
   const isHost = room.hostUid === user?.uid;
   const mySeat = user ? room.seatUids.indexOf(user.uid) : -1;
@@ -3237,7 +3338,16 @@ function showSettlementNotice(id, message, done = false) {
   const card = document.createElement('div');
   card.className = 'mp-close-result-card';
   const title = document.createElement('h2');
-  title.textContent = message;
+  // Break only at a full-width comma so a lone char never wraps alone (same words; textContent unchanged).
+  const parts = String(message).split(/(?<=，)/);
+  if (parts.length > 1) {
+    for (const part of parts) {
+      const span = document.createElement('span');
+      span.style.display = 'inline-block';
+      span.textContent = part;
+      title.appendChild(span);
+    }
+  } else title.textContent = message;
   card.appendChild(title);
   if (done) {
     const button = document.createElement('button');
@@ -3253,11 +3363,11 @@ function showSettlementNotice(id, message, done = false) {
 let stopLeaveSettlement = null;
 
 /** Watch deferred host cashout after a mid-hand guest exit, for at most 3 minutes. */
-function watchLeaveSettlement(fb, uid, leavingRoomId) {
+function watchLeaveSettlement(fb, uid, leavingRoomId, hostWasPaused = false) {
   stopLeaveSettlement?.();
   const bankBefore = Number(playerDoc?.bank) || 0;
   const sessionNo = playerDoc?.sessionNo;
-  showSettlementNotice('mpLeaveSettle', '結算中…這手已蓋牌，打完會把剩下的籌碼結帳');
+  showSettlementNotice('mpLeaveSettle', hostWasPaused ? '結算中…籌碼最晚 1 分鐘內回到帳戶' : '結算中…這手已蓋牌，打完會把剩下的籌碼結帳');
   let stopped = false;
   let timer;
   const stop = () => {
@@ -3345,10 +3455,11 @@ async function confirmLeaveTable() {
     // Same path as 離座: LEAVE intent (mid-hand folds first; host cashout between hands)
     const midHand = isHandInProgress();
     const leavingRoomId = roomId;
+    const hostWasPaused = hostPaused;
     await requestLeave();
     if (midHand) {
       goLobbyClean();
-      watchLeaveSettlement(fb, uid, leavingRoomId);
+      watchLeaveSettlement(fb, uid, leavingRoomId, hostWasPaused);
       return;
     }
     // Wait until chips settled / bind cleared (host processes LEAVE)
@@ -3383,6 +3494,14 @@ async function confirmLeaveTable() {
 function tearDownRoom() {
   lastKnownSelfTableChipsRoomId = null;
   lastKnownSelfSessionNo = null;
+  stopHostBeat?.(); stopHostBeat = null; hostBeatUid = null; hostBeatMs = null; hostRoomUpdatedMs = null; hostPaused = false; hostReturned = false; clearTimeout(hostReturnedTimer);
+  hostReturnedTimer = null;
+  const banner = $('#mpBanner');
+  banner?.classList.remove('mp-banner--hd');
+  if (banner && (banner.textContent === DISCONNECT_COPY.paused || banner.textContent === DISCONNECT_COPY.returned)) {
+    banner.hidden = true;
+    banner.textContent = '';
+  }
   stopTurnClock();
   stopSoundVisibility?.();
   stopSoundVisibility = null;

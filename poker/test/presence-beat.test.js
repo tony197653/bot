@@ -54,13 +54,12 @@ function setup({ host = true, roomWriteAt = 0 } = {}) {
   };
 }
 
-it('idle host beats by 20s and never leaves a gap over 20s for 90s', async () => {
+it('HD1113 r4: idle host beats every 10s, never a gap over 10s for 90s', async () => {
   const h = setup();
   await h.advance(90_000);
   const times = h.beats.map((b) => b.at);
-  assert.ok(times[0] <= 20_000);
-  assert.deepEqual(times, [10_000, 30_000, 50_000, 70_000, 90_000]);
-  for (let i = 1; i < times.length; i++) assert.ok(times[i] - times[i - 1] <= 20_000);
+  assert.deepEqual(times, [0, 10_000, 20_000, 30_000, 40_000, 50_000, 60_000, 70_000, 80_000, 90_000]);
+  for (let i = 1; i < times.length; i++) assert.ok(times[i] - times[i - 1] <= 10_000);
   h.presence.stop();
 });
 
@@ -87,7 +86,7 @@ it('uses the current host role on each tick', async () => {
   await h.advance(10_000);
   h.setHost(true);
   await h.advance(40_000);
-  assert.deepEqual(h.beats.map((b) => b.at), [0, 20_000, 40_000]);
+  assert.deepEqual(h.beats.map((b) => b.at), [0, 20_000, 30_000, 40_000, 50_000]);
   h.presence.stop();
 });
 
@@ -101,6 +100,19 @@ it('explicit beats update the successful-beat clock and failures do not', async 
   await h.advance(20_000);
   h.setFail(false);
   await h.advance(10_000);
-  assert.deepEqual(h.beats.map((b) => b.at), [10_000, 10_000, 20_000, 50_000]);
+  assert.deepEqual(h.beats.map((b) => b.at), [0, 10_000, 10_000, 20_000, 20_000, 50_000]);
+  h.presence.stop();
+});
+
+it('HD1113 r2: host that keeps writing the room still beats every ~10s (visible and hidden)', async () => {
+  // roomWriteAt in the future = the host wrote the room on every tick (old code skipped every beat).
+  const h = setup({ roomWriteAt: Number.POSITIVE_INFINITY });
+  await h.advance(60_000);
+  assert.deepEqual(h.beats.map((b) => b.at), [0, 10_000, 20_000, 30_000, 40_000, 50_000, 60_000]);
+  await h.visibility('hidden');
+  const count = h.beats.length;
+  await h.advance(40_000);
+  assert.ok(h.beats.length >= count + 1);
+  assert.equal(h.beats.at(-1).vis, false);
   h.presence.stop();
 });

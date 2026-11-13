@@ -323,7 +323,8 @@ describe('close paths delete pokerLobby listing', () => {
       room.indexOf('export async function maybeAutoCloseIdleRoom'),
       room.indexOf('export function listenOpenTables'),
     );
-    assert.match(auto, /closeRoom\(/);
+    assert.match(auto, /maybeAutoCloseSingleTable\(/);
+    assert.match(room, /closeDisconnectedRoom[\s\S]*deleteLobbyListing/);
 
     const host = read('js/net/host.js');
     assert.match(host, /listStatus === 'closed'[\s\S]*deleteLobbyListing|deleteLobbyListing[\s\S]*listStatus === 'closed'/);
@@ -348,7 +349,7 @@ describe('close paths delete pokerLobby listing', () => {
       room.indexOf('export function listenOpenTables'),
       room.indexOf('export function listenRoom'),
     );
-    assert.match(listen, /closedLobbySuppress/);
+    assert.match(read('js/ui/mp-app.js'), /isLobbyRoomSuppressed/);
     assert.match(listen, /status === 'closed'/);
     _resetLobbyClosedSuppress();
   });
