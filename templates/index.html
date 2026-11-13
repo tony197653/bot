@@ -2102,9 +2102,10 @@ const featureLibrary=(function(){
   function opt(o){
     if(!o||!o.name) return '';
     var gh=/^https:\/\/github\.com\//.test(o.url||'');
-    var label=gh?'GitHub':'官方文件';
+    var demo=!!o.url&&!/^https?:/.test(o.url);
+    var label=gh?'GitHub':demo?'試用樣本':'官方文件';
     var nameText=esc(o.name).replace(/firebase-record-sync/g,'<span class="nw">firebase-record-sync</span>');
-    var name=o.url?'<a class="lnk" href="'+esc(o.url)+'" target="_blank" rel="noopener">'+nameText+'</a><span class="src">'+label+' ↗</span>':nameText;
+    var name=o.url?'<a class="lnk" href="'+esc(o.url)+'"'+(demo?'':' target="_blank" rel="noopener"')+'>'+nameText+'</a><span class="src">'+label+(demo?' →':' ↗')+'</span>':nameText;
     return '<div class="opt">'+name+(o.note?'<span class="why">'+esc(o.note).replace(/([\u4e00-\u9fff]{3}[。．.]?)$/,'<span class="nw">$1</span>')+'</span>':'')+'</div>';
   }
 

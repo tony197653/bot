@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<script>
+(function () {
+  var pinch = /(?:^|[?&])mode=pinch(?:&|$)/.test(location.search);
+  document.documentElement.setAttribute("data-mode", pinch ? "pinch" : "fixed");
+  var meta = document.createElement("meta");
+  meta.name = "viewport";
+  meta.content = pinch
+    ? "width=device-width, initial-scale=1, viewport-fit=cover"
+    : "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no";
+  document.head.appendChild(meta);
+})();
+</script>
+<title>頁面觸控兩種做法</title>
+<meta name="description" content="對照固定頁與可放大、上下滑不左右跑兩種觸控做法。請用手機打開試。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDEEE9;--paper:#FBFBF8;--ink:#2F312D;--mute:#696C64;--line:#D6D9D0;
+  --line-soft:#E4E6DF;--sage:#66745F;--sage-deep:#505C4A;--sage-soft:#DFE4DA;
+  --r-xs:6px;--r-sm:8px;--r:12px;
+  --font:"Inter","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden;overflow-x:clip;overscroll-behavior-x:none}
+html[data-mode=pinch],html[data-mode=pinch] body{touch-action:pan-y pinch-zoom}
+html[data-mode=pinch].is-zoomed,html[data-mode=pinch].is-zoomed body{touch-action:manipulation}
+button,a{-webkit-tap-highlight-color:transparent}
+main{max-width:640px;margin:0 auto;padding:32px 16px 112px}
+@media(min-width:800px){main{padding:64px 32px 80px}}
+h1{margin:0;font-size:1.75rem;line-height:1.3;font-weight:700;letter-spacing:.02em}
+.lead{margin:8px 0 0;color:var(--mute);font-size:1rem;line-height:1.5}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:24px 0 20px;padding:4px;background:var(--line-soft);border-radius:var(--r);position:relative}
+.modes a{display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 12px;border-radius:var(--r-sm);color:var(--mute);text-decoration:none;font-size:1rem;font-weight:500;position:relative;z-index:1;transition:color .2s var(--ease)}
+.modes a[aria-current=page]{color:var(--ink);background:var(--paper);box-shadow:0 1px 2px rgba(40,42,36,.06)}
+@media(hover:hover) and (pointer:fine){
+  .modes a:hover{color:var(--ink)}
+}
+.modes a:focus-visible{outline:2px solid var(--sage);outline-offset:2px}
+.now{margin:0;padding:16px;background:var(--paper);border:1px solid var(--line-soft);border-radius:var(--r)}
+.now h2{margin:0;font-size:1.0625rem;font-weight:600;line-height:1.4;color:var(--sage-deep)}
+.now p{margin:6px 0 0;color:var(--mute);font-size:.9375rem;line-height:1.55}
+.now code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8125rem;color:var(--ink);word-break:break-all}
+.list{margin:28px 0 0;padding:0;list-style:none;background:var(--paper);border:1px solid var(--line-soft);border-radius:var(--r);overflow:hidden}
+.list li{padding:16px;min-height:56px;display:flex;flex-direction:column;justify-content:center;border-top:1px solid var(--line-soft)}
+.list li:first-child{border-top:0}
+.list b{font-weight:500;font-size:1.0625rem}
+.list span{margin-top:2px;color:var(--mute);font-size:.9375rem}
+.foot{margin:24px 0 0;color:var(--mute);font-size:.875rem;line-height:1.55}
+</style>
+</head>
+<body>
+<main>
+  <h1>頁面觸控兩種做法</h1>
+  <p class="lead">請用手機打開。先上下滑，再試雙指放大。</p>
+  <nav class="modes" aria-label="兩種做法">
+    <a href="?mode=fixed" id="link-fixed">固定頁</a>
+    <a href="?mode=pinch" id="link-pinch">可放大</a>
+  </nav>
+  <div class="now" id="now"></div>
+  <ul class="list" id="list"></ul>
+  <p class="foot">這是對照樣本，還沒放進正式庫。電腦上看不出捏合與左右滑的差異，請用手機試。</p>
+</main>
+<script>
+(function () {
+  var pinch = document.documentElement.getAttribute("data-mode") === "pinch";
+  var fixedLink = document.getElementById("link-fixed");
+  var pinchLink = document.getElementById("link-pinch");
+  if (pinch) pinchLink.setAttribute("aria-current", "page");
+  else fixedLink.setAttribute("aria-current", "page");
+  document.getElementById("now").innerHTML = pinch
+    ? "<h2>現在是：可放大，上下滑不左右跑</h2><p>可以雙指放大。未放大時上下滑不左右跑。<br><code>touch-action: pan-y pinch-zoom</code></p>"
+    : "<h2>現在是：固定頁</h2><p>畫面鎖在原始大小，不能雙指放大。<br><code>maximum-scale=1</code></p>";
+  var items = [
+    ["示範列一", "往下多滑幾行，感受會不會左右跑"],
+    ["示範列二", "再試雙指捏合，看能不能放大"],
+    ["示範列三", "這頁只是給你對照兩種做法"],
+    ["示範列四", "固定頁把縮放鎖死"],
+    ["示範列五", "可放大則允許捏合"],
+    ["示範列六", "未放大時上下滑不帶著左右跑"],
+    ["示範列七", "放大之後可以平移來看細節"],
+    ["示範列八", "請用手機實際點過再比較"],
+    ["示範列九", "電腦觸控板較難感覺差異"],
+    ["示範列十", "內容列是為了讓頁面夠長"],
+    ["示範列十一", "沒有真實資料，只供試用"],
+    ["示範列十二", "切換做法會重新載入頁面"],
+    ["示範列十三", "這樣才能正確換掉縮放設定"],
+    ["示範列十四", "上方切換不會釘在畫面最底"],
+    ["示範列十五", "繼續往下滑試試看"],
+    ["示範列十六", "左右輕滑時注意畫面是否平移"],
+    ["示範列十七", "可放大模式在原始大小應不左右跑"],
+    ["示範列十八", "固定頁則整頁大小鎖住"],
+    ["示範列十九", "對照完告訴我可不可以放進庫"],
+    ["示範列二十", "這是最後一列"]
+  ];
+  var ul = document.getElementById("list");
+  items.forEach(function (it) {
+    var li = document.createElement("li");
+    li.innerHTML = "<b></b><span></span>";
+    li.querySelector("b").textContent = it[0];
+    li.querySelector("span").textContent = it[1];
+    ul.appendChild(li);
+  });
+  function syncZoom() {
+    var scale = (window.visualViewport && window.visualViewport.scale) || 1;
+    document.documentElement.classList.toggle("is-zoomed", scale > 1.02);
+  }
+  if (window.visualViewport) {
+    visualViewport.addEventListener("resize", syncZoom);
+    visualViewport.addEventListener("scroll", syncZoom);
+  }
+  syncZoom();
+})();
+</script>
+</body>
+</html>
