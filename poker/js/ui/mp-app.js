@@ -1,3 +1,4 @@
+import { disconnectState, closeDisconnectedRoom, DISCONNECT_COPY, hostLivenessMs } from '../net/host-disconnect.js';
 /**
  * Milestone-2 shell: auth → lobby → create/join → table (§2 / §13).
  * Solo hot-seat engine kept for ?solo=1 / internal use; no lobby menu entry.
@@ -130,6 +131,39 @@ let presence = null;
 let intents = null;
 /** @type {(() => void)|null} */
 let stopHole = null;
+let stopHostBeat = null;
+let hostBeatMs = null;
+let hostRoomUpdatedMs = null;
+let hostPaused = false;
+let hostReturned = false;
+let hostReturnedTimer = null;
+let hostBeatUid = null;
+function watchHostBeat(fb, id, r) {
+  if (hostBeatUid === r.hostUid) return;
+  stopHostBeat?.(); hostBeatUid = r.hostUid; hostBeatMs = null;
+  stopHostBeat = fb.fs.onSnapshot(fb.fs.doc(fb.db,'pokerRooms',id,'presence',r.hostUid), snap => {
+    if (roomId !== id || snap.metadata?.hasPendingWrites || snap.metadata?.fromCache) return;
+    const next = hostLivenessMs(null, snap);
+    if (Number.isFinite(next)) {
+      hostLoop?.observeHostBeat?.(Math.max(next, hostRoomUpdatedMs ?? 0));
+      hostBeatMs = next;
+      updateHostDisconnect();
+    }
+  }, () => {});
+}
+function updateHostDisconnect() {
+  if (!room || room.status === 'closed') return;
+  const paused = disconnectState(Math.max(hostBeatMs ?? 0, hostRoomUpdatedMs ?? 0) || null).paused;
+  if (hostPaused && !paused) {
+    hostReturned = true;
+    clearTimeout(hostReturnedTimer);
+    hostReturnedTimer = setTimeout(() => { hostReturned = false; paintTableChrome(); }, 4000);
+  }
+  if (paused) hostReturned = false;
+  const changed = hostPaused !== paused;
+  hostPaused = paused;
+  if (changed) { paintTableChrome(); tickTurnHint(); }
+}
 let lastRecvAt = Date.now();
 /** @type {object|null} */
 let prevPub = null;
@@ -198,7 +232,7 @@ function turnClockTick() {
 }
 
 function tickRoomSound() {
-  if (soundNeedsBaseline || screen !== 'table' || document.hidden || !room?.pub || soundSeat < 0) return;
+  if (hostPaused || soundNeedsBaseline || screen !== 'table' || document.hidden || !room?.pub || soundSeat < 0) return;
   const pub = room.pub;
   if (pub.actor !== soundSeat || pub.actionSeq == null ||
       !['preflop', 'flop', 'turn', 'river'].includes(pub.phase)) return;
@@ -228,7 +262,7 @@ function tickTurnHint() {
   if (!hint) return;
   const pub = room?.pub;
   const between = !pub?.phase || pub.phase === 'lobby' || pub.phase === 'hand_over';
-  const rem = screen === 'table' && !between && pub.actor != null
+  const rem = !hostPaused && screen === 'table' && !between && pub.actor != null
     ? turnRemainingMs(pub) : null;
   const text = rem != null ? `${Math.ceil(rem / 1000)} 秒` : '';
   if (hint.textContent !== text) hint.textContent = text;
@@ -472,7 +506,7 @@ async function dismissCloseResultToStats() {
 }
 
 /** M2 #5: stay on table with result card; do not auto-kick. */
-function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry, roomId: ridOpt } = {}) {
+function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry, roomId: ridOpt, disconnected = room?.closedBy === 'host-disconnect' } = {}) {
   const rid = ridOpt || roomId || room?.id || null;
   // User already chose 回大廳／看戰績 — late closed snapshots must not re-open the card
   if (rid && closeResultDismissedFor === rid) return;
@@ -480,13 +514,14 @@ function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry, r
   const existing = document.getElementById('mpCloseResult');
   if (state === 'done' && existing?.dataset.state === 'pending' && closeInFlight) return;
   const n = Number(chips) || 0;
+  const resultTitle = disconnected ? DISCONNECT_COPY.closed : `牌桌已收桌，你帶回 ${n.toLocaleString('en-US')} 籌碼`;
   // Already showing: never let a later 0 clobber a real return; upgrade if better
   if (state === 'done' && rid && closeResultShownFor === rid && existing?.dataset.state === 'done') {
     if (n > closeResultChipsShown) {
       closeResultChipsShown = n;
       const title = document.getElementById('mpCloseResultT');
       if (title) {
-        title.textContent = `牌桌已收桌，你帶回 ${n.toLocaleString('en-US')} 籌碼`;
+        title.textContent = resultTitle;
       }
     }
     return;
@@ -504,13 +539,13 @@ function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry, r
     el.setAttribute('aria-labelledby', 'mpCloseResultT');
     document.body.appendChild(el);
   }
-  const autoLine = auto
+  const autoLine = auto && !disconnected
     ? '<p class="mp-close-result-d">沒人在線 30 分鐘，已自動收桌</p>'
     : '';
   el.dataset.state = state;
   el.innerHTML = `
     <div class="mp-close-result-card">
-      <h2 id="mpCloseResultT">${state === 'pending' ? '結算中…' : state === 'failed' ? '結算沒有完成，請再按一次收桌' : `牌桌已收桌，你帶回 ${n.toLocaleString('en-US')} 籌碼`}</h2>
+      <h2 id="mpCloseResultT">${state === 'pending' ? '結算中…' : state === 'failed' ? '結算沒有完成，請再按一次收桌' : resultTitle}</h2>
       ${autoLine}
       <button type="button" class="mp-btn-primary" id="mpCloseLobby">回大廳</button>
       <button type="button" class="mp-b2" id="mpCloseStats">看戰績</button>
@@ -712,12 +747,12 @@ async function confirmContinueRoom(id) {
     data?.pub?.autoClosed ||
     data?.closedBy === 'auto'
   );
-  return { closed: true, chips, auto };
+  return { closed: true, chips, auto, disconnected: data?.closedBy === 'host-disconnect' };
 }
 
-function revealClosedFromLobby(id, { chips = 0, auto = false } = {}) {
+function revealClosedFromLobby(id, { chips = 0, auto = false, disconnected = false } = {}) {
   if (!id || closeResultDismissedFor === id) return;
-  showCloseResultCard({ chips, auto, roomId: id });
+  showCloseResultCard({ chips, auto, roomId: id, disconnected });
 }
 
 async function continueMyTable(id) {
@@ -980,19 +1015,18 @@ export async function startMpApp() {
     paint();
   });
 
-  // takeover poll; reuse its clock for the throttled lobby sweep.
+  // takeover poll replaced: wait for the original host, then close at T+2.
+  let disconnectClosePending = false;
   setInterval(() => {
     void sweepLobbyTables();
-    const fb = getFirebase();
-    const u = getUser();
-    if (!fb || !u || !room || room.hostUid === u.uid) return;
-    maybeTakeover(fb, room, u.uid, lastRecvAt, (pub) => ({
-      ...pub,
-      phase: 'hand_over',
-      voided: true,
-      board: [],
-      actor: null,
-    }));
+    updateHostDisconnect();
+    const fb = getFirebase(), u = getUser();
+    if (!fb || !u || !room || room.status === 'closed' || disconnectClosePending) return;
+    if (disconnectState(Math.max(hostBeatMs ?? 0, hostRoomUpdatedMs ?? 0) || null).reclaim) {
+      disconnectClosePending = true;
+      closeDisconnectedRoom({...fb,uid:u.uid},roomId).catch(e => console.warn('[disconnect] close',e))
+        .finally(() => { disconnectClosePending = false; });
+    }
   }, 2000);
 }
 
@@ -1607,7 +1641,7 @@ async function maybeRefreshRescue() {
     });
 
     // reason === 'closed' should be unreachable (handled above); keep gone-only card
-    if (decision.ok && decision.reason === 'gone') {
+    if (!hostPaused && decision.ok && decision.reason === 'gone') {
       rescueOk = true;
       rescueReason = 'gone';
       rescueChips = settled;
@@ -1895,7 +1929,7 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true, fromContinue
   stopRoom = listenRoom(
     fb,
     id,
-    async (r) => {
+    async (r, metadata) => {
       if (roomId !== id) return;
       clearTimeout(enterRoomTimeout);
       const first = !room;
@@ -1903,6 +1937,13 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true, fromContinue
       const wasBusted = previousSelfSeat >= 0 && (room.stacks?.[previousSelfSeat] === 0 ||
         room.pub?.seats?.[previousSelfSeat]?.chips === 0);
       room = r;
+      if (!metadata?.hasPendingWrites && !metadata?.fromCache) {
+        hostRoomUpdatedMs = r.updatedAt?.toMillis?.() ?? hostRoomUpdatedMs;
+        const live = Math.max(hostBeatMs ?? 0, hostRoomUpdatedMs ?? 0);
+        if (live) hostLoop?.observeHostBeat?.(live);
+      }
+      watchHostBeat(fb, id, r);
+      updateHostDisconnect();
       const ownZeroCashout = r.lastMoneyEvent?.type === 'cashout' &&
         r.lastMoneyEvent.uid === user.uid && r.lastMoneyEvent.amount === 0;
       if (previousSelfSeat >= 0 && (wasBusted || ownZeroCashout) &&
@@ -2468,6 +2509,7 @@ function renderActBar() {
   const mySeat = room.seatUids.indexOf(user?.uid);
   const pub = room.pub || {};
   const isHost = room.hostUid === user?.uid;
+  if (hostPaused) { btns.innerHTML = ''; lockMpRaisePanel(); return; }
   const seatedCount = room.seatUids.filter(Boolean).length;
   const between = pub.phase === 'lobby' || pub.phase === 'hand_over' || !pub.phase;
 
@@ -3031,6 +3073,7 @@ async function requestLeave() {
 function renderBanner() {
   const el = $('#mpBanner');
   if (!el || !room) return;
+  if (hostPaused || hostReturned) { el.hidden = false; el.textContent = hostPaused ? DISCONNECT_COPY.paused : DISCONNECT_COPY.returned; return; }
   const user = getUser();
   const isHost = room.hostUid === user?.uid;
   const mySeat = user ? room.seatUids.indexOf(user.uid) : -1;
@@ -3383,6 +3426,7 @@ async function confirmLeaveTable() {
 function tearDownRoom() {
   lastKnownSelfTableChipsRoomId = null;
   lastKnownSelfSessionNo = null;
+  stopHostBeat?.(); stopHostBeat = null; hostBeatUid = null; hostBeatMs = null; hostRoomUpdatedMs = null; hostPaused = false; hostReturned = false; clearTimeout(hostReturnedTimer);
   stopTurnClock();
   stopSoundVisibility?.();
   stopSoundVisibility = null;

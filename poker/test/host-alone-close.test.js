@@ -50,45 +50,36 @@ test('房主既有 tick：30 分鐘前不關閉，牌局中不關閉，手間只
   } finally { loop.stop(); globalThis.document = previous; t.mock.timers.reset(); }
 });
 
-test('離線房主：新成員只寫關閉標記；房主心跳新鮮則保留牌桌', async () => {
-  for (const fresh of [false, true]) {
-    let r = base();
-    const writes = [];
-    const now = 1000 + HOST_ALONE_CLOSE_MS + 10;
-    const fs = { doc: (_d, ...p) => p.join('/'), collection: (_d, ...p) => p.join('/'),
-      arrayUnion: uid => [...r.members, uid], serverTimestamp: () => now,
-      getDoc: async path => ({ exists: () => path === 'pokerRooms/r', data: () => r }),
-      getDocs: async () => ({ docs: [{ id: 'h', data: () => ({ beat: { toMillis: () => fresh ? now : 1000 } }) }] }),
-      updateDoc: async (path, patch) => { writes.push({ path, patch }); if (path === 'pokerRooms/r') r = { ...r, ...patch }; },
-      deleteDoc: async () => {} };
-    assert.equal(await maybeAutoCloseSingleTable({ db: {}, fs }, 'r', 'g', now), !fresh);
-    assert.equal(r.status, fresh ? 'lobby' : 'closed');
-    assert.equal(r.stacks[0], 2000);
-    assert.ok(writes.every(w => !w.path.startsWith('pokerPlayers/')));
-    if (!fresh) assert.deepEqual(Object.keys(writes.find(w => w.patch.closedBy).patch), ['status', 'closedBy', 'closedAt']);
-  }
+test('離線收桌入口未到 2 分鐘不可收', async () => {
+  let writes=0;
+  const fs={doc:(_, ...p)=>p.join('/'),runTransaction:async(_,fn)=>fn({
+    get:async p=>({exists:()=>true,data:()=>p.includes('presence')?{beat:{toMillis:()=>1000}}:base()}),
+    update:()=>writes++,set:()=>writes++})};
+  assert.equal(await maybeAutoCloseSingleTable({db:{},fs},'r','g',10000),false);
+  assert.equal(writes,0);
 });
 
-
-test('獨坐與離線門檻 URL 覆寫僅限 emulator，正式環境維持 30 分鐘', async () => {
-  const previous = globalThis.location;
+test('獨坐 timeout 覆寫僅限 localhost emulator；斷線收桌固定 2 分鐘',async()=>{
+  const prev=globalThis.location;
   try {
-    for (const [hostname, search, emu] of [
-      ['localhost', '?emu=1&aloneMs=8000&staleMs=8000', true],
-      ['localhost', '?aloneMs=8000&staleMs=8000', false],
-      ['example.com', '?emu=1&aloneMs=8000&staleMs=8000', false],
+    for(const [hostname,search,expected] of [
+      ['localhost','?emu=1&aloneMs=8000',8000],
+      ['localhost','?aloneMs=8000',HOST_ALONE_CLOSE_MS],
+      ['example.com','?emu=1&aloneMs=8000',HOST_ALONE_CLOSE_MS],
     ]) {
-      globalThis.location = { hostname, search };
-      assert.equal(hostAloneCloseMs(), emu ? 8000 : HOST_ALONE_CLOSE_MS);
-      let room = base();
-      const now = 10000;
-      const fs = { doc: (_d, ...p) => p.join('/'), collection: (_d, ...p) => p.join('/'),
-        arrayUnion: uid => [...room.members, uid], serverTimestamp: () => now,
-        getDoc: async path => ({ exists: () => path === 'pokerRooms/r', data: () => room }),
-        getDocs: async () => ({ docs: [{ id: 'h', data: () => ({ beat: { toMillis: () => 1000 } }) }] }),
-        updateDoc: async (path, patch) => { if (path === 'pokerRooms/r') room = { ...room, ...patch }; },
-        deleteDoc: async () => {} };
-      assert.equal(await maybeAutoCloseSingleTable({ db: {}, fs }, 'r', 'g', now), emu);
+      globalThis.location={hostname,search};assert.equal(hostAloneCloseMs(),expected);
+      assert.equal((await import('../js/net/host-disconnect.js')).HOST_CLOSE_MS,120000);
     }
-  } finally { globalThis.location = previous; }
+  } finally {globalThis.location=prev;}
+});
+test('離線房主：新鮮 beat 或 updatedAt 都保留，兩者過期才原子退款',async()=>{
+  for(const fresh of ['beat','room','none']) {
+    let r=base();let transactions=0;const now=131001;
+    if(fresh==='room')r.updatedAt={toMillis:()=>now};
+    const fs={doc:(_, ...p)=>p.join('/'),getDoc:async p=>({exists:()=>true,data:()=>
+      p.includes('presence')?{beat:{toMillis:()=>fresh==='beat'?now:1000}}:r}),
+      runTransaction:async()=>{transactions++;return true;},deleteDoc:async()=>{}};
+    assert.equal(await maybeAutoCloseSingleTable({db:{},fs},'r','g',now),fresh==='none');
+    assert.equal(transactions,fresh==='none'?1:0);
+  }
 });

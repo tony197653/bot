@@ -158,9 +158,9 @@ test('fix1109：零手數收桌／第三人入座／禁止房主任意移錢', a
       assert.equal(p.bank,765); assert.equal(p.inPlay,0); assert.equal(p.total,765);
       assert.equal(ct,4000);
     });
-    await t.test('房主離線獨坐：非房主懶惰收桌回收 000，本人稍後結算守恆且不重複', async () => {
+    await t.test('房主離線獨坐：HD1113 T+2 非房主收桌即退回帳戶並回收 000，之後結算不重複', async () => {
       const original = await seed();
-      const stale = fs.Timestamp.fromMillis(Date.now() - 31 * 60_000);
+      const stale = fs.Timestamp.fromMillis(Date.now() - (2 * 60_000 + 10_000));
       await env.withSecurityRulesDisabled(async c => {
         const d = c.firestore();
         await fs.updateDoc(roomRef(d), {
@@ -187,11 +187,12 @@ test('fix1109：零手數收桌／第三人入座／禁止房主任意移錢', a
       assert.equal(created.code, '000');
       const closed = (await fs.getDoc(roomRef(db('host')))).data();
       assert.equal(closed.status, 'closed');
-      assert.equal(closed.closedBy, 'auto');
-      assert.equal(closed.stacks[0], 2000);
+      // HD1113 13:40：T+2 收桌同一筆交易把籌碼加回帳戶（取代舊 closedBy auto 只標記關桌）。
+      assert.equal(closed.closedBy, 'host-disconnect');
+      assert.equal(closed.stacks[0], 0);
       let player = (await fs.getDoc(fs.doc(db('host'), 'pokerPlayers', 'host'))).data();
-      assert.equal(player.bank, 0);
-      assert.equal(player.inPlay, 2000);
+      assert.equal(player.bank, 2000);
+      assert.equal(player.inPlay, 0);
       const hostFb = { fs, db: db('host') };
       await assertSucceeds(settleClosedRoomBinding(hostFb, 'host', { ...closed, id: roomId }));
       await assertSucceeds(settleClosedRoomBinding(hostFb, 'host', { ...closed, id: roomId }));

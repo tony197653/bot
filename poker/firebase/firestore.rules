@@ -39,6 +39,31 @@ service cloud.firestore {
     function ledgerPath(uid, id) { return /databases/$(database)/documents/pokerPlayers/$(uid)/ledger/$(id); }
     function presencePath(roomId, uid) { return /databases/$(database)/documents/pokerRooms/$(roomId)/presence/$(uid); }
 
+    // HD1113: additive permission; legacy host paths below remain unchanged.
+    function disconnectExpired(r, id) {
+      let hp = presencePath(id, r.hostUid);
+      return roomOpen(r.status) && r.updatedAt < request.time - duration.value(2, 'm')
+        && (!exists(hp) || get(hp).data.beat < request.time - duration.value(2, 'm'));
+    }
+    function disconnectAmount(r, i) {
+      return betweenHands(r.pub) ? r.stacks[i]
+        : r.pub.seats[i].chips + r.pub.seats[i].contributed;
+    }
+    // One getAfter per seat (doc-access limit 10 per write): the ledger rule validates amount and player write.
+    function disconnectSeatPaid(id, r, i) {
+      return r.seatUids[i] == ''
+        || getAfter(ledgerPath(r.seatUids[i], id + '_' + string(r.sess[i].sessionNo) + '_cashout')).data.at == request.time;
+    }
+    function disconnectCloseShape(id, r, d) {
+      return disconnectExpired(r, id)
+        && d.status == 'closed' && d.closedBy == 'host-disconnect' && d.closedAt == request.time
+        && d.rev == r.rev + 1 && d.updatedAt == request.time
+        && d.seatUids == ['', '', '', '', '', ''] && d.stacks == [0,0,0,0,0,0]
+        && d.sess == [null,null,null,null,null,null] && d.chipTotal == 0 && d.deadlineAt == null
+        && d.lastMoneyEvent == {'type':'hostDisconnectClose'}
+        && d.diff(r).affectedKeys().hasOnly(['status','closedBy','closedAt','rev','updatedAt',
+          'seatUids','stacks','sess','chipTotal','deadlineAt','lastMoneyEvent']);
+    }
     function validConfig(c) {
       return c is map
         && c.keys().hasOnly(['sb', 'bb', 'newPlayerChips', 'actionMs', 'topUpAmount'])
@@ -421,7 +446,7 @@ service cloud.firestore {
       // 舊式 status=open 維持僅成員可讀：線上 main joinByCode 靠「讀取被拒 → arrayUnion members」。
       allow get: if signedIn() && (
         request.auth.uid in resource.data.members
-        || resource.data.status in ['lobby', 'playing']
+        || resource.data.status in ['lobby', 'playing', 'closed']
       );
       // 附錄 L7：限 20、只列 lobby|playing（與客戶端 query 一致）
       allow list: if signedIn()
@@ -429,13 +454,19 @@ service cloud.firestore {
         && resource.data.status in ['lobby', 'playing'];
       allow create: if signedIn() && (createLobbyRoomOk() || createLegacyOpenRoomOk());
       // 分流省運算式（上限 1000）：帳務事件只可能走 isHostWrite；一手結束結算走專用 isHostSettleWrite（或接手作廢）。
-      allow update: if signedIn() && (request.resource.data.lastMoneyEvent == {'type': 'closeAll'}
+      allow update: if signedIn() && ((
+        request.resource.data.lastMoneyEvent == {'type':'hostDisconnectClose'}
+        && disconnectCloseShape(roomId, resource.data, request.resource.data)
+        && disconnectSeatPaid(roomId, resource.data, 0) && disconnectSeatPaid(roomId, resource.data, 1)
+        && disconnectSeatPaid(roomId, resource.data, 2) && disconnectSeatPaid(roomId, resource.data, 3)
+        && disconnectSeatPaid(roomId, resource.data, 4) && disconnectSeatPaid(roomId, resource.data, 5))
+        || (request.resource.data.lastMoneyEvent == {'type': 'closeAll'}
         ? isHostCloseAll()
         : request.resource.data.lastMoneyEvent != resource.data.lastMoneyEvent
           ? isHostWrite()
           : isSettleTransition()
             ? (isHostSettleWrite() || isTakeover())
-            : (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover() || isAutoClose()));
+            : (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover() || isAutoClose())));
       allow delete: if false;
 
       // 動作意圖：每人一份，覆寫，seq 只能變大；turn＝送出時看到的 pub.actionSeq（房主用來去重）
@@ -475,7 +506,8 @@ service cloud.firestore {
 
       // 心跳：本人寫（不查房間，省讀取）；成員讀
       match /presence/{uid} {
-        allow get, list: if signedIn() && request.auth.uid in roomOf(roomId).members;
+        allow get: if signedIn() && (uid == roomOf(roomId).hostUid || request.auth.uid in roomOf(roomId).members);
+        allow list: if signedIn() && request.auth.uid in roomOf(roomId).members;
         allow create, update: if isSelf(uid)
           && request.resource.data.keys().hasOnly(['beat', 'vis'])
           && request.resource.data.beat == request.time
@@ -680,11 +712,30 @@ service cloud.firestore {
                     && d.topUps == 0 && d.topUpChips == 0 && d.hands == 0
                     && d.nightKey is string && d.nightKey.matches('[0-9]{8}')));
         }
+        // HD1113: only inside the same request that host-disconnect-closes the room.
+        function disconnectCashout(d) {
+          let r = roomOf(d.roomId);
+          let a = getAfter(roomPath(d.roomId)).data;
+          let p = getAfter(playerPath(uid)).data;
+          return d.type == 'cashout' && d.seat is int && d.seat >= 0 && d.seat < 6
+            && roomOpen(r.status) && r.seatUids[d.seat] == uid
+            && a.status == 'closed' && a.get('closedBy', '') == 'host-disconnect'
+            && a.lastMoneyEvent == {'type':'hostDisconnectClose'}
+            && d.sessionNo == r.sess[d.seat].sessionNo
+            && entryId == d.roomId + '_' + string(d.sessionNo) + '_cashout'
+            && d.amount == disconnectAmount(r, d.seat)
+            && d.buyIn == r.sess[d.seat].buyIn && d.topUps == r.sess[d.seat].topUps
+            && d.topUpChips == r.sess[d.seat].topUpChips && d.hands == r.sess[d.seat].hands
+            && d.nightKey == r.sess[d.seat].nightKey
+            && d.at == request.time && d.by == request.auth.uid
+            && p.tableRoomId == null && d.bankAfter == p.bank;
+        }
         allow get: if signedIn();
         allow list: if signedIn() && request.query.limit <= 50;
         allow create: if signedIn() && entryKeysOk(request.resource.data)
           && (grantOk(request.resource.data) || buyinEntryOk(request.resource.data)
-              || cashoutEntryOk(request.resource.data));
+              || cashoutEntryOk(request.resource.data)
+              || disconnectCashout(request.resource.data));
         allow update, delete: if false;
       }
 

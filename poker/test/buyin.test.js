@@ -290,7 +290,7 @@ test('hand_over 輸光者走既有 cashoutSeat，離座通知先回大廳再提�
   await ctx.drainSitLeaveInner();assert.deepEqual(events,[[0,'u',0]]);
   const begin=source.indexOf('      const previousSelfSeat');
   const end=source.indexOf('      lastRecvAt',begin);
-  const ui=vm.createContext({room:{seatUids:['u'],stacks:[0]},r:{status:'lobby',seatUids:[''],lastMoneyEvent:{type:'cashout',uid:'u',amount:0}},user:{uid:'u'},
+  const ui=vm.createContext({metadata:undefined,hostRoomUpdatedMs:null,hostBeatMs:null,hostLoop:null,watchHostBeat:()=>{},updateHostDisconnect:()=>{},fb:{},id:'r',room:{seatUids:['u'],stacks:[0]},r:{status:'lobby',seatUids:[''],lastMoneyEvent:{type:'cashout',uid:'u',amount:0}},user:{uid:'u'},
     goLobbyClean:()=>events.push('lobby'),toast:msg=>events.push(msg)});
   vm.runInContext('(function(){'+source.slice(begin,end)+'})()',ui);
   assert.deepEqual(events.slice(1),['lobby','籌碼輸光了，已離座回大廳']);

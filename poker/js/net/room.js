@@ -1,3 +1,4 @@
+import { closeDisconnectedRoom, disconnectState, hostLivenessMs } from './host-disconnect.js';
 /**
  * Create / join / extend / close rooms (§9.2 + 附錄 L3/L4/L7).
  */
@@ -199,8 +200,7 @@ export async function findOpenTable(fb, uid) {
   const rows = [];
   snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
   for (const table of sortLobbyListings(rows)) {
-    if (uid && table.code === SINGLE_TABLE_CODE &&
-        await maybeAutoCloseSingleTable(fb, table.id, uid)) continue;
+    if (await maybeAutoCloseSingleTable(fb, table.id, uid)) continue;
     return table;
   }
   return null;
@@ -246,72 +246,55 @@ export async function createSingleTable(fb, opts) {
   throw new Error('牌桌正在更新，請稍後再試');
 }
 
-/** 非房主先成為成員；只關房，不更動任何人的籌碼。 */
+/** T+2 原子退款；拒絕或競爭失敗由開桌流程繼續處理。 */
 export async function maybeAutoCloseSingleTable(fb, roomId, uid, now = Date.now(), onStale) {
-  const { db, fs } = fb;
-  const ref = fs.doc(db, 'pokerRooms', roomId);
-  let snap = await fs.getDoc(ref);
-  if (!snap.exists()) return false;
-  let room = snap.data();
-  if (room.code !== SINGLE_TABLE_CODE || !isRoomOpenStatus(room.status) ||
-      !hostIsOnlySeated(room) || !['lobby', 'hand_over'].includes(room.pub?.phase) ||
-      now - (room.updatedAt?.toMillis?.() || 0) <= emuTimeout('staleMs', IDLE_CLOSE_MS)) return false;
-  if (!room.members.includes(uid)) {
-    await fs.updateDoc(ref, { members: fs.arrayUnion(uid) });
-  }
-  snap = await fs.getDoc(ref);
-  room = snap.data();
-  return maybeAutoCloseIdleRoom(fb, { ...room, id: roomId }, now, emuTimeout('staleMs', IDLE_CLOSE_MS), onStale);
+  try {
+    const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', roomId));
+    if (!snap.exists()) return true;
+    const r = snap.data();
+    if (r.status === 'closed') return true;
+    // Fresh room writes alone prove the host is still alive.
+    if (!disconnectState(hostLivenessMs(r), now).reclaim) return false;
+    const hp = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', roomId, 'presence', r.hostUid));
+    if (!disconnectState(hostLivenessMs(r, hp), now).reclaim) return false;
+    const closed = await closeDisconnectedRoom({ ...fb, uid }, roomId, now);
+    if (closed) { onStale?.(); await deleteLobbyListing(fb, roomId); }
+    if (closed) return true;
+    const latest = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', roomId));
+    return latest.exists() && latest.data().status === 'closed';
+  } catch { return false; }
 }
 
-/** Lobby sweep: bounded reads, no chip writes; restore visibility if closing fails. */
+/** Lobby sweep: bounded reads; T+2 atomic cashout, restore visibility if closing fails. */
 const lobbySweepState = new WeakMap();
 export async function sweepStaleTable(fb, row, uid, now = Date.now(), onVisibilityChange = () => {}) {
-  if (!fb || !uid || !row?.id || !isRoomOpenStatus(row.status) || row.seatUids?.includes(uid)) return false;
-  if (isLobbyRoomSuppressed(row.id)) return true;
-  // getFirebase() returns a new wrapper each time; the Firestore instance is stable.
-  const key = fb.db;
-  let checks = lobbySweepState.get(key);
-  if (!checks) lobbySweepState.set(key, checks = new Map());
+  if (!fb || !uid || !row?.id || row.seatUids?.includes(uid)) return false;
+  const checks = lobbySweepState.get(fb.db) || new Map();
+  lobbySweepState.set(fb.db, checks);
   const previous = checks.get(row.id);
-  if (previous?.inflight || (previous && now - previous.at < 30_000)) return false;
-  const check = { at: now, inflight: true };
-  checks.set(row.id, check);
-  let hidden = false;
-  const hide = () => {
-    hidden = true;
-    noteLobbyRoomClosed(row.id);
-    onVisibilityChange();
-  };
+  if (previous?.inflight || (previous && now - previous.at < 10_000)) return false;
+  const check = { at:now, inflight:true }; checks.set(row.id, check);
   try {
-    const { db, fs } = fb;
-    const ref = fs.doc(db, 'pokerRooms', row.id);
-    const snap = await fs.getDoc(ref);
+    const ref = fb.fs.doc(fb.db,'pokerRooms',row.id);
+    const snap = await fb.fs.getDoc(ref);
     if (!snap.exists()) return false;
-    const room = snap.data();
-    if (room.seatUids?.includes(uid)) return false;
-    if (room.status === 'closed') { hide(); return true; }
-    if (!isRoomOpenStatus(room.status) ||
-        now - (room.updatedAt?.toMillis?.() || 0) <= emuTimeout('staleMs', IDLE_CLOSE_MS)) return false;
-    let closed;
-    if (room.code === SINGLE_TABLE_CODE) {
-      closed = await maybeAutoCloseSingleTable(fb, row.id, uid, now, hide);
-    } else {
-      if (!room.members?.includes(uid)) await fs.updateDoc(ref, { members: fs.arrayUnion(uid) });
-      closed = await maybeAutoCloseIdleRoom(fb, { ...room, id: row.id }, now,
-        emuTimeout('staleMs', IDLE_CLOSE_MS), hide);
-    }
-    if (closed) return true;
+    const r = snap.data();
+    if (r.seatUids?.includes(uid)) return false;
+    if (r.status === 'closed') { noteLobbyRoomClosed(row.id); onVisibilityChange(); return true; }
+    const hp = await fb.fs.getDoc(fb.fs.doc(fb.db,'pokerRooms',row.id,'presence',r.hostUid));
+    const beat = hostLivenessMs(r, hp);
+    const state = disconnectState(beat ?? now, now);
+    const hidden = r.status === 'closed' || state.hidden;
+    const was = closedLobbySuppress.has(row.id);
+    if (hidden) closedLobbySuppress.add(row.id); else closedLobbySuppress.delete(row.id);
+    if (hidden !== was) onVisibilityChange();
+    if (state.reclaim && r.status !== 'closed' &&
+        await closeDisconnectedRoom({...fb,uid},row.id,now)) await deleteLobbyListing(fb, row.id);
+    return hidden;
   } catch {
-    // Permission/network failures leave the lobby row available.
-  } finally {
-    check.inflight = false;
-  }
-  if (hidden) {
-    closedLobbySuppress.delete(row.id);
-    onVisibilityChange();
-  }
-  return false;
+    if (closedLobbySuppress.delete(row.id)) onVisibilityChange();
+    return false;
+  } finally { check.inflight = false; }
 }
 
 export function hostIsOnlySeated(room) {
@@ -361,7 +344,7 @@ async function createRoomWithLock(fb, opts, single = null) {
   };
 
   // L3: already hosting an open table → return it.
-  // Idle ≥30m: close first (rules reject a second open hostRoomId), then create.
+  // Disconnected ≥2m: refund and close first, then create.
   const pref = fs.doc(db, 'pokerPlayers', opts.uid);
   const pSnap = await fs.getDoc(pref);
   const existingHost = pSnap.exists() ? pSnap.data()?.hostRoomId : null;
@@ -753,26 +736,7 @@ export async function closeRoom(fb, roomId, { auto = false, closedRoom = null } 
  */
 export async function maybeAutoCloseIdleRoom(fb, room, now = Date.now(), staleMs = idleCloseMs(), onStale) {
   if (!room?.id || room.status === 'closed') return false;
-  if (room.code === SINGLE_TABLE_CODE && (!hostIsOnlySeated(room) ||
-      !['lobby', 'hand_over'].includes(room.pub?.phase))) return false;
-  const updatedMs = room.updatedAt?.toMillis?.() || 0;
-  if (now - updatedMs <= staleMs) return false;
-  const { db, fs } = fb;
-  try {
-    const pres = await fs.getDocs(
-      fs.collection(db, 'pokerRooms', room.id, 'presence'),
-    );
-    for (const d of pres.docs) {
-      if (room.code === SINGLE_TABLE_CODE && d.id !== room.hostUid) continue;
-      const beat = d.data()?.beat?.toMillis?.() || 0;
-      if (now - beat <= staleMs) return false;
-    }
-    onStale?.();
-    await closeRoom(fb, room.id, { auto: true });
-    return true;
-  } catch {
-    return false;
-  }
+  return maybeAutoCloseSingleTable(fb, room.id, fb.auth?.currentUser?.uid || fb.uid, now, onStale);
 }
 
 /**
@@ -794,7 +758,7 @@ export function listenOpenTables(fb, onRows, onErr) {
       snap.forEach((d) => {
         const data = d.data() || {};
         // Defensive: never show suppressed / closed leftovers
-        if (closedLobbySuppress.has(d.id)) return;
+        // Keep hidden rows in sweep input so a fresh host heartbeat can restore them.
         if (data.status === 'closed') return;
         rows.push({ id: d.id, ...data });
       });
@@ -813,7 +777,7 @@ export function listenRoom(fb, roomId, onData, onErr) {
         onErr?.(new Error('房間不存在'));
         return;
       }
-      onData({ id: snap.id, ...snap.data() });
+      onData({ id: snap.id, ...snap.data() }, snap.metadata);
     },
     (err) => onErr?.(err),
   );
