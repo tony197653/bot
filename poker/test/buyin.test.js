@@ -300,7 +300,7 @@ test('開桌遇到既有桌：依該桌大盲阻擋，留在大廳；先結算�
   const events=[],messages=[];
   const ctx=vm.createContext({
     getFirebase:()=>({}),getUser:()=>({uid:'u',displayName:'玩家'}),
-    createRoomBuyinError,createDraft:{},creating:false,createError:'',screen:'create',playerDoc:{bank:99999},
+    createAttempt: 0, createTimeoutMs: () => 15000, setTimeout, clearTimeout, createRoomBuyinError,createDraft:{},creating:false,createError:'',screen:'create',playerDoc:{bank:99999},
     paint:()=>events.push('paint'),toast:msg=>messages.push(msg),console,
     silentlySettleClosedBinding:async()=>events.push('settle'),
     getPlayer:async()=>{events.push('read');return {bank:2000,tableRoomId:null};},

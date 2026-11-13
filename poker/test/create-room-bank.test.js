@@ -97,7 +97,7 @@ test('doCreate 使用重讀 bank：拒絕不足／超額／低於50BB，合法�
   for (const [bank, bb, chips, allowed] of [[2000,50,2000,false],[2000,20,2500,false],[2000,20,500,false],[2000,20,2000,true],[null,50,2000,false]]) {
     let creates = 0, reads = 0;
     const ctx = vm.createContext({ getFirebase: () => ({}), getUser: () => ({ uid: 'u' }),
-      createDraft: {}, creating: false, createError: '', playerDoc: { bank: 99999 },
+      createAttempt: 0, createTimeoutMs: () => 15000, setTimeout, clearTimeout, createDraft: {}, creating: false, createError: '', playerDoc: { bank: 99999 },
       paint() {}, silentlySettleClosedBinding: async () => {},
       getPlayer: async () => { reads++; return bank == null ? null : { bank }; },
       createSingleTable: async () => { creates++; return { roomId: 'r' }; },

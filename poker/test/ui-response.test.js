@@ -205,3 +205,97 @@ test('大廳實際 HTML：沒有房號輸入；已有桌僅一個清單入口', 
     assert.equal((root.innerHTML.match(/class="mp-row[ "]/g) || []).length, 1);
   } finally { globalThis.window = previousWindow; globalThis.document = previousDocument; }
 });
+
+function createTimeoutHarness(overrides = {}) {
+  const timers = new Map(), paints = [], entered = [], errors = [];
+  let nextTimer = 0;
+  const ctx = vm.createContext({
+    ...net, createAttempt: 0, createDraft: {}, creating: false, createError: '',
+    screen: 'create', playerDoc: null, shareInfo: null, DEFAULT_NEW_PLAYER_CHIPS: 2000,
+    createRoomBuyinError: () => null, assertMinimumBuyin() {},
+    getFirebase: () => ({}), getUser: () => ({ uid: 'u' }),
+    silentlySettleClosedBinding: async () => {}, getPlayer: async () => ({ bank: 2000 }),
+    createTimeoutMs: () => net.CREATE_TIMEOUT_MS,
+    setTimeout: (fn, ms) => { assert.equal(ms, 15000); timers.set(++nextTimer, fn); return nextTimer; },
+    clearTimeout: id => timers.delete(id),
+    paint: () => paints.push({ creating: ctx.creating, error: ctx.createError, screen: ctx.screen }),
+    enterRoom: async id => entered.push(id), toast() {}, friendlyError: e => e.message,
+    console: { error: e => errors.push(e) }, ...overrides,
+  });
+  vm.runInContext(section('async function doCreate(', '\nasync function doJoin('), ctx);
+  return { ctx, paints, entered, errors, timeout() { const fn = timers.values().next().value; assert.ok(fn); fn(); } };
+}
+const createData = { name: '桌', sb: 10, bb: 20, newPlayerChips: 2000 };
+const flushCreate = () => new Promise(resolve => setImmediate(resolve));
+
+test('開房 promise 卡住：15 秒後解除 creating 並顯示可重試文案', async () => {
+  const h = createTimeoutHarness({ createSingleTable: () => new Promise(() => {}) });
+  void h.ctx.doCreate(createData);
+  await flushCreate();
+  assert.equal(h.ctx.creating, true);
+  h.timeout();
+  assert.equal(h.ctx.creating, false);
+  assert.equal(h.ctx.createError, '牌桌沒開成功，請再按一次');
+  assert.equal(h.paints.at(-1).creating, false);
+});
+
+for (const rejectLate of [false, true]) test(`開房逾時後的延遲${rejectLate ? '拒絕' : '成功'}不導頁或覆寫重試狀態`, async () => {
+  let resolveOld, rejectOld, creates = 0;
+  const old = new Promise((resolve, reject) => { resolveOld = resolve; rejectOld = reject; });
+  const h = createTimeoutHarness({ createSingleTable: () => ++creates === 1 ? old : new Promise(() => {}) });
+  const pending = h.ctx.doCreate(createData);
+  await flushCreate(); h.timeout();
+  void h.ctx.doCreate(createData); await flushCreate();
+  const paintCount = h.paints.length;
+  if (rejectLate) rejectOld(new Error('late network error'));
+  else resolveOld({ existing: true, roomId: 'late', config: { bb: 20 } });
+  await pending;
+  assert.equal(h.ctx.creating, true);
+  assert.equal(h.ctx.createError, '');
+  assert.equal(h.ctx.screen, 'create');
+  assert.equal(h.ctx.shareInfo, null);
+  assert.equal(h.paints.length, paintCount);
+  assert.deepEqual(h.entered, []); assert.deepEqual(h.errors, []);
+});
+
+test('開房逾時後晚提交：重試依 hostRoomId 回原桌，不再建桌或重複扣籌碼', async () => {
+  const fb = fakeFirebase();
+  let release, creates = 0;
+  const held = new Promise(resolve => { release = resolve; });
+  const h = createTimeoutHarness({
+    getFirebase: () => fb,
+    getPlayer: async () => structuredClone(fb.docs.get('pokerPlayers/u')),
+    createSingleTable: async (...args) => { creates++; const result = await net.createSingleTable(...args); await held; return result; },
+  });
+  const pending = h.ctx.doCreate(createData);
+  await flushCreate();
+  const roomId = fb.docs.get('pokerPlayers/u').hostRoomId;
+  assert.ok(roomId); h.timeout();
+  // 模擬清單尚未可見；仍需由 hostRoomId 找回，而非依賴大廳快取。
+  fb.docs.delete(`pokerLobby/${roomId}`);
+  const transactions = fb.calls.filter(c => c === 'runTransaction').length;
+  await h.ctx.doCreate(createData);
+  assert.deepEqual(h.entered, [roomId]); assert.equal(creates, 1);
+  assert.equal(fb.calls.filter(c => c === 'runTransaction').length, transactions);
+  assert.equal([...fb.docs.keys()].filter(k => /^pokerRooms\/[^/]+$/.test(k)).length, 1);
+  assert.equal(fb.docs.get('pokerPlayers/u').bank, 2000);
+  release(); await pending;
+  assert.deepEqual(h.entered, [roomId]); assert.equal(h.ctx.screen, 'lobby');
+});
+
+test('開房逾時覆寫僅限 localhost emu，且必須為正安全整數', () => {
+  const original = globalThis.location;
+  try {
+    for (const [hostname, search, expected] of [
+      ['localhost', '?emu=1&createTimeoutMs=25', 25],
+      ['127.0.0.1', '?emu=1&createTimeoutMs=50', 50],
+      ['example.com', '?emu=1&createTimeoutMs=25', 15000],
+      ['localhost', '?createTimeoutMs=25', 15000],
+      ['localhost', '?emu=1&createTimeoutMs=-1', 15000],
+      ['localhost', '?emu=1&createTimeoutMs=1.5', 15000],
+    ]) {
+      globalThis.location = { hostname, search };
+      assert.equal(net.createTimeoutMs(), expected);
+    }
+  } finally { globalThis.location = original; }
+});

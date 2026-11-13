@@ -71,7 +71,7 @@ function harness(fb) {
     setTimeout: () => 1, clearTimeout: () => {}, enterRoomTimeout: null,
     console, Date, Promise, getFirebase: () => fb, getUser: () => ({ uid: 'u', displayName: 'Host' }),
     playerDoc: structuredClone(fb.docs.get('pokerPlayers/u')), screen: 'lobby', rescueOk: false,
-    createDraft: {}, creating: false, createError: '', shareInfo: null,
+    createAttempt: 0, createTimeoutMs: () => 15000, setTimeout, clearTimeout, createDraft: {}, creating: false, createError: '', shareInfo: null,
     closingFreeze: false, hostSitPending: false, closeResultDismissedFor: null,
     closeResultShownFor: null, closeResultChipsShown: 0, pendingCloseReturnChips: null,
     lastKnownSelfTableChips: 0, lobbyClosedSynced: new Set(), roomId: null, room: null,

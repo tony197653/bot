@@ -11,6 +11,10 @@ const CODE_DIGITS = 3;
 const CODE_ATTEMPTS = 10;
 export const SINGLE_TABLE_CODE = '000';
 const IDLE_CLOSE_MS = 30 * 60_000;
+export const CREATE_TIMEOUT_MS = 15000;
+export function createTimeoutMs() {
+  return emuTimeout('createTimeoutMs', CREATE_TIMEOUT_MS);
+}
 export const HOST_ALONE_CLOSE_MS = 30 * 60_000;
 function emuTimeout(name, fallback) {
   if (!isEmuMode()) return fallback;
@@ -332,20 +336,10 @@ export async function createRoom(fb, opts) {
   return createRoomWithLock(fb, opts);
 }
 
-async function createRoomWithLock(fb, opts, single = null) {
+/** 重用房主指標檢查；交易內仍會再確認，避免並行開桌。 */
+export async function findHostedOpenTable(fb, uid) {
   const { db, fs } = fb;
-  const name = (opts.name || '週五牌局').trim().slice(0, 20) || '週五牌局';
-  const config = {
-    sb: opts.sb,
-    bb: opts.bb,
-    newPlayerChips: opts.newPlayerChips ?? DEFAULT_NEW_PLAYER_CHIPS,
-    actionMs: 30000,
-    topUpAmount: 2000,
-  };
-
-  // L3: already hosting an open table → return it.
-  // Disconnected ≥2m: refund and close first, then create.
-  const pref = fs.doc(db, 'pokerPlayers', opts.uid);
+  const pref = fs.doc(db, 'pokerPlayers', uid);
   const pSnap = await fs.getDoc(pref);
   const existingHost = pSnap.exists() ? pSnap.data()?.hostRoomId : null;
   if (existingHost) {
@@ -371,6 +365,23 @@ async function createRoomWithLock(fb, opts, single = null) {
       }
     }
   }
+  return null;
+}
+
+async function createRoomWithLock(fb, opts, single = null) {
+  const { db, fs } = fb;
+  const name = (opts.name || '週五牌局').trim().slice(0, 20) || '週五牌局';
+  const config = {
+    sb: opts.sb,
+    bb: opts.bb,
+    newPlayerChips: opts.newPlayerChips ?? DEFAULT_NEW_PLAYER_CHIPS,
+    actionMs: 30000,
+    topUpAmount: 2000,
+  };
+
+  const pref = fs.doc(db, 'pokerPlayers', opts.uid);
+  const hosted = await findHostedOpenTable(fb, opts.uid);
+  if (hosted) return hosted;
 
   const profile = {
     displayName: String(opts.displayName || '玩家').slice(0, 60),

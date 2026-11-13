@@ -24,6 +24,8 @@ import {
 } from '../net/firebase-config.js';
 import {
   createSingleTable,
+  findHostedOpenTable,
+  createTimeoutMs,
   findOpenTable,
   joinByCode,
   joinByRoomId,
@@ -319,6 +321,7 @@ let joinDigits = '';
 let shareInfo = null;
 let createError = '';
 let creating = false;
+let createAttempt = 0;
 let joining = false;
 let joinError = '';
 let joinEnded = false;
@@ -387,53 +390,62 @@ function hideCloseResultCard() {
  * Lobby must never show「已收桌／結帳離開」for a closed table.
  * @returns {Promise<number>} chips credited this call (0 if skipped/idempotent)
  */
-async function silentlySettleClosedBinding() {
+async function silentlySettleClosedBinding(isCurrent = () => true) {
+  let settledPlayer = playerDoc;
   const fb = getFirebase();
   const uid = getUser()?.uid;
   if (!fb || !uid) return 0;
   try {
-    playerDoc = await getPlayer(fb, uid);
+    settledPlayer = await getPlayer(fb, uid);
+    if (!isCurrent()) return 0;
   } catch {
     /* keep stale */
   }
-  const tid = playerDoc?.tableRoomId;
+  if (!isCurrent()) return 0;
+  const tid = settledPlayer?.tableRoomId;
   let credited = 0;
   if (tid) {
     try {
       const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', tid));
+      if (!isCurrent()) return 0;
       const closed = !snap.exists() || snap.data()?.status === 'closed';
       if (closed) {
-        const inPlayBefore = Number(playerDoc?.inPlay) || 0;
+        const inPlayBefore = Number(settledPlayer?.inPlay) || 0;
         const room = snap.exists()
           ? { id: tid, ...snap.data(), status: 'closed' }
           : { id: tid, status: 'closed', seatUids: [] };
         const res = await settleClosedRoomBinding(fb, uid, room);
+        if (!isCurrent()) return 0;
         if (typeof res?.amount === 'number') credited = res.amount;
         else if (res?.skipped || res?.idempotent) credited = 0;
         else credited = inPlayBefore;
+        if (!isCurrent()) return 0;
         try {
-          playerDoc = await getPlayer(fb, uid);
+          settledPlayer = await getPlayer(fb, uid);
+          if (!isCurrent()) return 0;
         } catch {
-          if (playerDoc) {
-            playerDoc = {
-              ...playerDoc,
+          if (settledPlayer) {
+            settledPlayer = {
+              ...settledPlayer,
               tableRoomId: null,
               inPlay: 0,
-              bank: (playerDoc.bank || 0) + credited,
-              total: (playerDoc.bank || 0) + credited,
+              bank: (settledPlayer.bank || 0) + credited,
+              total: (settledPlayer.bank || 0) + credited,
             };
           }
         }
       }
     } catch (e) {
+      if (!isCurrent()) return 0;
       console.warn('silent settle closed', e);
     }
   }
   // Clear host pointer at closed/missing room
-  const hid = playerDoc?.hostRoomId;
+  const hid = settledPlayer?.hostRoomId;
   if (hid && fb && uid) {
     try {
       const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', hid));
+      if (!isCurrent()) return 0;
       if (!snap.exists() || snap.data()?.status === 'closed') {
         try {
           await fb.fs.updateDoc(fb.fs.doc(fb.db, 'pokerPlayers', uid), {
@@ -443,21 +455,25 @@ async function silentlySettleClosedBinding() {
         } catch {
           /* rules may deny */
         }
+        if (!isCurrent()) return 0;
         try {
-          playerDoc = await getPlayer(fb, uid);
+          settledPlayer = await getPlayer(fb, uid);
+          if (!isCurrent()) return 0;
         } catch {
           /* keep going */
         }
-        if (playerDoc?.hostRoomId === hid) {
-          playerDoc = { ...playerDoc, hostRoomId: null };
+        if (settledPlayer?.hostRoomId === hid) {
+          settledPlayer = { ...settledPlayer, hostRoomId: null };
         }
       }
     } catch {
       /* ignore */
     }
   }
+  if (!isCurrent()) return 0;
+  playerDoc = settledPlayer;
   // Closed tables never use the rescue settle card
-  if (rescueReason === 'closed' || !playerDoc?.tableRoomId) {
+  if (rescueReason === 'closed' || !settledPlayer?.tableRoomId) {
     rescueOk = false;
     rescueReason = null;
     rescueChips = null;
@@ -1746,6 +1762,15 @@ async function doCreate(data) {
     return;
   }
   if (creating) return;
+  const attempt = ++createAttempt;
+  const isCurrent = () => attempt === createAttempt;
+  const timeout = setTimeout(() => {
+    if (!isCurrent()) return;
+    ++createAttempt;
+    creating = false;
+    createError = '牌桌沒開成功，請再按一次';
+    paint();
+  }, createTimeoutMs());
   creating = true;
   createError = '';
   paint();
@@ -1753,16 +1778,21 @@ async function doCreate(data) {
     const displayName = user.displayName || '玩家';
     const tableName =
       String(data.name || '').trim() || `${displayName}的牌桌`;
-    await silentlySettleClosedBinding();
-    playerDoc = await getPlayer(fb, user.uid);
+    await silentlySettleClosedBinding(isCurrent);
+    if (!isCurrent()) return;
+    const freshPlayer = await getPlayer(fb, user.uid);
+    if (!isCurrent()) return;
+    playerDoc = freshPlayer;
+    let res = playerDoc?.hostRoomId ? await findHostedOpenTable(fb, user.uid) : null;
+    if (!isCurrent()) return;
     const buyinError = createRoomBuyinError(data.newPlayerChips, data.sb, data.bb, playerDoc?.bank ?? null);
-    if (buyinError) {
+    if (!res && buyinError) {
       createError = buyinError;
       creating = false;
       paint();
       return;
     }
-    const res = await createSingleTable(fb, {
+    if (!res) res = await createSingleTable(fb, {
       uid: user.uid,
       name: tableName,
       displayName,
@@ -1771,15 +1801,19 @@ async function doCreate(data) {
       bb: data.bb,
       newPlayerChips: data.newPlayerChips,
     });
+    if (!isCurrent()) return;
     if (res.existing) {
       // L3: already hosting → go straight back to that table
+      const existingPlayer = await getPlayer(fb, user.uid);
+      if (!isCurrent()) return;
+      playerDoc = existingPlayer;
       creating = false;
       screen = 'lobby';
-      playerDoc = await getPlayer(fb, user.uid);
       if (playerDoc?.tableRoomId !== res.roomId) {
         try { assertMinimumBuyin(playerDoc?.bank ?? res.config.newPlayerChips, res.config.bb); }
         catch (e) { toast(e.message); paint(); return; }
       }
+      clearTimeout(timeout);
       await enterRoom(res.roomId);
       return;
     }
@@ -1789,12 +1823,16 @@ async function doCreate(data) {
     playerDoc = { ...playerDoc, hostRoomId: res.roomId };
     screen = 'share';
   } catch (e) {
+    if (!isCurrent()) return;
     console.error(e);
     createError = friendlyError(
       e,
       '牌桌沒開成功，可能是網路斷了，請再按一次',
     );
+  } finally {
+    clearTimeout(timeout);
   }
+  if (!isCurrent()) return;
   creating = false;
   paint();
 }

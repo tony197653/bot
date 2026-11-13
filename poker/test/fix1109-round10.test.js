@@ -82,7 +82,7 @@ test('房主重新登入先靜默結算已被關閉的房間，回大廳且不�
       assert.equal(ctx.playerDoc.hostRoomId, null);
     },
   });
-  vm.runInContext(section('async function silentlySettleClosedBinding()', '/** @deprecated'), ctx);
+  vm.runInContext(section('async function silentlySettleClosedBinding(', '/** @deprecated'), ctx);
   vm.runInContext(section('  onUser(async (ev) => {', '  // takeover poll'), ctx);
   await authHandler({ status: 'signed-in', user: { uid: 'host' } });
   assert.equal(paints, 1);
