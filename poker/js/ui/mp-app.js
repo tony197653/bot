@@ -159,6 +159,7 @@ function updateHostDisconnect() {
     clearTimeout(hostReturnedTimer);
     hostReturnedTimer = null;
     const banner = $('#mpBanner');
+    banner?.classList.remove('mp-banner--hd');
     if (banner && (banner.textContent === DISCONNECT_COPY.paused || banner.textContent === DISCONNECT_COPY.returned)) {
       banner.hidden = true;
       banner.textContent = '';
@@ -2521,7 +2522,7 @@ function renderActBar() {
   const mySeat = room.seatUids.indexOf(user?.uid);
   const pub = room.pub || {};
   const isHost = room.hostUid === user?.uid;
-  if (hostPaused) { btns.innerHTML = ''; lockMpRaisePanel(); return; }
+  if (hostPaused) { btns.innerHTML = '<div class="mp-spec">等待房主回來</div>'; lockMpRaisePanel(); return; }
   const seatedCount = room.seatUids.filter(Boolean).length;
   const between = pub.phase === 'lobby' || pub.phase === 'hand_over' || !pub.phase;
 
@@ -3084,7 +3085,9 @@ async function requestLeave() {
 
 function renderBanner() {
   const el = $('#mpBanner');
-  if (!el || !room) return;
+  if (!el) return;
+  el.classList.toggle('mp-banner--hd', !!room && (hostPaused || hostReturned));
+  if (!room) return;
   if (hostPaused || hostReturned) { el.hidden = false; el.textContent = hostPaused ? DISCONNECT_COPY.paused : DISCONNECT_COPY.returned; return; }
   const user = getUser();
   const isHost = room.hostUid === user?.uid;
@@ -3441,6 +3444,7 @@ function tearDownRoom() {
   stopHostBeat?.(); stopHostBeat = null; hostBeatUid = null; hostBeatMs = null; hostRoomUpdatedMs = null; hostPaused = false; hostReturned = false; clearTimeout(hostReturnedTimer);
   hostReturnedTimer = null;
   const banner = $('#mpBanner');
+  banner?.classList.remove('mp-banner--hd');
   if (banner && (banner.textContent === DISCONNECT_COPY.paused || banner.textContent === DISCONNECT_COPY.returned)) {
     banner.hidden = true;
     banner.textContent = '';

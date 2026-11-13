@@ -1067,6 +1067,12 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-toast{position:fixed;left:max(12px,env(safe-area-inset-left));right:auto;top:max(calc(var(--top-h) + 4px),calc(var(--top-h) + env(safe-area-inset-top,0px) + 4px));bottom:auto;transform:none;z-index:80;background:color-mix(in srgb, var(--ink-solid) 88%, transparent);color:var(--paper);padding:5px 10px;border-radius:999px;font-size:12px;line-height:1.4;text-align:left;max-width:min(60vw,320px);pointer-events:none}
 .mp-banner{position:fixed;left:0;right:0;top:var(--top-h);z-index:40;background:#3a1d12ee;color:var(--ink);padding:10px 14px;font-size:13px;text-align:center;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center}
 .mp-banner[hidden]{display:none!important}
+@media (min-width:1024px){
+  /* Match .app's 20px inset, 320px side panel and 20px column gap.
+     Reserve the banner's 40px above the stage so table content stays clear. */
+  .mp-banner--hd{left:20px;right:360px;top:calc(var(--top-h) + 12px);line-height:20px}
+  body:has(> .mp-banner--hd:not([hidden])) .app .stage{margin-top:40px}
+}
 .mp-banner-msg{flex:1 1 220px;line-height:1.45;text-align:center}
 .mp-banner-acts{display:inline-flex;flex-wrap:wrap;gap:6px;justify-content:center}
 .mp-banner-act{

@@ -58,8 +58,16 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const appSource=readFileSync(new URL('../js/ui/mp-app.js',import.meta.url),'utf8');
 const extract=(start,end)=>appSource.slice(appSource.indexOf(start),appSource.indexOf(end,appSource.indexOf(start)));
+function bannerElement(textContent = '') {
+  const classes = new Set(['mp-banner', 'mp-banner--hd']);
+  return {textContent, hidden:false, classList:{
+    remove:name=>classes.delete(name),
+    contains:name=>classes.has(name),
+    toggle(name, on) { if (on) classes.add(name); else classes.delete(name); },
+  }};
+}
 test('HD1113：實際動作列停用且隱藏倒數；既有 banner 顯示等待文案',()=>{
-  const btns={innerHTML:'bet'},hint={textContent:'20 秒'},banner={};let locked=0;
+  const btns={innerHTML:'bet'},hint={textContent:'20 秒'},banner=bannerElement();let locked=0;
   const c=vm.createContext({hostPaused:true,hostReturned:false,room:{seatUids:['p'],hostUid:'h',pub:{phase:'flop',actor:0}},
     screen:'table',getUser:()=>({uid:'p'}),DISCONNECT_COPY,
     $:s=>s==='#btns'?btns:s==='#turnHint'?hint:s==='#mpBanner'?banner:{},lockMpRaisePanel:()=>locked++});
@@ -67,8 +75,55 @@ test('HD1113：實際動作列停用且隱藏倒數；既有 banner 顯示等待
   vm.runInContext(extract('function tickTurnHint()', 'function consumeRoomSound'),c);
   vm.runInContext(extract('function renderBanner()', 'function renderSidePanels'),c);
   vm.runInContext('renderActBar(); tickTurnHint(); renderBanner();',c);
-  assert.equal(btns.innerHTML,'');assert.equal(locked,1);assert.equal(hint.textContent,'');
+  assert.equal(btns.innerHTML,'<div class="mp-spec">等待房主回來</div>');assert.equal(locked,1);assert.equal(hint.textContent,'');
   assert.equal(banner.textContent,DISCONNECT_COPY.paused);
+  assert.equal(banner.classList.contains('mp-banner--hd'),true);
+});
+
+test('HD1113：斷線 modifier 僅用於暫停／回來，清空及其他提示均移除',()=>{
+  const banner=bannerElement();
+  banner.classList.remove('mp-banner--hd');
+  const c=vm.createContext({hostPaused:true,hostReturned:false,
+    room:{hostUid:'h',seatUids:['p'],pub:{}},getUser:()=>({uid:'p'}),DISCONNECT_COPY,
+    hostShouldWarn:()=>false,resetTimeTaipeiLabel:()=> '00:00',esc:s=>s,
+    $:s=>s==='#mpBanner'?banner:null});
+  vm.runInContext(extract('function renderBanner()', 'function renderSidePanels'),c);
+  for (const state of ['paused','returned','clear','voided','warn','quota','no-room']) {
+    c.hostPaused=state==='paused';c.hostReturned=state==='returned';
+    c.room.pub={voided:state==='voided',quotaStop:state==='quota'};
+    c.hostShouldWarn=()=>state==='warn';
+    if (state==='no-room') c.room=null;
+    const hd=state==='paused'||state==='returned';
+    banner.classList.toggle('mp-banner--hd',!hd);
+    c.renderBanner();
+    assert.equal(banner.classList.contains('mp-banner--hd'),hd,state);
+    assert.equal(banner.classList.contains('mp-banner'),true,state);
+    if (hd) assert.equal(banner.textContent,DISCONNECT_COPY[state]);
+    if (state==='clear') {assert.equal(banner.hidden,true);assert.equal(banner.textContent,'');}
+    if (state==='voided') assert.equal(banner.textContent,'這一手作廢，即將重新開局');
+    if (state==='warn') assert.match(banner.textContent,/今天的免費用量快用完了/);
+    if (state==='quota') assert.match(banner.innerHTML,/mpQuotaLeave/);
+  }
+});
+
+test('HD1113：暫停顯示等待文字，房主回來或收桌清除暫停後恢復動作',()=>{
+  for (const closed of [false,true]) {
+    const btns={innerHTML:'old buttons'},act={};
+    const c=vm.createContext({hostPaused:true,hostReturned:false,hostReturnedTimer:7,
+      room:{status:'playing',hostUid:'h',seatUids:['p'],config:{bb:20},pub:{phase:'flop',actor:0}},
+      getUser:()=>({uid:'p'}),hostBeatMs:Date.now(),hostRoomUpdatedMs:null,
+      disconnectState,DISCONNECT_COPY,hostSitPending:false,
+      clearTimeout(){},setTimeout(){},paintTableChrome(){},tickTurnHint(){},lockMpRaisePanel(){},
+      $:s=>s==='#btns'?btns:s==='#act'?act:null});
+    vm.runInContext(extract('function renderActBar()', 'function clearMpRaiseHold()'),c);
+    vm.runInContext(extract('function updateHostDisconnect()', 'let lastRecvAt'),c);
+    c.renderActBar();assert.match(btns.innerHTML,/等待房主回來/);assert.doesNotMatch(btns.innerHTML,/<button/);
+    if (closed) c.room.status='closed';
+    c.updateHostDisconnect();c.renderActBar();
+    assert.equal(c.hostPaused,false);assert.equal(c.hostReturned,!closed);
+    assert.match(btns.innerHTML,/id="mpCheck"/);assert.match(btns.innerHTML,/id="mpRaise"/);
+    assert.doesNotMatch(btns.innerHTML,/等待房主回來|disabled/);
+  }
 });
 
 import {remainingMs} from '../js/net/client.js';
@@ -99,7 +154,7 @@ test('HD1113：房主回來顯示「房主已回來」banner（不重複 toast�
 test('HD1113：收桌清除暫停、回來狀態與計時器，不殘留斷線 banner',()=>{
   for (const closedBy of [undefined, 'host-disconnect']) {
     for (const copy of [DISCONNECT_COPY.paused, DISCONNECT_COPY.returned, '其他既有提示']) {
-      const banner={textContent:copy,hidden:false};const cleared=[];
+      const banner=bannerElement(copy);const cleared=[];
       const c=vm.createContext({room:{status:'playing',closedBy},hostPaused:true,hostReturned:true,
         hostReturnedTimer:7,DISCONNECT_COPY,$:s=>s==='#mpBanner'?banner:null,
         clearTimeout:id=>cleared.push(id)});
@@ -108,6 +163,7 @@ test('HD1113：收桌清除暫停、回來狀態與計時器，不殘留斷線 b
       c.updateHostDisconnect();
       assert.equal(c.hostPaused,false);assert.equal(c.hostReturned,false);
       assert.deepEqual(cleared,[7]);assert.equal(c.hostReturnedTimer,null);
+      assert.equal(banner.classList.contains('mp-banner--hd'),false);
       if (copy==='其他既有提示') {
         assert.equal(banner.textContent,copy);assert.equal(banner.hidden,false);
       } else {
@@ -119,7 +175,7 @@ test('HD1113：收桌清除暫停、回來狀態與計時器，不殘留斷線 b
 
 test('HD1113：執行完整 tearDownRoom 清空斷線 banner，保留其他既有提示',()=>{
   for (const copy of [DISCONNECT_COPY.paused, DISCONNECT_COPY.returned, '其他既有提示']) {
-    const banner={textContent:copy,hidden:false};const cleared=[];
+    const banner=bannerElement(copy);const cleared=[];
     const c=vm.createContext({hostPaused:true,hostReturned:true,hostReturnedTimer:7,
       stopHostBeat:null,stopSoundVisibility:null,stopRoom:null,stopHole:null,enterRoomTimeout:null,
       presence:null,hostLoop:null,intents:null,animQ:null,room:{status:'playing'},roomId:'r',
@@ -130,6 +186,7 @@ test('HD1113：執行完整 tearDownRoom 清空斷線 banner，保留其他既�
     c.tearDownRoom();
     assert.equal(c.hostPaused,false);assert.equal(c.hostReturned,false);
     assert.equal(c.hostReturnedTimer,null);assert.ok(cleared.includes(7));
+    assert.equal(banner.classList.contains('mp-banner--hd'),false);
     assert.equal(c.room,null);assert.equal(c.roomId,null);
     assert.equal(banner.textContent.includes('房主連線中斷，等待回來'),false);
     if (copy==='其他既有提示') {
