@@ -295,14 +295,29 @@ html[data-lib="components"]{scroll-padding-top:84px;scrollbar-gutter:stable;over
 }
 #lib-components .sound-dls a:active,#lib-components .sound-play:active{background:var(--sage-soft)}
 #lib-components .sound-row>summary:focus-visible,#lib-components .sound-play:focus-visible{outline:2px solid var(--sage);outline-offset:-2px}
-#lib-components .icon-preview{width:180px;height:180px;border-radius:22.37%;overflow:hidden;flex:none;box-shadow:var(--shadow);background:#1a73e8}
-#lib-components .icon-preview img{width:100%;height:100%;display:block;object-fit:cover}
-#lib-components .icon-thumbs{display:flex;gap:10px;align-items:center;justify-content:center}
-#lib-components .icon-thumbs img{width:56px;height:56px;border-radius:22.37%;display:block;box-shadow:var(--shadow);background:#1a73e8}
-#lib-components .icon-dls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%}
+#lib-components .icon-list{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+#lib-components .icon-row{border-bottom:1px solid var(--line-soft)}
+#lib-components .icon-row:last-child{border-bottom:0}
+#lib-components .icon-row>summary{display:flex;align-items:center;gap:12px;min-height:68px;padding:12px 16px;cursor:pointer;list-style:none;font:inherit;color:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#lib-components .icon-row>summary::-webkit-details-marker,#lib-components .icon-row>summary::marker{display:none;content:""}
+#lib-components .icon-thumb{width:44px;height:44px;border-radius:22.37%;overflow:hidden;flex:none;box-shadow:var(--shadow);background:#1a73e8}
+#lib-components .icon-thumb img{width:100%;height:100%;display:block;object-fit:cover}
+#lib-components .icon-meta{flex:1;min-width:0}
+#lib-components .icon-meta h3{font-size:0.875rem;line-height:1.5;font-weight:500}
+#lib-components .icon-meta p{color:var(--mute);font-size:0.875rem;margin-top:2px;line-height:1.5}
+#lib-components .icon-row>summary .chev{margin-left:auto;color:var(--mute);transition:transform .3s var(--ease-out)}
+#lib-components .icon-row[open]>summary .chev{transform:rotate(180deg)}
+#lib-components .icon-panel{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+#lib-components .icon-thumbs{display:flex;gap:10px;align-items:center}
+#lib-components .icon-thumbs img{width:40px;height:40px;border-radius:22.37%;display:block;box-shadow:var(--shadow);background:#1a73e8}
+#lib-components .icon-dls{display:flex;flex-wrap:wrap;gap:8px;width:100%}
 #lib-components .icon-dls a{font:inherit;font-size:0.875rem;line-height:1;font-weight:500;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 12px;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:var(--r-sm);background:transparent;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-@media (hover:hover) and (pointer:fine){#lib-components .icon-dls a:hover{background:#fff;border-color:#BFC3B8}}
+@media (hover:hover) and (pointer:fine){
+  #lib-components .icon-dls a:hover{background:#fff;border-color:#BFC3B8}
+  #lib-components .icon-row>summary:hover{background:#F3F4EF}
+}
 #lib-components .icon-dls a:active{background:var(--sage-soft)}
+#lib-components .icon-row>summary:focus-visible{outline:2px solid var(--sage);outline-offset:-2px}
 
 #lib-components .hint{padding:0 20px 18px;color:var(--mute);font-size:0.8125rem;line-height:1.5}
 #lib-components .sample-tag{font-size:0.8125rem;color:var(--mute);margin:0 0 8px 2px;line-height:1.5}
@@ -1558,43 +1573,58 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <!-- 圖示 -->
 <section class="cat" id="icons">
   <div class="cat-head"><h2>圖示</h2><p>會考網站圖示，可下載各尺<span class="nw">寸檔案。</span></p></div>
-  <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">考7</span><div><h3>考 7</h3><p>BIZ UDPGothic Bold，SIL OFL 1.1<span class="nw">（Morisawa）</span></p></div></div>
-      <div class="stage col mid">
-        <div class="icon-preview"><img src="icons/kao-7-bizudpgothic/180.png" width="180" height="180" alt="考 7 藍底白字預覽"></div>
+  <div class="icon-list">
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb"><img src="icons/kao-7-bizudpgothic/180.png" width="44" height="44" alt="考 7 藍底白字預覽"></span>
+        <span class="icon-meta"><h3>考 7</h3><p>BIZ UDPGothic，OFL</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
         <div class="icon-thumbs">
-          <img src="icons/kao-7-bizudpgothic/thumb-blue.png" width="56" height="56" alt="藍底">
-          <img src="icons/kao-7-bizudpgothic/thumb-green.png" width="56" height="56" alt="綠底">
-          <img src="icons/kao-7-bizudpgothic/thumb-orange.png" width="56" height="56" alt="橙紅底">
+          <img src="icons/kao-7-bizudpgothic/thumb-blue.png" width="40" height="40" alt="藍底">
+          <img src="icons/kao-7-bizudpgothic/thumb-green.png" width="40" height="40" alt="綠底">
+          <img src="icons/kao-7-bizudpgothic/thumb-orange.png" width="40" height="40" alt="橙紅底">
         </div>
         <div class="icon-dls">
           <a href="icons/kao-7-bizudpgothic/180.png" download="kao-7-bizudpgothic-180.png">180 PNG</a> <a href="icons/kao-7-bizudpgothic/32.png" download="kao-7-bizudpgothic-32.png">32 PNG</a> <a href="icons/kao-7-bizudpgothic/16.png" download="kao-7-bizudpgothic-16.png">16 PNG</a> <a href="icons/kao-7-bizudpgothic/180.svg" download="kao-7-bizudpgothic-180.svg">180 SVG</a> <a href="icons/kao-7-bizudpgothic/32.svg" download="kao-7-bizudpgothic-32.svg">32 SVG</a> <a href="icons/kao-7-bizudpgothic/16.svg" download="kao-7-bizudpgothic-16.svg">16 SVG</a>
         </div>
-      </div></article>
-    <article class="spec"><div class="spec-head"><span class="code">考4</span><div><h3>考 4</h3><p>霞鶩文楷 TC Medium，SIL OFL 1.1<span class="nw">（LXGW）</span></p></div></div>
-      <div class="stage col mid">
-        <div class="icon-preview"><img src="icons/kao-4-wenkai/180.png" width="180" height="180" alt="考 4 藍底白字預覽"></div>
+      </div>
+    </details>
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb"><img src="icons/kao-4-wenkai/180.png" width="44" height="44" alt="考 4 藍底白字預覽"></span>
+        <span class="icon-meta"><h3>考 4</h3><p>霞鶩文楷，OFL（LXGW）</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
         <div class="icon-thumbs">
-          <img src="icons/kao-4-wenkai/thumb-blue.png" width="56" height="56" alt="藍底">
-          <img src="icons/kao-4-wenkai/thumb-green.png" width="56" height="56" alt="綠底">
-          <img src="icons/kao-4-wenkai/thumb-orange.png" width="56" height="56" alt="橙紅底">
+          <img src="icons/kao-4-wenkai/thumb-blue.png" width="40" height="40" alt="藍底">
+          <img src="icons/kao-4-wenkai/thumb-green.png" width="40" height="40" alt="綠底">
+          <img src="icons/kao-4-wenkai/thumb-orange.png" width="40" height="40" alt="橙紅底">
         </div>
         <div class="icon-dls">
           <a href="icons/kao-4-wenkai/180.png" download="kao-4-wenkai-180.png">180 PNG</a> <a href="icons/kao-4-wenkai/32.png" download="kao-4-wenkai-32.png">32 PNG</a> <a href="icons/kao-4-wenkai/16.png" download="kao-4-wenkai-16.png">16 PNG</a> <a href="icons/kao-4-wenkai/180.svg" download="kao-4-wenkai-180.svg">180 SVG</a> <a href="icons/kao-4-wenkai/32.svg" download="kao-4-wenkai-32.svg">32 SVG</a> <a href="icons/kao-4-wenkai/16.svg" download="kao-4-wenkai-16.svg">16 SVG</a>
         </div>
-      </div></article>
-    <article class="spec"><div class="spec-head"><span class="code">書3</span><div><h3>書本 3</h3><p>Material Symbols auto_stories，Apache 2.0</p></div></div>
-      <div class="stage col mid">
-        <div class="icon-preview"><img src="icons/book-3-material/180.png" width="180" height="180" alt="書本 3 藍底白書預覽"></div>
+      </div>
+    </details>
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb"><img src="icons/book-3-material/180.png" width="44" height="44" alt="書本 3 藍底白書預覽"></span>
+        <span class="icon-meta"><h3>書本 3</h3><p>Material Symbols，Apache</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
         <div class="icon-thumbs">
-          <img src="icons/book-3-material/thumb-blue.png" width="56" height="56" alt="藍底">
-          <img src="icons/book-3-material/thumb-green.png" width="56" height="56" alt="綠底">
-          <img src="icons/book-3-material/thumb-orange.png" width="56" height="56" alt="橙紅底">
+          <img src="icons/book-3-material/thumb-blue.png" width="40" height="40" alt="藍底">
+          <img src="icons/book-3-material/thumb-green.png" width="40" height="40" alt="綠底">
+          <img src="icons/book-3-material/thumb-orange.png" width="40" height="40" alt="橙紅底">
         </div>
         <div class="icon-dls">
           <a href="icons/book-3-material/180.png" download="book-3-material-180.png">180 PNG</a> <a href="icons/book-3-material/32.png" download="book-3-material-32.png">32 PNG</a> <a href="icons/book-3-material/16.png" download="book-3-material-16.png">16 PNG</a> <a href="icons/book-3-material/180.svg" download="book-3-material-180.svg">180 SVG</a> <a href="icons/book-3-material/32.svg" download="book-3-material-32.svg">32 SVG</a> <a href="icons/book-3-material/16.svg" download="book-3-material-16.svg">16 SVG</a>
         </div>
-      </div></article>
+      </div>
+    </details>
   </div>
 </section>
 
