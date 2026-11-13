@@ -387,9 +387,9 @@
       },
       "alternatives": [
         {
-          "name": "音效",
-          "url": "",
-          "note": "答對、答錯、成績頁三個音。"
+          "name": "音效 a1、d2、b1",
+          "url": "#sounds",
+          "note": ""
         },
         {
           "name": "電腦鍵盤作答",
