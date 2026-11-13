@@ -295,6 +295,26 @@ html[data-lib="components"]{scroll-padding-top:84px;scrollbar-gutter:stable;over
 }
 #lib-components .sound-dls a:active,#lib-components .sound-play:active{background:var(--sage-soft)}
 #lib-components .sound-row>summary:focus-visible,#lib-components .sound-play:focus-visible{outline:2px solid var(--sage);outline-offset:-2px}
+#lib-components .icon-list{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+#lib-components .icon-row{border-bottom:1px solid var(--line-soft)}
+#lib-components .icon-row:last-child{border-bottom:0}
+#lib-components .icon-row>summary{display:flex;align-items:center;gap:12px;min-height:68px;padding:12px 16px;cursor:pointer;list-style:none;font:inherit;color:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#lib-components .icon-row>summary::-webkit-details-marker,#lib-components .icon-row>summary::marker{display:none;content:""}
+#lib-components .icon-thumb{width:44px;height:44px;border-radius:22.37%;overflow:hidden;flex:none;box-shadow:var(--shadow);background:#1a73e8}
+#lib-components .icon-thumb img{width:100%;height:100%;display:block;object-fit:cover}
+#lib-components .icon-meta{flex:1;min-width:0}
+#lib-components .icon-meta h3{font-size:0.875rem;line-height:1.5;font-weight:500;display:flex;align-items:center;gap:8px;white-space:nowrap;min-width:0}
+#lib-components .icon-meta h3 .code{height:22px;font-size:0.75rem;letter-spacing:0}
+#lib-components .icon-meta p{color:var(--mute);font-size:0.875rem;margin-top:2px;line-height:1.5}
+#lib-components .icon-row>summary .chev{margin-left:auto;color:var(--mute);transition:transform .3s var(--ease-out)}
+#lib-components .icon-row[open]>summary .chev{transform:rotate(180deg)}
+#lib-components .icon-panel{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+#lib-components .icon-thumbs{display:flex;gap:10px;align-items:center}
+#lib-components .icon-thumbs img{width:40px;height:40px;border-radius:22.37%;display:block;box-shadow:var(--shadow);background:#1a73e8}
+@media (hover:hover) and (pointer:fine){
+  #lib-components .icon-row>summary:hover{background:#F3F4EF}
+}
+#lib-components .icon-row>summary:focus-visible{outline:2px solid var(--sage);outline-offset:-2px}
 
 #lib-components .hint{padding:0 20px 18px;color:var(--mute);font-size:0.8125rem;line-height:1.5}
 #lib-components .sample-tag{font-size:0.8125rem;color:var(--mute);margin:0 0 8px 2px;line-height:1.5}
@@ -1520,12 +1540,13 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <header class="top">
   <div class="wrap">
     <p class="lead">元件可點來試；按鈕推薦 B1 主色膠囊。</p>
-    <div class="meta"><span>共 <b>14 類 46 個</b></span><span>示範情境為虛構「小森陶房」，數字是<span class="nw">範例資料。</span></span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
+    <div class="meta"><span>共 <b>16 類 57 個</b></span><span>示範情境為虛構「小森陶房」，數字是<span class="nw">範例資料。</span></span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
   </div>
 </header>
 
 <nav class="toc" aria-label="元件分類">
   <div class="wrap">
+    <a href="#icons"><span>圖</span>圖示</a>
     <a href="#sounds"><span>音</span>音效</a>
     <a href="#buttons"><span>B</span>按鈕</a>
     <a href="#tables"><span>T</span>表格</a>
@@ -1546,7 +1567,116 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <main class="wrap">
 
-<!-- 按鈕 -->
+<!-- 圖示 -->
+<section class="cat" id="icons">
+  <div class="cat-head"><h2>圖示</h2><p>會考網站圖示，點列可看預覽。</p></div>
+  <div class="icon-list">
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb"><img src="icons/kao-7-bizudpgothic/180.png" width="44" height="44" alt="考 7 藍底白字預覽"></span>
+        <span class="icon-meta"><h3><span class="code">I001-考7</span></h3><p>BIZ UDPGothic，OFL</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
+        <div class="icon-thumbs">
+          <img src="icons/kao-7-bizudpgothic/thumb-blue.png" width="40" height="40" alt="藍底">
+          <img src="icons/kao-7-bizudpgothic/thumb-green.png" width="40" height="40" alt="綠底">
+          <img src="icons/kao-7-bizudpgothic/thumb-orange.png" width="40" height="40" alt="橙紅底">
+        </div>
+      </div>
+    </details>
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb"><img src="icons/kao-4-wenkai/180.png" width="44" height="44" alt="考 4 藍底白字預覽"></span>
+        <span class="icon-meta"><h3><span class="code">I002-考4</span></h3><p>霞鶩文楷，OFL（LXGW）</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
+        <div class="icon-thumbs">
+          <img src="icons/kao-4-wenkai/thumb-blue.png" width="40" height="40" alt="藍底">
+          <img src="icons/kao-4-wenkai/thumb-green.png" width="40" height="40" alt="綠底">
+          <img src="icons/kao-4-wenkai/thumb-orange.png" width="40" height="40" alt="橙紅底">
+        </div>
+      </div>
+    </details>
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb"><img src="icons/book-3-material/180.png" width="44" height="44" alt="書本 3 藍底白書預覽"></span>
+        <span class="icon-meta"><h3><span class="code">I003-書本3</span></h3><p>Material Symbols，Apache</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
+        <div class="icon-thumbs">
+          <img src="icons/book-3-material/thumb-blue.png" width="40" height="40" alt="藍底">
+          <img src="icons/book-3-material/thumb-green.png" width="40" height="40" alt="綠底">
+          <img src="icons/book-3-material/thumb-orange.png" width="40" height="40" alt="橙紅底">
+        </div>
+      </div>
+    </details>
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb" style="background:#64745b"><img src="icons/chinese-bizudpgothic/180.png" width="44" height="44" alt="國文圖示預覽"></span>
+        <span class="icon-meta"><h3><span class="code">I004-國文</span></h3><p>BIZ UDPGothic，#64745b</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
+        <div class="icon-thumbs">
+          <img src="icons/chinese-bizudpgothic/180.png" width="40" height="40" alt="國文" style="background:#64745b">
+        </div>
+      </div>
+    </details>
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb" style="background:#4e7197"><img src="icons/english-bizudpgothic/180.png" width="44" height="44" alt="英文圖示預覽"></span>
+        <span class="icon-meta"><h3><span class="code">I005-英文</span></h3><p>BIZ UDPGothic，#4e7197</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
+        <div class="icon-thumbs">
+          <img src="icons/english-bizudpgothic/180.png" width="40" height="40" alt="英文" style="background:#4e7197">
+        </div>
+      </div>
+    </details>
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb" style="background:#7e6a93"><img src="icons/math-bizudpgothic/180.png" width="44" height="44" alt="數學圖示預覽"></span>
+        <span class="icon-meta"><h3><span class="code">I006-數學</span></h3><p>BIZ UDPGothic，#7e6a93</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
+        <div class="icon-thumbs">
+          <img src="icons/math-bizudpgothic/180.png" width="40" height="40" alt="數學" style="background:#7e6a93">
+        </div>
+      </div>
+    </details>
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb" style="background:#7b6e3b"><img src="icons/social-bizudpgothic/180.png" width="44" height="44" alt="社會圖示預覽"></span>
+        <span class="icon-meta"><h3><span class="code">I007-社會</span></h3><p>BIZ UDPGothic，#7b6e3b</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
+        <div class="icon-thumbs">
+          <img src="icons/social-bizudpgothic/180.png" width="40" height="40" alt="社會" style="background:#7b6e3b">
+        </div>
+      </div>
+    </details>
+    <details class="icon-row">
+      <summary>
+        <span class="icon-thumb" style="background:#667077"><img src="icons/science-bizudpgothic/180.png" width="44" height="44" alt="自然圖示預覽"></span>
+        <span class="icon-meta"><h3><span class="code">I008-自然</span></h3><p>BIZ UDPGothic，#667077</p></span>
+        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
+      </summary>
+      <div class="icon-panel">
+        <div class="icon-thumbs">
+          <img src="icons/science-bizudpgothic/180.png" width="40" height="40" alt="自然" style="background:#667077">
+        </div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- 音效 -->
 <section class="cat" id="sounds">
   <div class="cat-head"><h2>音效</h2><p>會考測驗正在使用的三個音效，可試聽、下<span class="nw">載檔案。</span></p></div>
   <audio id="sound-preview" preload="auto"></audio>
@@ -2848,7 +2978,7 @@ document.addEventListener('keydown',e=>{
   function route(){
     let hash;try{hash=decodeURIComponent(location.hash.slice(1))}catch(e){hash=''}
     if(hash==='features'){if(show('features',false))window.scrollTo({top:0,left:0,behavior:'instant'});return}
-    if(/^(components|sounds|buttons|tables|cards|inputs|labels|switches|dialogs|tabs|toasts|menus|accordions|paging|empty|command)$/.test(hash)){
+    if(/^(components|icons|sounds|buttons|tables|cards|inputs|labels|switches|dialogs|tabs|toasts|menus|accordions|paging|empty|command)$/.test(hash)){
       const changed=show('components',false);
       if(changed&&hash==='components')window.scrollTo({top:0,left:0,behavior:'instant'});
       if(hash!=='components')requestAnimationFrame(()=>document.getElementById(hash).scrollIntoView({behavior:'instant'}));
