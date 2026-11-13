@@ -285,10 +285,10 @@ html[data-lib="components"]{scroll-padding-top:84px;scrollbar-gutter:stable;over
 #lib-components .btn.loading .lbl-load{opacity:1;transform:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-#lib-components .b1{background:var(--black);color:#fff;border-radius:999px}
-@media  (hover:hover) and (pointer:fine){#lib-components .b1:hover{background:#3A3C37}}
-#lib-components .b1:active{transform:scale(.97)}
-#lib-components .b1:focus-visible{outline:2px solid var(--black);outline-offset:3px}
+#lib-components .b1{background:var(--sage-deep);color:#fff;border-radius:999px;font-weight:600}
+@media  (hover:hover) and (pointer:fine){#lib-components .b1:hover{background:#454F40}}
+#lib-components .b1:active{transform:scale(.97);background:#3B4436}
+#lib-components .b1:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
 #lib-components .b1:disabled{background:#C9CBC4;color:#F3F3EF}
 
 #lib-components .b2{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:var(--r-sm)}
@@ -1491,7 +1491,7 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <header class="top">
   <div class="wrap">
-    <p class="lead">元件可點來試；按鈕推薦 B2 細框透明。</p>
+    <p class="lead">元件可點來試；按鈕推薦 B1 主色膠囊。</p>
     <div class="meta"><span>共 <b>14 類 46 個</b></span><span>示範情境：虛構的「小森陶房」，所有數字都是範例資料</span><span class="kbd-hint">電腦上可按 Tab 看聚焦樣式，按 <span class="js-mod">Ctrl</span>+K 可直接打開 K1 指令面板</span></div>
   </div>
 </header>
@@ -1521,9 +1521,9 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <section class="cat" id="buttons">
   <div class="cat-head"><h2>按鈕</h2><p>每組有一般、處理中（按下去看）和停用三種狀態。</p></div>
   <div class="grid">
-    <article class="spec"><div class="spec-head"><span class="code">B1</span><div><h3>墨黑膠囊</h3><p>實心黑按鈕僅供對照，不建議使用。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">B1</span><div><h3>主色膠囊</h3><p>全圓角實心主色、白字，適合主要動作。</p></div></div>
       <div class="stage"><button class="btn b1 js-load"><span class="lbl"><span class="lbl-idle">送出訂單</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>送出中</span></span></button><button class="btn b1" disabled>已售完</button></div></article>
-    <article class="spec"><div class="spec-head"><span class="code">B2</span><div><h3>細框透明</h3><p>推薦細框透明底；聚焦時出現雙環。</p></div></div>
+    <article class="spec"><div class="spec-head"><span class="code">B2</span><div><h3>細框透明</h3><p>細框透明底，適合次要動作；聚焦時出現雙環。</p></div></div>
       <div class="stage"><button class="btn b2 js-load"><span class="lbl"><span class="lbl-idle">儲存草稿</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>儲存中</span></span></button><button class="btn b2" disabled>無法匯出</button></div></article>
     <article class="spec"><div class="spec-head"><span class="code">B4</span><div><h3>淡底填色</h3><p>淡色底配深色字；按下時底色加深。</p></div></div>
       <div class="stage"><button class="btn b4 js-load"><span class="lbl"><span class="lbl-idle">加入收藏</span><span class="lbl-load" aria-hidden="true"><span class="spin"></span>處理中</span></span></button><button class="btn b4" disabled>已收藏</button></div></article>
