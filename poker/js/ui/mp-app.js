@@ -152,7 +152,19 @@ function watchHostBeat(fb, id, r) {
   }, () => {});
 }
 function updateHostDisconnect() {
-  if (!room || room.status === 'closed') return;
+  if (!room) return;
+  if (room.status === 'closed') {
+    hostPaused = false;
+    hostReturned = false;
+    clearTimeout(hostReturnedTimer);
+    hostReturnedTimer = null;
+    const banner = $('#mpBanner');
+    if (banner && (banner.textContent === DISCONNECT_COPY.paused || banner.textContent === DISCONNECT_COPY.returned)) {
+      banner.hidden = true;
+      banner.textContent = '';
+    }
+    return;
+  }
   const paused = disconnectState(Math.max(hostBeatMs ?? 0, hostRoomUpdatedMs ?? 0) || null).paused;
   if (hostPaused && !paused) {
     hostReturned = true;
@@ -3427,6 +3439,12 @@ function tearDownRoom() {
   lastKnownSelfTableChipsRoomId = null;
   lastKnownSelfSessionNo = null;
   stopHostBeat?.(); stopHostBeat = null; hostBeatUid = null; hostBeatMs = null; hostRoomUpdatedMs = null; hostPaused = false; hostReturned = false; clearTimeout(hostReturnedTimer);
+  hostReturnedTimer = null;
+  const banner = $('#mpBanner');
+  if (banner && (banner.textContent === DISCONNECT_COPY.paused || banner.textContent === DISCONNECT_COPY.returned)) {
+    banner.hidden = true;
+    banner.textContent = '';
+  }
   stopTurnClock();
   stopSoundVisibility?.();
   stopSoundVisibility = null;

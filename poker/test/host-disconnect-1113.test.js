@@ -96,6 +96,50 @@ test('HD1113：房主回來顯示「房主已回來」banner（不重複 toast�
   const before=paints;timers[0][0]();assert.equal(c.hostReturned,false);assert.equal(paints,before+1);
 });
 
+test('HD1113：收桌清除暫停、回來狀態與計時器，不殘留斷線 banner',()=>{
+  for (const closedBy of [undefined, 'host-disconnect']) {
+    for (const copy of [DISCONNECT_COPY.paused, DISCONNECT_COPY.returned, '其他既有提示']) {
+      const banner={textContent:copy,hidden:false};const cleared=[];
+      const c=vm.createContext({room:{status:'playing',closedBy},hostPaused:true,hostReturned:true,
+        hostReturnedTimer:7,DISCONNECT_COPY,$:s=>s==='#mpBanner'?banner:null,
+        clearTimeout:id=>cleared.push(id)});
+      vm.runInContext(extract('function updateHostDisconnect()', 'let lastRecvAt'),c);
+      c.room.status='closed';
+      c.updateHostDisconnect();
+      assert.equal(c.hostPaused,false);assert.equal(c.hostReturned,false);
+      assert.deepEqual(cleared,[7]);assert.equal(c.hostReturnedTimer,null);
+      if (copy==='其他既有提示') {
+        assert.equal(banner.textContent,copy);assert.equal(banner.hidden,false);
+      } else {
+        assert.equal(banner.textContent,'');assert.equal(banner.hidden,true);
+      }
+    }
+  }
+});
+
+test('HD1113：執行完整 tearDownRoom 清空斷線 banner，保留其他既有提示',()=>{
+  for (const copy of [DISCONNECT_COPY.paused, DISCONNECT_COPY.returned, '其他既有提示']) {
+    const banner={textContent:copy,hidden:false};const cleared=[];
+    const c=vm.createContext({hostPaused:true,hostReturned:true,hostReturnedTimer:7,
+      stopHostBeat:null,stopSoundVisibility:null,stopRoom:null,stopHole:null,enterRoomTimeout:null,
+      presence:null,hostLoop:null,intents:null,animQ:null,room:{status:'playing'},roomId:'r',
+      DISCONNECT_COPY,$:s=>s==='#mpBanner'?banner:null,
+      document:{getElementById:()=>null},clearTimeout:id=>cleared.push(id),
+      stopTurnClock(){},resetRoomSound(){},clearMpRaiseHold(){},hideCloseResultCard(){},removeMpMenuExtras(){}});
+    vm.runInContext(extract('function tearDownRoom()', 'function ensureMpMenu()'),c);
+    c.tearDownRoom();
+    assert.equal(c.hostPaused,false);assert.equal(c.hostReturned,false);
+    assert.equal(c.hostReturnedTimer,null);assert.ok(cleared.includes(7));
+    assert.equal(c.room,null);assert.equal(c.roomId,null);
+    assert.equal(banner.textContent.includes('房主連線中斷，等待回來'),false);
+    if (copy==='其他既有提示') {
+      assert.equal(banner.textContent,copy);assert.equal(banner.hidden,false);
+    } else {
+      assert.equal(banner.textContent,'');assert.equal(banner.hidden,true);
+    }
+  }
+});
+
 import {createSingleTable} from '../js/net/room.js';
 import {webcrypto} from 'node:crypto';
 test('HD1113：T+2 退款收桌後 createSingleTable 建新 000；收桌失敗仍加入既有桌',async()=>{
