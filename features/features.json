@@ -88,7 +88,7 @@
       "primary": {
         "name": "Cloud Firestore（onSnapshot）",
         "url": "https://github.com/firebase/firebase-js-sdk",
-        "note": "已用於德撲開房與同桌同步，含 presence 與房主斷線。"
+        "note": "已用於德撲開房與同桌同步。房主斷線 60 秒收桌，籌碼回帳戶。"
       },
       "alternatives": [
         {
@@ -373,6 +373,28 @@
           "name": "固定頁",
           "url": "../features/touch/?mode=fixed",
           "note": "鎖在原始大小，不能雙指放大"
+        }
+      ]
+    },
+    {
+      "name": "測驗引擎",
+      "status": "已驗證",
+      "skill": "humanities-quiz-template",
+      "primary": {
+        "name": "會考測驗模板",
+        "url": "../quiz/",
+        "note": "已用於會考國文、英文、社會、自然：選題、10 題、解說、錯題再練。"
+      },
+      "alternatives": [
+        {
+          "name": "音效",
+          "url": "",
+          "note": "答對、答錯、成績頁三個音。"
+        },
+        {
+          "name": "電腦鍵盤作答",
+          "url": "",
+          "note": "方向鍵、Enter／空白、按 1–4；手機不啟用。"
         }
       ]
     }
