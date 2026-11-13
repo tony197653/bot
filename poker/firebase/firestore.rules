@@ -42,8 +42,10 @@ service cloud.firestore {
     // HD1113: additive permission; legacy host paths below remain unchanged.
     function disconnectExpired(r, id) {
       let hp = presencePath(id, r.hostUid);
-      return roomOpen(r.status) && r.updatedAt < request.time - duration.value(2, 'm')
-        && (!exists(hp) || get(hp).data.beat < request.time - duration.value(2, 'm'));
+      // HD1113 r2: guests write the room too, so the host beat decides; updatedAt only without a beat.
+      return roomOpen(r.status) && (exists(hp)
+        ? get(hp).data.beat < request.time - duration.value(2, 'm')
+        : r.updatedAt < request.time - duration.value(2, 'm'));
     }
     function disconnectAmount(r, i) {
       return betweenHands(r.pub) ? r.stacks[i]

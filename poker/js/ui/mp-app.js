@@ -1,4 +1,4 @@
-import { disconnectState, closeDisconnectedRoom, DISCONNECT_COPY, hostLivenessMs } from '../net/host-disconnect.js';
+import { disconnectState, closeDisconnectedRoom, DISCONNECT_COPY, hostLivenessMs, hostAliveMs } from '../net/host-disconnect.js';
 /**
  * Milestone-2 shell: auth → lobby → create/join → table (§2 / §13).
  * Solo hot-seat engine kept for ?solo=1 / internal use; no lobby menu entry.
@@ -168,7 +168,7 @@ function updateHostDisconnect() {
     }
     return;
   }
-  const paused = disconnectState(Math.max(hostBeatMs ?? 0, hostRoomUpdatedMs ?? 0) || null).paused;
+  const paused = disconnectState(hostAliveMs(hostBeatMs, hostRoomUpdatedMs)).paused;
   if (hostPaused && !paused) {
     hostReturned = true;
     clearTimeout(hostReturnedTimer);
@@ -1051,7 +1051,7 @@ export async function startMpApp() {
     updateHostDisconnect();
     const fb = getFirebase(), u = getUser();
     if (!fb || !u || !room || room.status === 'closed' || disconnectClosePending) return;
-    if (disconnectState(Math.max(hostBeatMs ?? 0, hostRoomUpdatedMs ?? 0) || null).reclaim) {
+    if (disconnectState(hostAliveMs(hostBeatMs, hostRoomUpdatedMs)).reclaim) {
       disconnectClosePending = true;
       closeDisconnectedRoom({...fb,uid:u.uid},roomId).catch(e => console.warn('[disconnect] close',e))
         .finally(() => { disconnectClosePending = false; });
@@ -3053,7 +3053,7 @@ async function sitDown(seat) {
         );
         const hostBeatMs = hp.exists() ? hp.data()?.beat?.toMillis?.() ?? 0 : 0;
         const updatedAtMs = room.updatedAt?.toMillis?.() || 0;
-        const age = Date.now() - Math.max(hostBeatMs, updatedAtMs);
+        const age = Date.now() - (hostAliveMs(hostBeatMs, updatedAtMs) ?? 0);
         if (age > 30_000) {
           const minutes = Math.max(1, Math.ceil((30 * 60_000 - age) / 60_000));
           toast(`房主已離線，暫時無法入座；牌桌約 ${minutes} 分鐘後會自動關閉，之後就能開新牌桌`);
@@ -3333,7 +3333,16 @@ function showSettlementNotice(id, message, done = false) {
   const card = document.createElement('div');
   card.className = 'mp-close-result-card';
   const title = document.createElement('h2');
-  title.textContent = message;
+  // Break only at a full-width comma so a lone char never wraps alone (same words; textContent unchanged).
+  const parts = String(message).split(/(?<=，)/);
+  if (parts.length > 1) {
+    for (const part of parts) {
+      const span = document.createElement('span');
+      span.style.display = 'inline-block';
+      span.textContent = part;
+      title.appendChild(span);
+    }
+  } else title.textContent = message;
   card.appendChild(title);
   if (done) {
     const button = document.createElement('button');

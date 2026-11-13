@@ -72,14 +72,15 @@ test('獨坐 timeout 覆寫僅限 localhost emulator；斷線收桌固定 2 分�
     }
   } finally {globalThis.location=prev;}
 });
-test('離線房主：新鮮 beat 或 updatedAt 都保留，兩者過期才原子退款',async()=>{
+test('離線房主：只有新鮮房主 beat 保留；房間 updatedAt 新（可能是客人寫入）仍原子退款',async()=>{
   for(const fresh of ['beat','room','none']) {
     let r=base();let transactions=0;const now=131001;
     if(fresh==='room')r.updatedAt={toMillis:()=>now};
     const fs={doc:(_, ...p)=>p.join('/'),getDoc:async p=>({exists:()=>true,data:()=>
       p.includes('presence')?{beat:{toMillis:()=>fresh==='beat'?now:1000}}:r}),
       runTransaction:async()=>{transactions++;return true;},deleteDoc:async()=>{}};
-    assert.equal(await maybeAutoCloseSingleTable({db:{},fs},'r','g',now),fresh==='none');
-    assert.equal(transactions,fresh==='none'?1:0);
+    // HD1113 r2: a fresh room.updatedAt may be a guest write; only the host beat keeps the table.
+    assert.equal(await maybeAutoCloseSingleTable({db:{},fs},'r','g',now),fresh!=='beat');
+    assert.equal(transactions,fresh==='beat'?0:1);
   }
 });

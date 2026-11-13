@@ -257,8 +257,6 @@ export async function maybeAutoCloseSingleTable(fb, roomId, uid, now = Date.now(
     if (!snap.exists()) return true;
     const r = snap.data();
     if (r.status === 'closed') return true;
-    // Fresh room writes alone prove the host is still alive.
-    if (!disconnectState(hostLivenessMs(r), now).reclaim) return false;
     const hp = await fb.fs.getDoc(fb.fs.doc(fb.db, 'pokerRooms', roomId, 'presence', r.hostUid));
     if (!disconnectState(hostLivenessMs(r, hp), now).reclaim) return false;
     const closed = await closeDisconnectedRoom({ ...fb, uid }, roomId, now);

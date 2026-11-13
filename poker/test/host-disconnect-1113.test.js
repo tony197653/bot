@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { disconnectState, refundAtSeat, resumeDeadline, DISCONNECT_COPY, closeDisconnectedRoom, hostLivenessMs, HOST_PAUSE_MS, HOST_CLOSE_MS } from '../js/net/host-disconnect.js';
+import { disconnectState, refundAtSeat, resumeDeadline, DISCONNECT_COPY, closeDisconnectedRoom, hostLivenessMs, hostAliveMs, HOST_PAUSE_MS, HOST_CLOSE_MS } from '../js/net/host-disconnect.js';
 const minute = 60_000;
 test('HD1113：45 秒內閃斷不提示，45 秒到 2 分鐘暫停，T+2 隱藏並收桌', () => {
   assert.equal(HOST_PAUSE_MS, 45000); assert.equal(HOST_CLOSE_MS, 120000);
@@ -13,12 +13,25 @@ test('HD1113：回來繼續與 deadline 延長', () => {
   assert.equal(resumeDeadline(null, 10000, 100000), null);
   assert.equal(DISCONNECT_COPY.returned, '房主已回來');
 });
-test('HD1113：liveness 取 beat 與 updatedAt 較新值，缺 presence 仍用 updatedAt',()=>{
+test('HD1113：liveness 只看房主 beat，缺 presence 才用 updatedAt',()=>{
   const r={updatedAt:{toMillis:()=>100000}};
-  assert.equal(hostLivenessMs(r,50000),100000);
+  assert.equal(hostLivenessMs(r,50000),50000);
   assert.equal(hostLivenessMs(r,150000),150000);
   assert.equal(hostLivenessMs(r,{exists:()=>false}),100000);
-  assert.equal(disconnectState(hostLivenessMs(r,1),150000).reclaim,false);
+  assert.equal(hostAliveMs(null,null),null);
+});
+test('HD1113 r2：暫停中客人離桌（寫 room.updatedAt）不延後暫停與 T+2 收桌',()=>{
+  const lastBeat=1_000_000;
+  // Guests leave at T+10s, T+60s and T+110s; each bumps room.updatedAt.
+  for (const guestWrite of [lastBeat+10_000,lastBeat+60_000,lastBeat+110_000]) {
+    const r={updatedAt:{toMillis:()=>guestWrite}};
+    const live=hostLivenessMs(r,{exists:()=>true,data:()=>({beat:{toMillis:()=>lastBeat}})});
+    assert.equal(live,lastBeat);
+    assert.equal(disconnectState(live,lastBeat+HOST_PAUSE_MS).paused,true);
+    assert.equal(disconnectState(live,lastBeat+HOST_CLOSE_MS-1).reclaim,false);
+    assert.equal(disconnectState(live,lastBeat+HOST_CLOSE_MS).reclaim,true);
+    assert.equal(disconnectState(hostAliveMs(lastBeat,guestWrite),lastBeat+HOST_CLOSE_MS).hidden,true);
+  }
 });
 test('HD1113：退款為座位＋本手下注，不重加街下注；結果卡文案', () => {
   assert.equal(refundAtSeat({ pub: { phase: 'flop', seats: [{chips: 1600, contributed: 400, bet: 100}] } }, 0), 2000);
@@ -112,7 +125,7 @@ test('HD1113：暫停顯示等待文字，房主回來或收桌清除暫停後�
     const c=vm.createContext({hostPaused:true,hostReturned:false,hostReturnedTimer:7,
       room:{status:'playing',hostUid:'h',seatUids:['p'],config:{bb:20},pub:{phase:'flop',actor:0}},
       getUser:()=>({uid:'p'}),hostBeatMs:Date.now(),hostRoomUpdatedMs:null,
-      disconnectState,DISCONNECT_COPY,hostSitPending:false,
+      disconnectState,hostAliveMs,DISCONNECT_COPY,hostSitPending:false,
       clearTimeout(){},setTimeout(){},paintTableChrome(){},tickTurnHint(){},lockMpRaisePanel(){},
       $:s=>s==='#btns'?btns:s==='#act'?act:null});
     vm.runInContext(extract('function renderActBar()', 'function clearMpRaiseHold()'),c);
@@ -142,7 +155,7 @@ test('HD1113：房主恢復延長 deadline，訪客保留剩餘秒數；不重�
 test('HD1113：房主回來顯示「房主已回來」banner（不重複 toast），4 秒後收起',()=>{
   const messages=[];const timers=[];let paints=0;
   const c=vm.createContext({room:{status:'playing'},hostBeatMs:Date.now(),hostRoomUpdatedMs:null,
-    hostPaused:true,hostReturned:false,hostReturnedTimer:null,disconnectState,DISCONNECT_COPY,toast:m=>messages.push(m),
+    hostPaused:true,hostReturned:false,hostReturnedTimer:null,disconnectState,hostAliveMs,DISCONNECT_COPY,toast:m=>messages.push(m),
     setTimeout:(fn,ms)=>{timers.push([fn,ms]);return timers.length;},clearTimeout:()=>{},
     paintTableChrome:()=>{paints++;},tickTurnHint:()=>{}});
   vm.runInContext(extract('function updateHostDisconnect()', 'let lastRecvAt'),c);c.updateHostDisconnect();

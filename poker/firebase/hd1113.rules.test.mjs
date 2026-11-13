@@ -152,14 +152,23 @@ test('HD1113：房主失聯原子退款權限（需 PM 執行 emulator）', asyn
       const d=env.authenticatedContext('outsider').firestore();
       for(const u of seats.filter(Boolean)) assert.equal((await fs.getDoc(fs.doc(d,'pokerPlayers',u))).data().bank,2100);
     });
-    await t.test('只有 updatedAt 新也不能收，presence 新 beat 也不能收', async () => {
-      for (const kind of ['room','presence']) {
+    await t.test('presence 新 beat 不能收；沒有 presence 時 updatedAt 新也不能收', async () => {
+      for (const kind of ['presence','no-presence-room']) {
         await seed();
-        await env.withSecurityRulesDisabled(c => kind === 'room'
-          ? fs.updateDoc(fs.doc(c.firestore(),'pokerRooms',roomId),{updatedAt:fs.Timestamp.now()})
-          : fs.updateDoc(fs.doc(c.firestore(),'pokerRooms',roomId,'presence','host'),{beat:fs.Timestamp.now()}));
+        await env.withSecurityRulesDisabled(async c => {
+          const f=c.firestore();
+          if (kind === 'presence') await fs.updateDoc(fs.doc(f,'pokerRooms',roomId,'presence','host'),{beat:fs.Timestamp.now()});
+          else { await fs.deleteDoc(fs.doc(f,'pokerRooms',roomId,'presence','host'));
+            await fs.updateDoc(fs.doc(f,'pokerRooms',roomId),{updatedAt:fs.Timestamp.now()}); }
+        });
         await assertFails(close('outsider'));
       }
+    });
+    await t.test('HD1113 r2：房主 beat 過期，客人離桌讓 updatedAt 變新，仍可 T+2 收桌', async () => {
+      await seed();
+      await env.withSecurityRulesDisabled(c =>
+        fs.updateDoc(fs.doc(c.firestore(),'pokerRooms',roomId),{updatedAt:fs.Timestamp.now()}));
+      await assertSucceeds(close('outsider'));
     });
     await t.test('滿六席進行中有下注，一筆 transaction 退款成功且每人只退一次', async () => {
       await seed(2 + 10 / 60,'flop',true);

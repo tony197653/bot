@@ -1,4 +1,4 @@
-// Liveness uses the newer server timestamp: presence beat or room.updatedAt.
+// Liveness uses the host's own presence beat (server timestamp); room.updatedAt only when no beat exists.
 // Never use the time a client received a snapshot.
 export const DISCONNECT_COPY = Object.freeze({
   paused: '房主連線中斷，等待回來', returned: '房主已回來',
@@ -10,9 +10,12 @@ export function hostLivenessMs(room, presenceSnapOrBeat) {
   const beat = typeof presenceSnapOrBeat === 'number' ? presenceSnapOrBeat
     : presenceSnapOrBeat?.exists?.() ? presenceSnapOrBeat.data().beat?.toMillis?.()
     : presenceSnapOrBeat?.toMillis?.();
-  const updated = room?.updatedAt?.toMillis?.();
-  const times = [beat, updated].filter(Number.isFinite);
-  return times.length ? Math.max(...times) : null;
+  return hostAliveMs(beat, room?.updatedAt?.toMillis?.());
+}
+/** Host beat wins; room.updatedAt is only a fallback when no host beat exists (guests write the room too). */
+export function hostAliveMs(beatMs, roomUpdatedMs) {
+  if (Number.isFinite(beatMs) && beatMs > 0) return beatMs;
+  return Number.isFinite(roomUpdatedMs) && roomUpdatedMs > 0 ? roomUpdatedMs : null;
 }
 export function disconnectState(livenessMs, now = Date.now()) {
   const age = Number.isFinite(livenessMs) ? Math.max(0, now - livenessMs) : 0;

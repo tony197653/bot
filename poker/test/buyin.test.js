@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../js/net/buyin-policy.js';
 import { buyinAll, buyinAmount, ensurePlayerGrant } from '../js/net/ledger.js';
+import { hostAliveMs } from '../js/net/host-disconnect.js';
 
 const source = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
 function fakeFirebase(player) {
@@ -150,7 +151,7 @@ test('訪客入座先讀房主 presence：離線阻擋，近期活動或讀取�
     { name: '缺少 presence', missing: true, roomAge: 90_000, minutes: 29 },
     { name: '超過關桌時間', beatAge: 1_900_000, roomAge: 2_000_000, minutes: 1 },
     { name: '近期房主', beatAge: 10_000, roomAge: 180_000 },
-    { name: '近期房間更新', beatAge: 180_000, roomAge: 10_000 },
+    { name: '近期房間更新（客人寫入不算房主活動）', beatAge: 180_000, roomAge: 10_000, minutes: 27 },
     { name: '剛好 30 秒', beatAge: 30_000, roomAge: 180_000 },
     { name: '讀取失敗', fail: true, roomAge: 180_000 },
     { name: '房主本人', host: true, roomAge: 180_000 },
@@ -176,7 +177,7 @@ test('訪客入座先讀房主 presence：離線阻擋，近期活動或讀取�
         updatedAt: { toMillis: () => now - scenario.roomAge },
       },
       roomId: 'r', sittingBusy: false, playerDoc: { bank: 8765 },
-      assertMinimumBuyin, wholeBalance, buyinOptions,
+      assertMinimumBuyin, wholeBalance, buyinOptions, hostAliveMs,
       pickBuyinAmount: options => { events.push('picker'); return options.amount; },
       toast: msg => events.push(msg),
       buyinAmount: async () => { events.push('buyin'); },
