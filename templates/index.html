@@ -795,11 +795,12 @@ html[data-lib="components"].dlg-lock{overflow:hidden}
 #lib-components .p5-lab{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:13.5px;font-weight:600;color:var(--ink)}
 #lib-components .p5-lab .sc{display:inline-grid;place-items:center;height:22px;padding:0 7px;border-radius:var(--r-xs);background:var(--sage-soft);color:#45523F;font-size:12px;font-weight:600;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 #lib-components .p5b .pt .arm{display:none;position:absolute;inset:0;border-radius:50%;transform-origin:50% 50%}
-#lib-components .p5b [data-state=current] .pt .arm{display:block;animation:p5-swing 1s cubic-bezier(.37,0,.63,1) infinite alternate}
+#lib-components .p5b [data-state=current] .pt .arm{display:block;animation:p5b-arm-in .3s var(--ease) .4s both,p5-swing 1s cubic-bezier(.37,0,.63,1) .4s infinite alternate both}
 #lib-components .p5.p5b .pt i{position:absolute;left:50%;bottom:1.5px;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;background:var(--sage-deep);display:block}
 #lib-components .p5.p5b [data-state=current] .pt i{animation:none}
 #lib-components .p5.p5b .pt i::after{display:none}
 @keyframes p5-swing{from{transform:rotate(-50deg)}to{transform:rotate(50deg)}}
+@keyframes p5b-arm-in{from{opacity:0}to{opacity:1}}
 #lib-components .p5 .tt{font-size:14.5px;font-weight:500;color:var(--mute);transition:color .3s var(--ease)}
 #lib-components .p5 [data-state=done] .tt,#lib-components .p5 [data-state=current] .tt{color:var(--ink)}
 #lib-components .p5 .ds{grid-column:2;font-size:13px;color:var(--mute);margin-top:2px}
