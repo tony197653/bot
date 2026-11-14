@@ -205,18 +205,21 @@ test('播放器：五檔預載、手勢解鎖、優先中斷、關閉停聲及�
   let audio;
   let visibility;
   class AudioContext {
-    constructor() { audio = this; this.state = 'suspended'; this.destination = {}; }
-    resume() { this.state = 'running'; return Promise.resolve(); }
+    constructor() { audio = this; this.state = 'suspended'; this.destination = {}; this.sampleRate = 22050; }
+    resume() { this.state = 'running'; this.resumed = (this.resumed || 0) + 1; return Promise.resolve(); }
     decodeAudioData() { return Promise.resolve({}); }
+    createBuffer(channels, length, rate) { this.silent = { channels, length, rate }; return {}; }
     createBufferSource() {
       const source = { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
       sources.push(source);
       return source;
     }
   }
+  const audioSession = { type: 'auto' };
   try {
     globalThis.window = {
       AudioContext,
+      navigator: { audioSession },
       localStorage: { getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value) },
       document: { hidden: false, addEventListener: (_type, fn) => { visibility = fn; } },
       addEventListener: (type, fn) => gestures.set(type, fn),
@@ -226,45 +229,144 @@ test('播放器：五檔預載、手勢解鎖、優先中斷、關閉停聲及�
     const sound = await import('../js/ui/sound.js?player-test');
     sound.initSound();
     assert.equal(sound.isSoundOn(), true);
+    assert.equal(audioSession.type, 'playback');
     sound.playSound('turn');
     assert.equal(sources.length, 0);
     gestures.get('pointerdown')();
+    assert.equal(audio.state, 'running', '手勢同步 resume');
+    assert.equal(audio.silent?.length, 1, '解鎖播極短靜音');
+    assert.equal(sources.length, 1);
+    assert.equal(sources[0].started, true);
     await new Promise(setImmediate);
     assert.equal(fetched.length, 5);
     assert.ok(fetched.every((url) => /\/assets\/sfx\/(deal|bet|turn|hurry|win)\.mp3$/.test(url)));
-    assert.equal(sources.length, 0, '解鎖不補播');
+    assert.equal(sources.length, 1, '解鎖不補播音效');
     sound.playSound('deal');
     sound.playSound('win');
-    assert.equal(sources[0].stopped, true);
-    sound.playSound('bet');
-    assert.equal(sources.length, 2, '低優先丟棄');
-    sound.setSoundOn(false);
     assert.equal(sources[1].stopped, true);
+    sound.playSound('bet');
+    assert.equal(sources.length, 3, '低優先丟棄');
+    sound.setSoundOn(false);
+    assert.equal(sources[2].stopped, true);
     assert.equal(storage.get('poker.sfx'), 'off');
+    assert.equal(audioSession.type, 'auto');
     sound.playSound('hurry');
     sound.setSoundOn(true);
-    assert.equal(sources.length, 2, '再開不補播');
+    assert.equal(audioSession.type, 'playback');
+    assert.equal(sources.length, 3, '再開不補播');
     sound.playSound('hurry');
     window.document.hidden = true;
     visibility();
-    assert.equal(sources[2].stopped, true);
+    assert.equal(sources[3].stopped, true);
     audio.state = 'suspended';
     audio.onstatechange();
     window.document.hidden = false;
     visibility();
-    sound.playSound('turn');
-    assert.equal(sources.length, 3, '恢復前景等下一個手勢');
-    gestures.get('keydown')();
     await new Promise(setImmediate);
-    assert.equal(sources.length, 3);
+    assert.equal(audio.state, 'running', '回前景直接 resume');
     sound.playSound('turn');
-    assert.equal(sources.length, 4);
+    assert.equal(sources.length, 5, '回前景 resume 成功即可播，不必再點');
     sound.stopSound();
   } finally {
     if (oldWindow === undefined) delete globalThis.window;
     else globalThis.window = oldWindow;
   }
 });
+
+test('前景恢復：resume 失敗才再掛手勢', async () => {
+  const oldWindow = globalThis.window;
+  const gestures = new Map();
+  let audio;
+  let visibility;
+  class AudioContext {
+    constructor() { audio = this; this.state = 'suspended'; this.destination = {}; this.sampleRate = 22050; this.allow = true; }
+    resume() {
+      if (!this.allow) return Promise.reject(new Error('interrupted'));
+      this.state = 'running';
+      return Promise.resolve();
+    }
+    decodeAudioData() { return Promise.resolve({}); }
+    createBuffer() { return {}; }
+    createBufferSource() {
+      return { connect() {}, disconnect() {}, start() {}, stop() {} };
+    }
+  }
+  try {
+    globalThis.window = {
+      AudioContext,
+      navigator: {},
+      localStorage: { getItem: () => null, setItem() {} },
+      document: { hidden: false, addEventListener: (_type, fn) => { visibility = fn; } },
+      addEventListener: (type, fn) => gestures.set(type, fn),
+      removeEventListener: (type) => gestures.delete(type),
+      fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
+    };
+    const sound = await import('../js/ui/sound.js?player-resume-fail');
+    sound.initSound();
+    gestures.get('pointerdown')();
+    await new Promise(setImmediate);
+    audio.state = 'interrupted';
+    audio.allow = false;
+    window.document.hidden = true;
+    visibility();
+    window.document.hidden = false;
+    visibility();
+    await new Promise(setImmediate);
+    assert.equal(audio.state, 'interrupted');
+    assert.equal(typeof gestures.get('pointerdown'), 'function', '失敗後重新掛手勢');
+    audio.allow = true;
+    gestures.get('pointerdown')();
+    await new Promise(setImmediate);
+    assert.equal(audio.state, 'running');
+    sound.stopSound();
+  } finally {
+    if (oldWindow === undefined) delete globalThis.window;
+    else globalThis.window = oldWindow;
+  }
+});
+
+test('audioSession 常數關閉時不改 type', async () => {
+  const oldWindow = globalThis.window;
+  const audioSession = { type: 'auto' };
+  const gestures = new Map();
+  class AudioContext {
+    constructor() { this.state = 'suspended'; this.destination = {}; this.sampleRate = 22050; }
+    resume() { this.state = 'running'; return Promise.resolve(); }
+    decodeAudioData() { return Promise.resolve({}); }
+    createBuffer() { return {}; }
+    createBufferSource() { return { connect() {}, disconnect() {}, start() {}, stop() {} }; }
+  }
+  try {
+    globalThis.window = {
+      AudioContext,
+      navigator: { audioSession },
+      localStorage: { getItem: () => null, setItem() {} },
+      document: { hidden: false, addEventListener() {} },
+      addEventListener: (type, fn) => gestures.set(type, fn),
+      removeEventListener: (type) => gestures.delete(type),
+      fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
+    };
+    const sound = await import('../js/ui/sound.js?player-session-flag');
+    sound.SOUND_OPTIONS.usePlaybackAudioSession = false;
+    sound.initSound();
+    assert.equal(audioSession.type, 'auto');
+    gestures.get('pointerdown')();
+    sound.setSoundOn(true);
+    assert.equal(audioSession.type, 'auto');
+  } finally {
+    if (oldWindow === undefined) delete globalThis.window;
+    else globalThis.window = oldWindow;
+  }
+});
+
+test('app 與 startMpApp 在進桌前就呼叫 initSound', () => {
+  const app = readFileSync(new URL('../js/ui/app.js', import.meta.url), 'utf8');
+  const mp = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
+  assert.match(app, /import \{ initSound \} from '\.\/sound\.js';/);
+  assert.match(app, /async function boot\(\) \{\s*initSound\(\);/);
+  assert.match(mp, /export async function startMpApp\(\) \{\s*initSound\(\);/);
+});
+
 test('room：同 turn 後續快照刷新 lastRecvAt，不會把快超時倒數重設（PM 補）', () => {
   const r = soundRoom();
   let now = 1000;

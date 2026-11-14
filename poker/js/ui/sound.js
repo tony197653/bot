@@ -38,6 +38,11 @@ let buffers = {};
 let loading = null;
 let gesturesArmed = false;
 
+/** When true, Safari 17+ audioSession is set to 'playback' while sfx is on.
+ *  Sound can then play with the hardware silent switch on, which also means
+ *  the silent switch will not mute poker sfx. PM may set this to false. */
+export const SOUND_OPTIONS = { usePlaybackAudioSession: true };
+
 function preload() {
   if (!context || loading) return;
   loading = Promise.all(PRIORITY.map(async (kind) => {
@@ -47,6 +52,38 @@ function preload() {
       buffers[kind] = await context.decodeAudioData(await response.arrayBuffer());
     } catch { /* Audio failure never affects the table. */ }
   })).catch(() => {});
+}
+
+function syncAudioSession() {
+  if (!SOUND_OPTIONS.usePlaybackAudioSession) return;
+  try {
+    const session = (typeof navigator !== 'undefined' && navigator.audioSession)
+      || (typeof window !== 'undefined' && window.navigator?.audioSession);
+    if (!session) return;
+    session.type = enabled ? 'playback' : 'auto';
+  } catch { /* ignore */ }
+}
+
+function playSilentUnlock() {
+  if (!context) return;
+  try {
+    const buffer = context.createBuffer(1, 1, context.sampleRate || 22050);
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(context.destination);
+    source.start(0);
+  } catch { /* ignore */ }
+}
+
+function ensureContext() {
+  if (context) return true;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return false;
+  context = new AudioCtx();
+  context.onstatechange = () => {
+    if (context.state !== 'running') { stopSound(); armGestures(); }
+  };
+  return true;
 }
 
 function armGestures() {
@@ -63,15 +100,27 @@ function unlock() {
     window.removeEventListener(type, unlock, true);
   }
   try {
-    if (!context) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      context = new AudioCtx();
-      context.onstatechange = () => {
-        if (context.state !== 'running') { stopSound(); armGestures(); }
-      };
-    }
+    // Create, resume, and tick a silent buffer in this user-gesture turn (iOS Safari).
+    if (!ensureContext()) return;
+    if (context.state !== 'running') context.resume();
+    playSilentUnlock();
+    syncAudioSession();
     preload();
+    Promise.resolve(context.state === 'running' ? undefined : context.resume())
+      .catch(() => {})
+      .finally(() => {
+        if (context.state !== 'running') armGestures();
+      });
+  } catch { armGestures(); }
+}
+
+function onVisibilityChange() {
+  if (window.document?.hidden) {
+    stopSound();
+    return;
+  }
+  if (!context || context.state === 'running') return;
+  try {
     Promise.resolve(context.resume()).catch(() => {}).finally(() => {
       if (context.state !== 'running') armGestures();
     });
@@ -83,10 +132,8 @@ export function initSound() {
   if (!initialized) {
     initialized = true;
     try { enabled = window.localStorage.getItem('poker.sfx') !== 'off'; } catch {}
-    window.document?.addEventListener('visibilitychange', () => {
-      stopSound();
-      if (context?.state !== 'running') armGestures();
-    });
+    window.document?.addEventListener('visibilitychange', onVisibilityChange);
+    syncAudioSession();
     armGestures();
   }
   preload();
@@ -97,6 +144,7 @@ export function setSoundOn(on) {
   enabled = !!on;
   if (!enabled) stopSound();
   try { if (typeof window !== 'undefined') window.localStorage.setItem('poker.sfx', enabled ? 'on' : 'off'); } catch {}
+  syncAudioSession();
 }
 export function stopSound() {
   const current = active;

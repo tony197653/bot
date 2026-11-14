@@ -37,6 +37,7 @@ import {
   SHOWDOWN_FX,
 } from './fx.js';
 import { startMpApp, setSoloOpener } from './mp-app.js';
+import { initSound } from './sound.js';
 
 /**
  * Single-device: other seats who don't tap → MUCK (not coin-flip).
@@ -385,6 +386,7 @@ function view() {
 
 /* ─── Boot / preload ─── */
 async function boot() {
+  initSound();
   const bar = $('#bootBar');
   const pct = $('#bootPct');
   const set = (n, label) => {
