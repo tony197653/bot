@@ -992,7 +992,7 @@ html[data-lib="components"].dlg-lock{overflow:hidden}
 .library-wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
 .library-header{padding-top:env(safe-area-inset-top)}
 #lib-title{font-size:2rem;letter-spacing:.02em;margin:24px 0 0;line-height:1.2;font-weight:600}
-.library-tabs{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(3,1fr);box-shadow:inset 0 -1px 0 var(--line)}
+.library-tabs{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(4,1fr);box-shadow:inset 0 -1px 0 var(--line)}
 .library-tabs button{display:flex;align-items:center;justify-content:center;appearance:none;border:0;background:none;font:inherit;font-size:1rem;color:var(--mute);height:48px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .14s ease-out,color .12s;line-height:1;font-weight:500}
 .library-tabs button[aria-selected=true]{font-weight:600;color:var(--ink)}
 .library-tabs .library-label{display:inline-block;pointer-events:none}.library-tabs .library-label::after{content:attr(data-label);font-weight:600;visibility:hidden;height:0;display:block}
@@ -1039,7 +1039,7 @@ body{font-size:1rem;line-height:1.6}.library-wrap,#lib-features .wrap,#lib-compo
 html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h) + 8px)}
 @media(min-width:800px){
   .library-tabs-bar{display:flex;justify-content:center;padding:8px 24px 0}
-  .library-tabs{width:auto;background:var(--sage-soft);padding:4px;border-radius:var(--r);box-shadow:none;grid-template-columns:repeat(3,minmax(88px,auto))}
+  .library-tabs{width:auto;background:var(--sage-soft);padding:4px;border-radius:var(--r);box-shadow:none;grid-template-columns:repeat(4,minmax(88px,auto))}
   #lib-title,.library-guide{padding:0 24px}
 }
 
@@ -1061,8 +1061,33 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
   #lib-templates h3,.library-guide{font-size:1rem;font-weight:400;line-height:1.6}
   #lib-features .fname{font-size:1rem;font-weight:600;line-height:1.6}
 }
+/* 簡報風格庫：沿用元件分頁的卡片、代碼與 token。 */
+#lib-slides{font-family:var(--font)}
+#lib-slides .wrap{max-width:1240px;margin:0 auto;padding:12px max(16px,env(safe-area-inset-right)) 52px max(16px,env(safe-area-inset-left))}
+#lib-slides .ppt-grid{display:grid;grid-template-columns:1fr;gap:16px;list-style:none;margin:0;padding:0}
+#lib-slides .ppt-card{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+#lib-slides .ppt-thumbs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#lib-slides .ppt-thumbs img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:var(--r-sm);background:var(--line-soft)}
+#lib-slides h2{display:flex;align-items:center;gap:8px;margin:0;font-size:1.125rem;line-height:1.4;font-weight:600;min-width:0}
+#lib-slides .code{flex:none;display:inline-grid;place-items:center;height:22px;padding:0 8px;border-radius:var(--r-xs);background:var(--ink);color:#fff;font-size:0.75rem;font-weight:600;letter-spacing:0;font-variant-numeric:tabular-nums;line-height:1.4}
+#lib-slides .ppt-cats{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0}
+#lib-slides .ppt-cats li{font-size:0.8125rem;line-height:1.5;padding:1px 8px;border-radius:var(--r-xs);background:var(--sage-soft);color:var(--sage-deep);white-space:nowrap}
+#lib-slides .ppt-colors{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;list-style:none;margin:0;padding:0}
+#lib-slides .ppt-colors li{display:flex;flex-direction:column;gap:4px;min-width:0}
+#lib-slides .sw{height:36px;border-radius:var(--r-sm);box-shadow:inset 0 0 0 1px rgba(40,42,36,.12)}
+#lib-slides .ppt-colors b{font-size:0.75rem;font-weight:500;color:var(--mute);line-height:1.4}
+#lib-slides .ppt-colors code{font:500 0.8125rem/1.4 var(--font);font-variant-numeric:tabular-nums;color:var(--ink)}
+#lib-slides .ppt-colors small{font-size:0.75rem;color:var(--mute);line-height:1.4}
+#lib-slides .ppt-info{display:flex;flex-direction:column;gap:6px;margin:0}
+#lib-slides .ppt-info div{display:flex;gap:8px;font-size:0.875rem;line-height:1.5}
+#lib-slides .ppt-info dt{flex:none;color:var(--mute)}
+#lib-slides .ppt-info dd{margin:0;min-width:0}
+@media(min-width:800px){
+  #lib-slides .wrap{padding-left:max(24px,env(safe-area-inset-left));padding-right:max(24px,env(safe-area-inset-right))}
+  #lib-slides .ppt-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+}
 </style></head><body>
-<header class="library-header library-wrap"><div class="library-heading"><div class="library-tabs-bar"><div class="library-tabs" role="tablist" aria-label="切換資料庫"><span class="library-indicator" aria-hidden="true"></span><button type="button" role="tab" id="lib-tab-templates" aria-controls="lib-templates" aria-selected="true" tabindex="0" data-library="templates"><span class="library-label" data-label="模板">模板</span></button><button type="button" role="tab" id="lib-tab-features" aria-controls="lib-features" aria-selected="false" tabindex="-1" data-library="features"><span class="library-label" data-label="功能">功能</span></button><button type="button" role="tab" id="lib-tab-components" aria-controls="lib-components" aria-selected="false" tabindex="-1" data-library="components"><span class="library-label" data-label="元件">元件</span></button></div></div><h1 id="lib-title">我喜歡的網頁模板</h1><p class="library-guide">模板看整頁、功能選服務、元件選互動</p></div></header>
+<header class="library-header library-wrap"><div class="library-heading"><div class="library-tabs-bar"><div class="library-tabs" role="tablist" aria-label="切換資料庫"><span class="library-indicator" aria-hidden="true"></span><button type="button" role="tab" id="lib-tab-templates" aria-controls="lib-templates" aria-selected="true" tabindex="0" data-library="templates"><span class="library-label" data-label="模板">模板</span></button><button type="button" role="tab" id="lib-tab-features" aria-controls="lib-features" aria-selected="false" tabindex="-1" data-library="features"><span class="library-label" data-label="功能">功能</span></button><button type="button" role="tab" id="lib-tab-components" aria-controls="lib-components" aria-selected="false" tabindex="-1" data-library="components"><span class="library-label" data-label="元件">元件</span></button><button type="button" role="tab" id="lib-tab-slides" aria-controls="lib-slides" aria-selected="false" tabindex="-1" data-library="slides"><span class="library-label" data-label="簡報">簡報</span></button></div></div><h1 id="lib-title">我喜歡的網頁模板</h1><p class="library-guide">模板看整頁、功能選服務、元件選互動、簡報選主調</p></div></header>
 <div id="lib-templates" class="library-panel" role="tabpanel" aria-labelledby="lib-tab-templates">
 <header class="wrap">
 <ul class="taste" aria-label="我的喜好">
@@ -2198,6 +2223,33 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 <section class="tst-region" id="toaster" aria-label="通知" tabindex="-1"><ol class="tst-list" aria-live="polite" aria-relevant="additions"></ol></section>
 
 </div>
+<div id="lib-slides" class="library-panel" role="tabpanel" aria-labelledby="lib-tab-slides" hidden>
+<main class="wrap">
+<ul class="ppt-grid">
+  <li class="ppt-card">
+    <div class="ppt-thumbs"><img src="ppt-styles/P001-cover.webp" width="640" height="360" loading="lazy" alt="黑板風封面縮圖"><img src="ppt-styles/P001-inner.webp" width="640" height="360" loading="lazy" alt="黑板風內頁縮圖"></div>
+    <h2>黑板風<span class="code">P001-黑板風</span></h2>
+    <ul class="ppt-cats" aria-label="適合類別"><li>學習教材</li><li>產品或網站介紹</li></ul>
+    <ul class="ppt-colors" aria-label="三個色碼"><li><span class="sw" style="background:#F5F5F0"></span><b>主色</b><code>#F5F5F0</code></li><li><span class="sw" style="background:#FAE46E"></span><b>強調色</b><code>#FAE46E</code></li><li><span class="sw" style="background:#304241"></span><b>底色</b><code>#304241</code><small>黑板照片</small></li></ul>
+    <dl class="ppt-info"><div><dt>字型</dt><dd>霞鶩文楷 TC・可內嵌（目前未內嵌）</dd></div><div><dt>版型</dt><dd>封面、清單、大數字、圖文、收尾</dd></div><div><dt>用過</dt><dd>會考複習網站介紹</dd></div></dl>
+  </li>
+  <li class="ppt-card">
+    <div class="ppt-thumbs"><img src="ppt-styles/P002-cover.webp" width="640" height="360" loading="lazy" alt="藍金封面縮圖"><img src="ppt-styles/P002-inner.webp" width="640" height="360" loading="lazy" alt="藍金內頁縮圖"></div>
+    <h2>藍金<span class="code">P002-藍金</span></h2>
+    <ul class="ppt-cats" aria-label="適合類別"><li>家人朋友介紹／生活</li><li>產品或網站介紹</li></ul>
+    <ul class="ppt-colors" aria-label="三個色碼"><li><span class="sw" style="background:#0D1A33"></span><b>主色</b><code>#0D1A33</code></li><li><span class="sw" style="background:#F2B33D"></span><b>強調色</b><code>#F2B33D</code></li><li><span class="sw" style="background:#0D1A33"></span><b>底色</b><code>#0D1A33</code></li></ul>
+    <dl class="ppt-info"><div><dt>字型</dt><dd>標題 Noto Serif CJK TC，內文 Noto Sans CJK TC・可內嵌（目前未內嵌）</dd></div><div><dt>版型</dt><dd>封面、目錄、圖文、清單、大數字、大標語、收尾</dd></div><div><dt>用過</dt><dd>TERRA 介紹（製作中）</dd></div></dl>
+  </li>
+  <li class="ppt-card">
+    <div class="ppt-thumbs"><img src="ppt-styles/P003-cover.webp" width="640" height="360" loading="lazy" alt="森林青綠封面縮圖"><img src="ppt-styles/P003-inner.webp" width="640" height="360" loading="lazy" alt="森林青綠內頁縮圖"></div>
+    <h2>森林青綠<span class="code">P003-森林青綠</span></h2>
+    <ul class="ppt-cats" aria-label="適合類別"><li>家人朋友介紹／生活</li><li>活動或宣傳</li><li>產品或網站介紹</li></ul>
+    <ul class="ppt-colors" aria-label="三個色碼"><li><span class="sw" style="background:#16261F"></span><b>主色</b><code>#16261F</code></li><li><span class="sw" style="background:#14E0C8"></span><b>強調色</b><code>#14E0C8</code></li><li><span class="sw" style="background:#16261F"></span><b>底色</b><code>#16261F</code></li></ul>
+    <dl class="ppt-info"><div><dt>字型</dt><dd>Noto Sans CJK TC・可內嵌（目前未內嵌）</dd></div><div><dt>版型</dt><dd>封面、圖文、清單、圖表、大數字、表格、收尾</dd></div><div><dt>用過</dt><dd>TERRA 候選，未採用</dd></div></dl>
+  </li>
+</ul>
+</main>
+</div>
 <script>
 
 const templateLibrary=(function(){
@@ -2932,7 +2984,7 @@ document.addEventListener('keydown',e=>{
 
 }
 (function(){
-  const names={templates:'我喜歡的網頁模板',features:'功能庫',components:'元件風格庫'};
+  const names={templates:'我喜歡的網頁模板',features:'功能庫',components:'元件風格庫',slides:'我喜歡的簡報風格'};
   const tabs=[...document.querySelectorAll('.library-tabs button')];
   const track=document.querySelector('.library-tabs'),indicator=track.querySelector('.library-indicator');
   let current=null,componentsReady=false,fontReady=false,fadeFrame=0;
@@ -2978,6 +3030,7 @@ document.addEventListener('keydown',e=>{
   function route(){
     let hash;try{hash=decodeURIComponent(location.hash.slice(1))}catch(e){hash=''}
     if(hash==='features'){if(show('features',false))window.scrollTo({top:0,left:0,behavior:'instant'});return}
+    if(hash==='slides'){if(show('slides',false))window.scrollTo({top:0,left:0,behavior:'instant'});return}
     if(/^(components|icons|sounds|buttons|tables|cards|inputs|labels|switches|dialogs|tabs|toasts|menus|accordions|paging|empty|command)$/.test(hash)){
       const changed=show('components',false);
       if(changed&&hash==='components')window.scrollTo({top:0,left:0,behavior:'instant'});
@@ -2993,7 +3046,7 @@ document.addEventListener('keydown',e=>{
     t.addEventListener('pointerdown',()=>{pointerFocus=true;t.classList.add('is-pressed')});
     ['pointerup','pointercancel','pointerleave'].forEach(event=>t.addEventListener(event,()=>t.classList.remove('is-pressed')));
     t.addEventListener('keydown',e=>{
-      const n=e.key==='ArrowRight'?(i+1)%3:e.key==='ArrowLeft'?(i+2)%3:e.key==='Home'?0:e.key==='End'?2:null;
+      const n=e.key==='ArrowRight'?(i+1)%tabs.length:e.key==='ArrowLeft'?(i+tabs.length-1)%tabs.length:e.key==='Home'?0:e.key==='End'?tabs.length-1:null;
       if(n===null)return;e.preventDefault();tabs[n].focus();
     });
   });
