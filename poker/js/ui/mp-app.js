@@ -858,6 +858,7 @@ export function setSoloOpener(fn) {
 }
 
 export async function startMpApp() {
+  initSound();
   injectAuthCss();
   ensureMpRoot();
 
