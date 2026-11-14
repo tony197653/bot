@@ -10,14 +10,7 @@ import { formatCode, shareUrl, ROOM_CONST } from '../net/room.js';
 const $ = (sel, el = document) => el.querySelector(sel);
 const CODE_DIGITS = ROOM_CONST.CODE_DIGITS;
 
-const EMPTY_SVG = `<svg viewBox="0 0 132 88" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-  <ellipse cx="66" cy="80" rx="46" ry="4.5" fill="rgba(16,27,20,.9)"/>
-  <ellipse cx="66" cy="46" rx="48" ry="24" stroke="rgba(214,180,90,.55)" stroke-width="1.6" fill="rgba(33,57,44,.55)"/>
-  <ellipse cx="66" cy="46" rx="38" ry="17" stroke="rgba(214,180,90,.22)" stroke-width="1.2"/>
-  <circle cx="56" cy="44" r="6" stroke="rgba(230,191,90,.75)" stroke-width="1.4"/><circle cx="56" cy="44" r="2.4" stroke="rgba(230,191,90,.45)" stroke-width="1.2"/>
-  <rect x="68" y="37" width="12" height="16" rx="2" stroke="rgba(243,234,210,.6)" stroke-width="1.4"/>
-  <path d="M108 16v6M105 19h6" stroke="rgba(230,191,90,.7)" stroke-width="1.4"/><circle cx="22" cy="20" r="2.5" stroke="rgba(201,191,159,.6)" stroke-width="1.3"/>
-</svg>`;
+const EMPTY_SVG = `<img class="mp-empty-art" src="assets/lobby-royal-flush.svg" width="640" height="320" alt="" aria-hidden="true" decoding="async">`;
 
 const PLUS_SVG = `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 3.5v11M3.5 9h11"/></svg>`;
 const CHEV_SVG = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>`;
