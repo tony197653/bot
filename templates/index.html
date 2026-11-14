@@ -272,10 +272,8 @@ html[data-lib="components"]{scroll-padding-top:84px;scrollbar-gutter:stable;over
 #lib-components .stage.plain{background:transparent;padding:4px 4px 8px;display:block;min-height:0}
 #lib-components .stage.col{flex-direction:column;align-items:stretch;justify-content:flex-start}
 #lib-components .sound-list{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
-#lib-components .sound-row{border-bottom:1px solid var(--line-soft)}
+#lib-components .sound-row{display:flex;align-items:center;gap:12px;min-height:68px;padding:12px 16px;border-bottom:1px solid var(--line-soft)}
 #lib-components .sound-row:last-child{border-bottom:0}
-#lib-components .sound-row>summary{display:flex;align-items:center;gap:12px;min-height:68px;padding:12px 16px;cursor:pointer;list-style:none;font:inherit;color:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-#lib-components .sound-row>summary::-webkit-details-marker,#lib-components .sound-row>summary::marker{display:none;content:""}
 #lib-components .sound-play{width:44px;height:44px;border-radius:50%;flex:none;display:grid;place-items:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;padding:0;box-shadow:var(--shadow);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 #lib-components .sound-play .ico{width:20px;height:20px;stroke:currentColor;fill:currentColor;stroke-width:0}
 #lib-components .sound-play[aria-pressed=true]{background:var(--sage-soft);border-color:var(--sage);color:var(--sage-deep)}
@@ -283,18 +281,11 @@ html[data-lib="components"]{scroll-padding-top:84px;scrollbar-gutter:stable;over
 #lib-components .sound-meta h3{font-size:0.875rem;line-height:1.5;font-weight:500;display:flex;align-items:center;gap:8px}
 #lib-components .sound-meta h3 .code{height:22px;font-size:0.75rem;letter-spacing:0}
 #lib-components .sound-meta p{color:var(--mute);font-size:0.875rem;margin-top:2px;line-height:1.5}
-#lib-components .sound-row>summary .chev{margin-left:auto;color:var(--mute);transition:transform .3s var(--ease-out)}
-#lib-components .sound-row[open]>summary .chev{transform:rotate(180deg)}
-#lib-components .sound-panel{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
-#lib-components .sound-dls{display:flex;flex-wrap:wrap;gap:8px;width:100%}
-#lib-components .sound-dls a{font:inherit;font-size:0.875rem;line-height:1;font-weight:500;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 12px;color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:var(--r-sm);background:transparent;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 @media (hover:hover) and (pointer:fine){
-  #lib-components .sound-dls a:hover{background:#fff;border-color:#BFC3B8}
-  #lib-components .sound-row>summary:hover{background:#F3F4EF}
   #lib-components .sound-play:hover{background:#fff;border-color:#BFC3B8}
 }
-#lib-components .sound-dls a:active,#lib-components .sound-play:active{background:var(--sage-soft)}
-#lib-components .sound-row>summary:focus-visible,#lib-components .sound-play:focus-visible{outline:2px solid var(--sage);outline-offset:-2px}
+#lib-components .sound-play:active{background:var(--sage-soft)}
+#lib-components .sound-play:focus-visible{outline:2px solid var(--sage);outline-offset:-2px}
 #lib-components .icon-list{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
 #lib-components .icon-row{border-bottom:1px solid var(--line-soft)}
 #lib-components .icon-row:last-child{border-bottom:0}
@@ -1703,45 +1694,21 @@ html[data-lib=components]{scroll-padding-top:calc(var(--library-h) + var(--toc-h
 
 <!-- 音效 -->
 <section class="cat" id="sounds">
-  <div class="cat-head"><h2>音效</h2><p>會考測驗正在使用的三個音效，可試聽、下<span class="nw">載檔案。</span></p></div>
+  <div class="cat-head"><h2>音效</h2><p>會考測驗正在使用的三個音效，可試聽。</p></div>
   <audio id="sound-preview" preload="auto"></audio>
   <div class="sound-list">
-    <details class="sound-row">
-      <summary>
-        <button type="button" class="sound-play" data-src="sounds/S001-答對.mp3" aria-label="試聽 S001-答對"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg></button>
-        <span class="sound-meta"><h3><span class="code">S001-答對</span></h3><p>舊名 a1，柔和兩音上行鈴。</p></span>
-        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
-      </summary>
-      <div class="sound-panel">
-        <div class="sound-dls">
-          <a href="sounds/S001-答對.mp3" download="S001-答對.mp3">MP3</a>
-        </div>
-      </div>
-    </details>
-    <details class="sound-row">
-      <summary>
-        <button type="button" class="sound-play" data-src="sounds/S002-答錯.mp3" aria-label="試聽 S002-答錯"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg></button>
-        <span class="sound-meta"><h3><span class="code">S002-答錯</span></h3><p>舊名 d2，輕柔木質 tap。</p></span>
-        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
-      </summary>
-      <div class="sound-panel">
-        <div class="sound-dls">
-          <a href="sounds/S002-答錯.mp3" download="S002-答錯.mp3">MP3</a>
-        </div>
-      </div>
-    </details>
-    <details class="sound-row">
-      <summary>
-        <button type="button" class="sound-play" data-src="sounds/S003-成績頁.mp3" aria-label="試聽 S003-成績頁"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg></button>
-        <span class="sound-meta"><h3><span class="code">S003-成績頁</span></h3><p>舊名 b1，溫暖三音琶音。</p></span>
-        <svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg>
-      </summary>
-      <div class="sound-panel">
-        <div class="sound-dls">
-          <a href="sounds/S003-成績頁.mp3" download="S003-成績頁.mp3">MP3</a>
-        </div>
-      </div>
-    </details>
+    <div class="sound-row">
+      <button type="button" class="sound-play" data-src="sounds/S001-答對.mp3" aria-label="試聽 S001-答對"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg></button>
+      <span class="sound-meta"><h3><span class="code">S001-答對</span></h3><p>舊名 a1，柔和兩音上行鈴。</p></span>
+    </div>
+    <div class="sound-row">
+      <button type="button" class="sound-play" data-src="sounds/S002-答錯.mp3" aria-label="試聽 S002-答錯"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg></button>
+      <span class="sound-meta"><h3><span class="code">S002-答錯</span></h3><p>舊名 d2，輕柔木質 tap。</p></span>
+    </div>
+    <div class="sound-row">
+      <button type="button" class="sound-play" data-src="sounds/S003-成績頁.mp3" aria-label="試聽 S003-成績頁"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg></button>
+      <span class="sound-meta"><h3><span class="code">S003-成績頁</span></h3><p>舊名 b1，溫暖三音琶音。</p></span>
+    </div>
   </div>
 </section>
 
