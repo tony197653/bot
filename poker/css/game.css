@@ -867,6 +867,7 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-empty[hidden]{display:none!important}
 .mp-rows[hidden]{display:none!important}
 .mp-empty > svg{width:132px;height:88px;margin-bottom:6px}
+.mp-empty > .mp-empty-art{display:block;width:100%;max-width:440px;height:auto;aspect-ratio:2/1;margin:0 0 8px;border-radius:var(--radius-md);border:1px solid var(--mp-line);box-shadow:0 10px 24px -10px rgba(0,0,0,.7)}
 .mp-empty h3{font-size:16px;font-weight:700;margin:0;line-height:1.5}
 .mp-empty p{font-size:16px;color:var(--mute);margin:0;line-height:1.5}
 .mp-empty .mp-btn-primary{display:inline-flex;align-items:center;width:auto;min-width:200px;margin-top:10px}
