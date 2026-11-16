@@ -198,9 +198,9 @@
       "status": "已驗證",
       "skill": "",
       "primary": {
-        "name": "Web Share API＋複製網址備援",
+        "name": "Web Share API＋LINE／複製備援",
         "url": "https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share",
-        "note": "已用於德撲分享牌桌連結。瀏覽器內建、零函式庫；不支援時改複製網址。"
+        "note": "已用於德撲分享牌桌連結、TERRA 分享按鈕。瀏覽器內建、零函式庫；不支援時改 LINE 分享或複製網址。"
       },
       "alternatives": [
         {

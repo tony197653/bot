@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>Templates L2 bookmark icon</title>
+  <defs>
+    <linearGradient id="bg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="512">
+      <stop offset="0%" stop-color="#2F3A48"/>
+      <stop offset="100%" stop-color="#080A0D"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  
+  <g fill="#F3ECD8" transform="translate(256.0,256.0) scale(3.481600) translate(-50.0,-50.0)">
+    <rect x="0.00" y="0.00" width="100.00" height="16.00" rx="6" ry="6"/>
+    <rect x="0.00" y="24.00" width="30.00" height="76.00" rx="6" ry="6"/>
+    <rect x="38.00" y="24.00" width="62.00" height="76.00" rx="6" ry="6"/>
+  </g>
+
+</svg>
