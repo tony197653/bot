@@ -772,7 +772,7 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 6px}
 .mp-panel-h h2{font-size:15px;font-weight:700;letter-spacing:.02em;margin:0}
 .mp-panel-h span{font-size:12px;color:var(--mute);display:flex;align-items:center;gap:6px;white-space:nowrap}
-.mp-live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:mp-live 2.4s var(--mp-ease) infinite}
+.mp-live-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:mp-live 2.4s var(--mp-ease) infinite;position:relative;top:1px}
 @keyframes mp-live{0%,100%{opacity:1}50%{opacity:.35}}
 .mp-rows{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:2px}
 .mp-rows li+li{border-top:1px solid rgba(214,180,90,.10)}
