@@ -47,3 +47,75 @@ initRecords();
 // A passive observer avoids adding work to map gestures or page scrolling.
 const backToTop=document.querySelector('#back-to-top');
 if(backToTop){const intro=document.querySelector('.intro');if('IntersectionObserver' in window){new IntersectionObserver(entries=>{backToTop.hidden=entries[0].isIntersecting},{threshold:0}).observe(intro)}else{backToTop.hidden=false}backToTop.addEventListener('click',()=>{window.scrollTo({top:0,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'})})}
+
+
+const SHARE_URL='https://tony197653.github.io/bot/terra/';
+const SHARE_TITLE='TERRA — 世界，值得細看';
+(function initShare(){
+  const btn=document.querySelector('#share-btn');
+  const menu=document.querySelector('#share-menu');
+  const line=document.querySelector('#share-line');
+  const copy=document.querySelector('#share-copy');
+  if(!btn||!menu||!copy)return;
+  if(line){
+    line.href='https://social-plugins.line.me/lineit/share?url='+encodeURIComponent(SHARE_URL);
+    line.target='_blank';
+    line.rel='noopener noreferrer';
+  }
+  let toastEl=null,toastTimer=0;
+  const toast=msg=>{
+    if(!toastEl){
+      toastEl=document.createElement('div');
+      toastEl.id='share-toast';
+      toastEl.className='share-toast';
+      toastEl.setAttribute('role','status');
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent=msg;
+    toastEl.hidden=false;
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>{toastEl.hidden=true},1600);
+  };
+  const closeMenu=()=>{menu.hidden=true;btn.setAttribute('aria-expanded','false')};
+  const openMenu=()=>{menu.hidden=false;btn.setAttribute('aria-expanded','true')};
+  const copyLink=async()=>{
+    try{
+      await navigator.clipboard.writeText(SHARE_URL);
+      toast('已複製');
+      closeMenu();
+      return;
+    }catch(err){}
+    try{
+      const ta=document.createElement('textarea');
+      ta.value=SHARE_URL;
+      ta.setAttribute('readonly','');
+      ta.style.cssText='position:fixed;left:-9999px;top:0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      toast('已複製');
+      closeMenu();
+    }catch(err){}
+  };
+  btn.addEventListener('click',async ev=>{
+    ev.stopPropagation();
+    if(typeof navigator.share==='function'){
+      closeMenu();
+      try{
+        await navigator.share({title:SHARE_TITLE,url:SHARE_URL});
+      }catch(err){
+        if(err&&err.name==='AbortError')return;
+        openMenu();
+      }
+      return;
+    }
+    if(menu.hidden)openMenu();else closeMenu();
+  });
+  copy.addEventListener('click',ev=>{ev.preventDefault();copyLink()});
+  document.addEventListener('click',ev=>{
+    if(menu.hidden)return;
+    if(!menu.contains(ev.target)&&!btn.contains(ev.target))closeMenu();
+  });
+  document.addEventListener('keydown',ev=>{if(ev.key==='Escape')closeMenu()});
+})();
