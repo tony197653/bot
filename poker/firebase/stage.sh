@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 DEST="$(cd "$(dirname "$0")" && pwd)/public"
 rm -rf "$DEST"
-mkdir -p "$DEST/poker" "$DEST/lib"
+mkdir -p "$DEST/friday-poker" "$DEST/lib"
 
 EXCLUDES=(
   --exclude 'firebase'
@@ -22,9 +22,9 @@ EXCLUDES=(
   --exclude 'assets/style-green-mockup.html'
 )
 
-mkdir -p "$DEST/poker"
+mkdir -p "$DEST/friday-poker"
 if command -v rsync >/dev/null 2>&1; then
-  rsync -a --delete "${EXCLUDES[@]}" "$ROOT/poker/" "$DEST/poker/"
+  rsync -a --delete "${EXCLUDES[@]}" "$ROOT/poker/" "$DEST/friday-poker/"
 else
   (cd "$ROOT/poker" && tar \
     --exclude='firebase' \
@@ -38,7 +38,7 @@ else
     --exclude='PHASE-C-LOG.md' \
     --exclude='assets/component-library-index.html' \
     --exclude='assets/style-green-mockup.html' \
-    -cf - .) | (cd "$DEST/poker" && tar -xf -)
+    -cf - .) | (cd "$DEST/friday-poker" && tar -xf -)
 fi
 
 # lib/auth: serve demo.html; drop README + auth.rules only
@@ -59,4 +59,8 @@ if [[ ! -d "$DEST/lib/auth" ]]; then
   cp -a "$ROOT/lib/." "$DEST/lib/"
   rm -f "$DEST/lib/auth/README.md" "$DEST/lib/auth/auth.rules" 2>/dev/null || true
 fi
-echo "Staged → $DEST (poker/ + lib/; playground + auth demo kept; tests & rules excluded)"
+# Old /poker/ URL: JS+meta redirect so query and hash are kept (Firebase 302 cannot see the hash).
+mkdir -p "$DEST/poker"
+cp "$ROOT/poker/firebase/legacy-redirect.html" "$DEST/poker/index.html"
+
+echo "Staged → $DEST (friday-poker/ + lib/ + poker/ redirect; playground + auth demo kept; tests & rules excluded)"
