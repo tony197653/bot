@@ -47,13 +47,8 @@
         "type": 302
       },
       {
-        "source": "/poker",
-        "destination": "/friday-poker/",
-        "type": 302
-      },
-      {
-        "source": "/poker/**",
-        "destination": "/friday-poker/:splat",
+        "regex": "^/poker/(?P<path>.+)$",
+        "destination": "/friday-poker/:path",
         "type": 302
       }
     ],
