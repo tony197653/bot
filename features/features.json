@@ -382,7 +382,7 @@
       "skill": "humanities-quiz-template",
       "primary": {
         "name": "會考測驗模板",
-        "url": "../quiz/",
+        "url": "../exam/",
         "note": "已用於會考國文、英文、社會、自然：選題、10 題、解說、錯題再練。"
       },
       "alternatives": [
