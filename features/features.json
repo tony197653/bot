@@ -1,6 +1,6 @@
 {
   "_說明": "功能庫資料檔。格式說明請看同資料夾的 README.md。改完存檔即可，不必動 index.html。",
-  "updated": "2026-11-13",
+  "updated": "2026-11-17",
   "source": "技能 feature-index（含 references/ 比較表）",
   "notes": [
     {
@@ -200,13 +200,64 @@
       "primary": {
         "name": "Web Share API＋LINE／複製備援",
         "url": "https://developer.mozilla.org/en-US/docs/Web/API/Navigator/share",
-        "note": "已用於德撲分享牌桌連結、TERRA 分享按鈕。瀏覽器內建、零函式庫；不支援時改 LINE 分享或複製網址。"
+        "note": "已用於德撲分享牌桌連結、TERRA 分享按鈕。瀏覽器內建、零函式庫；不支援時改 LINE 分享或複製網址。見下張卡。"
       },
       "alternatives": [
         {
           "name": "shareon",
           "url": "https://github.com/kytta/shareon",
           "note": "輕量、無追蹤的分享按鈕"
+        }
+      ]
+    },
+    {
+      "name": "分享預覽標籤",
+      "status": "已驗證",
+      "skill": "",
+      "primary": {
+        "name": "Open Graph＋Twitter Card",
+        "url": "https://ogp.me/",
+        "note": "og:image 用本頁圖示的完整正式網址。已用於會考入口、模板庫、德撲。"
+      },
+      "alternatives": [
+        {
+          "name": "Twitter Card 說明",
+          "url": "https://developer.x.com/en/docs/x-for-websites/cards/overview/abouts-cards",
+          "note": "twitter:card 用 summary，圖用同一張。"
+        }
+      ]
+    },
+    {
+      "name": "加入主畫面／書籤圖示",
+      "status": "已驗證",
+      "skill": "",
+      "primary": {
+        "name": "apple-touch-icon＋favicon",
+        "url": "https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/link",
+        "note": "iPhone Safari 依網址快取，改檔名或加 ?v= 都不會更新，要換路徑。"
+      },
+      "alternatives": [
+        {
+          "name": "Web App Manifest 圖示",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/Manifest/icons",
+          "note": "加入主畫面時會用到 manifest 的 icons。"
+        }
+      ]
+    },
+    {
+      "name": "換網址並保留 query／hash",
+      "status": "已驗證",
+      "skill": "",
+      "primary": {
+        "name": "舊網址跳轉，query 與 hash 都留下",
+        "url": "https://developer.mozilla.org/en-US/docs/Web/API/Location",
+        "note": "已用於會考 /quiz/→/exam/、德撲 /poker/→/friday-poker/。"
+      },
+      "alternatives": [
+        {
+          "name": "Firebase Hosting 轉址",
+          "url": "https://firebase.google.com/docs/hosting/full-config#redirects",
+          "note": "德撲用 302；會考用頁面裡的 JS 和 meta refresh。"
         }
       ]
     },
