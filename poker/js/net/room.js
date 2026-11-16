@@ -657,10 +657,13 @@ export function shareUrl(code, roomId) {
   const u = new URL(location.href);
   u.search = '';
   u.hash = '';
-  if (!/\/poker\/?$/.test(u.pathname)) {
-    u.pathname = u.pathname.replace(/\/?$/, '/').includes('/poker/')
-      ? u.pathname
-      : `${u.pathname.replace(/\/$/, '')}/poker/`;
+  const path = u.pathname.replace(/\/?$/, '/');
+  if (/\/friday-poker\//.test(path)) {
+    u.pathname = path.replace(/\/friday-poker\/.*$/, '/friday-poker/');
+  } else if (/\/poker\//.test(path)) {
+    u.pathname = path.replace(/\/poker\/.*$/, '/friday-poker/');
+  } else {
+    u.pathname = `${u.pathname.replace(/\/$/, '')}/friday-poker/`;
   }
   u.searchParams.set('room', code);
   u.searchParams.set('r', roomId);

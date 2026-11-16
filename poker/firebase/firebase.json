@@ -41,12 +41,26 @@
       "**/style-green-mockup.html"
     ],
     "redirects": [
-      { "source": "/", "destination": "/poker/", "type": 302 }
+      {
+        "source": "/",
+        "destination": "/friday-poker/",
+        "type": 302
+      },
+      {
+        "regex": "^/poker/(?P<path>.+)$",
+        "destination": "/friday-poker/:path",
+        "type": 302
+      }
     ],
     "headers": [
       {
         "source": "**/*.@(js|css|html)",
-        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
       }
     ]
   }
