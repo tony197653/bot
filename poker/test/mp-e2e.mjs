@@ -463,7 +463,22 @@ async function runShowdown(browser, base, viewport, label) {
 
 /** Solo hand via ?solo=1 (lobby ⋯ menu no longer exposes 同一支手機輪流玩). */
 async function runSoloFromLobby(browser, base, viewport, label) {
-  const p = await makePlayer(browser, base, '宜靜', `solo${label}`, viewport, 'solo=1');
+  // solo 直接開啟單人大廳，不會初始化多人登入的 __qaSignIn。
+  const ctx = await browser.newContext({
+    viewport,
+    deviceScaleFactor: 2,
+    isMobile: viewport.width < 700,
+    hasTouch: viewport.width < 700,
+  });
+  await ctx.route('**/*', blockProd);
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text().slice(0, 200));
+  });
+  const p = { ctx, page, name: '宜靜', uid: `solo${label}`, errors };
+  await p.page.goto(`${base}/poker/?emu=1&solo=1`, { waitUntil: 'domcontentloaded' });
   await p.page.waitForSelector('#lobbyScreen.is-on', { timeout: 10000 });
   const appHidden = await p.page.evaluate(() =>
     document.getElementById('app')?.classList.contains('hidden'),
