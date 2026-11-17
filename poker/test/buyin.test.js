@@ -285,7 +285,7 @@ test('hand_over 輸光者走既有 cashoutSeat，離座通知先回大廳再提�
     getRoom:()=>({pub:{phase:'hand_over',handNo:1},seatUids:['u','','','','',''],stacks:[0,0,0,0,0,0]}),
     engine:{phase:'hand_over',handNumber:1,seats:[{chips:0}]},PHASE:{LOBBY:'lobby',HAND_OVER:'hand_over'},
     writeChain:Promise.resolve(),lastHandsBumpHandNo:1,leaveQueue:[],sitQueue:[],closing:false,running:true,
-    cashoutSeat:async(seat,uid)=>{events.push([seat,uid,0]);return true;},pendingSeats:[],
+    cashoutSeat:async(seat,uid)=>{events.push([seat,uid,0]);return true;},pendingSeats:[],addonQueue:new Map(),
   });
   vm.runInContext(host.slice(host.indexOf('  async function drainSitLeaveInner('),host.indexOf('  function seatPlayer(')),ctx);
   await ctx.drainSitLeaveInner();assert.deepEqual(events,[[0,'u',0]]);
