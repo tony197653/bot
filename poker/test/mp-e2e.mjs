@@ -126,7 +126,7 @@ async function makePlayer(browser, base, name, uid, viewport) {
   return { ctx, page, name, uid, errors };
 }
 
-// 每段情境結束後，以房主 UI 收掉仍開放的牌桌（包含測試提前失敗）。
+// 每段情境結束後，以本機 emulator REST 清理牌桌（包含測試提前失敗）。
 const scenarioRooms = [];
 
 async function roomIsClosed(roomId) {
@@ -161,17 +161,73 @@ async function closeRoomViaHost(host, roomId) {
   if (!(await roomIsClosed(roomId))) throw new Error(`房主 UI 收桌未完成：${roomId}`);
 }
 
-async function cleanupScenarioRooms(browser, base) {
-  for (const { host, roomId, code, viewport } of scenarioRooms) {
-    if (await roomIsClosed(roomId)) continue;
-    // 原 context 可能已關閉（斷線測試亦然）；重新以原房主身分進桌收桌。
-    const owner = await joinViaLink(
-      browser, base, host.name, host.uid, viewport, roomId, code,
-    );
-    try {
-      await closeRoomViaHost(owner, roomId);
-    } finally {
-      await owner.ctx.close();
+async function cleanupScenarioRooms() {
+  if (!scenarioRooms.length) return;
+  const host = process.env.FIRESTORE_EMULATOR_HOST || '';
+  // 不接受 URL、外部主機或預設遠端端點；owner 權限只可送往本機 emulator。
+  if (!/^(?:127\.0\.0\.1|localhost|\[::1\]):[0-9]{1,5}$/.test(host)) {
+    throw new Error('清理需要本機 FIRESTORE_EMULATOR_HOST（含連接埠）');
+  }
+  const database = 'projects/demo-poker/databases/(default)';
+  const root = `http://${host}/v1/${database}/documents`;
+  const request = async (url, options = {}) => {
+    const response = await fetch(url, {
+      ...options,
+      headers: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(15000),
+      redirect: 'error',
+    });
+    if (!response.ok) throw new Error(`情境清理 REST ${response.status}：${url}`);
+    return response.json();
+  };
+  const list = async (collection) => {
+    const documents = [];
+    let token = '';
+    do {
+      const query = new URLSearchParams({ pageSize: '100' });
+      if (token) query.set('pageToken', token);
+      const page = await request(`${root}/${collection}?${query}`);
+      documents.push(...(page.documents || []));
+      token = page.nextPageToken || '';
+    } while (token);
+    return documents;
+  };
+  for (const { roomId } of scenarioRooms) {
+    const room = await request(`${root}/pokerRooms/${encodeURIComponent(roomId)}`);
+    const codes = await list('pokerCodes');
+    const players = await list('pokerPlayers');
+    const writes = [];
+    const patch = (document, fields) => writes.push({
+      update: { name: document.name, fields },
+      updateMask: { fieldPaths: Object.keys(fields) },
+      currentDocument: { updateTime: document.updateTime },
+    });
+    if (room.fields?.status?.stringValue !== 'closed') {
+      patch(room, { status: { stringValue: 'closed' } });
+    }
+    for (const code of codes) {
+      if (code.fields?.roomId?.stringValue === roomId) {
+        writes.push({ delete: code.name, currentDocument: { updateTime: code.updateTime } });
+      }
+    }
+    for (const player of players) {
+      if (player.fields?.tableRoomId?.stringValue !== roomId) continue;
+      // 清理歸還帳戶原有的 inPlay；不模擬牌局結算，也不覆蓋其他桌的玩家。
+      const number = (value) => Number(value?.integerValue ?? value?.doubleValue ?? 0);
+      const bank = number(player.fields.bank) + number(player.fields.inPlay);
+      if (!Number.isSafeInteger(bank) || bank < 0) {
+        throw new Error(`清理玩家金額無效：${player.name}`);
+      }
+      patch(player, {
+        bank: { integerValue: String(bank) },
+        total: { integerValue: String(bank) },
+        inPlay: { integerValue: '0' },
+        tableRoomId: { nullValue: null },
+      });
+    }
+    // 同一桌原子清理；讀取後若文件改動則直接報錯，避免覆蓋新的狀態。
+    if (writes.length) {
+      await request(`${root}:commit`, { method: 'POST', body: JSON.stringify({ writes }) });
     }
   }
   scenarioRooms.length = 0;
@@ -1218,7 +1274,7 @@ async function main() {
     try {
       results.push({ name, ...(await fn()) });
     } finally {
-      await cleanupScenarioRooms(browser, base);
+      await cleanupScenarioRooms();
     }
   };
   try {

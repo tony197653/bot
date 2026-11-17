@@ -312,8 +312,8 @@ function decode(v) {
   if ('timestampValue' in v) return v.timestampValue;
   return v;
 }
-async function readDoc(path) {
-  const r = await fetch(`http://${EMU}/v1/projects/${PROJECT}/databases/(default)/documents/${path}`, { headers: { Authorization: 'Bearer owner' } });
+async function readDoc(path, signal) {
+  const r = await fetch(`http://${EMU}/v1/projects/${PROJECT}/databases/(default)/documents/${path}`, { headers: { Authorization: 'Bearer owner' }, signal });
   if (r.status === 404) return null;
   const j = await r.json();
   return Object.fromEntries(Object.entries(j.fields || {}).map(([k, x]) => [k, decode(x)]));
@@ -473,19 +473,53 @@ async function runViewport(browser, base, VP) {
       if (!result.done) throw new Error('本手尚未完成');
     }, 150000);
     await message;
-    await run('兩手之間立即取消競態', async () => {
+    await run('兩手之間上桌後取消競態', async () => {
+      const before = await readDoc(`pokerRooms/${roomId}`);
+      const seat = before?.seatUids?.indexOf(guest.uid) ?? -1;
+      if (seat < 0 || before.sess?.[seat]?.uid !== guest.uid) throw new Error('找不到客人座位與 session');
+      const topUpBefore = Number(before.sess[seat].topUpChips || 0);
       await guest.page.locator('#mpAddon:not([disabled])').click();
       await guest.page.waitForSelector('#mpBuyinPicker');
       await guest.page.locator('#mpBuyinPicker [data-confirm]').click();
-      await guest.page.locator('#mpAddonCancel:not([disabled])').click({ timeout: 8000 });
+      const deadline = Date.now() + 15000;
+      const signal = AbortSignal.timeout(15000);
+      let processed = false;
+      while (Date.now() < deadline) {
+        const [queue, room] = await Promise.all([
+          readDoc(`pokerRooms/${roomId}/addons/${guest.uid}`, signal),
+          readDoc(`pokerRooms/${roomId}`, signal),
+        ]);
+        if (Array.isArray(queue?.items) && queue.items.length === 0 &&
+            room?.sess?.[seat]?.uid === guest.uid &&
+            Number(room.sess[seat].topUpChips) > topUpBefore) {
+          processed = true;
+          break;
+        }
+        await sleep(Math.min(100, Math.max(0, deadline - Date.now())));
+      }
+      if (!processed) throw new Error('15 秒內未確認房主清空 items 且該座位 topUpChips 增加');
+      log('已確認房主處理加碼', 'seat', seat, 'topUpBefore', topUpBefore);
+      // 僅透過真實頁面流程；cancelAddon 位於模組內，沒有可直接呼叫的頁面介面。
+      const clicked = await guest.page.evaluate(() => {
+        const button = document.getElementById('mpAddonCancel');
+        if (!button || button.disabled || !button.getClientRects().length) return false;
+        button.click();
+        return true;
+      });
+      if (!clicked) throw new Error('房主處理後取消鈕已消失或不可按；cancelAddon 未公開於頁面，無法直接呼叫取消流程');
       await guest.page.waitForFunction(() => {
         const t = document.getElementById('mpToast');
         return t && !t.hidden && /已上桌，不能取消|已取消加碼/.test(t.textContent);
       }, null, { timeout: 10000 });
       const actual = await guest.page.locator('#mpToast').innerText();
       log('取消競態實際文字', actual);
-      await capture(guest, prefix, actual.includes('已上桌') ? 'already-on-table' : 'cancelled');
-    }).catch(e => log('取消競態未截到', e.message));
+      if (actual.includes('已上桌，不能取消')) await capture(guest, prefix, 'already-on-table');
+      else if (actual.includes('已取消加碼')) await capture(guest, prefix, 'cancelled');
+    }).catch(e => {
+      const filename = `${prefix}-already-on-table.png`;
+      if (!missing.includes(filename)) missing.push(filename);
+      log('取消競態未截到', filename, e.message);
+    });
     await run('帳戶不足截圖', async () => {
       // 開著選擇器等帳戶即時數字到 0，確保前台已收到 setBank。
       await guest.page.locator('#mpAddon:not([disabled])').click();
@@ -501,8 +535,8 @@ async function runViewport(browser, base, VP) {
     log('尺寸流程失敗', prefix, e.stack || e.message);
   } finally {
     for (const name of EXPECTED) {
-      if (name === 'already-on-table' && shots.includes(`${prefix}-cancelled.png`)) continue;
-      if (!shots.includes(`${prefix}-${name}.png`)) missing.push(`${prefix}-${name}.png`);
+      const filename = `${prefix}-${name}.png`;
+      if (!shots.includes(filename) && !missing.includes(filename)) missing.push(filename);
     }
     for (const p of players) await p.ctx.close();
   }
