@@ -3075,8 +3075,8 @@ function pickBuyinAmount(options) {
     <p class="mp-acct">帳戶 <b id="mpBuyinBank">${options.bankText ?? '—'}</b></p>
     <input aria-label="${options.title || '攜入籌碼'}" type="number" inputmode="numeric" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
     <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
-    <button type="button" class="mp-btn-ghost" data-cancel>取消</button>
     ${options.hint ? `<p class="mp-acct">${options.hint}</p>` : ''}
+    <button type="button" class="mp-btn-ghost" data-cancel>取消</button>
     <button type="button" class="mp-btn-primary" data-confirm>${options.confirmText || '入座'}</button>
   </div>`;
   document.body.appendChild(el);
