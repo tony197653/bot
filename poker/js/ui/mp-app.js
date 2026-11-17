@@ -1826,8 +1826,8 @@ async function doCreate(data) {
     paint();
     return;
   }
-  if (data.newPlayerChips < 1000 || data.newPlayerChips > 100000 || data.newPlayerChips % 500) {
-    createError = '起始籌碼要在 1,000–100,000 之間，且是 500 的倍數；請改完再按「開房」';
+  if (data.newPlayerChips < 50 * data.bb || data.newPlayerChips > 100000 || data.newPlayerChips % 500) {
+    createError = `起始籌碼要在 ${(50 * data.bb).toLocaleString('en-US')}–100,000 之間，且是 500 的倍數；請改完再按「開房」`;
     paint();
     return;
   }
@@ -3133,7 +3133,7 @@ function pickBuyinAmount(options) {
         number.focus();
         return;
       }
-      toast(options.pendingText || '入座中…');
+      if (options.pendingText !== null) toast(options.pendingText || '入座中…');
       close(amount);
     });
   });
@@ -3174,10 +3174,10 @@ async function requestAddon() {
   const user = getUser();
   if (!fb || !user || !room || addonBusy || !room.seatUids.includes(user.uid)) return;
   const opts = addonOptions(playerDoc?.bank, room.config?.bb, queuedTotal(myAddonQueue));
-  if (!opts) { toast('帳戶不足，無法加碼'); return; }
+  if (!opts) { toast('帳戶不足，沒有加碼'); return; }
   const targetRoomId = roomId;
   const amount = await pickBuyinAmount({ ...opts, title: '加碼', confirmText: '加碼',
-    pendingText: '加碼排隊中…', bankText: `${accountText()}（上桌時才扣）`, hint: '這手結束後上桌' });
+    pendingText: null, bankText: `${accountText()}（上桌時才扣）`, hint: '這手結束後上桌' });
   if (amount == null || roomId !== targetRoomId) return;
   addonBusy = true;
   paintTableChrome();

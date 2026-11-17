@@ -12,6 +12,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
     value, checked: Number(value.split('/')[0]) === sb, attrs: {},
     setAttribute(k, v) { this.attrs[k] = v; },
   }));
+  const minus = { addEventListener(_type, fn) { this.click = fn; } }, hint = {};
   const input = { value: chips, addEventListener() {} }, error = {}, button = { addEventListener() {}, focus() {} }, cancel = {};
   const form = {
     querySelectorAll: () => radios, querySelector: () => button,
@@ -19,7 +20,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
   };
   cancel.addEventListener = (_type, fn) => { cancel.click = fn; };
   const root = { querySelector: selector => ({
-    '#createForm': form, '#mpCreateChips': input, '#mpCreateLiveErr': error,
+    '[data-chips-minus]': minus, '#mpCreateChipsHint': hint, '#createForm': form, '#mpCreateChips': input, '#mpCreateLiveErr': error,
     '[data-act="cancel"]': cancel,
   })[selector] };
   const OriginalFormData = globalThis.FormData;
@@ -30,7 +31,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
   try {
     renderCreateRoom(root, { defaults: { sb, chips }, bank, onDraft: d => drafts.push(d),
       onSubmit: d => submitted.push(d), onCancel: () => cancelled++ });
-    return { radios, input, error, button, drafts, submitted, cancel,
+    return { radios, input, error, button, drafts, submitted, cancel, minus, hint,
       get cancelled() { return cancelled; },
       change(name) { events.change({ target: { name: name || '' } }); },
       submit() { events.submit({ preventDefault() {}, target: form }); },
@@ -63,6 +64,11 @@ test('取消、可用盲注切換、草稿與合法送出保留', () => {
     h.cancel.click(); assert.equal(h.cancelled, 1);
     h.radios.forEach(r => { r.checked = r.value === '5/10'; });
     h.change('blinds'); assert.equal(h.drafts.at(-1).sb, 5);
+    assert.equal(chipsOf(h.input.value), 500);
+    assert.equal(h.input.min, '500');
+    assert.match(h.hint.textContent, /500–100,000/);
+    h.minus.click(); assert.equal(chipsOf(h.input.value), 500);
+    h.submit(); assert.equal(h.submitted.pop().newPlayerChips, 500);
     h.radios.forEach(r => { r.checked = r.value === '10/20'; });
     h.change('blinds');
     assert.equal(Number(String(h.input.value).replaceAll(',', '')), 1000);
@@ -71,6 +77,21 @@ test('取消、可用盲注切換、草稿與合法送出保留', () => {
     h.input.value = 2000; h.change('chips'); h.submit();
     assert.equal(h.button.disabled, false); assert.equal(h.submitted[0].newPlayerChips, 2000);
     h.input.value = 2500; h.change('chips'); assert.equal(h.button.disabled, true);
+  } finally { h.restore(); }
+});
+
+test('R33b 四組盲注預設、input min、提示及減號下限同步', () => {
+  const h = formHarness({ bank: 100000 });
+  try {
+    for (const [value, minimum] of [['5/10',500],['10/20',1000],['25/50',2500],['50/100',5000]]) {
+      h.radios.forEach(r => { r.checked = r.value === value; });
+      h.change('blinds');
+      assert.equal(chipsOf(h.input.value), minimum);
+      assert.equal(h.input.min, String(minimum));
+      assert.ok(h.hint.textContent.includes(`${minimum.toLocaleString('en-US')}–100,000`));
+      h.minus.click(); assert.equal(chipsOf(h.input.value), minimum);
+      h.submit(); assert.equal(h.submitted.at(-1).newPlayerChips, minimum);
+    }
   } finally { h.restore(); }
 });
 
@@ -96,7 +117,7 @@ test('首次無帳戶：盲注可用且自動補足；標籤不高於 bank', () 
 
 const source = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
 test('doCreate 使用重讀 bank：拒絕不足／超額／低於50BB，合法才建立', async () => {
-  for (const [bank, bb, chips, allowed] of [[2000,50,2000,false],[2000,20,2500,false],[2000,20,500,false],[2000,20,2000,true],[null,50,2000,false]]) {
+  for (const [bank, bb, chips, allowed] of [[1000,10,500,true],[2000,50,2000,false],[2000,20,2500,false],[2000,20,500,false],[2000,20,2000,true],[null,50,2000,false]]) {
     let creates = 0, reads = 0;
     const ctx = vm.createContext({ getFirebase: () => ({}), getUser: () => ({ uid: 'u' }),
       createAttempt: 0, createTimeoutMs: () => 15000, setTimeout, clearTimeout, createDraft: {}, creating: false, createError: '', playerDoc: { bank: 99999 },
@@ -108,7 +129,7 @@ test('doCreate 使用重讀 bank：拒絕不足／超額／低於50BB，合法�
     vm.runInContext(source.slice(source.indexOf('async function doCreate('), source.indexOf('async function doJoin(')), ctx);
     await ctx.doCreate({ sb: bb / 2, bb, newPlayerChips: chips });
     assert.equal(creates, allowed ? 1 : 0);
-    if (chips >= 1000) assert.equal(reads, 1);
+    if (chips >= 50 * bb) assert.equal(reads, 1);
     if (!allowed) assert.ok(ctx.createError);
   }
 });

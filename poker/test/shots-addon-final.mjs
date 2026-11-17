@@ -113,7 +113,13 @@ async function makeHost(browser, base, name, uid, VP) {
 async function createAndShare(host, prefix) {
   await host.page.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
   await host.page.waitForSelector('form, .mp-create', { timeout: 8000 });
-  if (prefix) await capture(host, prefix, 'open-table-buyin');
+  if (prefix) {
+    await host.page.locator('label.mp-seg-item:has(input[name="blinds"][value="5/10"])').click();
+    await host.page.waitForFunction(() => document.getElementById('mpCreateChips')?.value === '500');
+    await capture(host, prefix, 'open-table-buyin');
+    // 後續加碼情境維持原本的 10/20 盲注。
+    await host.page.locator('label.mp-seg-item:has(input[name="blinds"][value="10/20"])').click();
+  }
   await host.page.click('button[type="submit"]');
   await host.page.waitForSelector('.mp-url', { timeout: 20000 });
   const url = (await host.page.innerText('.mp-url')).trim();
@@ -396,7 +402,7 @@ async function queueAddonAmount(p, hostP, amount) {
 
 const shots = [];
 const missing = [];
-const EXPECTED = ['addon-button', 'addon-picker', 'queued', 'table-message', 'insufficient', 'away-addon'];
+const EXPECTED = ['open-table-buyin', 'addon-button', 'start-next', 'addon-picker', 'inhand-hint', 'queued', 'table-message', 'insufficient', 'away-addon'];
 async function capture(p, prefix, name) {
   const filename = `${prefix}-${name}.png`;
   await p.page.screenshot({ path: join(ART, filename), fullPage: true });
@@ -410,7 +416,9 @@ async function capture(p, prefix, name) {
 async function toastShot(p, prefix, name, text, timeout = 20000) {
   await p.page.waitForFunction(expected => {
     const el = document.getElementById('mpToast');
-    return el && !el.hidden && el.textContent.includes(expected);
+    return el && !el.hidden && el.getClientRects().length && el.textContent.includes(expected) &&
+      (expected !== '帳戶不足，沒有加碼' ||
+        (el.classList.contains('mp-toast-warning') && el.textContent.trim() === `⚠ ${expected}`));
   }, text, { timeout });
   await capture(p, prefix, name);
 }
@@ -452,7 +460,6 @@ async function runViewport(browser, base, VP) {
     await run('兩手之間加碼按鈕與預設選擇器', async () => {
       await guest.page.waitForSelector('#mpAddon:not([disabled])');
       await capture(guest, prefix, 'addon-button');
-      await capture(host, prefix, 'start-next');
       await guest.page.locator('#mpAddon').click();
       await guest.page.waitForSelector('#mpBuyinPicker');
       const room = await readDoc(`pokerRooms/${roomId}`);
@@ -479,9 +486,14 @@ async function runViewport(browser, base, VP) {
         const row = document.getElementById('mpAddonQueueRow');
         const button = document.getElementById('mpAddonCancel');
         const label = button?.getAttribute('aria-label') || '';
-        const text = (row?.innerText || '') + label;
-        const n = Number((text.match(/([\d,]+)/) || [])[1]?.replaceAll(',', ''));
-        return button && !button.disabled && button.getClientRects().length && n === expected;
+        const amount = expected.toLocaleString('en-US');
+        const toast = document.getElementById('mpToast');
+        const visibleToast = toast && !toast.hidden ? toast.textContent : '';
+        const queuedToast = /加碼排隊中|下一手前加碼/.test(visibleToast);
+        return row?.getClientRects().length && row.querySelector('span')?.textContent.trim() === `下一手前加碼 ${amount}` &&
+          button && !button.disabled && button.getClientRects().length && label === `取消加碼 ${amount}` &&
+          !visibleToast.includes('加碼排隊中') &&
+          (!queuedToast || visibleToast.trim() === `下一手前加碼 ${amount}`);
       }, total, { timeout: 8000 });
       await capture(guest, prefix, 'queued');
     });
@@ -491,6 +503,19 @@ async function runViewport(browser, base, VP) {
     await run('完成本手', async () => {
       const result = await playToShowdown(players, started.host);
       if (!result.done) throw new Error('本手尚未完成');
+      // 必須是已完成第一手、三人仍在座的 hand_over，不接受開始第一手。
+      const between = await waitFor(async () => {
+        const room = await readDoc(`pokerRooms/${roomId}`);
+        return room?.pub?.phase === 'hand_over' && room.seatUids.filter(Boolean).length === 3 && room;
+      }, 8000);
+      if (!between) throw new Error('未等到三人仍在座的 hand_over');
+      await host.page.bringToFront();
+      await host.page.waitForFunction(() => {
+        const button = document.getElementById('mpStart');
+        return button && !button.disabled && button.getClientRects().length &&
+          button.textContent.trim() === '開始下一手（3人）';
+      }, null, { timeout: 5000 });
+      await capture(host, prefix, 'start-next');
     }, 150000);
     await message;
     await run('兩手之間上桌後取消競態', async () => {
@@ -601,7 +626,7 @@ async function runViewport(browser, base, VP) {
       await guest.page.waitForFunction(() => document.getElementById('mpBuyinBank')?.textContent.trim() === '0', null, { timeout: 10000 });
       await guest.page.locator('#mpBuyinPicker [data-cancel]').click();
       await guest.page.locator('#mpAddon:not([disabled])').click();
-      await toastShot(guest, prefix, 'insufficient', '帳戶不足，無法加碼');
+      await toastShot(guest, prefix, 'insufficient', '帳戶不足，沒有加碼');
     });
   } catch (e) {
     log('尺寸流程失敗', prefix, e.stack || e.message);

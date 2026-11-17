@@ -375,32 +375,48 @@ async function queueAddonUI(p, hostP) {
 }
 
 async function foldPlayer(players, target, hostP, roomId) {
+  // 依房主已寫入的 actor 操作；每次只點一次，等 actionSeq 確認後才換人。
+  // 不輪巡可能仍停在上一回合的背景頁按鈕，也不重送尚未確認的動作。
   for (let i = 0; i < 80; i++) {
-    if (await target.page.locator('#mpAddon:not([disabled])').count()) return true;
-    for (const p of players) {
-      if (p === target && await p.page.locator('#mpFold:not([disabled])').count()) {
-        await p.page.bringToFront(); await p.page.locator('#mpFold:not([disabled])').click();
-        await hostP.page.bringToFront(); await sleep(500); break;
-      } else if (p !== target && await p.page.locator('#mpCheck:not([disabled])').count()) {
-        await p.page.bringToFront(); await p.page.locator('#mpCheck:not([disabled])').click();
-        await hostP.page.bringToFront(); await sleep(500); break;
-      } else if (p !== target && await p.page.locator('#mpCall:not([disabled])').count()) {
-        await p.page.bringToFront(); await p.page.locator('#mpCall:not([disabled])').click();
-        await hostP.page.bringToFront(); await sleep(500); break;
-      }
+    const room = await readDoc(`pokerRooms/${roomId}`);
+    const seat = room.seatUids.indexOf(target.uid);
+    if (seat < 0) throw new Error(`蓋牌目標已離座：${target.name}`);
+    if (room.pub?.seats?.[seat]?.folded) {
+      await target.page.bringToFront();
+      await target.page.waitForSelector('#mpAddon:not([disabled])', { timeout: 8000 });
+      return true;
     }
-    await hostP.page.bringToFront(); await sleep(200);
-  }
-  const ok = !!(await target.page.locator('#mpAddon:not([disabled])').count());
-  if (!ok) {
-    const room = roomId ? await readDoc(`pokerRooms/${roomId}`) : null;
-    log('foldPlayer fail', target.name, 'phase', room?.pub?.phase, 'actor', room?.pub?.actor,
-      'folded', (room?.pub?.seats || []).map(s => !!s?.folded));
-    for (const p of players) {
-      log('bar', p.name, await p.page.evaluate(() => (document.getElementById('btns')?.innerText || '').replace(/\s+/g, ' ').trim()));
+    if (['lobby', 'hand_over', 'showdown'].includes(room.pub?.phase)) {
+      throw new Error(`蓋牌前本手已結束：${target.name} ${room.pub?.phase}`);
+    }
+    const actor = players.find(p => p.uid === room.seatUids[room.pub?.actor]);
+    if (!actor) throw new Error(`找不到 actor：${room.pub?.actor}`);
+    await actor.page.bringToFront();
+    const selector = actor === target ? '#mpFold:not([disabled])'
+      : '#mpCheck:not([disabled]), #mpCall:not([disabled])';
+    await actor.page.locator(selector).first().waitFor({ timeout: 8000 });
+    await actor.page.locator(selector).first().click();
+    await hostP.page.bringToFront();
+    const confirmed = await waitFor(async () => {
+      const next = await readDoc(`pokerRooms/${roomId}`);
+      return next?.pub?.handNo === room.pub.handNo &&
+        next.pub.actionSeq > room.pub.actionSeq && next;
+    }, 10000);
+    if (!confirmed) {
+      const [latest, intent] = await Promise.all([
+        readDoc(`pokerRooms/${roomId}`),
+        readDoc(`pokerRooms/${roomId}/intents/${actor.uid}`),
+      ]);
+      log('蓋牌動作未確認，重試', actor.name, JSON.stringify({
+        i, before: { phase: room.pub?.phase, handNo: room.pub?.handNo, actionSeq: room.pub?.actionSeq, actor: room.pub?.actor },
+        after: { phase: latest?.pub?.phase, handNo: latest?.pub?.handNo, actionSeq: latest?.pub?.actionSeq, actor: latest?.pub?.actor, rejects: latest?.pub?.rejects },
+        intent, toasts: await toasts(actor),
+      }));
+      await sleep(300);
+      continue;
     }
   }
-  return ok;
+  throw new Error(`蓋牌超過 80 次動作：${target.name}`);
 }
 async function setBank(uid, bank) {
   const r = await fetch(`http://${EMU}/v1/projects/${PROJECT}/databases/(default)/documents/pokerPlayers/${uid}?updateMask.fieldPaths=bank`, {
@@ -535,19 +551,22 @@ async function main() {
     const folded4 = await step('fold g4', () => foldPlayer(players, g4, host, roomId), 120000);
     ok('宜靜蓋牌', folded4);
     let bank5 = (await readDoc(`pokerPlayers/${guests[4].uid}`)).bank;
-    if (folded4) {
+    if (!folded4) throw new Error('宜靜蓋牌失敗，情境 6 無法建立');
+    {
       await step('g4 排 2,000', () => queueAddonAmount(g4, host, 2000), 20000);
       await step('g4 再排 1,000', () => queueAddonAmount(g4, host, 1000), 20000);
       const q4 = await readDoc(`pokerRooms/${roomId}/addons/${g4.uid}`);
-      ok('多筆排隊（2 筆合計 3,000）', q4?.items?.length === 2, q4?.items);
-      log('g4 帳戶改成 2,500', await setBank(g4.uid, 2500));
+      const queued4 = q4?.items?.length === 2 && q4.items.reduce((sum, item) => sum + item.amount, 0) === 3000;
+      ok('多筆排隊（2 筆合計 3,000）', queued4, q4?.items);
+      if (!queued4) throw new Error('情境 6 未建立兩筆合計 3,000 的排隊');
+      const bank4Status = await setBank(g4.uid, 2500);
+      log('g4 帳戶改成 2,500', bank4Status);
+      if (bank4Status !== 200) throw new Error(`情境 6 帳戶調整失敗：${bank4Status}`);
       ok('技安蓋牌', await step('fold g5', () => foldPlayer(players, g5, host, roomId), 60000));
       bank5 = (await readDoc(`pokerPlayers/${g5.uid}`)).bank;
       await step('g5 排 1,000', () => queueAddonAmount(g5, host, 1000), 20000);
       // 模擬管理頁補碼：排隊中帳戶 +5,000（emulator owner 直寫，非實際管理頁 UI）
       log('管理頁補 5,000', await setBank(g5.uid, bank5 + 5000));
-    } else {
-      log('skip 情境6 排隊：宜靜蓋牌失敗，續打完這手以便跑情境4');
     }
     R.hand1 = await step('play1', () => playToShowdown(players, st.host), 150000);
     const after2 = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return ['lobby', 'hand_over'].includes(r?.pub?.phase) && (r.sess?.[s3]?.topUpChips || 0) === d3 && r; }, 30000);
@@ -558,7 +577,7 @@ async function main() {
     const p4 = await waitFor(async () => { const q = await readDoc(`pokerRooms/${roomId}/addons/${g4.uid}`); return q?.items?.length === 0 && q; }, 20000);
     const r2b = await readDoc(`pokerRooms/${roomId}`);
     ok('情境6 帳戶不足整批不上桌、不扣', !!p4 && (await readDoc(`pokerPlayers/${g4.uid}`)).bank === 2500 && (r2b.sess[s4].topUpChips || 0) === 0, { bank: (await readDoc(`pokerPlayers/${g4.uid}`)).bank, top: r2b.sess[s4].topUpChips });
-    const t4 = await waitFor(async () => { const t = await toasts(g4); return t.some(x => x.includes('帳戶不足')) && t; }, 5000);
+    const t4 = await waitFor(async () => { const t = await toasts(g4); return t.some(x => x === '⚠ 帳戶不足，沒有加碼') && t; }, 5000);
     ok('情境6 本人看到帳戶不足', !!t4, await toasts(g4));
     const p5 = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return (r.sess[s5].topUpChips || 0) === 1000 && r; }, 20000);
     const bank5b = (await readDoc(`pokerPlayers/${g5.uid}`)).bank;

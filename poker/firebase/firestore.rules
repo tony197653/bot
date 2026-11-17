@@ -79,7 +79,7 @@ service cloud.firestore {
         && c.keys().hasOnly(['sb', 'bb', 'newPlayerChips', 'actionMs', 'topUpAmount'])
         && c.sb in [5, 10, 25, 50]
         && c.bb == c.sb * 2
-        && c.newPlayerChips is int && c.newPlayerChips >= 1000 && c.newPlayerChips <= 100000
+        && c.newPlayerChips is int && c.newPlayerChips >= 50 * c.bb && c.newPlayerChips <= 100000
         && c.newPlayerChips % 500 == 0
         && c.actionMs == 30000
         && c.topUpAmount == 2000;

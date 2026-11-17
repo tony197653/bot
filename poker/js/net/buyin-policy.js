@@ -1,4 +1,5 @@
 /** Client admission and chosen carry-in policy. */
+// 預設盲注 10/20 的 50 大盲；其他盲注由 defaultCreateBuyin 計算。
 export const DEFAULT_NEW_PLAYER_CHIPS = 1000;
 
 /** 開房專用短提示；不改動入座規則。 */
@@ -10,16 +11,15 @@ export function createRoomBuyinError(chips, sb, bb, bank = null) {
   const fmt = n => n.toLocaleString('en-US');
   const minimum = 50 * bb;
   if (!canAffordBlinds(bank, bb)) return `帳戶 ${fmt(bank)}，${sb}/${bb} 至少要 ${fmt(minimum)}`;
-  if (!Number.isSafeInteger(chips) || chips < 1000 || chips > 100000) return '攜入須為 1,000–100,000';
+  if (!Number.isSafeInteger(chips) || chips < minimum || chips > 100000) return `攜入須為 ${fmt(minimum)}–100,000`;
   if (chips % 500) return '攜入須為 500 的倍數';
-  if (chips < minimum) return `${sb}/${bb} 至少要 ${fmt(minimum)}`;
   if (bank != null && chips > bank) return `帳戶只有 ${fmt(bank)}，請降低攜入`;
   return '';
 }
 
 export function defaultCreateBuyin(chips, bb, bank = null) {
-  // 換盲注時重設為 50 大盲。5/10 的 50 大盲＝500，低於規則下限 1,000，未改規則，故至少 1,000，再受帳戶與上限限制。
-  return Math.min(Math.max(1000, 50 * bb), 100000, bank ?? 100000);
+  // 換盲注時重設為 50 大盲，再受帳戶與 100,000 上限限制。
+  return Math.min(50 * bb, 100000, bank ?? 100000);
 }
 
 export function wholeBalance(player, roomId) {

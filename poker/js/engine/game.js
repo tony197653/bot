@@ -1143,7 +1143,8 @@ export function getLegalActions(s, seat) {
 
   /** @type {typeof none} */
   const L = {
-    fold: toCall > 0,
+    // 輪到自己就可以蓋牌（含可過牌時的 check-fold）；前台蓋牌鈕在行動權時也是亮的。
+    fold: true,
     check: toCall === 0,
     call: toCall > 0 && p.chips > 0,
     callAmount: Math.min(toCall, p.chips),

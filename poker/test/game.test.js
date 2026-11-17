@@ -310,3 +310,24 @@ describe('玩家 0 籌碼坐出', () => {
     assert.equal(withCards.length, 2);
   });
 });
+
+
+describe('可過牌時也可以蓋牌', () => {
+  it('翻牌圈 toCall 為 0 時，legal.fold 仍為 true，蓋牌會結束這位玩家的手', () => {
+    let s = createInitialState({ timerEnabled: false });
+    s = seatAll(s, ['A', 'B']);
+    s = start(s, 3);
+    // 單挑翻牌前跟到亮翻牌，使當前街 toCall＝0。
+    while (s.phase === PHASE.PREFLOP) {
+      const L = getLegalActions(s, s.actor);
+      s = act(s, L.check ? 'CHECK' : 'CALL');
+    }
+    assert.equal(s.phase, PHASE.FLOP);
+    const seat = s.actor;
+    const L = getLegalActions(s, seat);
+    assert.equal(L.check, true);
+    assert.equal(L.fold, true);
+    s = act(s, 'FOLD');
+    assert.equal(s.seats[seat].folded, true);
+  });
+});

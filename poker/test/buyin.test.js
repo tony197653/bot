@@ -316,13 +316,18 @@ test('開桌遇到既有桌：依該桌大盲阻擋，留在大廳；先結算�
 });
 
 
-test('R32b 開桌換盲注重設 50BB，5/10 依規則至少 1000，並受帳戶與上限限制', () => {
-  for (const [bb, expected] of [[10,1000],[20,1000],[50,2500],[100,5000]]) {
+test('R33b 開桌換盲注重設 50BB，並受帳戶與上限限制', () => {
+  for (const [bb, expected] of [[10,500],[20,1000],[50,2500],[100,5000]]) {
     assert.equal(defaultCreateBuyin(90000, bb, 99999), expected);
   }
   assert.equal(defaultCreateBuyin(1000, 100, 3456), 3456);
   assert.equal(defaultCreateBuyin(1000, 5000, 200000), 100000);
-  assert.equal(createRoomBuyinError(500,5,10,1000), '攜入須為 1,000–100,000');
+  assert.equal(createRoomBuyinError(500,5,10,1000), '');
+  assert.equal(createRoomBuyinError(500,10,20,1000), '攜入須為 1,000–100,000');
+  for (const bb of [10,20,50,100]) {
+    assert.equal(stepBuyinAmount(50 * bb,-1,50 * bb,100000),50 * bb);
+    assert.equal(createRoomBuyinError(50 * bb,bb / 2,bb,100000), '');
+  }
   assert.equal(createRoomBuyinError(1501,10,20,5000), '攜入須為 500 的倍數');
 });
 
