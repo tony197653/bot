@@ -1,4 +1,4 @@
-/** 第 10 輪：SPEC v1.0 情境 8、9；僅供本機 emulator，未執行驗收。 */
+/** 第 11 輪：依宗良 15:18 定案，情境 8、9 斷線自動收桌；僅供本機 emulator，未執行驗收。 */
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -174,32 +174,17 @@ async function guestDiag(page) {
 }
 
 async function sitGuest(guestPage, hostPage, expectN) {
-  for (let i = 0; i < 20; i++) {
-    if (await guestPage.locator('#mpLeave').count()) return true;
-    const n = await occupiedFromHost(hostPage);
-    if (n >= expectN) return true;
-
-    await guestPage.bringToFront().catch(() => {});
-    const empty = await guestPage.locator('.mp-empty-seat').count();
-    if (empty) {
-      await guestPage
-        .evaluate(() => document.querySelector('.mp-empty-seat')?.click())
-        .catch(() => {});
-      // 入座現在先跳攜入選擇器（舊 e2e 沒按確認，入座永遠不會送出）
-      const picker = await guestPage.waitForSelector('#mpBuyinPicker [data-confirm]', { timeout: 3000 }).catch(() => null);
-      console.log('  picker shown', !!picker);
-      if (picker) await picker.click().catch(() => {});
-    }
-    // Yield to host so hostLoop processes SIT (visibility forced on host ctx)
-    await hostPage.bringToFront().catch(() => {});
-    await hostPage.waitForTimeout(1100);
-    const n2 = await occupiedFromHost(hostPage);
-    if (n2 >= expectN) return true;
+  if (await occupiedFromHost(hostPage) >= expectN) return true;
+  // 每次重試都重新送入座；客人端 #mpLeave 不代表房主已記錄入座。
+  await guestPage.bringToFront();
+  const picker = guestPage.locator('#mpBuyinPicker [data-confirm]');
+  if (!await picker.count()) {
+    await guestPage.evaluate(() => document.querySelector('.mp-empty-seat')?.click());
   }
-  return (
-    !!(await guestPage.locator('#mpLeave').count()) ||
-    (await occupiedFromHost(hostPage)) >= expectN
-  );
+  const confirm = await guestPage.waitForSelector('#mpBuyinPicker [data-confirm]', { timeout: 3000 }).catch(() => null);
+  if (confirm) await confirm.click({ timeout: 3000 });
+  await hostPage.bringToFront();
+  return !!confirm;
 }
 
 async function anyInHand(players) {
@@ -316,6 +301,7 @@ function decode(v) {
 async function readDoc(path) {
   const r = await fetch(`http://${EMU}/v1/projects/${PROJECT}/databases/(default)/documents/${path}`, { headers: { Authorization: 'Bearer owner' } });
   if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`讀取 ${path} 失敗：HTTP ${r.status}`);
   const j = await r.json();
   return Object.fromEntries(Object.entries(j.fields || {}).map(([k, x]) => [k, decode(x)]));
 }
@@ -405,14 +391,25 @@ async function main() {
     browser = await step('launch', () => chromium.launch({ headless: true }), 30000);
     const { host, guests, players, roomId } = await step('六人入座、uid 對照與帳戶種子', async () => {
       const host = await step('makeHost', () => makeHost(browser, base, NAMES[0], 'hostadd'), 40000);
+      allPlayers.push(host);
       const { roomId, code } = await step('createAndShare', () => createAndShare(host), 60000);
       R.roomId = roomId;
       const guests = [];
       for (let i = 1; i < 6; i++) {
         const g = await step(`join ${i}`, () => joinViaLink(browser, base, NAMES[i], `gadd${i}`, roomId, code), 60000);
         log('diag', i, JSON.stringify(await guestDiag(g.page)));
-        const sat = await step(`sit ${i}`, () => sitGuest(g.page, host.page, i + 1), 60000);
-        log('sat', i, sat, 'occupied', await occupiedFromHost(host.page));
+        allPlayers.push(g);
+        let seated = false;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          seated = await step(`sit ${i} 第 ${attempt}/3 次`, async () => {
+            const sat = await sitGuest(g.page, host.page, i + 1);
+            const observed = await waitFor(async () => (await occupiedFromHost(host.page)) >= i + 1, 10000);
+            log('sit', i, 'attempt', attempt, 'sent', sat, 'occupied', await occupiedFromHost(host.page));
+            return !!observed;
+          }, 20000);
+          if (seated) break;
+        }
+        if (!seated) throw new Error(`客人 ${i} 入座三次後房主仍未記錄 ${i + 1} 人`);
         guests.push(g);
       }
       const players = [host, ...guests];
@@ -436,14 +433,12 @@ async function main() {
       await sleep(800);
       R.seatedN = await waitFor(async () => { const n = await occupiedFromHost(host.page); return n >= 6 && n; }, 20000);
 
-      allPlayers.push(...players);
       ok('六人坐滿', R.seatedN === 6, { seatedN: R.seatedN });
       if (R.seatedN !== 6) throw new Error('未坐滿六人');
       return { host, guests, players, roomId };
     }, 420000);
     const roomPath = `pokerRooms/${roomId}`;
     const target = guests[2];
-    const remaining = players.filter(p => p !== host);
     const shot = (p, name) => p.page.screenshot({ path: join(ART, `390-host-${name}.png`) });
     await step('開第一手', async () => {
       const started = await startHand(players);
@@ -457,121 +452,84 @@ async function main() {
       if (!folded) throw new Error('指定客人未蓋牌');
       await queueAddonAmount(target, host, 1000);
       const room = await readDoc(roomPath);
-      const account = await readDoc(`pokerPlayers/${target.uid}`);
       const queue = await readDoc(`${roomPath}/addons/${target.uid}`);
-      const snapshot = { bank: account.bank, chipTotal: room.chipTotal,
-        stacks: [...room.stacks], hostUid: room.hostUid, seatUids: [...room.seatUids] };
+      const accounts = await Promise.all(players.map(async p => {
+        const account = await readDoc(`pokerPlayers/${p.uid}`);
+        const seat = room.seatUids.indexOf(p.uid);
+        if (!account || seat < 0) throw new Error(`缺少 ${p.name} 帳戶或座位`);
+        // js/net/host-disconnect.js:27–31：手中作廢退 chips + contributed；
+        // lobby / hand_over 才退 room.stacks。:65–68 同批歸零 inPlay、清空 tableRoomId。
+        const pubSeat = room.pub?.seats?.[seat];
+        const refund = ['lobby', 'hand_over'].includes(room.pub?.phase)
+          ? room.stacks[seat] : pubSeat?.chips + pubSeat?.contributed;
+        if (!Number.isSafeInteger(refund) || refund < 0) throw new Error(`缺少 ${p.name} 退款證據`);
+        return { uid: p.uid, name: p.name, seat, bank: account.bank, inPlay: account.inPlay,
+          tableRoomId: account.tableRoomId, sessionNo: account.sessionNo,
+          stack: room.stacks[seat], pubSeat, refund };
+      }));
+      const queued = queue?.items?.length === 1 && queue.items[0].amount === 1000 && !!queue.items[0].id;
+      ok('斷線前加碼排隊一筆 1,000', queued, queue);
+      if (!queued) throw new Error('加碼排隊資料不符');
+      const snapshot = { chipTotal: room.chipTotal, stacks: [...room.stacks],
+        hostUid: room.hostUid, seatUids: [...room.seatUids], phase: room.pub?.phase,
+        accounts, queue, addonId: queue.items[0].id };
       R.beforeDisconnect = snapshot;
-      ok('斷線前加碼排隊一筆 1,000', queue?.items?.length === 1 && queue.items[0].amount === 1000, queue);
       ok('斷線前仍為原房主', room.hostUid === host.uid, { hostUid: room.hostUid, original: host.uid });
-      if (room.hostUid !== host.uid) throw new Error('關閉前房主已變更');
+      if (room.hostUid !== host.uid || room.status === 'closed') throw new Error('關閉前房主已變更或桌已關閉');
       await shot(target, 'queued-before-disconnect');
       return snapshot;
     }, 60000);
+    const targetBefore = before.accounts.find(p => p.uid === target.uid);
     await step('情境8 關閉房主 browser context', () => host.ctx.close(), 15000);
     let samples = 0, lastLog = -Infinity;
-    const takeover = await step('情境8、9 輪詢接手（最多 150 秒）', () => waitFor(async () => {
+    const closed = await step('情境8、9 等待斷線自動收桌（最多 150 秒）', () => waitFor(async () => {
       const room = await readDoc(roomPath);
+      if (!room) throw new Error('房間文件不存在');
       if (Date.now() - lastLog >= 2000) {
-        log('接手輪詢', 'hostUid', room?.hostUid, 'pub.phase', room?.pub?.phase, 'status', room?.status);
+        log('收桌輪詢', 'status', room.status, 'hostUid', room.hostUid, 'pub.phase', room.pub?.phase);
         lastLog = Date.now();
       }
-      if (!room) throw new Error('房間文件不存在');
-      if (room.hostUid === before.hostUid && room.status !== 'closed') {
-        const bank = (await readDoc(`pokerPlayers/${target.uid}`))?.bank;
-        const queue = await readDoc(`${roomPath}/addons/${target.uid}`);
-        // 重讀房間，避免把接手批次已完成後的帳戶誤認成接手前。
-        const confirm = await readDoc(roomPath);
-        if (confirm?.hostUid === before.hostUid && confirm.status !== 'closed') {
-          samples++;
-          const unchanged = bank === before.bank && queue?.items?.length === 1 && queue.items[0].amount === 1000;
-          if (!unchanged) {
-            ok('情境8 接手前帳戶不扣、排隊仍一筆', false, { bank, expected: before.bank, queue, samples });
-            throw new Error('接手前帳戶或排隊已變動');
-          }
+      if (room.status === 'closed') return room;
+      const account = await readDoc(`pokerPlayers/${target.uid}`);
+      const queue = await readDoc(`${roomPath}/addons/${target.uid}`);
+      // 重讀房間，避免把收桌交易完成後的退款誤判為收桌前扣款。
+      const confirm = await readDoc(roomPath);
+      if (confirm?.status === 'closed') return confirm;
+      if (!confirm) throw new Error('房間文件不存在');
+      samples++;
+      const unchanged = account?.bank === targetBefore.bank && queue?.items?.length === 1 &&
+        queue.items[0].id === before.addonId && queue.items[0].amount === 1000;
+      ok('情境8 收桌前帳戶不扣、排隊仍一筆', unchanged, { bank: account?.bank, expected: targetBefore.bank, queue, samples });
+      if (!unchanged) throw new Error('自動收桌前帳戶或排隊已變動');
+      return null;
+    }, 150000), 155000);
+    ok('情境8 收桌前帳戶不扣、排隊仍一筆', samples > 0, { samples });
+    ok('情境9 150 秒內自動收桌', !!closed, closed);
+    if (!closed) {
+      R.pending.push({ name: '情境9 自動收桌退款與加碼 ledger', reason: '150 秒內未收桌，尚無法核對退款。' });
+      throw new Error('150 秒內未自動收桌');
+    }
+    R.afterClose = closed;
+    await step('情境9 核對五位客人與原房主退款、加碼未扣款', async () => {
+      for (const p of before.accounts) {
+        const account = await readDoc(`pokerPlayers/${p.uid}`);
+        ok(`自動收桌 ${p.name} bank 增加＝退款基準`, account?.bank === p.bank + p.refund,
+          { bankBefore: p.bank, inPlayBefore: p.inPlay, stackBefore: p.stack,
+            refund: p.refund, bankAfter: account?.bank });
+        ok(`自動收桌 ${p.name} inPlay＝0、tableRoomId 清空`,
+          !!account && account.inPlay === 0 && !account.tableRoomId,
+          { inPlay: account?.inPlay, tableRoomId: account?.tableRoomId });
+        if (p.uid === target.uid) {
+          ok('情境9 guests[2] 未扣加碼 1,000', account?.bank === p.bank + p.refund,
+            { expected: p.bank + p.refund, bankAfter: account?.bank });
         }
       }
-      return room.hostUid && room.hostUid !== before.hostUid && room.status !== 'closed' && room;
-    }, 150000), 155000);
-    ok('情境8 接手前帳戶不扣、排隊仍一筆', samples > 0, { samples });
-    ok('情境9 150 秒內換房主', !!takeover, { room: await step('讀取接手結果', () => readDoc(roomPath), 10000) });
-    if (!takeover) {
-      R.pending.push({ name: '情境9 接手後加碼與新房主收桌退款', reason: '150 秒內沒有可用的新房主；不直接修改 hostUid 或呼叫產品內部函式。情境8 完整斷線收桌退款尚未覆蓋。' });
-      await step('接手逾時截圖', () => shot(target, 'takeover-timeout'), 10000);
-    } else {
-      R.afterTakeover = { hostUid: takeover.hostUid, chipTotal: takeover.chipTotal, stacks: takeover.stacks, phase: takeover.pub?.phase, status: takeover.status };
-      const newHost = remaining.find(p => p.uid === takeover.hostUid);
-      if (!newHost) throw new Error('新房主不在留下的玩家頁面中');
-      await step('接手後完成本手，必要時由新房主開始下一手', async () => {
-        let room = await readDoc(roomPath);
-        if (!['lobby', 'hand_over'].includes(room.pub?.phase)) {
-          R.handAfterTakeover = await playToShowdown(remaining, newHost);
-        }
-        room = await readDoc(roomPath);
-        if (['lobby', 'hand_over'].includes(room.pub?.phase)) {
-          const starter = await waitFor(() => findStartPage(remaining), 15000);
-          ok('新房主頁面有 #mpStart', starter?.uid === room.hostUid);
-          if (!starter || starter.uid !== room.hostUid) throw new Error('找不到新房主開始按鈕');
-          const started = await startHand(remaining);
-          ok('新房主開下一手', started.ok);
-          if (!started.ok) throw new Error('新房主未能開下一手');
-        }
-        await shot(target, 'after-takeover');
-      }, 180000);
-      await step('情境9 加碼上桌與總額一致', async () => {
-        const seat = before.seatUids.indexOf(target.uid);
-        const applied = await waitFor(async () => {
-          const r = await readDoc(roomPath);
-          return r?.sess?.[seat]?.topUpChips === 1000 && r;
-        }, 20000);
-        const room = applied || await readDoc(roomPath);
-        const account = await readDoc(`pokerPlayers/${target.uid}`);
-        const sum = room.stacks.reduce((a, b) => a + b, 0);
-        ok('情境9 sess.topUpChips＝1,000', room.sess?.[seat]?.topUpChips === 1000);
-        ok('情境9 bank 只減 1,000', account.bank === before.bank - 1000, { before: before.bank, now: account.bank });
-        ok('情境9 stacks 合計＝接手後 chipTotal', sum === room.chipTotal, { sum, chipTotal: room.chipTotal, takeoverTotal: takeover.chipTotal });
-        ok('情境9 chipTotal＝原總額＋1,000', room.chipTotal === before.chipTotal + 1000, { before: before.chipTotal, now: room.chipTotal });
-      }, 30000);
-      await step('收桌前結束牌局並記錄留下玩家 stacks、bank', async () => {
-        const room = await readDoc(roomPath);
-        if (!['lobby', 'hand_over'].includes(room.pub?.phase)) {
-          R.finalHand = await playToShowdown(remaining, newHost);
-        }
-        const settled = await waitFor(async () => {
-          const r = await readDoc(roomPath);
-          return ['lobby', 'hand_over'].includes(r?.pub?.phase) && r;
-        }, 20000);
-        if (!settled) throw new Error('收桌前本手未結算，無法直接用 stacks 核對退款');
-        R.beforeClose = await Promise.all(remaining.filter(p => settled.seatUids.includes(p.uid)).map(async p => ({
-          uid: p.uid, name: p.name, stack: settled.stacks[settled.seatUids.indexOf(p.uid)],
-          bank: (await readDoc(`pokerPlayers/${p.uid}`)).bank,
-        })));
-        if (!R.beforeClose.some(p => p.uid === target.uid)) throw new Error('加碼客人已不在座位中');
-        await shot(newHost, 'before-close');
-      }, 180000);
-      await step('新房主由選單收桌並核對退款', async () => {
-        // mp-app.js:3735、3754–3760、3946、3953–3963；選單開關見 :3781。
-        if (!await newHost.page.locator('#btnMenu').count() || !await newHost.page.locator('#mpBtnCloseRoom').count()) {
-          R.pending.push({ name: '新房主收桌退款', reason: '實際頁面找不到 #btnMenu 或 #mpBtnCloseRoom，未硬寫替代操作。' });
-          return;
-        }
-        await newHost.page.bringToFront();
-        await newHost.page.locator('#btnMenu').click();
-        await newHost.page.locator('#mpBtnCloseRoom').click();
-        await newHost.page.locator('#mpCloseConfirmOk').click();
-        for (const p of R.beforeClose) {
-          const account = await waitFor(async () => {
-            const a = await readDoc(`pokerPlayers/${p.uid}`);
-            return a && !a.tableRoomId && a.inPlay === 0 && a;
-          }, 25000);
-          ok(`收桌 ${p.name} bank 增加＝stacks（含加碼）、inPlay＝0`,
-            !!account && account.bank === p.bank + p.stack && account.inPlay === 0,
-            { bankBefore: p.bank, stack: p.stack, bankAfter: account?.bank, inPlay: account?.inPlay });
-        }
-        ok('收桌後 room.status＝closed', (await readDoc(roomPath))?.status === 'closed');
-        await shot(newHost, 'closed');
-      }, 150000);
-    }
+      // js/net/ledger.js:351–352：加碼帳本 ID 包含 roomId、sessionNo、排隊 id。
+      const ledgerPath = `pokerPlayers/${target.uid}/ledger/${roomId}_${targetBefore.sessionNo}_addon_${before.addonId}`;
+      const ledger = await readDoc(ledgerPath);
+      ok('情境9 排隊加碼 id 無 addon 帳', ledger === null, { ledgerPath, ledger });
+      await shot(target, 'auto-closed');
+    }, 30000);
   } catch (e) {
     R.errs.push(String(e?.stack || e));
   } finally {
@@ -579,7 +537,7 @@ async function main() {
     if (browser) await step('關閉瀏覽器', () => browser.close(), 15000).catch(e => R.errs.push(String(e)));
     if (server) await step('關閉靜態伺服器', () => new Promise((resolve, reject) => server.close(e => e ? reject(e) : resolve())), 10000).catch(e => R.errs.push(String(e)));
   }
-  R.ok = Object.values(R.checks).every(c => c.ok) && R.errs.length === 0;
+  R.ok = Object.values(R.checks).every(c => c.ok) && R.errs.length === 0 && R.pending.length === 0;
   console.log(JSON.stringify(R, null, 2));
   process.exitCode = R.ok ? 0 : 1;
 }
