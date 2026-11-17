@@ -1,7 +1,6 @@
-// 房主管理頁（SPEC v1.1）。只改帳戶 bank；牌桌籌碼只透過既有斷線收桌退回。
+// 房主管理頁（SPEC v1.2）。只改帳戶 bank（補碼）和清除個人紀錄；不碰牌桌。
 import { loadFirebase } from '../../lib/firebase/load.js';
 import { FIREBASE_CONFIG, EMU_FIREBASE_CONFIG, EMU_PORTS, isEmuMode } from '../js/net/firebase-config.js';
-import { closeDisconnectedRoom, disconnectState, hostLivenessMs, refundAtSeat } from '../js/net/host-disconnect.js';
 
 export const ADMIN_EMAIL = 'tony197653@gmail.com';
 const MAX_DELTA = 100000;
@@ -12,13 +11,10 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 let fb = null;
 let me = null;
 let players = [];
-let rooms = [];
-let beats = {};
 let sel = null;
 let op = 1;
 let busy = false;
 let unsubs = [];
-let tab = location.hash === '#tables' ? 'tables' : 'players';
 
 function toast(msg) {
   const t = $('toast');
@@ -66,57 +62,18 @@ function isAdminUser(u) {
 }
 
 /* ---------- 列表 ---------- */
-function setTab(t) {
-  tab = t;
-  $('tabPlayers').setAttribute('aria-selected', String(t === 'players'));
-  $('tabTables').setAttribute('aria-selected', String(t === 'tables'));
-  $('players').hidden = t !== 'players';
-  $('tables').hidden = t !== 'tables';
-  $('drawer').hidden = t !== 'players';
-  history.replaceState(null, '', t === 'tables' ? '#tables' : location.pathname + location.search);
-  if (t === 'tables') closeDrawer();
-}
-
 function seatLabel(p) {
-  if (!p.tableRoomId) return '沒坐桌';
-  const r = rooms.find((x) => x.id === p.tableRoomId);
-  return r ? `在「${r.name}」` : '在牌桌上';
+  return p.tableRoomId ? '在牌桌上' : '沒坐桌';
 }
 
 function renderPlayers() {
   const el = $('players');
-  $('nPlayers').textContent = players.length;
   if (!players.length) { el.innerHTML = '<p class="empty">還沒有玩家</p>'; return; }
   el.innerHTML = players.map((p) => `<button type="button" class="row${sel === p.id ? ' sel' : ''}" data-uid="${esc(p.id)}">
     <span><span class="nm">${esc(p.displayName || '玩家')}</span><span class="sub">${esc(seatLabel(p))}</span></span>
     <span class="num">${fmt(p.bank)}<span class="sub">${p.inPlay ? '桌上 ' + fmt(p.inPlay) : '\u00a0'}</span></span></button>`).join('')
     + `<p class="foot">已載入 ${players.length} 位 · 依籌碼排序</p>`;
   el.querySelectorAll('.row').forEach((b) => b.addEventListener('click', () => openDrawer(b.dataset.uid)));
-}
-
-function roomStuck(r) {
-  const live = hostLivenessMs(r, beats[r.id] ?? null);
-  return { live, stuck: Number.isFinite(live) && disconnectState(live).reclaim };
-}
-function ago(ms) {
-  if (!Number.isFinite(ms)) return '沒有心跳';
-  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
-  return s < 60 ? `心跳 ${s} 秒前` : s < 3600 ? `心跳 ${Math.floor(s / 60)} 分鐘前` : `心跳 ${Math.floor(s / 3600)} 小時前`;
-}
-function nameOf(uid) { return players.find((p) => p.id === uid)?.displayName || '玩家'; }
-
-function renderTables() {
-  const el = $('tables');
-  $('nTables').textContent = rooms.length;
-  if (!rooms.length) { el.innerHTML = '<p class="empty">現在沒有開著的牌桌</p>'; return; }
-  const list = rooms.map((r) => ({ r, ...roomStuck(r) })).sort((a, b) => Number(b.stuck) - Number(a.stuck));
-  el.innerHTML = list.map(({ r, live, stuck }) => `<div class="row trow">
-    <span><span class="nm">${esc(r.name)}</span>${stuck ? '<span class="tag">卡住</span>' : ''}
-    <span class="sub">房號 ${esc(r.code)} · 房主 ${esc(r.lobby?.hostName || nameOf(r.hostUid))}</span>
-    <span class="sub">在座 ${r.seatUids.filter(Boolean).length} · ${ago(live)}</span></span>
-    ${stuck ? `<button type="button" class="btn" data-room="${esc(r.id)}">收桌</button>` : '<span class="ok">正常</span>'}</div>`).join('')
-    + '<p class="foot">房主心跳超過 60 秒＝卡住</p>';
-  el.querySelectorAll('[data-room]').forEach((b) => b.addEventListener('click', () => askClose(b.dataset.room)));
 }
 
 /* ---------- 抽屜：加減帳戶 ---------- */
@@ -201,22 +158,6 @@ function modal(title, html, okText, fn) {
 }
 function closeModal() { $('modal').hidden = true; onOk = null; }
 
-function askClose(roomId) {
-  const r = rooms.find((x) => x.id === roomId); if (!r) return;
-  const rows = [];
-  r.seatUids.forEach((u, i) => { if (u) { let a = 0; try { a = refundAtSeat(r, i); } catch { a = NaN; } rows.push(`${esc(nameOf(u))} ${Number.isFinite(a) ? fmt(a) : '—'}`); } });
-  const mid = !['lobby', 'hand_over'].includes(r.pub?.phase);
-  modal(`收掉「${r.name}」？`,
-    rows.length ? `<p>${rows.length} 位的籌碼會退回帳戶：</p><div class="refund">${rows.join('<br>')}</div>${mid ? '<p>這一手作廢，照桌上籌碼退。</p>' : ''}` : '<p>桌上沒有人，直接收掉。</p>',
-    '收桌', async () => {
-      try {
-        const ok = await closeDisconnectedRoom({ ...fb, uid: me.uid }, roomId);
-        await fb.fs.deleteDoc(fb.fs.doc(fb.db, 'pokerLobby', roomId)).catch(() => {});
-        toast(ok ? '已收桌，籌碼已退回' : '這桌已經收了');
-      } catch (e) { console.warn('[admin] close', e); toast('沒有收成，畫面已更新'); }
-    });
-}
-
 function askClear() {
   const p = players.find((x) => x.id === sel); if (!p || !statsExist) return;
   modal(`清除${p.displayName || '玩家'}的個人紀錄？`,
@@ -255,26 +196,9 @@ function listen() {
     players = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderPlayers(); if (sel) fillDrawer();
   }, (e) => { console.warn('[admin] players', e); gate('error'); }));
-  unsubs.push(fs.onSnapshot(fs.query(fs.collection(db, 'pokerRooms'), fs.where('status', 'in', ['lobby', 'playing']), fs.limit(20)), async (s) => {
-    rooms = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-    await refreshBeats(); renderTables(); renderPlayers();
-  }, (e) => { console.warn('[admin] rooms', e); $('tables').innerHTML = '<p class="empty">讀不到資料</p>'; }));
-  setInterval(async () => { await refreshBeats(); renderTables(); }, 15000);
 }
-async function refreshBeats() {
-  const { db, fs } = fb;
-  await Promise.all(rooms.map(async (r) => {
-    try {
-      const s = await fs.getDoc(fs.doc(db, 'pokerRooms', r.id, 'presence', r.hostUid));
-      beats[r.id] = s.exists() ? s.data().beat?.toMillis?.() ?? null : null;
-    } catch { beats[r.id] = null; }
-  }));
-}
-
 /* ---------- 啟動 ---------- */
 function bind() {
-  $('tabPlayers').onclick = () => setTab('players');
-  $('tabTables').onclick = () => setTab('tables');
   $('opAdd').onclick = () => { op = 1; fillDrawer(); };
   $('opSub').onclick = () => { op = -1; fillDrawer(); };
   $('amt').oninput = validate; $('reason').oninput = validate;
@@ -310,7 +234,7 @@ async function main() {
     if (!u) return gate('login');
     if (!isAdminUser(u)) return gate('noaccess', u.email || '匿名');
     $('gate').hidden = true; $('app').hidden = false; $('logout').hidden = false;
-    setTab(tab); listen();
+    listen();
     if (matchMedia('(min-width:1024px)').matches) $('drawer').classList.add('open');
   });
 }

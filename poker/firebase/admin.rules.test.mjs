@@ -1,10 +1,9 @@
-// 管理頁規則測試（SPEC v1.1 §5.6、§7）。只連 localhost 模擬器。
+// 管理頁規則測試（SPEC v1.2 §5.6、§7；收桌已拿掉，10:06 宗良）。只連 localhost 模擬器。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import * as fs from 'firebase/firestore';
-import { closeDisconnectedRoom } from '../js/net/host-disconnect.js';
 
 const endpoint = process.env.FIRESTORE_EMULATOR_HOST;
 if (!endpoint || !/^(localhost|127\.0\.0\.1):\d+$/.test(endpoint)) throw Error('只允許 localhost 模擬器');
@@ -130,24 +129,5 @@ T('D3 管理員不能刪帳本或每晚戰績', async () => {
   await assertFails(fs.deleteDoc(fs.doc(admin(), 'pokerPlayers', 'p1', 'nights', '20261117')));
   await assertFails(fs.deleteDoc(fs.doc(admin(), 'pokerPlayers', 'p1', 'ledger', 'x')));
   await assertFails(fs.deleteDoc(fs.doc(admin(), 'pokerPlayers', 'p1')));
-});
-T('E1 管理員（非成員）用既有 closeDisconnectedRoom 收卡住的桌成功，退款＝桌上籌碼', async () => {
-  await seed({ seated: true });
-  const db = admin();
-  const ok = await closeDisconnectedRoom({ db, fs, uid: 'adminUid' }, R);
-  assert.equal(ok, true);
-  await env.withSecurityRulesDisabled(async (c) => {
-    const cdb = c.firestore();
-    const p = (await fs.getDoc(fs.doc(cdb, 'pokerPlayers', 'p1'))).data();
-    const r = (await fs.getDoc(fs.doc(cdb, 'pokerRooms', R))).data();
-    assert.equal(p.bank, 7000); assert.equal(p.inPlay, 0); assert.equal(p.tableRoomId, null);
-    assert.equal(r.status, 'closed'); assert.equal(r.closedBy, 'host-disconnect');
-  });
-});
-T('E2 房主還在線時收桌不會發生', async () => {
-  await seed({ seated: true });
-  await env.withSecurityRulesDisabled(async (c) => fs.setDoc(fs.doc(c.firestore(), 'pokerRooms', R, 'presence', 'host'), { beat: fs.Timestamp.now(), vis: true }));
-  const ok = await closeDisconnectedRoom({ db: admin(), fs, uid: 'adminUid' }, R);
-  assert.equal(ok, false);
 });
 test.after(async () => { console.log('ADMIN_RESULTS', JSON.stringify(results)); await env.cleanup(); });
