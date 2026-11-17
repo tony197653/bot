@@ -103,6 +103,29 @@ function blockProd(route) {
   return route.continue();
 }
 
+const ALWAYS_VISIBLE = () => {
+  try {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    });
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: () => false,
+    });
+  } catch {
+    /* already defined */
+  }
+  window.__toasts = [];
+  let last = '';
+  setInterval(() => {
+    const t = document.getElementById('mpToast');
+    const s = t && !t.hidden ? t.textContent : '';
+    if (s && s !== last) window.__toasts.push(s);
+    last = s;
+  }, 50);
+};
+
 async function makePlayer(browser, base, name, uid, viewport, extraQuery = '') {
   const ctx = await browser.newContext({
     viewport,
@@ -110,6 +133,7 @@ async function makePlayer(browser, base, name, uid, viewport, extraQuery = '') {
     isMobile: viewport.width < 700,
     hasTouch: viewport.width < 700,
   });
+  await ctx.addInitScript(ALWAYS_VISIBLE);
   await ctx.route('**/*', blockProd);
   const page = await ctx.newPage();
   const errors = [];
@@ -257,7 +281,7 @@ async function createAndShare(host) {
   if (code.length !== 3) throw new Error(`createAndShare bad code=${code} url=${url}`);
   scenarioRooms.push({ host, roomId, code, viewport: host.page.viewportSize() });
   await host.page.click('[data-act="enter"]');
-  await host.page.waitForSelector('#seats .mp-empty-seat, #mpLeave', { state: 'attached', timeout: 20000 });
+  await host.page.waitForSelector('#mpLeave, #mpStart', { state: 'attached', timeout: 20000 });
   return { roomId, code, url };
 }
 
@@ -269,6 +293,7 @@ async function joinViaLink(browser, base, name, uid, viewport, roomId, code) {
     isMobile: viewport.width < 700,
     hasTouch: viewport.width < 700,
   });
+  await ctx.addInitScript(ALWAYS_VISIBLE);
   await ctx.route('**/*', blockProd);
   const page = await ctx.newPage();
   const errors = [];
@@ -292,60 +317,45 @@ async function joinViaLink(browser, base, name, uid, viewport, roomId, code) {
 }
 
 async function sitIfNeeded(page) {
-  for (let i = 0; i < 8; i++) {
-    // Already seated: empty-seat hit targets only render for spectators
-    if (!(await page.locator('.mp-empty-seat').count())) {
-      if (await page.locator('#mpLeave, #mpFold, #mpStart, #mpCheck, #mpCall').count()) {
-        return true;
+  for (let i = 0; i < 10; i++) {
+    if (await page.locator('#mpLeave').count()) return true;
+    await page.bringToFront().catch(() => {});
+    if (await page.locator('.mp-empty-seat').count()) {
+      await page
+        .evaluate(() => document.querySelector('.mp-empty-seat')?.click())
+        .catch(() => {});
+      const picker = await page.waitForSelector('#mpBuyinPicker [data-confirm]', {
+        timeout: 3000,
+      }).catch(() => null);
+      if (picker) {
+        await picker.click().catch(() => {});
+        await page.waitForSelector('#mpBuyinPicker', {
+          state: 'hidden', timeout: 10000,
+        }).catch(() => {});
       }
     }
-    const seatedHint = await page.locator('#mpLeave, button:has-text("離座")').count();
-    if (seatedHint) return true;
-
-    const seatBtn = page.locator('.mp-empty-seat').first();
-    if (await seatBtn.count()) {
-      // Prefer a single DOM click — avoids double-sit "座位已被佔用" races
-      const clicked = await page
-        .evaluate(() => {
-          const el = document.querySelector('.mp-empty-seat');
-          if (!el) return false;
-          el.click();
-          return true;
-        })
-        .catch(() => false);
-      if (!clicked) await seatBtn.click({ force: true }).catch(() => {});
-      await page.locator('#mpBuyinPicker [data-confirm]').waitFor({ state: 'visible', timeout: 12000 }).catch(async (e) => {
-        // DIAG R21: capture state when the buy-in picker never opens
-        const d = await page.evaluate(() => ({
-          url: location.href,
-          toast: document.querySelector('#mpToast')?.textContent || '',
-          picker: !!document.querySelector('#mpBuyinPicker'),
-          empty: document.querySelectorAll('.mp-empty-seat').length,
-          leave: !!document.querySelector('#mpLeave'),
-          text: document.body.innerText.slice(0, 600),
-        })).catch((x) => ({ evalErr: String(x) }));
-        console.log('DIAG sit-picker', JSON.stringify(d));
-        try {
-          const port = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
-          const r = await fetch(`http://${port}/v1/projects/demo-poker/databases/(default)/documents/rooms?pageSize=5`, { headers: { Authorization: 'Bearer owner' } });
-          console.log('DIAG rooms', (await r.text()).slice(0, 3000));
-        } catch (x) { console.log('DIAG rooms err', String(x)); }
-        await page.screenshot({ path: join(ART, 'diag-sit-picker.png'), fullPage: true }).catch(() => {});
-        throw e;
-      });
-      await page.locator('#mpBuyinPicker [data-confirm]').click();
-      await page.waitForSelector('#mpBuyinPicker', { state: 'hidden', timeout: 10000 });
-    }
-    await page.waitForFunction(() =>
-      !document.querySelector('.mp-empty-seat') ||
-      !!document.querySelector('#mpLeave, #mpFold, #mpStart, #mpCheck, #mpCall') ||
-      [...document.querySelectorAll('button')].some((button) => button.textContent.includes('離座')),
-    null, { timeout: 12000 }).catch(() => {});
+    await page.waitForSelector('#mpLeave', {
+      state: 'attached', timeout: 1100,
+    }).catch(() => {});
+    if (await page.locator('#mpLeave').count()) return true;
   }
-  return (
-    !(await page.locator('.mp-empty-seat').count()) ||
-    !!(await page.locator('#mpLeave, #mpFold, #mpStart').count())
-  );
+  // DIAG R21: capture state only after all seating retries fail
+  const d = await page.evaluate(() => ({
+    url: location.href,
+    toast: document.querySelector('#mpToast')?.textContent || '',
+    picker: !!document.querySelector('#mpBuyinPicker'),
+    empty: document.querySelectorAll('.mp-empty-seat').length,
+    leave: !!document.querySelector('#mpLeave'),
+    text: document.body.innerText.slice(0, 600),
+  })).catch((x) => ({ evalErr: String(x) }));
+  console.log('DIAG sit-picker', JSON.stringify(d));
+  try {
+    const port = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
+    const r = await fetch(`http://${port}/v1/projects/demo-poker/databases/(default)/documents/rooms?pageSize=5`, { headers: { Authorization: 'Bearer owner' } });
+    console.log('DIAG rooms', (await r.text()).slice(0, 3000));
+  } catch (x) { console.log('DIAG rooms err', String(x)); }
+  await page.screenshot({ path: join(ART, 'diag-sit-picker.png'), fullPage: true }).catch(() => {});
+  return false;
 }
 
 async function startHand(host) {
@@ -500,6 +510,7 @@ async function runSoloFromLobby(browser, base, viewport, label) {
     isMobile: viewport.width < 700,
     hasTouch: viewport.width < 700,
   });
+  await ctx.addInitScript(ALWAYS_VISIBLE);
   await ctx.route('**/*', blockProd);
   const page = await ctx.newPage();
   const errors = [];
@@ -1018,6 +1029,7 @@ async function runOpenTablesList(browser, base, viewport, label) {
     viewport,
     deviceScaleFactor: 2,
   });
+  await staleCtx.addInitScript(ALWAYS_VISIBLE);
   await staleCtx.route('**/*', blockProd);
   const stalePage = await staleCtx.newPage();
   await stalePage.goto(
