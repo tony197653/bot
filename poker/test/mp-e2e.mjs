@@ -314,11 +314,15 @@ async function sitIfNeeded(page) {
         })
         .catch(() => false);
       if (!clicked) await seatBtn.click({ force: true }).catch(() => {});
-      await page.locator('#mpBuyinPicker [data-confirm]').waitFor({ state: 'visible', timeout: 3000 });
+      await page.locator('#mpBuyinPicker [data-confirm]').waitFor({ state: 'visible', timeout: 12000 });
       await page.locator('#mpBuyinPicker [data-confirm]').click();
       await page.waitForSelector('#mpBuyinPicker', { state: 'hidden', timeout: 10000 });
     }
-    await page.waitForTimeout(1400);
+    await page.waitForFunction(() =>
+      !document.querySelector('.mp-empty-seat') ||
+      !!document.querySelector('#mpLeave, #mpFold, #mpStart, #mpCheck, #mpCall') ||
+      [...document.querySelectorAll('button')].some((button) => button.textContent.includes('離座')),
+    null, { timeout: 12000 }).catch(() => {});
   }
   return (
     !(await page.locator('.mp-empty-seat').count()) ||
@@ -339,7 +343,13 @@ async function startHand(host) {
         if (await host.page.locator('#mpFold, #mpCheck, #mpCall').count()) return true;
       }
     }
-    await host.page.waitForTimeout(800);
+    await host.page.waitForFunction(() => {
+      if (document.querySelector('#mpFold, #mpCheck, #mpCall')) return true;
+      const start = document.querySelector('#mpStart');
+      if (!start) return false;
+      const label = start.innerText;
+      return Number((label.match(/（(\d+)人）/) || [])[1] || 0) >= 2 || !/人/.test(label);
+    }, null, { timeout: 12000 }).catch(() => {});
   }
   return !!(await host.page.locator('#mpFold, #mpCheck, #mpCall').count());
 }
@@ -352,7 +362,7 @@ async function ensureOnTable(page) {
     if (await cont.count()) {
       await cont.first().click().catch(() => {});
     }
-    await page.waitForTimeout(1000);
+    await page.waitForSelector('#seats .mp-empty-seat, #mpLeave, [data-act="continue"], [data-act="enter"]', { state: 'attached', timeout: 12000 }).catch(() => {});
   }
   return !!(await page.locator('#seats .mp-empty-seat, #mpLeave').count());
 }
@@ -384,7 +394,9 @@ async function runFoldWin(browser, base, viewport, label) {
       await gFold.click();
       folded = true;
     }
-    await host.page.waitForTimeout(700);
+    await host.page.waitForFunction(() =>
+      /手結束|準備中|開始下一手|開始第一手|贏得|離座/.test(document.body.innerText),
+    null, { timeout: 12000 }).catch(() => {});
     const body = await host.page.innerText('body');
     if (/手結束|準備中|開始下一手|開始第一手|贏得|離座/.test(body) && folded) break;
   }
@@ -657,7 +669,7 @@ async function runIntentRefresh(browser, base, viewport, label) {
 async function runHostLobbyContinue(browser, base, viewport, label) {
   const host = await makePlayer(browser, base, '阿明', `hostlc${label}`, viewport);
   const { roomId } = await createAndShare(host);
-  await host.page.waitForTimeout(1500);
+  await host.page.waitForSelector('#heroChips, .ch.st', { timeout: 12000 });
   const before = await host.page.evaluate(() => {
     const chips = document.querySelector('#heroChips, .ch.st')?.textContent || '';
     const body = document.body.innerText;
@@ -713,7 +725,10 @@ async function runHostLobbyContinue(browser, base, viewport, label) {
   }
   await leaveBtn.click();
   await host.page.waitForSelector('.mp-lobby', { timeout: 15000 });
-  await host.page.waitForTimeout(800);
+  await host.page.waitForFunction(() => {
+    const mine = window.__qaMineSnapshot?.();
+    return /房主/.test(mine?.tag || '') && /回到牌桌/.test(mine?.act || '');
+  }, null, { timeout: 12000 });
   const lobby = await host.page.evaluate(async () => {
     const info =
       typeof window.__qaRefreshRescue === 'function'
@@ -762,7 +777,7 @@ async function runHostLobbyContinue(browser, base, viewport, label) {
     null,
     { timeout: 20000 },
   );
-  await host.page.waitForTimeout(1500);
+  await host.page.waitForSelector('#heroChips, .ch.st', { timeout: 12000 });
   const after = await host.page.evaluate(() => {
     const chips = document.querySelector('#heroChips, .ch.st')?.textContent || '';
     const body = document.body.innerText;
@@ -918,7 +933,10 @@ async function runJoinCode3(browser, base, viewport, label) {
     input.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true }));
   }, url);
   await guest.page.waitForSelector('#seats .mp-empty-seat, #mpLeave', { state: 'attached', timeout: 20000 }).catch(() => {});
-  await guest.page.waitForTimeout(1500);
+  await guest.page.waitForFunction(() => {
+    const app = document.getElementById('app');
+    return !!document.querySelector('#seats .mp-empty-seat, #mpLeave') && app && !app.classList.contains('hidden');
+  }, null, { timeout: 12000 });
   const onTable = await guest.page.evaluate(() => {
     const app = document.getElementById('app');
     return !!document.querySelector('#seats .mp-empty-seat, #mpLeave') && app && !app.classList.contains('hidden');
@@ -1061,7 +1079,10 @@ async function runMineCardStates(browser, base, viewport, label) {
   await guest.page.waitForTimeout(1200);
   await guest.page.evaluate(() => window.__qaLeaveToLobby());
   await guest.page.waitForSelector('.mp-lobby', { timeout: 15000 });
-  await guest.page.waitForTimeout(800);
+  await guest.page.waitForFunction(() => {
+    const mine = window.__qaMineSnapshot?.();
+    return mine?.hasMine && /入座中/.test(mine.tag || '');
+  }, null, { timeout: 12000 });
   const guestCard = await guest.page.evaluate(() => ({
     ...window.__qaMineSnapshot(),
     top: window.__qaTopStatus?.() || '',
@@ -1103,7 +1124,10 @@ async function runMineCardStates(browser, base, viewport, label) {
   await guest.page.evaluate(async () => {
     await window.__qaRefreshRescue?.();
   });
-  await guest.page.waitForTimeout(1200);
+  await guest.page.waitForFunction(() => {
+    const mine = window.__qaMineSnapshot?.();
+    return mine?.hasMine && mine.dataK === 'settle' && /結帳離開/.test(mine.act || '');
+  }, null, { timeout: 12000 });
   const settleCard = await guest.page.evaluate(() => ({
     ...window.__qaMineSnapshot(),
     top: window.__qaTopStatus?.() || '',
