@@ -1206,16 +1206,9 @@ export function createHostLoop(fb, opts) {
 
     stopPresenceListen = listenPresence(fb, roomId, (map) => {
       presenceMap = map;
-      for (const [u, info] of Object.entries(map)) {
-        const prev = presenceSeen[u];
-        // Track local time of last change of beatMs
-        if (prev == null || info.beatMs !== (presenceMap[u]?._lastBeat || 0)) {
-          presenceSeen[u] = Date.now();
-        }
-      }
-      // Simpler: any snapshot updates seen time for each uid present
+      // Initialize seen time for each uid on its first snapshot
       for (const u of Object.keys(map)) {
-        if (!presenceSeen[u]) presenceSeen[u] = Date.now();
+        if (presenceSeen[u] == null) presenceSeen[u] = Date.now();
       }
       // Update when beat changes
       for (const [u, info] of Object.entries(map)) {
