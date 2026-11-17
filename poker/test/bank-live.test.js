@@ -60,3 +60,12 @@ test('大廳、開新牌桌、入座小框都有帳戶，未確認顯示 —', (
   assert.match(mp, /id="mpBuyinBank">\$\{options\.bankText \?\? '—'\}/);
   assert.match(mp, /bankText: accountText\(\)/);
 });
+
+test('管理頁用獨立 Firebase app，登入狀態不跟大廳共用', () => {
+  const admin = readFileSync(new URL('../admin/admin.js', import.meta.url), 'utf8');
+  const load = readFileSync(new URL('../../lib/firebase/load.js', import.meta.url), 'utf8');
+  assert.match(admin, /const ADMIN_APP = 'poker-admin'/);
+  assert.match(admin, /loadFirebase\([^)]*\{ appName: ADMIN_APP \}\)/);
+  assert.match(load, /initializeApp\(firebaseConfig, name\)/);
+  assert.match(load, /getApps\(\)\.length \? getApp\(\) : initializeApp\(firebaseConfig\)/, '未指定 appName 時行為不變');
+});

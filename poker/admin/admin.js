@@ -11,6 +11,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 let fb = null;
 let me = null;
 let players = [];
+const ADMIN_APP = 'poker-admin';
 let sel = null;
 let op = 1;
 let busy = false;
@@ -255,7 +256,8 @@ async function main() {
   bind(); gate('loading');
   try {
     const emu = isEmuMode();
-    fb = await loadFirebase(emu ? EMU_FIREBASE_CONFIG : FIREBASE_CONFIG);
+    // 獨立 app：登入狀態另存（大廳用 [DEFAULT] 且會把登入搬到 localStorage，共用時會把管理頁登出）
+    fb = await loadFirebase(emu ? EMU_FIREBASE_CONFIG : FIREBASE_CONFIG, { appName: ADMIN_APP });
     if (emu && !main.connected) {
       fb.authApi.connectAuthEmulator(fb.auth, `http://127.0.0.1:${EMU_PORTS.auth}`, { disableWarnings: true });
       fb.fs.connectFirestoreEmulator(fb.db, '127.0.0.1', EMU_PORTS.firestore);
