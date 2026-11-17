@@ -3081,7 +3081,7 @@ function pickBuyinAmount(options) {
   el.setAttribute('aria-labelledby', 'mpBuyinTitle');
   el.innerHTML = `<div class="mp-close-result-card">
     <h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>
-    <p class="mp-acct">帳戶 <b id="mpBuyinBank">${options.bankText ?? '—'}</b></p>
+    <p class="mp-acct mp-acct-bank">帳戶 <b id="mpBuyinBank">${options.bankText ?? '—'}</b></p>
     <div class="mp-buyin-step">
       <button type="button" data-minus aria-label="減少 500">−</button>
       <input aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">

@@ -732,7 +732,7 @@ export function renderCreateRoom(root, vm) {
           </div>
         </fieldset>
         <div class="mp-affix">
-          <span class="mp-acct mp-acct-row">帳戶 <b id="mpCreateBank">${bankText}</b></span>
+          <span class="mp-acct mp-acct-row mp-acct-bank">帳戶 <b id="mpCreateBank">${bankText}</b></span>
           <div class="mp-affix-row">
             <button type="button" data-chips-minus aria-label="減少 500">−</button>
             <label class="mp-create-chips-field"><span>攜入籌碼</span>
