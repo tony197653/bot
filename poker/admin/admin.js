@@ -78,12 +78,13 @@ function renderPlayers() {
 
 /* ---------- 抽屜：加減帳戶 ---------- */
 let statsExist = false;
+let drawerReturn = null;
 async function openDrawer(uid) {
   sel = uid; op = 1;
   $('amt').value = ''; $('reason').value = '';
   $('drawerEmpty').hidden = true; $('drawerBody').hidden = false;
   $('drawer').classList.add('open');
-  if (!matchMedia('(min-width:1024px)').matches) $('backdrop').hidden = false;
+  if (!matchMedia('(min-width:1024px)').matches) { $('backdrop').hidden = false; setInert(true, '#players', 'header.bar'); drawerReturn = uid; setTimeout(() => $('opAdd').focus(), 0); }
   renderPlayers(); fillDrawer();
   statsExist = true; $('clearBtn').disabled = false; $('clearBtn').textContent = '清除個人紀錄';
   try {
@@ -93,8 +94,11 @@ async function openDrawer(uid) {
   if (sel === uid) { $('clearBtn').disabled = !statsExist; $('clearBtn').textContent = statsExist ? '清除個人紀錄' : '沒有紀錄'; }
 }
 function closeDrawer() {
+  setInert(false, '#players', 'header.bar');
+  const ret = drawerReturn; drawerReturn = null;
   sel = null; $('drawer').classList.remove('open'); $('backdrop').hidden = true;
   $('drawerEmpty').hidden = false; $('drawerBody').hidden = true; renderPlayers();
+  if (ret) document.querySelector(`#players .row[data-uid="${CSS.escape(ret)}"]`)?.focus();
 }
 function fillDrawer() {
   const p = players.find((x) => x.id === sel);
@@ -152,14 +156,35 @@ async function doAdjust() {
 
 /* ---------- 確認框 ---------- */
 let onOk = null;
+let modalReturn = null;
+const setInert = (on, ...ids) => ids.forEach((id) => { const el = typeof id === 'string' ? document.querySelector(id) : id; if (el) el.inert = on; });
 function modal(title, html, okText, fn) {
+  modalReturn = document.activeElement;
+  setInert(true, '#app', 'header.bar', '#offline');
   $('mTitle').textContent = title; $('mBody').innerHTML = html; $('mOk').textContent = okText;
   $('mOk').disabled = false; onOk = fn; $('modal').hidden = false; $('mCancel').focus();
 }
-function closeModal() { $('modal').hidden = true; onOk = null; }
+function closeModal() {
+  $('modal').hidden = true; onOk = null;
+  setInert(false, '#app', 'header.bar', '#offline');
+  if (sel && !$('backdrop').hidden) setInert(true, '#players', 'header.bar');
+  const back = sel && !$('drawerBody').hidden ? $('clearBtn') : modalReturn;
+  if (back && !back.disabled) back.focus(); else $('drawer').querySelector('button:not([disabled]),input')?.focus();
+  modalReturn = null;
+}
+// 對話框內 Tab 只在可按的按鈕間循環（inert 之外的保險）
+function trapTab(e) {
+  if (e.key !== 'Tab' || $('modal').hidden) return;
+  const f = [...$('modal').querySelectorAll('button:not([disabled])')];
+  if (!f.length) return;
+  const i = f.indexOf(document.activeElement);
+  e.preventDefault();
+  f[(i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
+}
 
 function askClear() {
   const p = players.find((x) => x.id === sel); if (!p || !statsExist) return;
+  clearTimeout(toast.t); $('toast').hidden = true;
   modal(`清除${p.displayName || '玩家'}的個人紀錄？`,
     `<p>局數、勝率、入池率會歸零。</p><p>籌碼、帳本、每晚戰績都不動。</p>${p.tableRoomId ? '<p>在打牌中也能清，最多差 1 手。</p>' : ''}<p>清掉就找不回來。</p>`,
     '清除', async () => {
@@ -192,7 +217,7 @@ export async function clearStats(uid, f = fb) {
 function listen() {
   const { db, fs } = fb;
   $('players').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
-  unsubs.push(fs.onSnapshot(fs.query(fs.collection(db, 'pokerPlayers'), fs.orderBy('total', 'desc'), fs.limit(50)), (s) => {
+  unsubs.push(fs.onSnapshot(fs.query(fs.collection(db, 'pokerPlayers'), fs.orderBy('bank', 'desc'), fs.limit(50)), (s) => {
     players = s.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderPlayers(); if (sel) fillDrawer();
   }, (e) => { console.warn('[admin] players', e); gate('error'); }));
@@ -209,6 +234,7 @@ function bind() {
   $('mOk').onclick = async () => { const fn = onOk; if (!fn) return; $('mOk').disabled = true; $('mOk').textContent = '處理中…'; await fn(); closeModal(); };
   $('logout').onclick = async () => { unsubs.forEach((u) => u()); unsubs = []; await fb.authApi.signOut(fb.auth); };
   document.addEventListener('keydown', (e) => {
+    trapTab(e);
     if (e.key !== 'Escape') return;
     if (!$('modal').hidden) closeModal(); else if (sel) closeDrawer();
   });
