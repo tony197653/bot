@@ -1,0 +1,73 @@
+*,*::before,*::after{box-sizing:border-box}
+:root{--wine:#8A1F2B;--wine-d:#2A0A0E;--cream:#F3ECD8;--ink:#1f1a1a;--sub:#6b6262;--line:#e6e0dc;--bg:#faf8f6;--card:#fff;--danger:#b3261e}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Noto Sans CJK TC",sans-serif;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+[hidden]{display:none!important}
+.bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  min-height:56px;padding:max(8px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 8px max(16px,env(safe-area-inset-left));
+  background:linear-gradient(180deg,var(--wine),#5a1119);color:var(--cream)}
+.bar-title{font-weight:700;letter-spacing:.02em}
+.bar .link{color:var(--cream)}
+.offline{background:#fff3cd;color:#5c4400;text-align:center;font-size:14px;padding:6px 16px}
+.link{background:none;border:0;padding:10px 4px;min-height:44px;text-decoration:underline;cursor:pointer;color:var(--ink)}
+.link.center{display:block;margin:4px auto 0;text-align:center}
+.link.danger{color:var(--danger)}
+.link:disabled{opacity:.4;cursor:default;text-decoration:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-weight:600;cursor:pointer}
+.btn.primary{width:100%;background:var(--wine);border-color:var(--wine);color:#fff}
+.btn.dangerfill{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn:disabled{opacity:.4;cursor:default}
+.btn[aria-pressed="true"]{background:var(--wine-d);border-color:var(--wine-d);color:var(--cream)}
+main{padding:0 max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.gate{max-width:440px;margin:0 auto;padding-top:15vh}
+.gate-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px 20px;text-align:center;margin-bottom:20px}
+.gate-card img{display:block;margin:0 auto 12px;border-radius:14px}
+.gate-card h1{font-size:20px;margin:0 0 4px}
+.gate-card p{margin:0;color:var(--sub);overflow-wrap:anywhere}
+.tabs{display:flex;margin:12px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card);max-width:420px}
+.tabs button{flex:1;min-height:44px;border:0;background:none;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--wine-d);color:var(--cream);font-weight:700}
+.list{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:64px;padding:10px 16px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;cursor:pointer}
+.row:last-child{border-bottom:0}
+.row.sel{background:#f6eeee}
+.row .nm{font-weight:600;overflow-wrap:anywhere}
+.row .sub{display:block;font-size:13px;color:var(--sub)}
+.row .num{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.row .num .sub{font-weight:400}
+.trow{cursor:default}
+.tag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:6px;font-size:12px;font-weight:700;background:#fbe9e7;color:var(--danger);vertical-align:2px}
+.ok{color:var(--sub);font-size:14px;white-space:nowrap}
+.foot,.empty{text-align:center;color:var(--sub);font-size:13px;padding:12px}
+.empty{padding:32px 16px;font-size:15px}
+.skel{height:64px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#f3efec,#faf8f6,#f3efec);background-size:200% 100%;animation:sk 1.2s infinite}
+@keyframes sk{to{background-position:-200% 0}}
+.drawer{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-radius:18px 18px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.18);
+  padding:16px max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));max-height:88vh;overflow:auto;transform:translateY(105%);transition:transform .22s ease}
+.drawer.open{transform:none}
+.backdrop{position:fixed;inset:0;z-index:15;background:rgba(20,8,10,.4)}
+.placeholder{color:var(--sub);text-align:center;margin:40px 0}
+.d-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.d-head b{font-size:20px;overflow-wrap:anywhere}
+.d-head span{white-space:nowrap;font-variant-numeric:tabular-nums}
+.d-note{margin:2px 0 0;font-size:13px;color:var(--sub)}
+.lbl{display:block;font-size:13px;color:var(--sub);margin:12px 0 4px}
+.seg{display:flex;gap:8px}.seg .btn{flex:1}
+input{width:100%;min-height:48px;padding:10px 12px;border:1px solid #cfc7c2;border-radius:10px;background:#fff;font-size:16px}
+input:focus-visible,.btn:focus-visible,.row:focus-visible,.tabs button:focus-visible,.link:focus-visible{outline:2px solid var(--wine);outline-offset:2px}
+.preview{margin:10px 0;font-size:14px;color:var(--sub);min-height:21px}
+.preview.err{color:var(--danger)}
+.modal{position:fixed;inset:0;z-index:40;background:rgba(20,8,10,.45);display:flex;align-items:center;justify-content:center;padding:20px}
+.m-card{width:100%;max-width:400px;background:var(--card);border-radius:16px;padding:20px}
+.m-card h2{font-size:18px;margin:0 0 8px;overflow-wrap:anywhere}
+.m-card p{margin:6px 0;font-size:15px}
+.m-card .refund{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;font-variant-numeric:tabular-nums}
+.m-card .seg{margin-top:16px}
+.toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;background:var(--wine-d);color:var(--cream);padding:10px 16px;border-radius:12px;font-size:15px;max-width:calc(100% - 32px);text-align:center}
+@media (min-width:1024px){
+  main.app{max-width:1280px;margin:0 auto}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:24px;align-items:start}
+  .drawer{position:sticky;top:72px;transform:none;border-radius:14px;border:1px solid var(--line);box-shadow:none;max-height:none;padding:20px}
+  .backdrop{display:none!important}
+}
+@media (prefers-reduced-motion:reduce){.drawer{transition:none}.skel{animation:none}}

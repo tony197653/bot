@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>週五牌局 · 管理</title>
+<meta name="description" content="週五牌局管理頁 · 僅限管理員">
+<meta name="theme-color" content="#8A1F2B">
+<meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-title" content="牌局管理">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:title" content="週五牌局 · 管理">
+<meta property="og:description" content="週五牌局管理頁 · 僅限管理員">
+<meta property="og:url" content="https://tony-poker.web.app/friday-poker/admin/">
+<meta property="og:image" content="https://tony-poker.web.app/friday-poker/admin/icon-512.png">
+<meta name="twitter:card" content="summary">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<header class="bar">
+  <span class="bar-title">週五牌局 · 管理</span>
+  <button type="button" class="link" id="logout" hidden>登出</button>
+</header>
+<div class="offline" id="offline" hidden>離線中，畫面可能不是最新</div>
+
+<main class="gate" id="gate">
+  <div class="gate-card">
+    <img src="favicon.svg" width="64" height="64" alt="牌局管理">
+    <h1 id="gateTitle">載入中…</h1>
+    <p id="gateText">&nbsp;</p>
+  </div>
+  <button type="button" class="btn primary" id="gateBtn" hidden>用 Google 登入</button>
+  <a class="link center" id="gateBack" href="../" hidden>回牌局</a>
+</main>
+
+<main class="app" id="app" hidden>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tabPlayers" aria-selected="true">玩家 <span id="nPlayers">0</span></button>
+    <button type="button" role="tab" id="tabTables" aria-selected="false">牌桌 <span id="nTables">0</span></button>
+  </div>
+  <div class="layout">
+    <section class="list" id="players" aria-label="玩家"></section>
+    <section class="list" id="tables" aria-label="牌桌" hidden></section>
+    <aside class="drawer" id="drawer" aria-label="玩家抽屜">
+      <p class="placeholder" id="drawerEmpty">點一位玩家</p>
+      <div id="drawerBody" hidden>
+        <div class="d-head"><b id="dName"></b><span id="dBank"></span></div>
+        <p class="d-note" id="dSeat" hidden></p>
+        <div class="lbl">加或減</div>
+        <div class="seg" role="radiogroup">
+          <button type="button" class="btn" id="opAdd" aria-pressed="true">加</button>
+          <button type="button" class="btn" id="opSub" aria-pressed="false">減</button>
+        </div>
+        <label class="lbl" for="amt">數量</label>
+        <input id="amt" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="1–100,000">
+        <label class="lbl" for="reason">原因（必填）</label>
+        <input id="reason" maxlength="60" autocomplete="off" placeholder="例如：上週記錯，補回">
+        <p class="preview" id="preview">&nbsp;</p>
+        <button type="button" class="btn primary" id="confirmAdj" disabled>確認</button>
+        <button type="button" class="link danger center" id="clearBtn">清除個人紀錄</button>
+      </div>
+    </aside>
+  </div>
+  <div class="backdrop" id="backdrop" hidden></div>
+</main>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle" hidden>
+  <div class="m-card">
+    <h2 id="mTitle"></h2>
+    <div id="mBody"></div>
+    <div class="seg">
+      <button type="button" class="btn" id="mCancel">取消</button>
+      <button type="button" class="btn dangerfill" id="mOk"></button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script type="module" src="admin.js"></script>
+</body>
+</html>

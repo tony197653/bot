@@ -28,6 +28,14 @@ service cloud.firestore {
     }
     // ===== [/AUTH MODULE] =====================================================
 
+    // 管理頁（/friday-poker/admin/）：只有宗良的 Google 帳號（2026-11-17 確認）
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'tony197653@gmail.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
     // ===== [POKER] 德州撲克第二階段 ============================================
     // 依賴 AUTH MODULE 的 signedIn()／isSelf()／strOk()／urlOk()。
     // 籌碼模型（業界做法，見規格 §6.10）：帳戶 bank ─帶入→ 桌上 stacks ─結帳→ 帳戶 bank。
@@ -558,7 +566,7 @@ service cloud.firestore {
     match /pokerPlayers/{uid} {
       function playerKeys() {
         return ['displayName', 'photoURL', 'bank', 'inPlay', 'total', 'tableRoomId', 'sessionNo',
-                'topUps', 'topUpChips', 'handsPlayed', 'lastRoomId', 'hostRoomId', 'createdAt', 'updatedAt'];
+                'topUps', 'topUpChips', 'handsPlayed', 'lastRoomId', 'hostRoomId', 'lastAdjustId', 'createdAt', 'updatedAt'];
       }
       // 第一次來：bank＝這房的新玩家起始籌碼；同一個 batch 要有帳本 grant
       // 可與建房同批：房間用 getAfter；當房主時允許 hostRoomId == lastRoomId
@@ -566,7 +574,8 @@ service cloud.firestore {
         let d = request.resource.data;
         let r = exists(roomPath(d.lastRoomId)) ? roomOf(d.lastRoomId) : getAfter(roomPath(d.lastRoomId)).data;
         // hostRoomId 選填：線上 main ensurePlayerGrant 不寫此欄
-        return d.keys().hasAll(playerKeys().removeAll(['hostRoomId'])) && d.keys().hasOnly(playerKeys())
+        return d.keys().hasAll(playerKeys().removeAll(['hostRoomId', 'lastAdjustId'])) && d.keys().hasOnly(playerKeys())
+          && !d.keys().hasAny(['lastAdjustId'])
           && strOk(d.displayName, 60) && urlOk(d.get('photoURL', null))
           && d.lastRoomId is string && request.auth.uid in r.members
           && d.bank == r.config.newPlayerChips && d.inPlay == 0 && d.total == d.bank
@@ -646,7 +655,20 @@ service cloud.firestore {
       allow get: if signedIn();
       allow list: if signedIn() && request.query.limit <= 50;
       allow create: if isSelf(uid) && createOk();
-      allow update: if signedIn() && ((isSelf(uid) && (profileOk() || buyinOk() || hostRoomIdSetOk() || hostRoomIdClearOk())) || cashoutApplyOk());
+      // 管理員加減帳戶籌碼：坐桌與否都可；只動 bank/total/lastAdjustId/updatedAt（inPlay、桌上籌碼不動）；
+      // 同一 batch 必須有對應的 adjust 帳本（delta 對得上）
+      function adminAdjustOk() {
+        let d = request.resource.data;
+        let r = resource.data;
+        let e = getAfter(ledgerPath(uid, d.lastAdjustId)).data;
+        return isAdmin()
+          && d.diff(r).affectedKeys().hasOnly(['bank', 'total', 'lastAdjustId', 'updatedAt'])
+          && d.lastAdjustId is string && d.lastAdjustId.size() <= 40 && d.lastAdjustId != r.get('lastAdjustId', '')
+          && d.bank is int && d.bank >= 0 && d.bank <= 100000000 && d.total == d.bank + r.inPlay
+          && e.type == 'adjust' && e.at == request.time && e.delta == d.bank - r.bank
+          && d.updatedAt == request.time;
+      }
+      allow update: if signedIn() && ((isSelf(uid) && (profileOk() || buyinOk() || hostRoomIdSetOk() || hostRoomIdClearOk())) || cashoutApplyOk() || adminAdjustOk());
       allow delete: if false;
 
       // 帳本（只新增）：編號固定＝冪等鍵
@@ -655,8 +677,9 @@ service cloud.firestore {
       match /ledger/{entryId} {
         function entryKeysOk(d) {
           return d.keys().hasOnly(['type', 'amount', 'roomId', 'sessionNo', 'seat', 'buyIn', 'topUps',
-                                   'topUpChips', 'hands', 'nightKey', 'bankAfter', 'by', 'at'])
-            && d.type in ['grant', 'buyin', 'cashout']
+                                   'topUpChips', 'hands', 'nightKey', 'bankAfter', 'by', 'at', 'delta', 'reason'])
+            && d.type in ['grant', 'buyin', 'cashout', 'adjust']
+            && (d.type == 'adjust' || !d.keys().hasAny(['delta', 'reason']))
             && d.amount is int && d.amount >= 0 && d.amount <= 100000000
             && d.roomId is string && d.roomId.size() <= 40
             && d.sessionNo is int && d.sessionNo >= 0
@@ -732,12 +755,26 @@ service cloud.firestore {
             && d.at == request.time && d.by == request.auth.uid
             && p.tableRoomId == null && d.bankAfter == p.bank;
         }
+        // 管理員調整：帳戶同一 batch 指向這筆（lastAdjustId），bank 變動量 == delta
+        function adjustEntryOk(d) {
+          let before = get(playerPath(uid)).data;
+          let p = getAfter(playerPath(uid)).data;
+          return d.type == 'adjust' && isAdmin()
+            && entryId.matches('adj_[0-9]{13}_[a-z0-9]{4}') && p.lastAdjustId == entryId
+            && d.keys().hasOnly(['type', 'amount', 'roomId', 'sessionNo', 'delta', 'reason', 'bankAfter', 'by', 'at'])
+            && d.delta is int && d.delta != 0 && d.delta >= -100000 && d.delta <= 100000
+            && d.amount == (d.delta < 0 ? -d.delta : d.delta)
+            && d.reason is string && d.reason.size() >= 1 && d.reason.size() <= 60
+            && d.roomId == '' && d.sessionNo == 0
+            && p.bank == before.bank + d.delta && d.bankAfter == p.bank;
+        }
         allow get: if signedIn();
         allow list: if signedIn() && request.query.limit <= 50;
         allow create: if signedIn() && entryKeysOk(request.resource.data)
           && (grantOk(request.resource.data) || buyinEntryOk(request.resource.data)
               || cashoutEntryOk(request.resource.data)
-              || disconnectCashout(request.resource.data));
+              || disconnectCashout(request.resource.data)
+              || adjustEntryOk(request.resource.data));
         allow update, delete: if false;
       }
 
@@ -894,7 +931,8 @@ service cloud.firestore {
       }
       // v1.0.4: aligned with leaderboard pokerPlayers get (signedIn incl. anonymous; auth null denied).
       allow get: if signedIn();
-      allow list, delete: if false;
+      allow list: if false;
+      allow delete: if isAdmin();
       // Current chips TOTAL only (v1.0.5): seat/room verification lives in private pokerStatsSeat/{uid}.
       // Mode A (host, HAND_OVER): total == bank + room.stacks[seat], private mapping written in the same batch.
       // Mode B (self, after cash-out / leave): mapping cleared, not seated anywhere, total == bank.
@@ -940,7 +978,7 @@ service cloud.firestore {
       allow list: if false;
       allow create: if aggregateOk({});
       allow update: if aggregateOk(resource.data);
-      allow delete: if false;
+      allow delete: if isAdmin();
       match /hands/{key} {
         function summaryOk() {
           let d = request.resource.data;
@@ -960,9 +998,10 @@ service cloud.firestore {
             && d.settledAt == request.time && a.updatedAt == request.time && a.lastHandKey == key
             && existsAfter(statsReceipt(d.roomId, key, uid));
         }
-        allow get, list: if isSelf(uid);
+        allow get, list: if isSelf(uid) || isAdmin();
         allow create: if summaryOk();
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if isAdmin();
       }
     }
     // Receipt contains identity only, never private counters/net/flags. No list.
