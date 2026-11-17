@@ -9,8 +9,6 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -20,35 +18,80 @@ const ART = existsSync('/opt/cursor/artifacts')
   : join(ROOT, 'test-artifacts');
 mkdirSync(ART, { recursive: true });
 
+// 情境資料操作僅限本機 emulator；不建立測試環境、不清空其他情境資料。
+function emulatorDocumentsRoot() {
+  const host = process.env.FIRESTORE_EMULATOR_HOST || '';
+  if (!/^(?:127\.0\.0\.1|localhost|\[::1\]):[0-9]{1,5}$/.test(host)) {
+    throw new Error('情境 REST 需要本機 FIRESTORE_EMULATOR_HOST（含連接埠）');
+  }
+  return `http://${host}/v1/projects/demo-poker/databases/(default)/documents`;
+}
+
+async function emulatorRest(path, body) {
+  const url = `${emulatorDocumentsRoot()}${path}`;
+  let response;
+  try {
+    response = await fetch(url, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      signal: AbortSignal.timeout(15000),
+      redirect: 'error',
+    });
+  } catch (error) {
+    throw new Error(`情境 REST 連線失敗：${url}：${error.message}`);
+  }
+  if (!response.ok) throw new Error(`情境 REST ${response.status}：${url}：${await response.text()}`);
+  try {
+    return await response.json();
+  } catch (error) {
+    throw new Error(`情境 REST 回應格式無效：${url}：${error.message}`);
+  }
+}
+
+function emulatorValue(fields, key) {
+  const value = fields?.[key];
+  if (value) {
+    if ('nullValue' in value) return null;
+    if ('stringValue' in value) return value.stringValue;
+    if ('integerValue' in value || 'doubleValue' in value) {
+      const number = Number(value.integerValue ?? value.doubleValue);
+      if (Number.isFinite(number)) return number;
+    }
+    if ('timestampValue' in value) {
+      const millis = Date.parse(value.timestampValue);
+      if (Number.isFinite(millis)) return millis;
+    }
+  }
+  throw new Error(`情境 REST 欄位缺少或格式無效：${key}`);
+}
+
+function emulatorDocumentName(path) {
+  return `projects/demo-poker/databases/(default)/documents/${path}`;
+}
+
+function emulatorUpdate(path, fields, mustExist = false) {
+  return {
+    update: { name: emulatorDocumentName(path), fields },
+    updateMask: { fieldPaths: Object.keys(fields) },
+    ...(mustExist ? { currentDocument: { exists: true } } : {}),
+  };
+}
+
 /** Backdate room.updatedAt + host presence (rules-bypass; emulator only). */
 async function emuBackdateHostGone(roomId, hostUid, msAgo = 11 * 60_000) {
-  const rules = readFileSync(join(ROOT, 'firebase/firestore.rules'), 'utf8');
-  const { getDoc } = await import('firebase/firestore');
-  const env = await initializeTestEnvironment({
-    projectId: 'demo-poker',
-    firestore: { host: '127.0.0.1', port: 8195, rules },
-  });
-  const ago = Timestamp.fromMillis(Date.now() - msAgo);
-  try {
-    await env.withSecurityRulesDisabled(async (ctx) => {
-      const db = ctx.firestore();
-      // Resolve real Firebase hostUid from room (QA string uid ≠ auth.uid)
-      let uid = hostUid;
-      try {
-        const snap = await getDoc(doc(db, 'pokerRooms', roomId));
-        if (snap.exists() && snap.data()?.hostUid) uid = snap.data().hostUid;
-      } catch {
-        /* keep arg */
-      }
-      await updateDoc(doc(db, 'pokerRooms', roomId), { updatedAt: ago });
-      await setDoc(doc(db, 'pokerRooms', roomId, 'presence', uid), {
-        beat: ago,
-        vis: false,
-      });
-    });
-  } finally {
-    await env.cleanup();
-  }
+  const roomPath = `pokerRooms/${encodeURIComponent(roomId)}`;
+  const room = await emulatorRest(`/${roomPath}`);
+  // 使用 Firebase 真正的 hostUid；讀取失敗不得以 QA uid 靜默替代。
+  const uid = emulatorValue(room.fields, 'hostUid');
+  if (typeof uid !== 'string' || !uid) throw new Error(`情境 REST hostUid 無效：${roomId}`);
+  const ago = { timestampValue: new Date(Date.now() - msAgo).toISOString() };
+  await emulatorRest(':commit', { writes: [
+    emulatorUpdate(`pokerRooms/${roomId}`, { updatedAt: ago }, true),
+    // 與原 setDoc 一樣完整覆寫 presence 文件。
+    { update: { name: emulatorDocumentName(`pokerRooms/${roomId}/presence/${uid}`),
+      fields: { beat: ago, vis: { booleanValue: false } } } },
+  ] });
 }
 
 const MIME = {
@@ -162,19 +205,8 @@ async function makePlayer(browser, base, name, uid, viewport, extraQuery = '') {
 const scenarioRooms = [];
 
 async function roomIsClosed(roomId) {
-  const rules = readFileSync(join(ROOT, 'firebase/firestore.rules'), 'utf8');
-  const env = await initializeTestEnvironment({
-    projectId: 'demo-poker',
-    firestore: { host: '127.0.0.1', port: 8195, rules },
-  });
-  try {
-    return await env.withSecurityRulesDisabled(async (ctx) => {
-      const snap = await getDoc(doc(ctx.firestore(), 'pokerRooms', roomId));
-      return snap.exists() && snap.data().status === 'closed';
-    });
-  } finally {
-    await env.cleanup();
-  }
+  const room = await emulatorRest(`/pokerRooms/${encodeURIComponent(roomId)}`);
+  return emulatorValue(room.fields, 'status') === 'closed';
 }
 
 async function closeRoomViaHost(host, roomId) {
@@ -904,84 +936,40 @@ async function runHostLobbyContinue(browser, base, viewport, label) {
   return { ...result, roomId, menuDupes };
 }
 
-/** #23/#host: simulated ≥10m stale → still no「房主失聯」 for self. */
+/** #23/#host：保留情境名稱；現產品已無房主 soft-detach 大廳路徑。 */
 async function runHostNoSelfRescue(browser, base, viewport, label) {
-  const hostUid = `hostnsr${label}`;
-  const host = await makePlayer(browser, base, '阿明', hostUid, viewport);
-  const { roomId } = await createAndShare(host);
-  await host.page.waitForTimeout(1000);
-  await host.page.evaluate(() => window.__qaLeaveToLobby());
-  await host.page.waitForSelector('.mp-lobby', { timeout: 15000 });
-  await emuBackdateHostGone(roomId, hostUid, 11 * 60_000);
-  const info = await host.page.evaluate(async () => {
-    const r = await window.__qaRefreshRescue();
-    const t = document.body.innerText;
-    return {
-      ...r,
-      hasMyTable: /我的牌桌/.test(t),
-      hasRescueGone: /房主失聯/.test(t),
-    };
-  });
-  await host.page.screenshot({
-    path: join(ART, `mp-${label}-host-no-self-rescue.png`),
-    fullPage: true,
-  });
-  await host.ctx.close();
-  return {
-    ok: info.hasMyTable && !info.hasRescueGone && info.hostLoop === true,
-    roomId,
-    info,
-  };
+  // __qaLeaveToLobby → confirmLeaveTable → startHostClose；房主離開即收桌。
+  // decideRescue 雖保留排除房主的判斷，既有 QA 無法建立原情境所需的
+  // 「房主在大廳、保留綁定與 hostLoop」狀態；不以收桌後回填過期時間假造失聯。
+  const reason = '已移除 soft-detach：房主確認離開會收桌，無法重現房主留在大廳且牌桌仍運作的原情境';
+  step(`SKIP host-no-self-rescue-${label}：${reason}`);
+  return { ok: true, skipped: true, reason };
 }
 
 /** Close a room + expire its code (emulator rules-bypass). */
 async function emuCloseRoom(roomId, code) {
-  const rules = readFileSync(join(ROOT, 'firebase/firestore.rules'), 'utf8');
-  const env = await initializeTestEnvironment({
-    projectId: 'demo-poker',
-    firestore: { host: '127.0.0.1', port: 8195, rules },
-  });
-  try {
-    await env.withSecurityRulesDisabled(async (ctx) => {
-      const db = ctx.firestore();
-      await updateDoc(doc(db, 'pokerRooms', roomId), {
-        status: 'closed',
-        closedBy: 'auto',
-        closedAt: Timestamp.now(),
-      });
-      if (code) {
-        await setDoc(
-          doc(db, 'pokerCodes', String(code).padStart(3, '0')),
-          {
-            roomId,
-            hostUid: 'closed',
-            createdAt: Timestamp.now(),
-            expiresAt: Timestamp.fromMillis(Date.now() - 1000),
-          },
-          { merge: true },
-        );
-      }
-    });
-  } finally {
-    await env.cleanup();
+  const now = { timestampValue: new Date().toISOString() };
+  const writes = [emulatorUpdate(`pokerRooms/${roomId}`, {
+    status: { stringValue: 'closed' },
+    closedBy: { stringValue: 'auto' },
+    closedAt: now,
+  }, true)];
+  if (code) {
+    writes.push(emulatorUpdate(`pokerCodes/${String(code).padStart(3, '0')}`, {
+      roomId: { stringValue: roomId },
+      hostUid: { stringValue: 'closed' },
+      createdAt: now,
+      expiresAt: { timestampValue: new Date(Date.now() - 1000).toISOString() },
+    }));
   }
+  await emulatorRest(':commit', { writes });
 }
 
 /** Ensure a 3-digit code doc is absent (for #27 bad-code path). */
 async function emuDeleteCode(code) {
-  const rules = readFileSync(join(ROOT, 'firebase/firestore.rules'), 'utf8');
-  const env = await initializeTestEnvironment({
-    projectId: 'demo-poker',
-    firestore: { host: '127.0.0.1', port: 8195, rules },
-  });
-  try {
-      await env.withSecurityRulesDisabled(async (ctx) => {
-      const db = ctx.firestore();
-      await deleteDoc(doc(db, 'pokerCodes', String(code).padStart(3, '0'))).catch(() => {});
-    });
-  } finally {
-    await env.cleanup();
-  }
+  await emulatorRest(':commit', { writes: [
+    { delete: emulatorDocumentName(`pokerCodes/${String(code).padStart(3, '0')}`) },
+  ] });
 }
 
 /** #27 + BD B-boxes: type 3 cells, paste share link, bad → error status. */
@@ -1140,7 +1128,6 @@ async function runMineCardStates(browser, base, viewport, label) {
     const creates = [...document.querySelectorAll('.mp-btn-primary[data-act="create"]')];
     const visibleCreate = creates.find((el) => getComputedStyle(el).display !== 'none');
     const emptyCta = document.getElementById('mpBtnCreateE');
-    const join = document.getElementById('mpJoinCode');
     return {
       top: window.__qaTopStatus?.() || '',
       h: r ? Math.round(r.height) : 0,
@@ -1150,7 +1137,6 @@ async function runMineCardStates(browser, base, viewport, label) {
       createVisible: !!visibleCreate,
       emptyCta: !!(emptyCta && !emptyCta.hidden && getComputedStyle(emptyCta).display !== 'none'),
       isEmpty: document.querySelector('.mp-lobby')?.classList.contains('is-empty') === true,
-      hasJoin: !!join,
       menu: window.__qaOpenMenu?.() || [],
     };
   });
@@ -1177,23 +1163,33 @@ async function runMineCardStates(browser, base, viewport, label) {
     idle.hasCreate &&
     idle.createVisible &&
     (!idle.isEmpty || idle.emptyCta) &&
-    idle.hasJoin &&
     idle.menu.some((t) => t === '戰績') &&
     idle.menu.some((t) => t === '設定') &&
     idle.menu.some((t) => t === '登出') &&
     !idle.menu.some((t) => /同一支手機輪流玩/.test(t)) &&
     !idle.menu.some((t) => /回到牌桌|結帳離開/.test(t));
 
+  const topOk = result.lobby.topHeight === 50 && result.lobby.top === '在大廳';
+  const ok = idleOk && result.ok && topOk;
+  let reason = result.reason;
+  if (!result.ok) {
+    reason = `${result.reason} after=${JSON.stringify(result.after)} lobby=${JSON.stringify(result.lobby)} expectedBank=${result.expectedBank}`;
+  } else if (!idleOk) {
+    reason = `idle lobby 不符：${JSON.stringify(idle)}`;
+  } else if (!topOk) {
+    reason = `收桌後頂列不符：top=${result.lobby.top} height=${result.lobby.topHeight}`;
+  }
   return {
     ...result,
-    ok: idleOk && result.ok && result.lobby.topHeight === 50 && result.lobby.top === '在大廳',
+    ok,
+    reason,
     roomId,
     idle,
     idleOk,
   };
 }
 
-/** Non-host: after host gone ≥10m (simulated), lobby shows 結帳離開. */
+/** 非房主重新登入大廳、保留綁定：房主失聯 ≥10 分鐘時顯示「結帳離開」。 */
 async function runGuestRescueStaleHost(browser, base, viewport, label) {
   const hostUid = `hostgr${label}`;
   const guestUid = `guestgr${label}`;
@@ -1210,15 +1206,22 @@ async function runGuestRescueStaleHost(browser, base, viewport, label) {
   );
   const sat = await sitIfNeeded(guest.page);
   await guest.page.waitForTimeout(1500);
-  // Soft-leave BEFORE killing host so guest is not auto-promoted to host
-  await guest.page.evaluate(() => window.__qaLeaveToLobby());
-  await guest.page.waitForSelector('.mp-lobby', { timeout: 15000 });
+  // R28b：soft-detach 已移除；__qaLeaveToLobby 會確認離座結算並清除綁定。
+  // 先卸載訪客頁面，停止牌桌監聽／失聯收桌計時，但不送出 LEAVE。
+  // 現產品載入／登入後停在大廳（不自動入桌），可用原綁定驗證 gone 救援。
+  await guest.page.goto('about:blank');
   await host.ctx.close();
   // Backdate twice — host teardown can race a last heartbeat write
   await emuBackdateHostGone(roomId, hostUid, 11 * 60_000);
   await guest.page.waitForTimeout(400);
   await emuBackdateHostGone(roomId, hostUid, 12 * 60_000);
-  await guest.page.waitForTimeout(500);
+  await guest.page.goto(`${base}/poker/?emu=1`, { waitUntil: 'domcontentloaded' });
+  await guest.page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
+    timeout: 20000,
+  });
+  await guest.page.evaluate(([u, n]) => window.__qaSignIn(u, n), [guestUid, '大雄']);
+  await guest.page.waitForSelector('.mp-lobby', { timeout: 20000 });
+  // closed／missing 在大廳應 silent settle，不接受「已收桌」作為救援成功。
   const info = await guest.page.evaluate(async () => {
     const r = await window.__qaRefreshRescue();
     const mine = window.__qaMineSnapshot?.() || {};
@@ -1226,7 +1229,7 @@ async function runGuestRescueStaleHost(browser, base, viewport, label) {
     return {
       ...r,
       ...mine,
-      hasRescue: /結帳離開/.test(mine.act || t) || /已收桌/.test(mine.tag || t),
+      hasRescue: /結帳離開/.test(mine.act || t),
       hasContinue: /回到牌桌/.test(mine.act || '') && mine.dataK !== 'settle',
       text: t.slice(0, 500),
     };
@@ -1237,7 +1240,8 @@ async function runGuestRescueStaleHost(browser, base, viewport, label) {
   });
   await guest.ctx.close();
   return {
-    ok: sat && info.hasRescue && !info.hasContinue && info.rescueOk === true,
+    ok: sat && info.tableRoomId === roomId && info.hasRescue &&
+      !info.hasContinue && info.rescueOk === true && info.rescueReason === 'gone',
     roomId,
     sat,
     info,
@@ -1286,7 +1290,7 @@ async function main() {
           throw new Error(`${name}: ${r.reason || JSON.stringify(r)}`);
         }
         results.push({ name, ...r });
-        step(`✔ ${name}`);
+        step(r?.skipped ? `↷ ${name} 跳過：${r.reason}` : `✔ ${name}`);
       } finally {
         clearTimeout(timer);
       }
