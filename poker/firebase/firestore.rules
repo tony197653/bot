@@ -263,6 +263,32 @@ service cloud.firestore {
         return e.type == 'cashout' && e.amount == r.stacks[i] && e.seat == i
           && e.roomId == roomId && e.by == request.auth.uid && e.at == request.time;
       }
+      // 玩家自助加碼（ADDON-SPEC §9.5／§11）：兩手之間、房主寫，只改 stacks[i]／sess[i] 補碼欄／chipTotal；pub 不動（不走大型 pub 比較）
+      function sameExcept(a, b, i) {
+        return a.size() == 6 && b.size() == 6
+          && (i == 0 || a[0] == b[0]) && (i == 1 || a[1] == b[1]) && (i == 2 || a[2] == b[2])
+          && (i == 3 || a[3] == b[3]) && (i == 4 || a[4] == b[4]) && (i == 5 || a[5] == b[5]);
+      }
+      function isHostAddon() {
+        let r = resource.data;
+        let d = request.resource.data;
+        let ev = d.lastMoneyEvent;
+        let i = ev.get('seat', -1);
+        return request.auth.uid == r.hostUid && roomOpen(r.status) && betweenHands(r.pub)
+          && ev.keys().hasOnly(['type', 'seat', 'uid', 'amount', 'ids'])
+          && i is int && i >= 0 && i <= 5 && ev.uid is string && ev.uid != '' && r.seatUids[i] == ev.uid
+          && ev.amount is int && ev.amount > 0 && ev.amount <= 100000000
+          && ev.ids is list && ev.ids.size() >= 1 && ev.ids.size() <= 20
+          && d.rev == r.rev + 1 && d.updatedAt == request.time
+          && d.diff(r).affectedKeys().hasOnly(['lastMoneyEvent', 'rev', 'updatedAt', 'stacks', 'sess', 'chipTotal'])
+          && d.chipTotal == r.chipTotal + ev.amount
+          && d.stacks[i] == r.stacks[i] + ev.amount && sameExcept(d.stacks, r.stacks, i)
+          && sameExcept(d.sess, r.sess, i)
+          && d.sess[i].diff(r.sess[i]).affectedKeys().hasOnly(['topUps', 'topUpChips'])
+          && d.sess[i].topUps == r.sess[i].topUps + ev.ids.size()
+          && d.sess[i].topUpChips == r.sess[i].topUpChips + ev.amount
+          && getAfter(playerPath(ev.uid)).data.bank == get(playerPath(ev.uid)).data.bank - ev.amount;
+      }
       function isHostCloseAll() {
         let r = resource.data;
         let d = request.resource.data;
@@ -473,13 +499,30 @@ service cloud.firestore {
         || (request.resource.data.lastMoneyEvent == {'type': 'closeAll'}
         ? isHostCloseAll()
         : request.resource.data.lastMoneyEvent != resource.data.lastMoneyEvent
-          ? isHostWrite()
+          ? (request.resource.data.lastMoneyEvent.get('type', '') == 'addon' ? isHostAddon() : isHostWrite())
           : isSettleTransition()
             ? (isHostSettleWrite() || isTakeover())
             : (isJoin() || isHostPubWrite() || isHostWrite() || isTakeover() || isAutoClose())));
       allow delete: if false;
 
       // 動作意圖：每人一份，覆寫，seq 只能變大；turn＝送出時看到的 pub.actionSeq（房主用來去重）
+      // 自助加碼排隊（ADDON-SPEC §11）：每人一份；本人加一筆或清空（取消），房主處理後清空
+      match /addons/{uid} {
+        function addonsShapeOk(d) {
+          return d.keys().hasOnly(['items', 'seq', 'at']) && d.items is list && d.items.size() <= 20
+            && d.seq is int && d.at == request.time;
+        }
+        allow get: if isSelf(uid) || (signedIn() && roomOf(roomId).hostUid == request.auth.uid);
+        allow list: if signedIn() && roomOf(roomId).hostUid == request.auth.uid;
+        allow create: if isSelf(uid) && addonsShapeOk(request.resource.data) && request.resource.data.seq >= 1
+          && request.auth.uid in roomOf(roomId).members;
+        allow update: if (isSelf(uid) && addonsShapeOk(request.resource.data)
+            && request.resource.data.seq > resource.data.seq)
+          || (signedIn() && roomOf(roomId).hostUid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['items'])
+            && request.resource.data.items == []);
+        allow delete: if false;
+      }
       match /intents/{uid} {
         function intentOk() {
           let d = request.resource.data;
@@ -668,7 +711,19 @@ service cloud.firestore {
           && e.type == 'adjust' && e.at == request.time && e.delta == d.bank - r.bank
           && d.updatedAt == request.time;
       }
-      allow update: if signedIn() && ((isSelf(uid) && (profileOk() || buyinOk() || hostRoomIdSetOk() || hostRoomIdClearOk())) || cashoutApplyOk() || adminAdjustOk());
+      // 自助加碼扣款：房主、同一筆寫入的房間 lastMoneyEvent 是這個人的 addon；bank 減、inPlay 加、total 不變
+      function addonApplyOk() {
+        let d = request.resource.data;
+        let p = resource.data;
+        let a = getAfter(roomPath(p.tableRoomId)).data;
+        let ev = a.lastMoneyEvent;
+        return p.tableRoomId != null && request.auth.uid == a.hostUid
+          && ev.get('type', '') == 'addon' && ev.uid == uid && a.rev == roomOf(p.tableRoomId).rev + 1
+          && d.diff(p).affectedKeys().hasOnly(['bank', 'inPlay', 'updatedAt'])
+          && d.bank == p.bank - ev.amount && d.bank >= 0 && d.inPlay == p.inPlay + ev.amount
+          && d.updatedAt == request.time;
+      }
+      allow update: if signedIn() && ((isSelf(uid) && (profileOk() || buyinOk() || hostRoomIdSetOk() || hostRoomIdClearOk())) || cashoutApplyOk() || adminAdjustOk() || addonApplyOk());
       allow delete: if false;
 
       // 帳本（只新增）：編號固定＝冪等鍵
@@ -678,7 +733,7 @@ service cloud.firestore {
         function entryKeysOk(d) {
           return d.keys().hasOnly(['type', 'amount', 'roomId', 'sessionNo', 'seat', 'buyIn', 'topUps',
                                    'topUpChips', 'hands', 'nightKey', 'bankAfter', 'by', 'at', 'delta', 'reason'])
-            && d.type in ['grant', 'buyin', 'cashout', 'adjust']
+            && d.type in ['grant', 'buyin', 'cashout', 'adjust', 'addon']
             && (d.type == 'adjust' || !d.keys().hasAny(['delta', 'reason']))
             && d.amount is int && d.amount >= 0 && d.amount <= 100000000
             && d.roomId is string && d.roomId.size() <= 40
@@ -770,11 +825,23 @@ service cloud.firestore {
         }
         allow get: if signedIn();
         allow list: if signedIn() && request.query.limit <= 50;
+        // 自助加碼帳本：房主寫，同一筆寫入的房間 lastMoneyEvent 是這個人的 addon，且編號在 ids 裡（只新增，不能覆寫）
+        function addonEntryOk(d) {
+          let a = getAfter(roomPath(d.roomId)).data;
+          let ev = a.lastMoneyEvent;
+          let prefix = d.roomId + '_' + string(d.sessionNo) + '_addon_';
+          return d.type == 'addon' && a.hostUid == request.auth.uid
+            && ev.get('type', '') == 'addon' && ev.uid == uid && d.seat == ev.seat
+            && entryId.size() > prefix.size() && entryId.split('_addon_')[0] + '_addon_' == prefix
+            && entryId.split('_addon_')[1] in ev.ids
+            && d.amount > 0 && d.amount <= ev.amount;
+        }
         allow create: if signedIn() && entryKeysOk(request.resource.data)
           && (grantOk(request.resource.data) || buyinEntryOk(request.resource.data)
               || cashoutEntryOk(request.resource.data)
               || disconnectCashout(request.resource.data)
-              || adjustEntryOk(request.resource.data));
+              || adjustEntryOk(request.resource.data)
+              || addonEntryOk(request.resource.data));
         allow update, delete: if false;
       }
 
