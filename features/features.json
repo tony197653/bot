@@ -37,7 +37,7 @@
       "primary": {
         "name": "Firebase Authentication（Google 登入）",
         "url": "https://github.com/firebase/firebase-js-sdk",
-        "note": "已用於德撲。跟 Firestore 同專案，有 50K MAU 免費額度。同網域多頁要各用獨立 app，否則會互相登出。"
+        "note": "已用於德撲，50K MAU 免費。同網域多頁各用獨立 app，免得互相登出。"
       },
       "alternatives": [
         {
@@ -71,7 +71,7 @@
       "primary": {
         "name": "Firestore＋firebase-record-sync",
         "url": "https://github.com/firebase/firebase-js-sdk",
-        "note": "已用於德撲（個人紀錄與戰績）。含只准加分規則，也有本機備援。名次要即時監聽，不要只讀一次。"
+        "note": "已用於德撲，只准加分、有本機備援；名次要即時監聽。"
       },
       "alternatives": [
         {
