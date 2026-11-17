@@ -103,7 +103,7 @@ function blockProd(route) {
   return route.continue();
 }
 
-async function makePlayer(browser, base, name, uid, viewport) {
+async function makePlayer(browser, base, name, uid, viewport, extraQuery = '') {
   const ctx = await browser.newContext({
     viewport,
     deviceScaleFactor: 2,
@@ -117,7 +117,7 @@ async function makePlayer(browser, base, name, uid, viewport) {
   page.on('console', (m) => {
     if (m.type() === 'error') errors.push(m.text().slice(0, 200));
   });
-  await page.goto(`${base}/poker/?emu=1`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${base}/poker/?emu=1${extraQuery ? `&${extraQuery}` : ''}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
     timeout: 20000,
   });
@@ -463,7 +463,7 @@ async function runShowdown(browser, base, viewport, label) {
 
 /** Solo hand via ?solo=1 (lobby ⋯ menu no longer exposes 同一支手機輪流玩). */
 async function runSoloFromLobby(browser, base, viewport, label) {
-  const p = await makePlayer(browser, `${base}?solo=1`, '宜靜', `solo${label}`, viewport);
+  const p = await makePlayer(browser, base, '宜靜', `solo${label}`, viewport, 'solo=1');
   await p.page.waitForSelector('#lobbyScreen.is-on', { timeout: 10000 });
   const appHidden = await p.page.evaluate(() =>
     document.getElementById('app')?.classList.contains('hidden'),
