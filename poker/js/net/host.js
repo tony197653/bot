@@ -75,7 +75,7 @@ export function createHostLoop(fb, opts) {
     onLocalState,
     displayNameOf,
   } = opts;
-  // ADDON-SPEC：加碼 transaction 寫完、房間快照還沒到之前，沿用剛寫入的房間（新 rev／stacks），免得下一筆寫入用舊 rev
+  // ADDON-SPEC：補碼 transaction 寫完、房間快照還沒到之前，沿用剛寫入的房間（新 rev／stacks），免得下一筆寫入用舊 rev
   let addonRoom = null;
   function getRoom() {
     const room = readRoom();
@@ -375,7 +375,7 @@ export function createHostLoop(fb, opts) {
       };
 
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), patch);
-      // 加碼後快照未到前，接著的寫入也要接續已確認的 rev
+      // 補碼後快照未到前，接著的寫入也要接續已確認的 rev
       if (addonRoom) addonRoom = { ...latest, ...patch };
       lobbyHostUid = latest.hostUid;
       lastWriteAt = Date.now();
@@ -755,7 +755,7 @@ export function createHostLoop(fb, opts) {
       } catch (e) {
         console.warn('[host] addon', e);
         // 金流 transaction 失敗仍用既有房間發布路徑通知本人。
-        rejects[playerUid] = '加碼沒成功，請再試一次';
+        rejects[playerUid] = '補碼沒成功，請再試一次';
         if (addonQueue.get(playerUid) === queued) addonQueue.delete(playerUid);
         queueWrite();
         try {

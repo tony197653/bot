@@ -14,7 +14,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
   }));
   const minus = { addEventListener(_type, fn) { this.click = fn; } }, plus = { addEventListener(_type, fn) { this.click = fn; } }, hint = {}, minHint = {};
   const bankEl = { textContent: '', dataset: {} };
-  const input = { value: chips, addEventListener() {} }, error = {}, button = { addEventListener() {}, focus() {} }, cancel = {};
+  const input = { value: chips, addEventListener(type, fn) { this[type] = fn; } }, error = {}, button = { addEventListener() {}, focus() {} }, cancel = {};
   const form = {
     querySelectorAll: () => radios, querySelector: () => button,
     addEventListener: (type, callback) => { events[type] = callback; },
@@ -118,7 +118,7 @@ test('首次無帳戶：盲注可用且自動補足；標籤不高於 bank', () 
 
 const source = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
 test('doCreate 使用重讀 bank：拒絕不足／超額／低於50BB，合法才建立', async () => {
-  for (const [bank, bb, chips, allowed] of [[1300,10,1300,true],[8000,10,1300,false],[1000,10,500,true],[2000,50,2000,false],[2000,20,2500,false],[2000,20,500,false],[2000,20,2000,true],[null,50,2000,false]]) {
+  for (const [bank, bb, chips, allowed] of [[1300,10,1300,true],[8000,10,1300,true],[5000,20,1234,true],[1000,10,500,true],[2000,50,2000,false],[2000,20,2500,false],[2000,20,500,false],[2000,20,2000,true],[null,50,2000,false]]) {
     let creates = 0, reads = 0;
     const ctx = vm.createContext({ getFirebase: () => ({}), getUser: () => ({ uid: 'u' }),
       createAttempt: 0, createTimeoutMs: () => 15000, setTimeout, clearTimeout, createDraft: {}, creating: false, createError: '', playerDoc: { bank: 99999 },
@@ -157,13 +157,22 @@ test('R36 開桌最低提示與帳戶、標籤順序', () => {
   } finally { h.restore(); }
 });
 
-test('R38 開桌＋補滿非500倍數帳戶可送出；非全部仍拒絕', () => {
+test('R39 開桌＋補滿帳戶與自行輸入 1,234 都可送出', () => {
   const h = formHarness({ bank: 1300, sb: 10, chips: 1000 });
   try {
     h.plus.click(); assert.equal(chipsOf(h.input.value), 1300);
     assert.equal(h.button.disabled, false); h.submit();
     assert.equal(h.submitted[0].newPlayerChips, 1300);
-    assert.equal(createRoomBuyinError(1300, 5, 10, 8000), '攜入須為 500 的倍數');
+    assert.match(h.root.innerHTML, /id="mpCreateChips"[^>]*step="1"/);
+    assert.match(h.hint.textContent, /按 ± 每次增減 500/);
+    h.input.value = '1,234';
+    h.change('chips');
+    h.input.blur();
+    assert.equal(h.input.value, '1,234');
+    assert.equal(h.bankEl.textContent, '66');
+    assert.equal(h.button.disabled, false);
+    h.submit();
+    assert.equal(h.submitted[1].newPlayerChips, 1234);
   } finally { h.restore(); }
 });
 

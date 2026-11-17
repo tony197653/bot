@@ -12,7 +12,6 @@ export function createRoomBuyinError(chips, sb, bb, bank = null) {
   const minimum = 50 * bb;
   if (!canAffordBlinds(bank, bb)) return `帳戶 ${fmt(bank)}，${sb}/${bb} 至少要 ${fmt(minimum)}`;
   if (!Number.isSafeInteger(chips) || chips < minimum || chips > 100000) return `攜入須為 ${fmt(minimum)}–100,000`;
-  if (chips % 500 && chips !== bank) return '攜入須為 500 的倍數';
   if (bank != null && chips > bank) return `帳戶只有 ${fmt(bank)}，請降低攜入`;
   return '';
 }
@@ -39,7 +38,7 @@ export function buyinOptions(player, config) {
   const min = 50 * config.bb;
   const max = player?.bank || 0;
   assertMinimumBuyin(max, config.bb);
-  return { min, max, step: (max - min) % config.bb === 0 ? config.bb : 1,
+  return { min, max, step: 1,
     amount: Math.max(min, Math.min(config.newPlayerChips ?? DEFAULT_NEW_PLAYER_CHIPS, max)) };
 }
 
@@ -49,14 +48,13 @@ export function buyinLabel(player, roomId, session, config = { bb: 20, newPlayer
   return `${session ? '本次買入' : '攜入'} ${(Number(amount) || 0).toLocaleString('en-US')} 籌碼`;
 }
 
-/** ±500 對齊倍數；＋最後不足 500 時取剩餘全部，−從非整數回到上一檔 500。合法性仍由原面板驗證。 */
+/** ＋每次增加 500，最後不足 500 時取剩餘全部；−從非 500 倍數回到上一檔 500。合法性仍由原面板驗證。 */
 export function stepBuyinAmount(amount, direction, min, max) {
   const lo = Math.min(min, max);
   const hi = Math.max(min, max);
   const n = Number(amount) || 0;
   if (direction > 0) {
-    const next = n % 500 === 0 ? n + 500 : Math.ceil(n / 500) * 500;
-    return Math.max(lo, Math.min(hi, next));
+    return Math.max(lo, Math.min(hi, n + 500));
   }
   const prev = n % 500 === 0 ? n - 500 : Math.floor(n / 500) * 500;
   return Math.max(lo, Math.min(hi, prev));

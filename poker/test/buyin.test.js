@@ -237,16 +237,16 @@ test('自選買入只扣指定金額、帳本餘額正確且 total 不變', asyn
 });
 
 test('選額預設、最低、上限與不整除的餘額', () => {
-  for (const [bank, preset, amount, step] of [[8765,2000,2000,1],[2000,5000,2000,20],[2000,500,1000,20]]) {
-    assert.deepEqual(buyinOptions({ bank }, { bb: 20, newPlayerChips: preset }), { min:1000,max:bank,amount,step });
+  for (const [bank, preset, amount] of [[8765,2000,2000],[2000,5000,2000],[2000,500,1000]]) {
+    assert.deepEqual(buyinOptions({ bank }, { bb: 20, newPlayerChips: preset }), { min:1000,max:bank,amount,step:1 });
   }
   assert.throws(() => buyinOptions({ bank:999 }, { bb:20 }), /籌碼不足/);
 });
 
-test('補碼介面、處理與排行榜欄位移除，開桌文案正確', () => {
+test('舊房主審核補碼流程與排行榜欄位移除，開桌文案正確', () => {
   for (const file of ['ui/mp-app.js','net/host.js','net/client.js']) {
     const text = readFileSync(new URL('../js/' + file, import.meta.url), 'utf8');
-    assert.doesNotMatch(text, /TOPUP_REQ|TOPUP_CANCEL|approveTopUp|denyTopUp|mpTopup|補碼/);
+    assert.doesNotMatch(text, /TOPUP_REQ|TOPUP_CANCEL|approveTopUp|denyTopUp|mpTopup/);
   }
   const lobby = readFileSync(new URL('../js/ui/lobby.js', import.meta.url), 'utf8');
   assert.match(lobby, /<span>攜入籌碼<\/span>/);
@@ -345,11 +345,20 @@ test('R33b 開桌換盲注重設 50BB，並受帳戶與上限限制', () => {
     assert.equal(stepBuyinAmount(50 * bb,-1,50 * bb,100000),50 * bb);
     assert.equal(createRoomBuyinError(50 * bb,bb / 2,bb,100000), '');
   }
-  assert.equal(createRoomBuyinError(1501,10,20,5000), '攜入須為 500 的倍數');
+});
+
+test('R39 開桌接受範圍內的任意整數', () => {
+  assert.equal(createRoomBuyinError(1234, 10, 20, 5000), '');
+  assert.equal(createRoomBuyinError(1501, 10, 20, 5000), '');
+  assert.equal(createRoomBuyinError(1300, 5, 10, 8000), '');
+  assert.equal(createRoomBuyinError(1300, 5, 10, 1300), '');
+  assert.equal(createRoomBuyinError(300, 5, 10, 1300), '攜入須為 500–100,000');
 });
 
 test('R32b ±500 與不足 500 的剩餘額、上下限', () => {
   assert.equal(stepBuyinAmount(1000,1,1000,5000),1500);
+  assert.equal(stepBuyinAmount(1234,1,1000,5000),1734);
+  assert.equal(stepBuyinAmount(1234,1,1000,1300),1300);
   assert.equal(stepBuyinAmount(1500,-1,1000,5000),1000);
   assert.equal(stepBuyinAmount(1000,-1,1000,5000),1000);
   assert.equal(stepBuyinAmount(2000,1,20,2237),2237);
@@ -367,7 +376,7 @@ test('R38 ±：滿額非整數先回到上一檔 500，再按下限停住', () =
   assert.equal(stepBuyinAmount(1000,1,1000,1300),1300);
   assert.equal(stepBuyinAmount(1300,-1,1000,1300),1000);
   assert.equal(stepBuyinAmount(1000,-1,1000,1300),1000);
-  // 加碼最低 1 大盲（20）：1,300→1,000→500→20
+  // 補碼最低 1 大盲（20）：1,300→1,000→500→20
   assert.equal(stepBuyinAmount(1300,-1,20,1300),1000);
   assert.equal(stepBuyinAmount(500,-1,20,1300),20);
   assert.equal(remainingBank(1300,500),800);
@@ -381,8 +390,8 @@ test('R32b F3 合計獨立列，四顆動作鈕不含取消；範圍錯誤中文
   vm.runInContext(source.slice(source.indexOf('function addonButtonsHtml('),source.indexOf('function wireAddonButtons(')),ctx);
   assert.doesNotMatch(ctx.addonButtonsHtml(true),/mpAddonCancel/);
   const bar=source.slice(source.indexOf('function renderActBar('),source.indexOf('function pickBuyinAmount('));
-  assert.match(bar,/下一手前加碼 \$\{fmtChips\(queued\)\}/);
-  assert.match(bar,/取消加碼 \$\{fmtChips\(queued\)\}/);
+  assert.match(bar,/下一手前補碼 \$\{fmtChips\(queued\)\}/);
+  assert.match(bar,/取消補碼 \$\{fmtChips\(queued\)\}/);
   assert.match(bar,/btns.before\(row\)/);
   const picker=source.slice(source.indexOf('function pickBuyinAmount('),source.indexOf('function addonButtonsHtml('));
   assert.doesNotMatch(picker,/reportValidity/);
@@ -419,8 +428,8 @@ test('R32b 選額面板 Esc 取消、焦點復原、尾數全加與中文錯誤'
 });
 
 
-test('R36 加碼最低行內提示由 minHint 啟用，入座維持原行為', async () => {
-  for (const minHint of ['已是最低加碼（1 大盲）', undefined]) {
+test('R36 補碼最低行內提示由 minHint 啟用，入座維持原行為', async () => {
+  for (const minHint of ['已是最低補碼（1 大盲）', undefined]) {
     const nodes = new Map();
     const node = key => {
       if (!nodes.has(key)) nodes.set(key, { value: '20', hidden: true,
@@ -450,7 +459,7 @@ test('R36 加碼最低行內提示由 minHint 啟用，入座維持原行為', a
     }
     node('[data-cancel]').click(); assert.equal(await pending, null);
   }
-  assert.match(source, /minHint: '已是最低加碼（1 大盲）'/);
+  assert.match(source, /minHint: '已是最低補碼（1 大盲）'/);
 });
 
 for (const state of ['兩手之間', '蓋牌', '暫離', '手中未蓋牌']) {
@@ -460,7 +469,7 @@ for (const state of ['兩手之間', '蓋牌', '暫離', '手中未蓋牌']) {
     const html = ctx.addonButtonsHtml(state !== '手中未蓋牌');
     assert.match(html, /帳戶不足 1 大盲/);
     assert.match(html, /aria-describedby="mpAddonHint" disabled/);
-    assert.doesNotMatch(html, /這手結束後可加碼/);
+    assert.doesNotMatch(html, /這手結束後可補碼/);
     ctx.playerDoc.bank = 1019; ctx.myAddonQueue = { items: [{ amount: 1000 }] };
     assert.match(ctx.addonButtonsHtml(true), /帳戶不足 1 大盲/);
   });
@@ -471,7 +480,7 @@ test('R38 取消觸控尺寸與公共牌可及性名稱', () => {
   assert.match(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /id="board" role="group" aria-label="公共牌"/);
 });
 
-test('R38 加碼面板＋補滿非500倍數剩餘額可以確認', async () => {
+test('R39 補碼滿額及補碼／入座自行輸入 1,234 都可確認', async () => {
   const nodes = new Map();
   const node = key => {
     if (!nodes.has(key)) nodes.set(key, { value: '1,000', hidden: true, textContent: '', dataset: {},
@@ -494,8 +503,30 @@ test('R38 加碼面板＋補滿非500倍數剩餘額可以確認', async () => {
   node('[data-plus]').click();
   node('[data-confirm]').click();
   assert.equal(await pending, 1300);
+
+  for (const options of [
+    { ...opts, bank: opts.max, title: '補碼', confirmText: '補碼' },
+    { ...buyinOptions({ bank: 5000 }, { bb: 20 }), bank: 5000 },
+  ]) {
+    nodes.clear();
+    const selected = ctx.pickBuyinAmount({ ...options, pendingText: null });
+    assert.match(el.innerHTML, /type="range"[^>]*step="1"/);
+    const number = node('input[type="text"]');
+    const slider = node('input[type="range"]');
+    number.value = '1,234.0001';
+    number.blur();
+    node('[data-confirm]').click();
+    assert.equal(node('[data-error]').hidden, false);
+    number.value = '1,234';
+    number.input();
+    number.blur();
+    assert.equal(slider.value, '1234');
+    assert.equal(node('#mpBuyinBank').textContent, (options.bank - 1234).toLocaleString('en-US'));
+    node('[data-confirm]').click();
+    assert.equal(await selected, 1234);
+  }
 });
-test('R38 伺服器帳戶更新時同步重畫加碼動作列', () => {
+test('R38 伺服器帳戶更新時同步重畫補碼動作列', () => {
   let renders = 0;
   const ctx = vm.createContext({ screen: 'table', renderActBar: () => renders++, globalThis: {} });
   vm.runInContext(source.slice(source.indexOf('function paintAccount('), source.indexOf('/** @type {any} */', source.indexOf('function paintAccount('))), ctx);

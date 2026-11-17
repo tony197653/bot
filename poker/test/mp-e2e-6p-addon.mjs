@@ -5,7 +5,7 @@
  *
  *
  * 情境 4 草稿：目前找不到可點擊的手動暫離 UI。
- * mp-app.js:2700–2726 的兩手之間動作列只有開始、加碼、離座；
+ * mp-app.js:2700–2726 的兩手之間動作列只有開始、補碼、離座；
  * :2743 僅讀取 sittingOut，:2495–2496 的「暫離」只是座位標籤。
  * host.js:1105–1125 依心跳超過 60 秒自動暫離，恢復心跳就清除。
  * 不以離座冒充暫離，也不直接改 sittingOut／away；情境 7 後明確記錄未覆蓋。
@@ -355,17 +355,17 @@ async function queueAddonUI(p, hostP) {
   await p.page.bringToFront();
   const btn = await p.page.waitForSelector('#mpAddon:not([disabled])', { timeout: 8000 }).catch(() => null);
   if (!btn) {
-    log('加碼鈕不可按', p.name, JSON.stringify(await p.page.evaluate(() => ({
+    log('補碼鈕不可按', p.name, JSON.stringify(await p.page.evaluate(() => ({
       bar: document.getElementById('mpAddon')?.closest('div')?.innerHTML?.slice(0, 400) ?? null,
       addon: document.getElementById('mpAddon')?.outerHTML ?? null,
       body: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300) }))), 'toasts', JSON.stringify(await toasts(p)));
-    throw new Error('加碼鈕不可按');
+    throw new Error('補碼鈕不可按');
   }
   await p.page.locator('#mpAddon:not([disabled])').click({ timeout: 8000 });
   const pk = await p.page.waitForSelector('#mpBuyinPicker', { timeout: 5000 }).catch(() => null);
   if (!pk) {
     log('picker 沒出現', p.name, 'toasts', JSON.stringify(await toasts(p)), 'bank(db)', (await readDoc(`pokerPlayers/${p.uid}`))?.bank);
-    throw new Error('加碼選擇器沒出現');
+    throw new Error('補碼選擇器沒出現');
   }
   const dflt = Number(String(await p.page.locator('#mpBuyinPicker input[type="text"]').inputValue()).replaceAll(',', ''));
   await p.page.locator('#mpBuyinPicker [data-confirm]').click();
@@ -427,7 +427,7 @@ async function setBank(uid, bank) {
 async function queueAddonAmount(p, hostP, amount) {
   await p.page.bringToFront();
   const ready = await p.page.waitForSelector('#mpAddon:not([disabled])', { timeout: 8000 }).catch(() => null);
-  if (!ready) throw new Error(`加碼鈕不可按 ${p.name}`);
+  if (!ready) throw new Error(`補碼鈕不可按 ${p.name}`);
   const prev = await p.page.evaluate(() => document.getElementById('mpAddonCancel')?.getAttribute('aria-label') || '');
   await p.page.locator('#mpAddon:not([disabled])').click();
   await p.page.waitForSelector('#mpBuyinPicker', { timeout: 5000 });
@@ -480,7 +480,7 @@ async function main() {
     const g1 = guests[0], g2 = guests[1], g3 = guests[2];
     const seatOf = (room, p) => room.seatUids.indexOf(p.uid);
 
-    // 情境 1（兩手之間）：大雄加碼，房主在開下一手前處理
+    // 情境 1（兩手之間）：大雄補碼，房主在開下一手前處理
     await host.page.screenshot({ path: join(ART, '390-between-lobby.png') });
     const before = await readDoc(`pokerRooms/${roomId}`);
     const s1 = seatOf(before, g1);
@@ -490,17 +490,17 @@ async function main() {
     ok('預設 50 大盲（帳戶不足就全部）', d1 === Math.min(50 * bb, bank1), { d1, bb, bank1 });
     await g1.page.screenshot({ path: join(ART, '390-queued.png') }).catch(() => {});
     const after = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return r.lastMoneyEvent?.type === 'addon' && r.lastMoneyEvent.uid === g1.uid && r; }, 15000);
-    ok('情境1 加碼上桌（stacks+x）', after && after.stacks[s1] === before.stacks[s1] + d1, { before: before.stacks[s1], after: after?.stacks[s1] });
+    ok('情境1 補碼上桌（stacks+x）', after && after.stacks[s1] === before.stacks[s1] + d1, { before: before.stacks[s1], after: after?.stacks[s1] });
     ok('情境1 帳戶扣款＝x', (await readDoc(`pokerPlayers/${g1.uid}`)).bank === bank1 - d1);
     await sleep(1500);
     const seen = await Promise.all(players.map(toasts));
-    ok('情境1 全桌看到「大雄 加碼」', seen.filter((t, i) => i !== 1 && t.some(x => x.includes(`${NAMES[1]} 加碼`))).length === 5, seen.map(t => t.filter(x => x.includes('加碼'))));
+    ok('情境1 全桌看到「大雄 補碼」', seen.filter((t, i) => i !== 1 && t.some(x => x.includes(`${NAMES[1]} 補碼`))).length === 5, seen.map(t => t.filter(x => x.includes('補碼'))));
     await host.page.screenshot({ path: join(ART, '390-host-after-addon.png') });
 
     const st = await step('startHand1', () => startHand(players), 90000);
-    // 情境 3：手中沒蓋牌 → 加碼鈕灰
+    // 情境 3：手中沒蓋牌 → 補碼鈕灰
     const inHand = await waitFor(async () => (await g3.page.locator('#mpFold').count()) > 0, 10000);
-    ok('情境3 手中沒蓋牌加碼鈕灰', inHand && (await g3.page.locator('#mpAddon[disabled]').count()) === 1);
+    ok('情境3 手中沒蓋牌補碼鈕灰', inHand && (await g3.page.locator('#mpAddon[disabled]').count()) === 1);
     await g3.page.screenshot({ path: join(ART, '390-inhand-grey.png') });
     let folded = false;
     for (let i = 0; i < 80 && !folded; i++) {
@@ -524,7 +524,7 @@ async function main() {
     const midRoom = await readDoc(`pokerRooms/${roomId}`);
     const s3 = seatOf(midRoom, g3);
     const bank3 = (await readDoc(`pokerPlayers/${g3.uid}`)).bank;
-    ok('情境2 蓋牌後加碼鈕可按', await waitFor(async () => {
+    ok('情境2 蓋牌後補碼鈕可按', await waitFor(async () => {
       await host.page.bringToFront();
       await g3.page.bringToFront();
       return (await g3.page.locator('#mpAddon:not([disabled])').count()) > 0;
@@ -536,7 +536,7 @@ async function main() {
     await g3.page.waitForSelector('#mpAddonCancel', { state: 'detached', timeout: 8000 }).catch(() => {});
     const q3 = await readDoc(`pokerRooms/${roomId}/addons/${g3.uid}`);
     ok('情境5 取消後排隊清空、帳戶不扣', q3?.items?.length === 0 && (await readDoc(`pokerPlayers/${g3.uid}`)).bank === bank3, q3);
-    { const t3 = await waitFor(async () => { const t = await toasts(g3); return t.includes('已取消加碼，帳戶沒有扣') && t; }, 3000); ok('情境5 本人看到「已取消加碼」', !!t3, await toasts(g3)); }
+    { const t3 = await waitFor(async () => { const t = await toasts(g3); return t.includes('已取消補碼，帳戶沒有扣') && t; }, 3000); ok('情境5 本人看到「已取消補碼」', !!t3, await toasts(g3)); }
     // 情境 2：再排一筆，本手不動
     const d3 = await step('addon g3', () => queueAddonUI(g3, host), 30000);
     await g3.page.screenshot({ path: join(ART, '390-folded-queued.png') });
@@ -577,11 +577,11 @@ async function main() {
     const p4 = await waitFor(async () => { const q = await readDoc(`pokerRooms/${roomId}/addons/${g4.uid}`); return q?.items?.length === 0 && q; }, 20000);
     const r2b = await readDoc(`pokerRooms/${roomId}`);
     ok('情境6 帳戶不足整批不上桌、不扣', !!p4 && (await readDoc(`pokerPlayers/${g4.uid}`)).bank === 2500 && (r2b.sess[s4].topUpChips || 0) === 0, { bank: (await readDoc(`pokerPlayers/${g4.uid}`)).bank, top: r2b.sess[s4].topUpChips });
-    const t4 = await waitFor(async () => { const t = await toasts(g4); return t.some(x => x === '⚠ 帳戶不足，沒有加碼') && t; }, 5000);
+    const t4 = await waitFor(async () => { const t = await toasts(g4); return t.some(x => x === '⚠ 帳戶不足，沒有補碼') && t; }, 5000);
     ok('情境6 本人看到帳戶不足', !!t4, await toasts(g4));
     const p5 = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return (r.sess[s5].topUpChips || 0) === 1000 && r; }, 20000);
     const bank5b = (await readDoc(`pokerPlayers/${g5.uid}`)).bank;
-    ok('管理頁補碼與加碼同時：帳戶＝原＋5,000－1,000（沒有蓋掉）', !!p5 && bank5b === bank5 + 5000 - 1000, { bank5, now: bank5b });
+    ok('管理頁補碼與玩家自助補碼同時：帳戶＝原＋5,000－1,000（沒有蓋掉）', !!p5 && bank5b === bank5 + 5000 - 1000, { bank5, now: bank5b });
     // 自動開下一手若已開始，先打完再做兩手之間的帳戶／離座檢查。
     const between = await waitFor(async () => {
       const r = await readDoc(`pokerRooms/${roomId}`);
@@ -593,7 +593,7 @@ async function main() {
       const r = await readDoc(`pokerRooms/${roomId}`);
       return ['lobby', 'hand_over'].includes(r?.pub?.phase) && r;
     }, 20000);
-    // 情境 10：前台帳戶即時更新（開加碼選擇器看帳戶數字，再取消）
+    // 情境 10：前台帳戶即時更新（開補碼選擇器看帳戶數字，再取消）
     await g5.page.bringToFront();
     await g5.page.locator('#mpAddon:not([disabled])').click().catch(() => {});
     const shownBank = await g5.page.waitForSelector('#mpBuyinBank', { timeout: 5000 }).then(e => e.innerText()).catch(() => '');
@@ -601,12 +601,12 @@ async function main() {
     const amt = Number(String(shownAmt).replaceAll(',', '')) || 0;
     const shownLeft = Number(String(shownBank).replace(/（.*?）/g, '').replaceAll(',', '')) || 0;
     await g5.page.screenshot({ path: join(ART, '390-addon-picker.png') });
-    // 加碼面板「帳戶」改顯示剩餘（總額減目前加碼）。即時性用 剩餘＋輸入 = 伺服器帳戶 核對。
+    // 補碼面板「帳戶」改顯示剩餘（總額減目前補碼）。即時性用 剩餘＋輸入 = 伺服器帳戶 核對。
     ok('情境10 前台帳戶即時顯示', shownLeft + amt === bank5b, { shownBank, shownAmt, amt, shownLeft, bank5b });
     await g5.page.locator('#mpBuyinPicker [data-cancel]').click().catch(() => {});
     const total2 = (await readDoc(`pokerRooms/${roomId}`)).chipTotal;
     ok('籌碼守恆（第二手後）', total2 === total0 + d1 + d3 + 1000, { total2 });
-    // 情境 7：加碼後離座結帳（大雄）→ 退回 stacks（含加碼）
+    // 情境 7：補碼後離座結帳（大雄）→ 退回 stacks（含補碼）
     const rL = await readDoc(`pokerRooms/${roomId}`);
     const stackL = rL.stacks[s1];
     const bankL = (await readDoc(`pokerPlayers/${g1.uid}`)).bank;
@@ -614,8 +614,8 @@ async function main() {
     await g1.page.locator('#mpLeave').click();
     await host.page.bringToFront();
     const pL = await waitFor(async () => { const p = await readDoc(`pokerPlayers/${g1.uid}`); return !p.tableRoomId && p; }, 25000);
-    ok('情境7 加碼後離座結帳：帳戶＋桌上籌碼（含加碼）', !!pL && pL.bank === bankL + stackL && (pL.inPlay || 0) === 0, { bankL, stackL, now: pL?.bank });
-    // QA r1c 7b：縮為三人，非房主隱藏 >60 秒，兩手之間加碼後手動開手。
+    ok('情境7 補碼後離座結帳：帳戶＋桌上籌碼（含補碼）', !!pL && pL.bank === bankL + stackL && (pL.inPlay || 0) === 0, { bankL, stackL, now: pL?.bank });
+    // QA r1c 7b：縮為三人，非房主隱藏 >60 秒，兩手之間補碼後手動開手。
     for (const leaving of [guests[2], guests[3]]) {
       await leaving.page.locator('#mpLeave').click();
       await waitFor(async () => !(await readDoc(`pokerRooms/${roomId}`)).seatUids.includes(leaving.uid), 25000);
@@ -653,7 +653,7 @@ async function main() {
       const r = await readDoc(`pokerRooms/${roomId}`);
       return !['lobby', 'hand_over'].includes(r.pub?.phase) && r.pub.handNo > beforeAwayStart.pub.handNo && r;
     }, 20000);
-    // 開手後立即讀取，不打完這手，也不等待加碼條件才採樣。
+    // 開手後立即讀取，不打完這手，也不等待補碼條件才採樣。
     const accountA = await readDoc(`pokerPlayers/${gA.uid}`);
     ok('情境4 手動下一手立即上桌且保留暫離', !!opened && accountA.bank === bankA - 1000 &&
       opened.stacks[sA] === stackA + 1000 && opened.sess[sA].topUpChips === topA + 1000 &&

@@ -186,7 +186,7 @@ let room = null;
 let roomId = null;
 /** @type {(() => void)|null} */
 let stopRoom = null;
-// 加碼：自己的排隊文件、已顯示過的全桌加碼訊息與帳戶不足提示
+// 補碼：自己的排隊文件、已顯示過的全桌補碼訊息與帳戶不足提示
 let stopAddonQ = null;
 let myAddonQueue = null;
 let seenAddonKey = '';
@@ -1842,7 +1842,7 @@ async function doCreate(data) {
     return;
   }
   if (data.newPlayerChips < 50 * data.bb || data.newPlayerChips > 100000) {
-    createError = `起始籌碼要在 ${(50 * data.bb).toLocaleString('en-US')}–100,000 之間，且是 500 的倍數；請改完再按「開房」`;
+    createError = `起始籌碼要在 ${(50 * data.bb).toLocaleString('en-US')}–100,000 之間，請改完再按「開房」`;
     paint();
     return;
   }
@@ -2652,7 +2652,7 @@ function renderActBar() {
   if (queued) {
     const row = document.createElement('div');
     row.id = 'mpAddonQueueRow';
-    row.innerHTML = `<span>下一手前加碼 ${fmtChips(queued)}</span><button type="button" id="mpAddonCancel" aria-label="取消加碼 ${fmtChips(queued)}" ${addonBusy ? 'disabled' : ''}>取消</button>`;
+    row.innerHTML = `<span>下一手前補碼 ${fmtChips(queued)}</span><button type="button" id="mpAddonCancel" aria-label="取消補碼 ${fmtChips(queued)}" ${addonBusy ? 'disabled' : ''}>取消</button>`;
     btns.before(row);
     row.querySelector('button').addEventListener('click', () => void cancelAddon());
   }
@@ -3103,7 +3103,7 @@ function pickBuyinAmount(options) {
       <button type="button" data-plus aria-label="增加 500">＋</button>
     </div>
     ${options.minHint ? '<p class="mp-acct" data-min-hint role="status" hidden></p>' : ''}
-    <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
+    <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="1" value="${options.amount}">
     <p class="mp-err" data-error role="status" hidden></p>
     ${options.hint ? `<p class="mp-acct">${options.hint}</p>` : ''}
     <button type="button" class="mp-btn-ghost" data-cancel>取消</button>
@@ -3129,7 +3129,7 @@ function pickBuyinAmount(options) {
   };
   const setAmount = amount => { number.value = fmtChips(amount); slider.value = String(amount); error.hidden = true; clearMinHint(); paintRemaining(); };
   number.addEventListener('input', () => { clearMinHint(); slider.value = String(value()); paintRemaining(); });
-  number.addEventListener('blur', () => { if (Number.isFinite(value())) number.value = fmtChips(value()); paintRemaining(); });
+  number.addEventListener('blur', () => { if (Number.isSafeInteger(value())) number.value = fmtChips(value()); paintRemaining(); });
   slider.addEventListener('input', () => setAmount(Number(slider.value)));
   for (const [selector, direction] of [['[data-minus]', -1], ['[data-plus]', 1]]) {
     el.querySelector(selector).addEventListener('click', () => {
@@ -3162,10 +3162,9 @@ function pickBuyinAmount(options) {
     el.querySelector('[data-cancel]').addEventListener('click', () => close(null));
     el.querySelector('[data-confirm]').addEventListener('click', () => {
       const amount = value();
-      if (!Number.isSafeInteger(amount) || amount < options.min || amount > options.max ||
-          ((amount - options.min) % options.step !== 0 && amount !== options.max && amount !== options.bank)) {
+      if (!Number.isSafeInteger(amount) || amount < options.min || amount > options.max) {
         error.hidden = false;
-        error.textContent = `請輸入 ${fmtChips(options.min)}–${fmtChips(options.max)}，每次 ${fmtChips(options.step)}`;
+        error.textContent = `請輸入 ${fmtChips(options.min)}–${fmtChips(options.max)}`;
         number.focus();
         return;
       }
@@ -3175,15 +3174,15 @@ function pickBuyinAmount(options) {
   });
 }
 
-/** 加碼鈕；排隊合計與取消顯示於動作列上方。enabled=false 時灰掉（手中未蓋牌）。 */
+/** 補碼鈕；排隊合計與取消顯示於動作列上方。enabled=false 時灰掉（手中未蓋牌）。 */
 function addonButtonsHtml(enabled) {
   const queued = queuedTotal(myAddonQueue);
   const insufficient = !addonOptions(playerDoc?.bank, room?.config?.bb, queued);
   const hint = insufficient
     ? '<span class="mp-addon-hint" id="mpAddonHint">帳戶不足 1 大盲</span>'
     : !enabled && !queued
-    ? '<span class="mp-addon-hint" id="mpAddonHint">這手結束後可加碼</span>' : '';
-  const add = `${hint}<button type="button" class="ghost" id="mpAddon" ${hint ? 'aria-describedby="mpAddonHint"' : ''} ${enabled && !insufficient && !addonBusy ? '' : 'disabled'}>加碼</button>`;
+    ? '<span class="mp-addon-hint" id="mpAddonHint">這手結束後可補碼</span>' : '';
+  const add = `${hint}<button type="button" class="ghost" id="mpAddon" ${hint ? 'aria-describedby="mpAddonHint"' : ''} ${enabled && !insufficient && !addonBusy ? '' : 'disabled'}>補碼</button>`;
   return add;
 }
 
@@ -3213,10 +3212,10 @@ async function requestAddon() {
   const user = getUser();
   if (!fb || !user || !room || addonBusy || !room.seatUids.includes(user.uid)) return;
   const opts = addonOptions(playerDoc?.bank, room.config?.bb, queuedTotal(myAddonQueue));
-  if (!opts) { toast('帳戶不足，沒有加碼'); return; }
+  if (!opts) { toast('帳戶不足，沒有補碼'); return; }
   const targetRoomId = roomId;
-  const amount = await pickBuyinAmount({ ...opts, title: '加碼', confirmText: '加碼',
-    minHint: '已是最低加碼（1 大盲）', pendingText: null, bank: opts.max, bankSuffix: '（上桌時才扣）',
+  const amount = await pickBuyinAmount({ ...opts, title: '補碼', confirmText: '補碼',
+    minHint: '已是最低補碼（1 大盲）', pendingText: null, bank: opts.max, bankSuffix: '（上桌時才扣）',
     bankText: `${accountText()}（上桌時才扣）`, hint: '這手結束後上桌' });
   if (amount == null || roomId !== targetRoomId) return;
   addonBusy = true;
@@ -3225,7 +3224,7 @@ async function requestAddon() {
     await queueAddon(fb, { uid: user.uid, roomId: targetRoomId, amount });
     // F3：面板外以排隊合計列顯示，不以最後一筆取代合計。
   } catch (e) {
-    toast(friendlyError(e, '加碼沒送出去，請再按一次'));
+    toast(friendlyError(e, '補碼沒送出去，請再按一次'));
   } finally {
     addonBusy = false;
     if (screen === 'table') paintTableChrome();
@@ -3240,7 +3239,7 @@ async function cancelAddon() {
   paintTableChrome();
   try {
     const r = await cancelAddons(fb, { uid: user.uid, roomId });
-    toast(r?.cancelled ? '已取消加碼，帳戶沒有扣' : '已上桌，不能取消');
+    toast(r?.cancelled ? '已取消補碼，帳戶沒有扣' : '已上桌，不能取消');
   } catch (e) {
     toast(friendlyError(e, '取消沒送出去，請再按一次'));
   } finally {
@@ -3249,17 +3248,17 @@ async function cancelAddon() {
   }
 }
 
-/** 上桌時才全桌顯示「小明 加碼 2,000」；帳戶不足只給本人看。第一次進房不補播舊訊息。 */
+/** 上桌時才全桌顯示「小明 補碼 2,000」；帳戶不足只給本人看。第一次進房不補播舊訊息。 */
 function noteAddonEvents(r, myUid, first) {
   const ev = r.lastMoneyEvent;
   const key = ev?.type === 'addon' ? `${r.id || ''}:${(ev.ids || []).join(',')}` : seenAddonKey;
   const reject = r.pub?.rejects?.[myUid] || '';
   if (!first && key !== seenAddonKey && ev?.type === 'addon') {
     const who = ev.uid === myUid ? '你' : displayNameOf(ev.uid);
-    toast(`${who} 加碼 ${fmtChips(ev.amount)}`);
+    toast(`${who} 補碼 ${fmtChips(ev.amount)}`);
     if (ev.uid === myUid) void refreshPlayerAfterAddon(myUid);
   }
-  if (!first && reject && reject !== seenAddonReject && reject.includes('加碼')) toast(reject);
+  if (!first && reject && reject !== seenAddonReject && reject.includes('補碼')) toast(reject);
   seenAddonKey = key;
   seenAddonReject = reject;
 }
@@ -3942,7 +3941,7 @@ function toast(msg) {
   const el = $('#mpToast');
   if (!el) return;
   el.hidden = false;
-  const warning = msg === '帳戶不足，沒有加碼';
+  const warning = msg === '帳戶不足，沒有補碼';
   el.classList.toggle('mp-toast-warning', warning);
   el.textContent = warning ? `⚠ ${msg}` : msg;
   clearTimeout(toastTimer);

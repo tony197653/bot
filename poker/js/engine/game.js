@@ -1080,7 +1080,7 @@ function doVoidHand(s, action) {
  */
 function doTopUp(s, action) {
   if (s.phase !== PHASE.LOBBY && s.phase !== PHASE.HAND_OVER) {
-    throw err('牌局進行中無法加碼');
+    throw err('牌局進行中無法補碼');
   }
   const seat = action.seat;
   const amount = action.amount;
@@ -1088,7 +1088,7 @@ function doTopUp(s, action) {
   const p = s.seats[seat];
   if (!p) throw err('座位是空的');
   if (!Number.isSafeInteger(amount) || amount < s.config.bigBlind) {
-    throw err('加碼至少 1 大盲，且必須是整數');
+    throw err('補碼至少 1 大盲，且必須是整數');
   }
   p.chips += amount;
   p.buyInTotal += amount;

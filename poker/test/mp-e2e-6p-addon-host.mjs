@@ -327,17 +327,17 @@ async function queueAddonUI(p, hostP) {
   await p.page.bringToFront();
   const btn = await p.page.waitForSelector('#mpAddon:not([disabled])', { timeout: 8000 }).catch(() => null);
   if (!btn) {
-    log('加碼鈕不可按', p.name, JSON.stringify(await p.page.evaluate(() => ({
+    log('補碼鈕不可按', p.name, JSON.stringify(await p.page.evaluate(() => ({
       bar: document.getElementById('mpAddon')?.closest('div')?.innerHTML?.slice(0, 400) ?? null,
       addon: document.getElementById('mpAddon')?.outerHTML ?? null,
       body: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300) }))), 'toasts', JSON.stringify(await toasts(p)));
-    throw new Error('加碼鈕不可按');
+    throw new Error('補碼鈕不可按');
   }
   await p.page.locator('#mpAddon:not([disabled])').click({ timeout: 8000 });
   const pk = await p.page.waitForSelector('#mpBuyinPicker', { timeout: 5000 }).catch(() => null);
   if (!pk) {
     log('picker 沒出現', p.name, 'toasts', JSON.stringify(await toasts(p)), 'bank(db)', (await readDoc(`pokerPlayers/${p.uid}`))?.bank);
-    throw new Error('加碼選擇器沒出現');
+    throw new Error('補碼選擇器沒出現');
   }
   const dflt = Number(String(await p.page.locator('#mpBuyinPicker input[type="text"]').inputValue()).replaceAll(',', ''));
   await p.page.locator('#mpBuyinPicker [data-confirm]').click();
@@ -449,7 +449,7 @@ async function main() {
       if (!started.ok) throw new Error('第一手未開');
       await shot(host, 'first-hand');
     }, 90000);
-    const before = await step('客人蓋牌、排加碼 1,000 並保存斷線前資料', async () => {
+    const before = await step('客人蓋牌、排補碼 1,000 並保存斷線前資料', async () => {
       const folded = await foldPlayer(players, target, host);
       ok('guests[2] 蓋牌', folded);
       if (!folded) throw new Error('指定客人未蓋牌');
@@ -471,8 +471,8 @@ async function main() {
           stack: room.stacks[seat], pubSeat, refund };
       }));
       const queued = queue?.items?.length === 1 && queue.items[0].amount === 1000 && !!queue.items[0].id;
-      ok('斷線前加碼排隊一筆 1,000', queued, queue);
-      if (!queued) throw new Error('加碼排隊資料不符');
+      ok('斷線前補碼排隊一筆 1,000', queued, queue);
+      if (!queued) throw new Error('補碼排隊資料不符');
       const snapshot = { chipTotal: room.chipTotal, stacks: [...room.stacks],
         hostUid: room.hostUid, seatUids: [...room.seatUids], phase: room.pub?.phase,
         accounts, queue, addonId: queue.items[0].id };
@@ -509,11 +509,11 @@ async function main() {
     ok('情境8 收桌前帳戶不扣、排隊仍一筆', samples > 0, { samples });
     ok('情境9 150 秒內自動收桌', !!closed, closed);
     if (!closed) {
-      R.pending.push({ name: '情境9 自動收桌退款與加碼 ledger', reason: '150 秒內未收桌，尚無法核對退款。' });
+      R.pending.push({ name: '情境9 自動收桌退款與補碼 ledger', reason: '150 秒內未收桌，尚無法核對退款。' });
       throw new Error('150 秒內未自動收桌');
     }
     R.afterClose = closed;
-    await step('情境9 核對五位客人與原房主退款、加碼未扣款', async () => {
+    await step('情境9 核對五位客人與原房主退款、補碼未扣款', async () => {
       for (const p of before.accounts) {
         const account = await readDoc(`pokerPlayers/${p.uid}`);
         ok(`自動收桌 ${p.name} bank 增加＝退款基準`, account?.bank === p.bank + p.refund,
@@ -523,14 +523,14 @@ async function main() {
           !!account && account.inPlay === 0 && !account.tableRoomId,
           { inPlay: account?.inPlay, tableRoomId: account?.tableRoomId });
         if (p.uid === target.uid) {
-          ok('情境9 guests[2] 未扣加碼 1,000', account?.bank === p.bank + p.refund,
+          ok('情境9 guests[2] 未扣補碼 1,000', account?.bank === p.bank + p.refund,
             { expected: p.bank + p.refund, bankAfter: account?.bank });
         }
       }
-      // js/net/ledger.js:351–352：加碼帳本 ID 包含 roomId、sessionNo、排隊 id。
+      // js/net/ledger.js:351–352：補碼帳本 ID 包含 roomId、sessionNo、排隊 id。
       const ledgerPath = `pokerPlayers/${target.uid}/ledger/${roomId}_${targetBefore.sessionNo}_addon_${before.addonId}`;
       const ledger = await readDoc(ledgerPath);
-      ok('情境9 排隊加碼 id 無 addon 帳', ledger === null, { ledgerPath, ledger });
+      ok('情境9 排隊補碼 id 無 addon 帳', ledger === null, { ledgerPath, ledger });
       await shot(target, 'auto-closed');
     }, 30000);
   } catch (e) {

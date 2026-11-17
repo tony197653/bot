@@ -317,7 +317,7 @@ export async function hostCloseAllBatch(fb, { hostUid, roomId, room, displayName
   return { skipped: false, room: { ...room, ...roomPatch } };
 }
 
-/** 同一玩家的排隊加碼原子入帳；交易重讀可保留同時新增的排隊及取消。 */
+/** 同一玩家的排隊補碼原子入帳；交易重讀可保留同時新增的排隊及取消。 */
 export async function hostAddonBatch(fb, { hostUid, roomId, playerUid }) {
   const { db, fs } = fb;
   return fs.runTransaction(db, async (tx) => {
@@ -331,7 +331,7 @@ export async function hostAddonBatch(fb, { hostUid, roomId, playerUid }) {
     if (!items.length) return { skipped: true };
     if (!room || room.status === 'closed' || room.hostUid !== hostUid ||
         !['lobby', 'hand_over'].includes(room.pub?.phase)) {
-      throw new Error('尚未到加碼時間');
+      throw new Error('尚未到補碼時間');
     }
     const seat = room.seatUids.indexOf(playerUid);
     const p = ps.data();
@@ -346,7 +346,7 @@ export async function hostAddonBatch(fb, { hostUid, roomId, playerUid }) {
         new Set(ids).size !== ids.length || items.some(item =>
           typeof item.id !== 'string' || !item.id || item.id.includes('/') ||
           !Number.isSafeInteger(item.amount) || item.amount < bb)) {
-      throw new Error('加碼資料無效');
+      throw new Error('補碼資料無效');
     }
     const refs = ids.map(id => fs.doc(db, 'pokerPlayers', playerUid, 'ledger',
       `${roomId}_${p.sessionNo}_addon_${id}`));
@@ -354,10 +354,10 @@ export async function hostAddonBatch(fb, { hostUid, roomId, playerUid }) {
     // 已存在的帳本絕不覆寫或再次扣款。
     const pending = items.filter((item, i) => !entries[i].exists());
     const amount = pending.reduce((sum, item) => sum + item.amount, 0);
-    if (!Number.isSafeInteger(amount)) throw new Error('加碼資料無效');
+    if (!Number.isSafeInteger(amount)) throw new Error('補碼資料無效');
     if (amount > p.bank) {
       tx.update(qref, { items: [] });
-      return { rejected: true, message: '帳戶不足，沒有加碼' };
+      return { rejected: true, message: '帳戶不足，沒有補碼' };
     }
     tx.update(qref, { items: [] });
     if (!pending.length) return { skipped: true };

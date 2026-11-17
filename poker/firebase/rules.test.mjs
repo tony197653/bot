@@ -574,14 +574,14 @@ await t('#L3', '建房同批寫 hostRoomId＝roomId', 'ok', async () => {
   b.update(doc(d, 'pokerPlayers', 'H'), { hostRoomId: rid, updatedAt: serverTimestamp() });
   return b.commit();
 });
-// R38：非 500 倍數只允許建房者當前帳戶全額。
-for (const [bank, chips, expected] of [[1300, 1300, 'ok'], [8000, 1300, 'deny'], [1300, 300, 'deny']]) {
-  await t('#R38', `5/10 帳戶 ${bank} 建房 ${chips}`, expected, async () => {
+// R39：建房金額可為範圍內的任意整數。
+for (const [bank, chips, expected] of [[1300, 1300, 'ok'], [8000, 1300, 'ok'], [1300, 300, 'deny'], [5000, 1234, 'ok']]) {
+  await t('#R39', `5/10 帳戶 ${bank} 建房 ${chips}`, expected, async () => {
     await env.clearFirestore();
     await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), 'pokerPlayers', 'H'),
       player({ bank, total: bank, inPlay: 0, tableRoomId: null, sessionNo: 0, hostRoomId: null, lastRoomId: 'x' })));
   }, async () => {
-    const d = db('H'); const b = writeBatch(d); const rid = 'R38';
+    const d = db('H'); const b = writeBatch(d); const rid = 'R39';
     const room = lobbyCreate(rid, '338');
     room.config = { ...room.config, sb: 5, bb: 10, newPlayerChips: chips };
     room.lobby.blinds = '5/10';

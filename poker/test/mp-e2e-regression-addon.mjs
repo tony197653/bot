@@ -1,7 +1,7 @@
 /**
  * 第 12 輪 B：只連 demo-poker 本機模擬器；不啟動 emulator。
  * 複製 mp-e2e-6p-addon.mjs 已驗證 helper，改用房主＋一位客人。
- * L 級回歸切片：加碼→打一手→離座→大廳／每晚戰績→管理頁實際補碼。
+ * L 級回歸切片：玩家自助補碼→打一手→離座→大廳／每晚戰績→管理頁實際補碼。
  * 所有 owner REST 僅用於本機帳戶種子與唯讀資料核對；補碼必須點管理頁。
  */
 import { chromium } from 'playwright';
@@ -348,17 +348,17 @@ async function queueAddonUI(p, hostP) {
   await p.page.bringToFront();
   const btn = await p.page.waitForSelector('#mpAddon:not([disabled])', { timeout: 8000 }).catch(() => null);
   if (!btn) {
-    log('加碼鈕不可按', p.name, JSON.stringify(await p.page.evaluate(() => ({
+    log('補碼鈕不可按', p.name, JSON.stringify(await p.page.evaluate(() => ({
       bar: document.getElementById('mpAddon')?.closest('div')?.innerHTML?.slice(0, 400) ?? null,
       addon: document.getElementById('mpAddon')?.outerHTML ?? null,
       body: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300) }))), 'toasts', JSON.stringify(await toasts(p)));
-    throw new Error('加碼鈕不可按');
+    throw new Error('補碼鈕不可按');
   }
   await p.page.locator('#mpAddon:not([disabled])').click({ timeout: 8000 });
   const pk = await p.page.waitForSelector('#mpBuyinPicker', { timeout: 5000 }).catch(() => null);
   if (!pk) {
     log('picker 沒出現', p.name, 'toasts', JSON.stringify(await toasts(p)), 'bank(db)', (await readDoc(`pokerPlayers/${p.uid}`))?.bank);
-    throw new Error('加碼選擇器沒出現');
+    throw new Error('補碼選擇器沒出現');
   }
   const dflt = Number(String(await p.page.locator('#mpBuyinPicker input[type="text"]').inputValue()).replaceAll(',', ''));
   await p.page.locator('#mpBuyinPicker [data-confirm]').click();
@@ -494,15 +494,15 @@ async function main() {
         bank: (await readDoc(`pokerPlayers/${guest.uid}`)).bank };
     }, 15000);
     const { seat, sess } = initial;
-    const amount = await step('兩手之間由客人 UI 加碼並等上桌', async () => {
+    const amount = await step('兩手之間由客人 UI 補碼並等上桌', async () => {
       const amount = await queueAddonUI(guest, host);
-      requireCheck('加碼預設＝50 大盲或剩餘帳戶', amount === Math.min(50 * initial.room.config.bb, initial.bank), { amount, bank: initial.bank });
+      requireCheck('補碼預設＝50 大盲或剩餘帳戶', amount === Math.min(50 * initial.room.config.bb, initial.bank), { amount, bank: initial.bank });
       const room = await waitFor(async () => {
         const r = await readDoc(`pokerRooms/${roomId}`);
         return r?.sess?.[seat]?.topUpChips === (sess.topUpChips || 0) + amount && r;
       }, 20000);
-      requireCheck('加碼上桌 sess.topUpChips', !!room, { amount });
-      requireCheck('加碼後 stacks 與帳戶正確', room.stacks[seat] === initial.room.stacks[seat] + amount &&
+      requireCheck('補碼上桌 sess.topUpChips', !!room, { amount });
+      requireCheck('補碼後 stacks 與帳戶正確', room.stacks[seat] === initial.room.stacks[seat] + amount &&
         (await readDoc(`pokerPlayers/${guest.uid}`)).bank === initial.bank - amount);
       return amount;
     }, 40000);
@@ -526,7 +526,7 @@ async function main() {
         const p = await readDoc(`pokerPlayers/${guest.uid}`);
         return p && !p.tableRoomId && p;
       }, 25000);
-      requireCheck('離座清空 tableRoomId、退回含加碼籌碼', after && after.bank === before.bank + room.stacks[seat] && (after.inPlay || 0) === 0,
+      requireCheck('離座清空 tableRoomId、退回含補碼籌碼', after && after.bank === before.bank + room.stacks[seat] && (after.inPlay || 0) === 0,
         { before: before.bank, stack: room.stacks[seat], after });
       return after;
     }, 35000);
@@ -551,7 +551,7 @@ async function main() {
         R.pending.push({ name: '每晚戰績 buyIn', reason: `已定位 ledger.js:212–223 的資料來源 ${path}，但結帳後 15 秒仍無文件；未核對公式` });
       } else {
         const expected = (initial.night?.buyIn || 0) + sess.buyIn + (sess.topUpChips || 0) + amount;
-        ok('這晚 buyIn＝原當晚累計＋攜入＋加碼', night.buyIn === expected, { path, buyIn: night.buyIn, expected });
+        ok('這晚 buyIn＝原當晚累計＋攜入＋補碼', night.buyIn === expected, { path, buyIn: night.buyIn, expected });
         const row = guest.page.locator('.mp-stats tr.is-me');
         const shown = await waitFor(async () => (await row.count()) === 1 && numberOf(await row.locator('td.num').innerText()) === night.net, 10000);
         ok('每晚戰績畫面顯示客人淨輸贏', shown, { net: night.net, nightKey: sess.nightKey });
@@ -579,7 +579,7 @@ async function main() {
       await row.click();
       await page.locator('#opAdd').click();
       await page.locator('#amt').fill('500');
-      await page.locator('#reason').fill('第12輪加碼後回歸測試');
+      await page.locator('#reason').fill('第12輪玩家自助補碼後回歸測試');
       await page.locator('#confirmAdj:not([disabled])').click();
       const after = await waitFor(async () => {
         const p = await readDoc(`pokerPlayers/${guest.uid}`);

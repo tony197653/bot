@@ -42,7 +42,7 @@ it('多筆合併上桌、逐筆帳本，帳戶 total 與其他統計不變', asy
 });
 it('帳戶不足則整批拒絕，不扣款、不寫房間與帳本', async () => {
   const f = fixture(250);
-  assert.equal((await f.run()).message, '帳戶不足，沒有加碼');
+  assert.equal((await f.run()).message, '帳戶不足，沒有補碼');
   assert.equal(f.data.get('pokerPlayers/u').bank, 250);
   assert.equal(f.data.get('pokerRooms/r').chipTotal, 500);
   assert.equal(f.data.size, 3);
@@ -66,13 +66,13 @@ it('已入帳編號重播不會再次扣款或覆寫帳本', async () => {
 it('牌局中與低於大盲的要求拒絕且不寫入', async () => {
   const f = fixture();
   f.data.get('pokerRooms/r').pub.phase = 'preflop';
-  await assert.rejects(f.run, /尚未到加碼時間/);
+  await assert.rejects(f.run, /尚未到補碼時間/);
   const g = fixture(1000, [{ id: 'u_1', amount: 19 }]);
-  await assert.rejects(g.run, /加碼資料無效/);
+  await assert.rejects(g.run, /補碼資料無效/);
   assert.equal(g.data.get('pokerPlayers/u').bank, 1000);
 });
 
-it('R38 加碼可用完非500倍數的全部剩餘帳戶', async () => {
+it('R38 補碼可用完非500倍數的全部剩餘帳戶', async () => {
   const f = fixture(1300, [{ id: 'u_1', amount: 1000 }, { id: 'u_2', amount: 300 }]);
   assert.equal((await f.run()).amount, 1300);
   assert.equal(f.data.get('pokerPlayers/u').bank, 0);

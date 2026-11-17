@@ -1,4 +1,4 @@
-/** 加碼最終截圖；僅供 PM 透過本機 firebase emulators:exec 執行。 */
+/** 補碼最終截圖；僅供 PM 透過本機 firebase emulators:exec 執行。 */
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -117,7 +117,7 @@ async function createAndShare(host, prefix) {
     await host.page.locator('label.mp-seg-item:has(input[name="blinds"][value="5/10"])').click();
     await host.page.waitForFunction(() => document.getElementById('mpCreateChips')?.value === '500');
     await capture(host, prefix, 'open-table-buyin');
-    // 後續加碼情境維持原本的 10/20 盲注。
+    // 後續補碼情境維持原本的 10/20 盲注。
     await host.page.locator('label.mp-seg-item:has(input[name="blinds"][value="10/20"])').click();
   }
   await host.page.click('button[type="submit"]');
@@ -347,17 +347,17 @@ async function queueAddonUI(p, hostP) {
   await p.page.bringToFront();
   const btn = await p.page.waitForSelector('#mpAddon:not([disabled])', { timeout: 8000 }).catch(() => null);
   if (!btn) {
-    log('加碼鈕不可按', p.name, JSON.stringify(await p.page.evaluate(() => ({
+    log('補碼鈕不可按', p.name, JSON.stringify(await p.page.evaluate(() => ({
       bar: document.getElementById('mpAddon')?.closest('div')?.innerHTML?.slice(0, 400) ?? null,
       addon: document.getElementById('mpAddon')?.outerHTML ?? null,
       body: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300) }))), 'toasts', JSON.stringify(await toasts(p)));
-    throw new Error('加碼鈕不可按');
+    throw new Error('補碼鈕不可按');
   }
   await p.page.locator('#mpAddon:not([disabled])').click({ timeout: 8000 });
   const pk = await p.page.waitForSelector('#mpBuyinPicker', { timeout: 5000 }).catch(() => null);
   if (!pk) {
     log('picker 沒出現', p.name, 'toasts', JSON.stringify(await toasts(p)), 'bank(db)', (await readDoc(`pokerPlayers/${p.uid}`))?.bank);
-    throw new Error('加碼選擇器沒出現');
+    throw new Error('補碼選擇器沒出現');
   }
   const dflt = Number(String(await p.page.locator('#mpBuyinPicker input[type="text"]').inputValue()).replaceAll(',', ''));
   await p.page.locator('#mpBuyinPicker [data-confirm]').click();
@@ -417,7 +417,7 @@ async function toastShot(p, prefix, name, text, timeout = 20000) {
   await p.page.waitForFunction(expected => {
     const el = document.getElementById('mpToast');
     return el && !el.hidden && el.getClientRects().length && el.textContent.includes(expected) &&
-      (expected !== '帳戶不足，沒有加碼' ||
+      (expected !== '帳戶不足，沒有補碼' ||
         (el.classList.contains('mp-toast-warning') && el.textContent.trim() === `⚠ ${expected}`));
   }, text, { timeout });
   await capture(p, prefix, name);
@@ -457,7 +457,7 @@ async function runViewport(browser, base, VP) {
       if (!await waitFor(async () => (await occupiedFromHost(host.page)) >= 3)) throw new Error('三人尚未入座');
     });
     const guest = players[1], observer = players[2];
-    await run('兩手之間加碼按鈕與預設選擇器', async () => {
+    await run('兩手之間補碼按鈕與預設選擇器', async () => {
       await guest.page.waitForSelector('#mpAddon:not([disabled])');
       await capture(guest, prefix, 'addon-button');
       await guest.page.locator('#mpAddon').click();
@@ -471,7 +471,7 @@ async function runViewport(browser, base, VP) {
     });
     const started = await run('開始一手', () => startHand(players), 90000);
     if (!started.ok) throw new Error('未開始牌局');
-    await run('手中加碼提示截圖', async () => {
+    await run('手中補碼提示截圖', async () => {
       await guest.page.waitForSelector('#mpAddonHint, #mpAddon[disabled]', { timeout: 8000 });
       await capture(guest, prefix, 'inhand-hint');
     });
@@ -489,16 +489,16 @@ async function runViewport(browser, base, VP) {
         const amount = expected.toLocaleString('en-US');
         const toast = document.getElementById('mpToast');
         const visibleToast = toast && !toast.hidden ? toast.textContent : '';
-        const queuedToast = /加碼排隊中|下一手前加碼/.test(visibleToast);
-        return row?.getClientRects().length && row.querySelector('span')?.textContent.trim() === `下一手前加碼 ${amount}` &&
-          button && !button.disabled && button.getClientRects().length && label === `取消加碼 ${amount}` &&
-          !visibleToast.includes('加碼排隊中') &&
-          (!queuedToast || visibleToast.trim() === `下一手前加碼 ${amount}`);
+        const queuedToast = /補碼排隊中|下一手前補碼/.test(visibleToast);
+        return row?.getClientRects().length && row.querySelector('span')?.textContent.trim() === `下一手前補碼 ${amount}` &&
+          button && !button.disabled && button.getClientRects().length && label === `取消補碼 ${amount}` &&
+          !visibleToast.includes('補碼排隊中') &&
+          (!queuedToast || visibleToast.trim() === `下一手前補碼 ${amount}`);
       }, total, { timeout: 8000 });
       await capture(guest, prefix, 'queued');
     });
     // 先監聽另一位玩家，避免牌局結束後才等待而錯過 toast。
-    const message = run('全桌加碼訊息截圖', () => toastShot(observer, prefix, 'table-message', `${guest.name} 加碼`, 170000), 175000)
+    const message = run('全桌補碼訊息截圖', () => toastShot(observer, prefix, 'table-message', `${guest.name} 補碼`, 170000), 175000)
       .catch(e => { log('缺少全桌訊息', e.message); });
     await run('完成本手', async () => {
       const result = await playToShowdown(players, started.host);
@@ -543,7 +543,7 @@ async function runViewport(browser, base, VP) {
         await sleep(Math.min(100, Math.max(0, deadline - Date.now())));
       }
       if (!processed) throw new Error('15 秒內未確認房主清空 items 且該座位 topUpChips 增加');
-      log('已確認房主處理加碼', 'seat', seat, 'topUpBefore', topUpBefore);
+      log('已確認房主處理補碼', 'seat', seat, 'topUpBefore', topUpBefore);
       // 僅透過真實頁面流程；cancelAddon 位於模組內，沒有可直接呼叫的頁面介面。
       const clicked = await guest.page.evaluate(() => {
         const button = document.getElementById('mpAddonCancel');
@@ -554,17 +554,17 @@ async function runViewport(browser, base, VP) {
       if (!clicked) throw new Error('房主處理後取消鈕已消失或不可按；cancelAddon 未公開於頁面，無法直接呼叫取消流程');
       await guest.page.waitForFunction(() => {
         const t = document.getElementById('mpToast');
-        return t && !t.hidden && /已上桌，不能取消|已取消加碼/.test(t.textContent);
+        return t && !t.hidden && /已上桌，不能取消|已取消補碼/.test(t.textContent);
       }, null, { timeout: 10000 });
       const actual = await guest.page.locator('#mpToast').innerText();
       log('取消競態實際文字', actual);
       if (actual.includes('已上桌，不能取消')) await capture(guest, prefix, 'already-on-table');
-      else if (actual.includes('已取消加碼')) await capture(guest, prefix, 'cancelled');
+      else if (actual.includes('已取消補碼')) await capture(guest, prefix, 'cancelled');
     }).catch(e => {
       const filename = `${prefix}-already-on-table.png`;
       log('選用取消競態未截到', filename, e.message);
     });
-    await run('暫離時加碼截圖', async () => {
+    await run('暫離時補碼截圖', async () => {
       const leftoverPicker = guest.page.locator('#mpBuyinPicker [data-cancel]');
       if (await leftoverPicker.isVisible()) await leftoverPicker.click();
       const room = await readDoc(`pokerRooms/${roomId}`);
@@ -626,7 +626,7 @@ async function runViewport(browser, base, VP) {
       await guest.page.waitForFunction(() => document.getElementById('mpBuyinBank')?.textContent.trim() === '0', null, { timeout: 10000 });
       await guest.page.locator('#mpBuyinPicker [data-cancel]').click();
       await guest.page.locator('#mpAddon:not([disabled])').click();
-      await toastShot(guest, prefix, 'insufficient', '帳戶不足，沒有加碼');
+      await toastShot(guest, prefix, 'insufficient', '帳戶不足，沒有補碼');
     });
   } catch (e) {
     log('尺寸流程失敗', prefix, e.stack || e.message);

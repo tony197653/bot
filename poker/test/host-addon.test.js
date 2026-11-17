@@ -50,7 +50,7 @@ function fixture(t, { bank = 1000, seated = true, failAddon = false } = {}) {
   return { loop, data, room, writes, enqueue, flush, transactions: () => transactions };
 }
 
-test('兩手之間加碼：同步引擎與房間，快照延遲仍沿用新 rev、stacks、sess', async t => {
+test('兩手之間補碼：同步引擎與房間，快照延遲仍沿用新 rev、stacks、sess', async t => {
   const f = fixture(t);
   f.enqueue(); await f.flush();
   assert.equal(f.loop.getEngine().seats[1].chips, 600);
@@ -86,7 +86,7 @@ test('帳戶不足整批拒絕，發布本人提示、不改籌碼', async t => 
   const f = fixture(t, { bank: 50 });
   f.enqueue(); await f.flush();
   const room = f.data.get('pokerRooms/r');
-  assert.equal(room.pub.rejects.u, '帳戶不足，沒有加碼');
+  assert.equal(room.pub.rejects.u, '帳戶不足，沒有補碼');
   assert.equal(room.stacks[1], 500);
   assert.equal(f.loop.getEngine().seats[1].chips, 500);
   assert.equal(f.data.get('pokerPlayers/u').bank, 50);
@@ -123,10 +123,10 @@ for (const sittingOut of [false, true]) {
 }
 
 
-test('R32b 加碼 transaction 被拒仍發布本人中文提示、清除佇列且不扣款', async t => {
+test('R32b 補碼 transaction 被拒仍發布本人中文提示、清除佇列且不扣款', async t => {
   const f = fixture(t, { failAddon: true });
   f.enqueue(); await f.flush();
-  assert.equal(f.data.get('pokerRooms/r').pub.rejects.u, '加碼沒成功，請再試一次');
+  assert.equal(f.data.get('pokerRooms/r').pub.rejects.u, '補碼沒成功，請再試一次');
   assert.deepEqual(f.data.get('pokerRooms/r/addons/u').items, []);
   assert.equal(f.data.get('pokerPlayers/u').bank, 1000);
   assert.equal(f.loop.getEngine().seats[1].chips, 500);
@@ -144,7 +144,7 @@ for (let attempt = 1; attempt <= 3; attempt++) {
     assert.equal(await f.loop.startHand(), true);
     await f.flush();
     assert.deepEqual(f.data.get('pokerRooms/r/addons/u').items, []);
-    assert.equal(f.data.get('pokerRooms/r').pub.rejects.u, '帳戶不足，沒有加碼');
+    assert.equal(f.data.get('pokerRooms/r').pub.rejects.u, '帳戶不足，沒有補碼');
     assert.equal(f.data.get('pokerPlayers/u').bank, 2000);
     assert.equal(f.loop.getEngine().seats[1].chips + (f.loop.getEngine().seats[1].bet || 0), 500);
     assert.notEqual(f.loop.getEngine().phase, 'hand_over');

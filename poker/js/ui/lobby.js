@@ -736,10 +736,10 @@ export function renderCreateRoom(root, vm) {
           <div class="mp-affix-row">
             <button type="button" data-chips-minus aria-label="減少 500">−</button>
             <label class="mp-create-chips-field"><span>攜入籌碼</span>
-            <input name="chips" id="mpCreateChips" type="text" inputmode="numeric" min="${50 * defaults.sb * 2}" max="100000" step="500" value="${fmtChips(defaults.chips)}" aria-describedby="${chipsHintId} mpCreateMinHint mpCreateLiveErr"></label>
+            <input name="chips" id="mpCreateChips" type="text" inputmode="numeric" min="${50 * defaults.sb * 2}" max="100000" step="1" value="${fmtChips(defaults.chips)}" aria-describedby="${chipsHintId} mpCreateMinHint mpCreateLiveErr"></label>
           <button type="button" data-chips-plus aria-label="增加 500">＋</button></div>
           <p class="mp-acct" id="mpCreateMinHint" role="status" hidden></p>
-          <small id="${chipsHintId}">入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。${fmtChips(50 * defaults.sb * 2)}–100,000，每次 500。</small>
+          <small id="${chipsHintId}">入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。${fmtChips(50 * defaults.sb * 2)}–100,000。按 ± 每次增減 500。</small>
           <p class="mp-err" id="mpCreateLiveErr" role="status" ${error ? '' : 'hidden'}>${esc(error || '')}</p>
         </div>
         <div class="mp-rules">
@@ -780,7 +780,7 @@ export function renderCreateRoom(root, vm) {
       }
     });
   }
-  chipsIn?.addEventListener('blur', () => { if (Number.isFinite(chipsValue())) chipsIn.value = fmtChips(chipsValue()); });
+  chipsIn?.addEventListener('blur', () => { if (Number.isSafeInteger(chipsValue())) chipsIn.value = fmtChips(chipsValue()); });
   const persist = () => {
     if (!form || !onDraft) return;
     const fd = new FormData(form);
@@ -811,7 +811,7 @@ export function renderCreateRoom(root, vm) {
     const [sb, bb] = (selected?.value || '10/20').split('/').map(Number);
     if (chipsIn) chipsIn.min = String(50 * bb);
     const hint = $(`#${chipsHintId}`, root);
-    if (hint) hint.textContent = `入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。${fmtChips(50 * bb)}–100,000，每次 500。`;
+    if (hint) hint.textContent = `入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。${fmtChips(50 * bb)}–100,000。按 ± 每次增減 500。`;
     if (adjust && chipsIn) chipsIn.value = fmtChips(defaultCreateBuyin(chipsValue(), bb, bank));
     const msg = createRoomBuyinError(chipsValue(), sb, bb, bank);
     if (liveErr) {
