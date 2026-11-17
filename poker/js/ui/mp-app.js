@@ -55,6 +55,8 @@ import {
   readSelfCashoutAmount,
   nightKeyOf,
   readCachedPlayer,
+  cachePlayer,
+  listenLeaderboard,
 } from '../net/ledger.js';
 import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
@@ -113,6 +115,55 @@ let screen = 'auth';
 let authState = { status: 'loading', user: null, error: null };
 /** @type {any} */
 let playerDoc = null;
+/** 帳戶數字是否已拿到伺服器資料（沒拿到前顯示「—」，不顯示 0） */
+let playerFresh = false;
+let stopSelfPlayer = null;
+let selfPlayerUid = null;
+/** 監聽自己的 pokerPlayers/{uid}：管理頁加減帳戶、結帳等外部變更即時反映，並更新本機快取 */
+function watchSelfPlayer(fb, uid) {
+  if (!fb || !uid) return;
+  if (selfPlayerUid === uid && stopSelfPlayer) return;
+  stopSelfPlayer?.();
+  selfPlayerUid = uid;
+  if (typeof fb.fs?.onSnapshot !== 'function') return; // 測試沙盒
+  stopSelfPlayer = fb.fs.onSnapshot(fb.fs.doc(fb.db, 'pokerPlayers', uid), (snap) => {
+    if (selfPlayerUid !== uid || snap.metadata?.hasPendingWrites || snap.metadata?.fromCache) return;
+    if (!snap.exists()) return;
+    const d = snap.data();
+    const money = { bank: d.bank, inPlay: d.inPlay, total: d.total };
+    const changed = !playerFresh || !playerDoc || playerDoc.bank !== d.bank || playerDoc.inPlay !== d.inPlay;
+    playerDoc = playerDoc && playerDoc.uid === uid ? { ...playerDoc, ...money } : { uid, ...d };
+    playerFresh = true;
+    cachePlayer(uid, { ...(readCachedPlayer(uid) || {}), ...playerDoc });
+    if (changed) paintAccount();
+  }, (e) => console.warn('[mp] self player', e));
+}
+function stopWatchSelfPlayer() {
+  stopSelfPlayer?.(); stopSelfPlayer = null; selfPlayerUid = null; playerFresh = false;
+  stopLeaders?.(); stopLeaders = null;
+}
+let stopLeaders = null;
+/** 大廳「戰績」前 3 名即時更新（跟頂欄帳戶同一份伺服器資料；排序跟著變） */
+function watchLeaderboard(fb) {
+  if (!fb || stopLeaders || typeof fb.fs?.onSnapshot !== 'function') return;
+  stopLeaders = listenLeaderboard(fb, 3, (rows) => {
+    const key = (list) => list.map((r) => `${r.uid}:${r.total}:${r.displayName}`).join('|');
+    if (key(rows) === key(leaderPreview || [])) return;
+    leaderPreview = rows;
+    if (screen === 'lobby') paint();
+  }, (e) => console.warn('[mp] leaderboard', e));
+}
+function accountText() {
+  return playerFresh && playerDoc ? fmtChips(Number(playerDoc.bank) || 0) : '—';
+}
+/** 帳戶數字變了：大廳整頁重畫；開新牌桌、入座小框只改那一行（不打斷輸入） */
+function paintAccount() {
+  if (screen === 'lobby') { paint(); return; }
+  for (const id of ['mpCreateBank', 'mpBuyinBank']) {
+    const el = globalThis.document?.getElementById(id);
+    if (el) el.textContent = accountText();
+  }
+}
 /** @type {any} */
 let room = null;
 /** @type {string|null} */
@@ -1009,11 +1060,13 @@ export async function startMpApp() {
       hostLoop = null;
     }
     authState = ev;
+    if (ev.status === 'signed-out') stopWatchSelfPlayer();
     if (ev.status === 'signed-in' && ev.user) {
       const fb = getFirebase();
       if (fb && !ev.fromCache) {
         try {
           playerDoc = await getPlayer(fb, ev.user.uid);
+          playerFresh = !!playerDoc;
           leaderPreview = (await fetchLeaderboard(fb, 3)) || [];
         } catch {
           playerDoc = readCachedPlayer(ev.user.uid);
@@ -1021,6 +1074,8 @@ export async function startMpApp() {
       } else {
         playerDoc = readCachedPlayer(ev.user.uid);
       }
+      watchSelfPlayer(getFirebase(), ev.user.uid);
+      watchLeaderboard(getFirebase());
       // Resolve closed bindings before the first lobby paint.
       if (playerDoc?.tableRoomId || playerDoc?.hostRoomId) {
         await silentlySettleClosedBinding();
@@ -1335,6 +1390,7 @@ function paint() {
     renderMpLobby(root, {
       user: authState.user,
       player: playerDoc,
+      bankFresh: playerFresh,
       myTable,
       openTables: openTables.filter(
         (t) => t.id !== myTable?.roomId && !isLobbyRoomSuppressed(t.id) && isRoomOpenStatus(t.status),
@@ -1373,6 +1429,7 @@ function paint() {
     renderCreateRoom(root, {
       defaults: createDraft,
       bank: playerDoc?.bank ?? null,
+      bankText: accountText(),
       creating,
       error: createError,
       onDraft: (d) => {
@@ -3001,6 +3058,7 @@ function pickBuyinAmount(options) {
   el.setAttribute('aria-labelledby', 'mpBuyinTitle');
   el.innerHTML = `<div class="mp-close-result-card">
     <h2 id="mpBuyinTitle">攜入籌碼</h2>
+    <p class="mp-acct">帳戶 <b id="mpBuyinBank">${options.bankText ?? '—'}</b></p>
     <input aria-label="攜入籌碼" type="number" inputmode="numeric" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
     <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
     <button type="button" class="mp-btn-ghost" data-cancel>取消</button>
@@ -3049,7 +3107,7 @@ async function sitDown(seat) {
   try {
     const targetRoomId = roomId;
     const amount = playerDoc?.tableRoomId === roomId ? playerDoc.inPlay
-      : await pickBuyinAmount(buyinOptions(playerDoc, room.config));
+      : await pickBuyinAmount({ ...buyinOptions(playerDoc, room.config), bankText: accountText() });
     if (amount == null || !room || roomId !== targetRoomId) return;
     toast('入座中…');
     if (room.hostUid !== user.uid) {
