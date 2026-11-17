@@ -972,74 +972,44 @@ async function emuDeleteCode(code) {
   ] });
 }
 
-/** #27 + BD B-boxes: type 3 cells, paste share link, bad → error status. */
+/** #27：保留 join3 名稱；以分享深連結驗證入桌及不相符 r 的已結束提示。 */
 async function runJoinCode3(browser, base, viewport, label) {
   const host = await makePlayer(browser, base, '阿明', `hostj3${label}`, viewport);
-  const { roomId, code, url } = await createAndShare(host);
-  const digits = String(code).replace(/\D/g, '').slice(0, 3);
-  const badCode = String((Number(digits) + 500) % 1000).padStart(3, '0');
-  await emuDeleteCode(badCode);
+  const { roomId, code } = await createAndShare(host);
+  // 房號存在但 r 不相符，與 open-list stale link 一致，應顯示牌桌已結束。
+  // 不存在房號的深連結會回大廳，不會停在 renderJoinCode。
+  const invalid = await makePlayer(browser, base, '聰實', `badj3${label}`, viewport,
+    `room=${encodeURIComponent(code)}&r=${encodeURIComponent(`${roomId}-stale`)}`);
+  await invalid.page.waitForFunction(() => {
+    const lead = document.querySelector('.mp-join-page .mp-lead');
+    return !!lead && /這桌已經結束了|牌桌已結束/.test(lead.innerText);
+  }, null, { timeout: 15000 });
+  const bad = await invalid.page.locator('.mp-join-page .mp-lead').innerText();
+  await invalid.ctx.close();
 
-  const guest = await makePlayer(browser, base, '大雄', `guestj3${label}`, viewport);
-  await guest.page.waitForSelector('#mpJoinCode', { timeout: 15000 });
-  // Structure: 3 visible cells + hidden input
-  const boxes = await guest.page.evaluate(() => ({
-    cells: document.querySelectorAll('.mp-cell').length,
-    max: document.getElementById('mpJoinCode')?.getAttribute('maxlength') || '',
-    hasFb: !!document.getElementById('mpJoinWrap'),
-  }));
-  // Bad code via typing into hidden input
-  await guest.page.focus('#mpJoinCode');
-  await guest.page.keyboard.type(badCode, { delay: 40 });
-  await guest.page.waitForFunction(() =>
-    document.getElementById('mpJoinWrap')?.dataset.s === 'error',
-  null, { timeout: 10000 });
-  const bad = await guest.page.evaluate(() => ({
-    status: document.getElementById('mpJoinStatus')?.textContent || '',
-    state: document.getElementById('mpJoinWrap')?.dataset?.s || '',
-    val: document.getElementById('mpJoinCode')?.value || '',
-  }));
-  // Clear and paste a share link (BD paste rule)
-  await guest.page.evaluate(() => {
-    const input = document.getElementById('mpJoinCode');
-    input.readOnly = false;
-    input.value = '';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  });
-  await guest.page.focus('#mpJoinCode');
-  await guest.page.evaluate(async (link) => {
-    const input = document.getElementById('mpJoinCode');
-    const dt = new DataTransfer();
-    dt.setData('text/plain', link);
-    input.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true }));
-  }, url);
-  await guest.page.waitForSelector('#seats .mp-empty-seat, #mpLeave', { state: 'attached', timeout: 20000 }).catch(() => {});
+  // 現產品分享連結入口存在；連結進入失敗應報錯，不得以 skip 掩蓋。
+  const guest = await joinViaLink(browser, base, '大雄', `guestj3${label}`,
+    viewport, roomId, code);
   await guest.page.waitForFunction(() => {
     const app = document.getElementById('app');
-    return !!document.querySelector('#seats .mp-empty-seat, #mpLeave') && app && !app.classList.contains('hidden');
-  }, null, { timeout: 12000 });
+    return !!document.querySelector('#seats .mp-empty-seat, #mpLeave') &&
+      app && !app.classList.contains('hidden');
+  }, null, { timeout: 20000 });
   const onTable = await guest.page.evaluate(() => {
     const app = document.getElementById('app');
-    return !!document.querySelector('#seats .mp-empty-seat, #mpLeave') && app && !app.classList.contains('hidden');
+    return !!document.querySelector('#seats .mp-empty-seat, #mpLeave') &&
+      app && !app.classList.contains('hidden');
   });
+  const joinedRoomId = await guest.page.evaluate(() => window.__qaCloseResultState?.().roomId || null);
   await guest.page.screenshot({
-    path: join(ART, `mp-${label}-join3.png`),
-    fullPage: true,
+    path: join(ART, `mp-${label}-join3.png`), fullPage: true,
   });
   await host.ctx.close();
   await guest.ctx.close();
-  const badOk =
-    /不存在|找不到|請再確認|牌桌已結束/.test(bad.status) &&
-    bad.state === 'error' &&
-    boxes.cells === 3 &&
-    boxes.max === '3';
   return {
-    ok: digits.length === 3 && badOk && onTable,
-    roomId,
-    code: digits,
-    boxes,
-    bad,
-    onTable,
+    ok: onTable && joinedRoomId === roomId &&
+      /這桌已經結束了|牌桌已結束/.test(bad),
+    roomId, code, bad, onTable, joinedRoomId, entry: 'share-link',
   };
 }
 
@@ -1058,11 +1028,7 @@ async function runOpenTablesList(browser, base, viewport, label) {
     .locator('.mp-btn-primary[data-act="create"]:visible')
     .first()
     .waitFor({ timeout: 15000 });
-  await reuser.page.evaluate((want) => {
-    const n = Number(want);
-    window.__qaOrigRandom = Math.random;
-    Math.random = () => (n + 0.05) / 1000;
-  }, Number(t1.code));
+  // 現產品使用固定單桌房號鎖，不再靠隨機房號碰撞驗證重用。
   await reuser.page.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
   await reuser.page.waitForSelector('form, .mp-create', { timeout: 8000 });
   await reuser.page.click('button[type="submit"]');
@@ -1071,9 +1037,6 @@ async function runOpenTablesList(browser, base, viewport, label) {
   const reuseCode = new URL(reuseUrl).searchParams.get('room') || '';
   const reuseRoomId = new URL(reuseUrl).searchParams.get('r') || '';
   scenarioRooms.push({ host: reuser, roomId: reuseRoomId, code: reuseCode, viewport });
-  await reuser.page.evaluate(() => {
-    if (window.__qaOrigRandom) Math.random = window.__qaOrigRandom;
-  });
   const codeReused = reuseCode === t1.code && reuseRoomId && reuseRoomId !== t1.roomId;
 
   // Mismatched r deep link → 牌桌已結束
