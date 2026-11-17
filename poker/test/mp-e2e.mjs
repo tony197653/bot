@@ -281,7 +281,9 @@ async function createAndShare(host) {
   if (code.length !== 3) throw new Error(`createAndShare bad code=${code} url=${url}`);
   scenarioRooms.push({ host, roomId, code, viewport: host.page.viewportSize() });
   await host.page.click('[data-act="enter"]');
-  await host.page.waitForSelector('#mpLeave, #mpStart', { state: 'attached', timeout: 20000 });
+  await ensureOnTable(host.page);
+  await sitIfNeeded(host.page);
+  await host.page.waitForSelector('#mpLeave', { state: 'attached', timeout: 20000 });
   return { roomId, code, url };
 }
 
@@ -626,6 +628,7 @@ async function runIntentRefresh(browser, base, viewport, label) {
     [`guestir${label}`, '大雄'],
   );
   await ensureOnTable(guest.page);
+  await sitIfNeeded(guest.page);
   await guest.page.waitForTimeout(2000);
   guest.errors.length = 0;
   // Try call/check/fold after refresh
@@ -664,7 +667,7 @@ async function runIntentRefresh(browser, base, viewport, label) {
     [`hostir${label}`, '阿明'],
   );
   await ensureOnTable(host.page);
-  await host.page.waitForSelector('#mpCall, #mpCheck, #mpFold, #mpStart', { timeout: 15000 });
+  await host.page.waitForSelector('#mpCall, #mpCheck, #mpFold, #mpStart, #mpLeave', { state: 'attached', timeout: 20000 });
   // Host may void + reshuffle; wait and optionally act
   for (let i = 0; i < 10; i++) {
     const hBtn = host.page.locator(
