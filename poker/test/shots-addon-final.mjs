@@ -392,10 +392,10 @@ async function queueAddonAmount(p, hostP, amount) {
 
 const shots = [];
 const missing = [];
-const EXPECTED = ['addon-button', 'addon-picker', 'queued', 'table-message', 'insufficient', 'already-on-table'];
+const EXPECTED = ['addon-button', 'addon-picker', 'queued', 'table-message', 'insufficient', 'away-addon'];
 async function capture(p, prefix, name) {
   const filename = `${prefix}-${name}.png`;
-  await p.page.screenshot({ path: join(ART, filename), fullPage: false });
+  await p.page.screenshot({ path: join(ART, filename), fullPage: true });
   const toast = await p.page.evaluate(() => {
     const el = document.getElementById('mpToast');
     return el && !el.hidden ? el.textContent : '';
@@ -461,8 +461,16 @@ async function runViewport(browser, base, VP) {
     if (!started.ok) throw new Error('未開始牌局');
     await run('蓋牌後排隊截圖', async () => {
       if (!await foldPlayer(players, guest, started.host)) throw new Error('客人未蓋牌');
-      await queueAddonUI(guest, started.host);
-      await guest.page.waitForFunction(() => /取消\s+[\d,]+/.test(document.getElementById('mpAddonCancel')?.textContent || ''));
+      const amount = await queueAddonUI(guest, started.host);
+      await queueAddonAmount(guest, started.host, amount);
+      const queue = await readDoc(`pokerRooms/${roomId}/addons/${guest.uid}`);
+      if (!Array.isArray(queue?.items) || queue.items.length < 2) throw new Error('排隊未達兩筆');
+      const total = queue.items.reduce((sum, item) => sum + Number(item.amount), 0);
+      await guest.page.waitForFunction(expected => {
+        const button = document.getElementById('mpAddonCancel');
+        return button && !button.disabled && button.getClientRects().length &&
+          Number((button.textContent.match(/^取消\s+([\d,]+)$/) || [])[1]?.replaceAll(',', '')) === expected;
+      }, total, { timeout: 8000 });
       await capture(guest, prefix, 'queued');
     });
     // 先監聽另一位玩家，避免牌局結束後才等待而錯過 toast。
@@ -517,9 +525,61 @@ async function runViewport(browser, base, VP) {
       else if (actual.includes('已取消加碼')) await capture(guest, prefix, 'cancelled');
     }).catch(e => {
       const filename = `${prefix}-already-on-table.png`;
-      if (!missing.includes(filename)) missing.push(filename);
-      log('取消競態未截到', filename, e.message);
+      log('選用取消競態未截到', filename, e.message);
     });
+    await run('暫離時加碼截圖', async () => {
+      const leftoverPicker = guest.page.locator('#mpBuyinPicker [data-cancel]');
+      if (await leftoverPicker.isVisible()) await leftoverPicker.click();
+      const room = await readDoc(`pokerRooms/${roomId}`);
+      const seat = room?.seatUids?.indexOf(guest.uid) ?? -1;
+      if (seat < 0 || room.hostUid === guest.uid) throw new Error('客人座位不存在或已成為房主');
+      if ((await readDoc(`pokerPlayers/${guest.uid}`))?.bank <= 0) throw new Error('暫離截圖前帳戶已歸零');
+      const setVisible = visible => guest.page.evaluate(v => {
+        Object.defineProperty(document, 'hidden', { configurable: true, get: () => !v });
+        Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => v ? 'visible' : 'hidden' });
+        document.dispatchEvent(new Event('visibilitychange'));
+      }, visible);
+      await setVisible(false);
+      try {
+        const away = await waitFor(async () => {
+          const current = await readDoc(`pokerRooms/${roomId}`, AbortSignal.timeout(5000));
+          return current?.pub?.away?.[seat] && current;
+        }, 100000);
+        if (!away) throw new Error('100 秒內房主未依心跳標記暫離');
+        // 自己的座位不畫暫離標籤（hero 走 #meRoot）。保持 hidden 以免心跳恢復後標籤被清掉。
+        // 60 秒等待期間可能已開下一手並發牌給尚未被標暫離的客人，之後被自動蓋牌，
+        // 產品在 folded 時優先顯示「已蓋牌」。等 sittingOut 寫入後先打完該手，再新開一手（暫離者不發牌、folded=false），才看得到「暫離」。
+        const viewer = players.find(p => p.uid === away.hostUid);
+        if (!viewer || viewer === guest) throw new Error('找不到房主觀察頁');
+        const sitting = await waitFor(async () => {
+          const current = await readDoc(`pokerRooms/${roomId}`, AbortSignal.timeout(5000));
+          return current?.pub?.seats?.[seat]?.sittingOut && current;
+        }, 15000);
+        if (!sitting) throw new Error('15 秒內 pub.seats 未出現 sittingOut');
+        const inHand = !['lobby', 'hand_over', '', undefined].includes(sitting.pub?.phase);
+        if (inHand) {
+          const result = await playToShowdown(players, viewer);
+          if (!result.done) throw new Error('暫離後未能完成本手');
+        }
+        const startedAway = await startHand(players);
+        if (!startedAway.ok) throw new Error('暫離後未能開下一手');
+        const tag = await viewer.page.waitForSelector(`#seats [data-seat="${seat}"] .is-away-tag`, { timeout: 15000 }).catch(() => null);
+        if (!tag) {
+          const diag = await viewer.page.evaluate(s => {
+            const el = document.querySelector(`#seats [data-seat="${s}"]`);
+            return { html: el?.outerHTML || null, seats: document.getElementById('seats')?.innerHTML?.slice(0, 800) || null };
+          }, seat);
+          throw new Error(`房主頁未見暫離標籤 ${JSON.stringify(diag)}`);
+        }
+        await guest.page.locator('#mpAddon:not([disabled])').click();
+        await guest.page.waitForSelector('#mpBuyinPicker', { timeout: 5000 });
+        await capture(viewer, prefix, 'away-addon');
+        const cancelPicker = guest.page.locator('#mpBuyinPicker [data-cancel]');
+        if (await cancelPicker.isVisible()) await cancelPicker.click();
+      } finally {
+        await setVisible(true);
+      }
+    }, 240000).catch(e => { log('暫離截圖失敗', e.message); });
     await run('帳戶不足截圖', async () => {
       // 開著選擇器等帳戶即時數字到 0，確保前台已收到 setBank。
       await guest.page.locator('#mpAddon:not([disabled])').click();
