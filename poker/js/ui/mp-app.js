@@ -56,6 +56,7 @@ import {
   nightKeyOf,
   readCachedPlayer,
   cachePlayer,
+  listenLeaderboard,
 } from '../net/ledger.js';
 import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
@@ -139,6 +140,18 @@ function watchSelfPlayer(fb, uid) {
 }
 function stopWatchSelfPlayer() {
   stopSelfPlayer?.(); stopSelfPlayer = null; selfPlayerUid = null; playerFresh = false;
+  stopLeaders?.(); stopLeaders = null;
+}
+let stopLeaders = null;
+/** 大廳「戰績」前 3 名即時更新（跟頂欄帳戶同一份伺服器資料；排序跟著變） */
+function watchLeaderboard(fb) {
+  if (!fb || stopLeaders || typeof fb.fs?.onSnapshot !== 'function') return;
+  stopLeaders = listenLeaderboard(fb, 3, (rows) => {
+    const key = (list) => list.map((r) => `${r.uid}:${r.total}:${r.displayName}`).join('|');
+    if (key(rows) === key(leaderPreview || [])) return;
+    leaderPreview = rows;
+    if (screen === 'lobby') paint();
+  }, (e) => console.warn('[mp] leaderboard', e));
 }
 function accountText() {
   return playerFresh && playerDoc ? fmtChips(Number(playerDoc.bank) || 0) : '—';
@@ -1062,6 +1075,7 @@ export async function startMpApp() {
         playerDoc = readCachedPlayer(ev.user.uid);
       }
       watchSelfPlayer(getFirebase(), ev.user.uid);
+      watchLeaderboard(getFirebase());
       // Resolve closed bindings before the first lobby paint.
       if (playerDoc?.tableRoomId || playerDoc?.hostRoomId) {
         await silentlySettleClosedBinding();

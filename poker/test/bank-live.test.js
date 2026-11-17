@@ -69,3 +69,23 @@ test('管理頁用獨立 Firebase app，登入狀態不跟大廳共用', () => {
   assert.match(load, /initializeApp\(firebaseConfig, name\)/);
   assert.match(load, /getApps\(\)\.length \? getApp\(\) : initializeApp\(firebaseConfig\)/, '未指定 appName 時行為不變');
 });
+
+test('戰績前 3 名即時監聽：依 total 排序、資料變就重畫', () => {
+  const ledger = readFileSync(new URL('../js/net/ledger.js', import.meta.url), 'utf8');
+  const src = cut(ledger, 'export function listenLeaderboard(', '\nexport async function fetchNightBoard(').replace('export ', '');
+  let cb, q;
+  const ctx = vm.createContext({});
+  vm.runInContext(src, ctx);
+  const fs = { collection: () => 'c', orderBy: (f, d) => `${f} ${d}`, limit: (n) => `limit ${n}`, query: (...a) => (q = a),
+    onSnapshot: (_q, fn) => { cb = fn; return () => {}; } };
+  let rows = null;
+  ctx.listenLeaderboard({ db: {}, fs }, 3, (r) => { rows = r; });
+  assert.deepEqual(q, ['c', 'total desc', 'limit 3']);
+  const snap = (list, meta = {}) => ({ metadata: meta, docs: list.map(([id, total]) => ({ id, data: () => ({ total }) })) });
+  cb(snap([['a', 1]], { fromCache: true }));
+  assert.equal(rows, null, '本機快取不算');
+  cb(snap([['b', 5000], ['a', 4500]]));
+  assert.deepEqual(rows.map((r) => r.uid), ['b', 'a']);
+  assert.match(mp, /watchLeaderboard\(getFirebase\(\)\)/);
+  assert.match(mp, /stopLeaders\?\.\(\)/);
+});

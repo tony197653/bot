@@ -495,6 +495,16 @@ export async function fetchLeaderboard(fb, limit = 50) {
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
 }
 
+/** 戰績名單即時監聽（依 total 排序；規則 list 需 limit ≤ 50）。回傳取消監聽。 */
+export function listenLeaderboard(fb, limit, onRows, onError) {
+  const { db, fs } = fb;
+  const q = fs.query(fs.collection(db, 'pokerPlayers'), fs.orderBy('total', 'desc'), fs.limit(limit));
+  return fs.onSnapshot(q, (snap) => {
+    if (snap.metadata?.fromCache) return;
+    onRows(snap.docs.map((d) => ({ uid: d.id, ...d.data() })));
+  }, onError);
+}
+
 export async function fetchNightBoard(fb, nightKey, limit = 50) {
   const { db, fs } = fb;
   const q = fs.query(
