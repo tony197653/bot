@@ -392,9 +392,41 @@ const LOBBY_BANK = '#mpBAcc';
 const numberOf = text => Number(String(text).replace(/[^\d-]/g, ''));
 async function lobbyBank(page) {
   const el = page.locator(LOBBY_BANK);
-  if (!(await el.count())) return null;
+  // 牌桌只隱藏 #mpRoot，舊大廳 DOM 仍在；不可讀取隱藏的舊帳戶值。
+  if (!(await el.isVisible())) return null;
   const text = (await el.innerText()).trim();
   return /^\d[\d,]*$/.test(text) ? numberOf(text) : null;
+}
+async function waitForLobby(page) {
+  await page.locator('#mpRoot .mp-lobby').waitFor({ state: 'visible', timeout: 15000 });
+  await page.locator(LOBBY_BANK).waitFor({ state: 'visible', timeout: 15000 });
+  await page.locator('#mpLeaveConfirm').waitFor({ state: 'hidden', timeout: 10000 });
+}
+async function openLobbyStats(page) {
+  await waitForLobby(page);
+  const menu = page.locator('#mpRoot .mp-lobby #mpMenuBtn');
+  try {
+    await menu.waitFor({ state: 'visible', timeout: 10000 });
+    // trial 保留 Playwright 的可見、穩定、啟用與接收點擊檢查；不用 force。
+    await menu.click({ trial: true, timeout: 10000 });
+    await menu.click({ timeout: 10000 });
+    await page.locator('#mpMenu:not([hidden]) [data-act="stats"]').click({ timeout: 10000 });
+  } catch (error) {
+    const state = await page.evaluate(() => {
+      const btn = document.getElementById('mpMenuBtn');
+      const rect = btn?.getBoundingClientRect();
+      const hit = rect && document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      return {
+        rootHidden: document.getElementById('mpRoot')?.hidden,
+        menuExpanded: btn?.getAttribute('aria-expanded'),
+        hit: hit && { tag: hit.tagName, id: hit.id, className: hit.className },
+        dialogs: [...document.querySelectorAll('[role="dialog"]')]
+          .filter(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden')
+          .map(el => ({ id: el.id, text: el.textContent?.trim().slice(0, 200) })),
+      };
+    });
+    throw new Error(`大廳戰績入口無法操作；若被產品元素持續遮擋，可能是產品 bug：${JSON.stringify(state)}；${error}`);
+  }
 }
 async function shot(page, name) {
   await page.screenshot({ path: join(ART, name), fullPage: true });
@@ -497,18 +529,18 @@ async function main() {
     }, 35000);
     await step('客人回大廳核對帳戶', async () => {
       await guest.page.bringToFront();
-      if (!(await guest.page.locator(LOBBY_BANK).count())) {
+      if (!(await guest.page.locator('#mpRoot .mp-lobby').isVisible())) {
         await guest.page.locator('#btnBackLobby').click();
         // 離座後仍是旁觀者；現行回大廳入口一律顯示離開確認。
         await guest.page.locator('#mpLeaveConfirmOk').click();
       }
+      await waitForLobby(guest.page);
       const updated = await waitFor(async () => (await lobbyBank(guest.page)) === settled.bank, 15000);
       ok('大廳帳戶＝pokerPlayers.bank', updated, { expected: settled.bank, shown: await lobbyBank(guest.page) });
       await shot(guest.page, '390-reg-lobby.png');
     }, 25000);
     await step('戰績畫面與當晚 buyIn 核對', async () => {
-      await guest.page.locator('#mpMenuBtn').click();
-      await guest.page.locator('#mpMenu [data-act="stats"]').click();
+      await openLobbyStats(guest.page);
       await guest.page.locator('.mp-stats [data-mode="night"]').click();
       const path = `pokerPlayers/${guest.uid}/nights/${sess.nightKey}`;
       const night = await waitFor(async () => readDoc(path), 15000);
@@ -524,7 +556,7 @@ async function main() {
       // stats.js 的每晚頁僅顯示淨輸贏；buyIn 依同一來源文件核對，不虛稱 UI 有買入欄。
       await shot(guest.page, '390-reg-stats.png');
       await guest.page.locator('.mp-stats [data-act="back"]').first().click();
-      await guest.page.waitForSelector(LOBBY_BANK);
+      await waitForLobby(guest.page);
     }, 40000);
     await step('管理頁實際補碼 500 與前台即時同步', async () => {
       // admin.js:46–62：本機假 Google 憑證，預設 ADMIN_EMAIL、verified、google.com。
