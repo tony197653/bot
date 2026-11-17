@@ -3096,13 +3096,12 @@ function pickBuyinAmount(options) {
   el.setAttribute('aria-labelledby', 'mpBuyinTitle');
   el.innerHTML = `<div class="mp-close-result-card">
     <h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>
-    <p class="mp-acct mp-acct-bank">帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b></p>
+    <p class="mp-acct mp-acct-bank${options.minHint ? ' mp-min-hint-row' : ''}">${options.minHint ? '<span>' : ''}帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b>${options.minHint ? '</span><span class="mp-min-hint" data-min-hint role="status"></span>' : ''}</p>
     <div class="mp-buyin-step">
       <button type="button" data-minus aria-label="減少 500">−</button>
       <input aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">
       <button type="button" data-plus aria-label="增加 500">＋</button>
     </div>
-    ${options.minHint ? '<p class="mp-acct" data-min-hint role="status" hidden></p>' : ''}
     <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="1" value="${options.amount}">
     <p class="mp-err" data-error role="status" hidden></p>
     ${options.hint ? `<p class="mp-acct">${options.hint}</p>` : ''}
@@ -3117,7 +3116,8 @@ function pickBuyinAmount(options) {
   const error = el.querySelector('[data-error]');
   const bankEl = el.querySelector('#mpBuyinBank');
   const minHint = options.minHint ? el.querySelector('[data-min-hint]') : null;
-  const clearMinHint = () => { if (minHint) minHint.hidden = true; };
+  if (minHint) minHint.textContent = options.minHint;
+  const clearMinHint = () => minHint?.classList.remove('is-visible');
   const value = () => Number(number.value.replaceAll(',', ''));
   const paintRemaining = () => {
     if (!bankEl || !Number.isFinite(options.bank)) return;
@@ -3135,8 +3135,7 @@ function pickBuyinAmount(options) {
     el.querySelector(selector).addEventListener('click', () => {
       if (direction < 0 && value() === options.min && minHint) {
         error.hidden = true;
-        minHint.textContent = options.minHint;
-        minHint.hidden = false;
+        minHint.classList.add('is-visible');
         return;
       }
       setAmount(stepBuyinAmount(value(), direction, options.min, options.max));

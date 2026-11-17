@@ -12,7 +12,11 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
     value, checked: Number(value.split('/')[0]) === sb, attrs: {},
     setAttribute(k, v) { this.attrs[k] = v; },
   }));
-  const minus = { addEventListener(_type, fn) { this.click = fn; } }, plus = { addEventListener(_type, fn) { this.click = fn; } }, hint = {}, minHint = {};
+  const minus = { addEventListener(_type, fn) { this.click = fn; } }, plus = { addEventListener(_type, fn) { this.click = fn; } }, hint = {};
+  const hintClasses = new Set();
+  const minHint = { classList: {
+    add: name => hintClasses.add(name), remove: name => hintClasses.delete(name), contains: name => hintClasses.has(name),
+  } };
   const bankEl = { textContent: '', dataset: {} };
   const input = { value: chips, addEventListener(type, fn) { this[type] = fn; } }, error = {}, button = { addEventListener() {}, focus() {} }, cancel = {};
   const form = {
@@ -139,20 +143,22 @@ test('doCreate 使用重讀 bank：拒絕不足／超額／低於50BB，合法�
 test('R36 開桌最低提示與帳戶、標籤順序', () => {
   const h = formHarness({ bank: 8000, sb: 5, chips: 500 });
   try {
-    assert.ok(h.root.innerHTML.indexOf('id="mpCreateBank"') < h.root.innerHTML.indexOf('<span>攜入籌碼</span>'));
-    assert.match(h.root.innerHTML, /<label class="mp-create-chips-field"><span>攜入籌碼<\/span>\s*<input name="chips"/);
-    assert.match(h.root.innerHTML, /class="mp-acct" id="mpCreateMinHint" role="status" hidden/);
+    const labelRow = /<span class="mp-min-hint-row"><label for="mpCreateChips">攜入籌碼<\/label><span class="mp-min-hint" id="mpCreateMinHint" role="status">已是最低攜入（50 大盲）<\/span><\/span>\s*<input name="chips"/;
+    assert.match(h.root.innerHTML, labelRow);
+    assert.ok(h.root.innerHTML.indexOf('id="mpCreateBank"') < h.root.innerHTML.search(labelRow));
+    // is-visible 只切換 CSS visibility，提示在標籤行內持續佔位。
+    const hintVisible = () => h.minHint.classList.contains('is-visible');
+    assert.equal(hintVisible(), false);
     h.minus.click();
     assert.equal(chipsOf(h.input.value), 500);
-    assert.equal(h.minHint.textContent, '已是最低攜入（50 大盲）');
-    assert.equal(h.minHint.hidden, false);
+    assert.equal(hintVisible(), true);
     assert.equal(h.error.hidden, true);
-    h.plus.click(); assert.equal(h.minHint.hidden, true);
+    h.plus.click(); assert.equal(hintVisible(), false);
     h.input.value = 500; h.change('chips'); h.minus.click();
-    h.change('chips'); assert.equal(h.minHint.hidden, true);
+    h.change('chips'); assert.equal(hintVisible(), false);
     h.minus.click(); h.radios.forEach(r => { r.checked = r.value === '10/20'; });
-    h.change('blinds'); assert.equal(h.minHint.hidden, true);
-    h.minus.click(); assert.equal(h.minHint.textContent, '已是最低攜入（50 大盲）');
+    h.change('blinds'); assert.equal(hintVisible(), false);
+    h.minus.click(); assert.equal(hintVisible(), true);
     assert.equal(chipsOf(h.input.value), 1000);
   } finally { h.restore(); }
 });
@@ -188,7 +194,6 @@ test('R38 開桌 ±：500→1,000→1,300，帳戶剩餘跟著變，− 回到�
     h.minus.click(); assert.equal(chipsOf(h.input.value), 500); assert.equal(h.bankEl.textContent, '800');
     h.minus.click();
     assert.equal(chipsOf(h.input.value), 500);
-    assert.equal(h.minHint.textContent, '已是最低攜入（50 大盲）');
-    assert.equal(h.minHint.hidden, false);
+    assert.equal(h.minHint.classList.contains('is-visible'), true);
   } finally { h.restore(); }
 });

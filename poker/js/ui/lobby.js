@@ -735,10 +735,11 @@ export function renderCreateRoom(root, vm) {
           <span class="mp-acct mp-acct-row mp-acct-bank">帳戶 <b id="mpCreateBank"${bank == null ? "" : ` data-bank="${bank}"`}>${bank == null || remainingBank(bank, defaults.chips) == null ? bankText : fmtChips(remainingBank(bank, defaults.chips))}</b></span>
           <div class="mp-affix-row">
             <button type="button" data-chips-minus aria-label="減少 500">−</button>
-            <label class="mp-create-chips-field"><span>攜入籌碼</span>
-            <input name="chips" id="mpCreateChips" type="text" inputmode="numeric" min="${50 * defaults.sb * 2}" max="100000" step="1" value="${fmtChips(defaults.chips)}" aria-describedby="${chipsHintId} mpCreateMinHint mpCreateLiveErr"></label>
+            <div class="mp-create-chips-field">
+              <span class="mp-min-hint-row"><label for="mpCreateChips">攜入籌碼</label><span class="mp-min-hint" id="mpCreateMinHint" role="status">已是最低攜入（50 大盲）</span></span>
+              <input name="chips" id="mpCreateChips" type="text" inputmode="numeric" min="${50 * defaults.sb * 2}" max="100000" step="1" value="${fmtChips(defaults.chips)}" aria-describedby="${chipsHintId} mpCreateLiveErr">
+            </div>
           <button type="button" data-chips-plus aria-label="增加 500">＋</button></div>
-          <p class="mp-acct" id="mpCreateMinHint" role="status" hidden></p>
           <small id="${chipsHintId}">入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。${fmtChips(50 * defaults.sb * 2)}–100,000。按 ± 每次增減 500。</small>
           <p class="mp-err" id="mpCreateLiveErr" role="status" ${error ? '' : 'hidden'}>${esc(error || '')}</p>
         </div>
@@ -774,10 +775,7 @@ export function renderCreateRoom(root, vm) {
       const atMinimum = direction < 0 && chipsValue() === minimum;
       if (!atMinimum) chipsIn.value = fmtChips(stepBuyinAmount(chipsValue(), direction, minimum, Math.min(100000, bank ?? 100000)));
       update(false);
-      if (atMinimum && minHint) {
-        minHint.textContent = '已是最低攜入（50 大盲）';
-        minHint.hidden = false;
-      }
+      if (atMinimum) minHint?.classList.add('is-visible');
     });
   }
   chipsIn?.addEventListener('blur', () => { if (Number.isSafeInteger(chipsValue())) chipsIn.value = fmtChips(chipsValue()); });
@@ -822,7 +820,7 @@ export function renderCreateRoom(root, vm) {
     return !msg;
   };
   const update = (adjust) => {
-    if (minHint) minHint.hidden = true;
+    minHint?.classList.remove('is-visible');
     submitError = '';
     validateChips(adjust);
     paintRemaining();

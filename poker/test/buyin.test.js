@@ -249,7 +249,7 @@ test('舊房主審核補碼流程與排行榜欄位移除，開桌文案正確',
     assert.doesNotMatch(text, /TOPUP_REQ|TOPUP_CANCEL|approveTopUp|denyTopUp|mpTopup/);
   }
   const lobby = readFileSync(new URL('../js/ui/lobby.js', import.meta.url), 'utf8');
-  assert.match(lobby, /<span>攜入籌碼<\/span>/);
+  assert.match(lobby, /<label for="mpCreateChips">攜入籌碼<\/label>/);
   assert.match(lobby, /入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。/);
   assert.doesNotMatch(lobby, /<em>送<\/em>|<em>籌碼<\/em>|補碼 2,000/);
   assert.doesNotMatch(readFileSync(new URL('../js/ui/stats.js', import.meta.url),'utf8'), /<th>補碼/);
@@ -431,8 +431,11 @@ test('R32b 選額面板 Esc 取消、焦點復原、尾數全加與中文錯誤'
 test('R36 補碼最低行內提示由 minHint 啟用，入座維持原行為', async () => {
   for (const minHint of ['已是最低補碼（1 大盲）', undefined]) {
     const nodes = new Map();
+    const hintClasses = new Set();
+    const hintVisible = () => hintClasses.has('is-visible');
     const node = key => {
       if (!nodes.has(key)) nodes.set(key, { value: '20', hidden: true,
+        classList: { add: name => hintClasses.add(name), remove: name => hintClasses.delete(name) },
         addEventListener(type, fn) { this[type] = fn; }, focus() {} });
       return nodes.get(key);
     };
@@ -441,20 +444,23 @@ test('R36 補碼最低行內提示由 minHint 啟用，入座維持原行為', a
       document: { createElement: () => el, body: { appendChild() {}, classList: { add() {}, remove() {} } } } });
     vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('), source.indexOf('function addonButtonsHtml(')), ctx);
     const pending = ctx.pickBuyinAmount({ min: 20, max: 2000, step: 1, amount: 20, minHint });
+    // is-visible 只切換 CSS visibility，提示在帳戶行內持續佔位。
+    assert.equal(hintVisible(), false);
     node('[data-minus]').click();
     assert.equal(node('input[type="text"]').value, '20');
     assert.doesNotMatch(el.innerHTML, /已是最低攜入/);
     if (minHint) {
-      assert.match(el.innerHTML, /class="mp-acct" data-min-hint role="status" hidden/);
+      assert.match(el.innerHTML, /<p class="mp-acct mp-acct-bank mp-min-hint-row"><span>帳戶 <b id="mpBuyinBank"[^>]*>[^<]*<\/b><\/span><span class="mp-min-hint" data-min-hint role="status"><\/span><\/p>\s*<div class="mp-buyin-step">/);
       assert.equal(node('[data-min-hint]').textContent, minHint);
-      assert.equal(node('[data-min-hint]').hidden, false);
-      node('[data-plus]').click(); assert.equal(node('[data-min-hint]').hidden, true);
+      assert.equal(hintVisible(), true);
+      node('[data-plus]').click(); assert.equal(hintVisible(), false);
       node('input[type="text"]').value = '20'; node('[data-minus]').click();
-      node('input[type="text"]').input(); assert.equal(node('[data-min-hint]').hidden, true);
+      node('input[type="text"]').input(); assert.equal(hintVisible(), false);
       node('[data-minus]').click(); node('input[type="range"]').value = '100';
-      node('input[type="range"]').input(); assert.equal(node('[data-min-hint]').hidden, true);
+      node('input[type="range"]').input(); assert.equal(hintVisible(), false);
     } else {
-      assert.doesNotMatch(el.innerHTML, /data-min-hint/);
+      assert.match(el.innerHTML, /<p class="mp-acct mp-acct-bank">帳戶 /);
+      assert.doesNotMatch(el.innerHTML, /data-min-hint|mp-min-hint-row/);
       assert.equal(nodes.has('[data-min-hint]'), false);
     }
     node('[data-cancel]').click(); assert.equal(await pending, null);
