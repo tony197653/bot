@@ -317,6 +317,74 @@ export async function hostCloseAllBatch(fb, { hostUid, roomId, room, displayName
   return { skipped: false, room: { ...room, ...roomPatch } };
 }
 
+/** 同一玩家的排隊加碼原子入帳；交易重讀可保留同時新增的排隊及取消。 */
+export async function hostAddonBatch(fb, { hostUid, roomId, playerUid }) {
+  const { db, fs } = fb;
+  return fs.runTransaction(db, async (tx) => {
+    const rref = fs.doc(db, 'pokerRooms', roomId);
+    const qref = fs.doc(db, 'pokerRooms', roomId, 'addons', playerUid);
+    const pref = fs.doc(db, 'pokerPlayers', playerUid);
+    const [rs, qs, ps] = await Promise.all([tx.get(rref), tx.get(qref), tx.get(pref)]);
+    const room = rs.data();
+    const queue = qs.data();
+    const items = queue?.items || [];
+    if (!items.length) return { skipped: true };
+    if (!room || room.status === 'closed' || room.hostUid !== hostUid ||
+        !['lobby', 'hand_over'].includes(room.pub?.phase)) {
+      throw new Error('尚未到加碼時間');
+    }
+    const seat = room.seatUids.indexOf(playerUid);
+    const p = ps.data();
+    if (seat < 0 || !p || p.tableRoomId !== roomId ||
+        p.sessionNo !== room.sess[seat]?.sessionNo) {
+      tx.update(qref, { items: [] });
+      return { skipped: true };
+    }
+    const ids = items.map(item => item.id);
+    const bb = room.config?.bb;
+    if (!Number.isSafeInteger(bb) || bb <= 0 || items.length > 20 ||
+        new Set(ids).size !== ids.length || items.some(item =>
+          typeof item.id !== 'string' || !item.id || item.id.includes('/') ||
+          !Number.isSafeInteger(item.amount) || item.amount < bb)) {
+      throw new Error('加碼資料無效');
+    }
+    const refs = ids.map(id => fs.doc(db, 'pokerPlayers', playerUid, 'ledger',
+      `${roomId}_${p.sessionNo}_addon_${id}`));
+    const entries = await Promise.all(refs.map(ref => tx.get(ref)));
+    // 已存在的帳本絕不覆寫或再次扣款。
+    const pending = items.filter((item, i) => !entries[i].exists());
+    const amount = pending.reduce((sum, item) => sum + item.amount, 0);
+    if (!Number.isSafeInteger(amount)) throw new Error('加碼資料無效');
+    if (amount > p.bank) {
+      tx.update(qref, { items: [] });
+      return { rejected: true, message: '帳戶不足，沒有加碼' };
+    }
+    tx.update(qref, { items: [] });
+    if (!pending.length) return { skipped: true };
+    const stacks = [...room.stacks];
+    stacks[seat] += amount;
+    const sess = room.sess.map(row => row && { ...row });
+    sess[seat].topUps += pending.length;
+    sess[seat].topUpChips += amount;
+    const event = { type: 'addon', seat, uid: playerUid, amount, ids: pending.map(item => item.id) };
+    const patch = { stacks, sess, chipTotal: room.chipTotal + amount,
+      rev: room.rev + 1, lastMoneyEvent: event, updatedAt: fs.serverTimestamp() };
+    tx.update(rref, patch);
+    tx.update(pref, { bank: p.bank - amount, inPlay: p.inPlay + amount,
+      updatedAt: fs.serverTimestamp() });
+    let bankAfter = p.bank;
+    items.forEach((item, i) => {
+      if (entries[i].exists()) return;
+      bankAfter -= item.amount;
+      tx.set(refs[i], { type: 'addon', amount: item.amount, roomId,
+        sessionNo: p.sessionNo, seat, buyIn: null, topUps: null,
+        topUpChips: null, hands: null, nightKey: null, bankAfter,
+        by: hostUid, at: fs.serverTimestamp() });
+    });
+    return { amount, seat, items: pending, room: { ...room, ...patch } };
+  });
+}
+
 /**
  * After a room is closed (or missing): move this player's table chips back to
  * bank. Idempotent via fixed ledger id — safe to call from close dialog, 回大廳,
