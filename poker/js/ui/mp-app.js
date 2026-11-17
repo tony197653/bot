@@ -3105,7 +3105,7 @@ function addonButtonsHtml(enabled) {
   const queued = queuedTotal(myAddonQueue);
   const add = `<button type="button" class="ghost" id="mpAddon" ${enabled && !addonBusy ? '' : 'disabled'}>加碼</button>`;
   return queued
-    ? `${add}<button type="button" class="ghost" id="mpAddonCancel" ${addonBusy ? 'disabled' : ''}>取消加碼 ${fmtChips(queued)}</button>`
+    ? `${add}<button type="button" class="ghost" id="mpAddonCancel" aria-label="取消加碼 ${fmtChips(queued)}" ${addonBusy ? 'disabled' : ''}>取消 ${fmtChips(queued)}</button>`
     : add;
 }
 
@@ -3161,8 +3161,8 @@ async function cancelAddon() {
   addonBusy = true;
   paintTableChrome();
   try {
-    await cancelAddons(fb, { uid: user.uid, roomId });
-    toast('已取消加碼，帳戶沒有扣');
+    const r = await cancelAddons(fb, { uid: user.uid, roomId });
+    toast(r?.cancelled ? '已取消加碼，帳戶沒有扣' : '已上桌，不能取消');
   } catch (e) {
     toast(friendlyError(e, '取消沒送出去，請再按一次'));
   } finally {

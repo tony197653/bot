@@ -25,4 +25,7 @@ test('多筆排隊累加、seq 遞增；一顆鈕全部取消', async () => {
   assert.equal(queuedTotal(q), 300);
   await cancelAddons(fb, { uid: 'u', roomId: 'r' });
   assert.deepEqual(data.get('pokerRooms/r/addons/u'), { items: [], seq: 3, at: 'TS' });
+  // 房主已處理（清空）後再按取消：不寫入、回報不能取消
+  assert.equal((await cancelAddons(fb, { uid: 'u', roomId: 'r' })).cancelled, false);
+  assert.equal(data.get('pokerRooms/r/addons/u').seq, 3);
 });

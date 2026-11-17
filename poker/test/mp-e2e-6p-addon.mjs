@@ -138,39 +138,25 @@ async function createAndShare(host) {
 
 async function joinViaLink(browser, base, name, uid, roomId, code) {
   const path = `/poker/?emu=1&room=${encodeURIComponent(code)}&r=${encodeURIComponent(roomId)}`;
-  const ctx = await browser.newContext({
-    viewport: VP,
-    deviceScaleFactor: 1,
-    isMobile: true,
-    hasTouch: true,
-  });
+  const ctx = await browser.newContext({ viewport: VP, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   await ctx.addInitScript(ALWAYS_VISIBLE);
   await ctx.route('**/*', blockProd);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
-    timeout: 20000,
-  });
+  await page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, { timeout: 20000 });
   await page.evaluate(([u, n]) => window.__qaSignIn(u, n), [uid, name]);
-  await page.waitForSelector('#seats, .mp-lobby, .mp-ended', { timeout: 20000 }).catch(() => {});
-  await page.waitForTimeout(2500);
-  const cont = page.locator('[data-act="continue"], [data-act="enter"]');
-  if (await cont.count()) {
-    await cont.first().click().catch(() => {});
-    await page.waitForTimeout(2000);
+  // 等條件成立：看到空位／離座就好；若停在加入／繼續畫面就按，最多 20 秒，不寫死等待。
+  const READY = '#seats .mp-empty-seat, #mpLeave';
+  const GATE = '[data-act="continue"], [data-act="enter"], [data-act="join"]';
+  const end = Date.now() + 20000;
+  while (Date.now() < end) {
+    if (await page.locator(READY).count()) break;
+    const gate = page.locator(GATE);
+    if (await gate.count()) await gate.first().click().catch(() => {});
+    await page.waitForSelector(`${READY}, ${GATE}`, { state: 'attached', timeout: 1500 }).catch(() => {});
   }
-  // Retry join if still on join/lobby with code error
-  for (let i = 0; i < 3; i++) {
-    if (await page.locator('#seats .mp-empty-seat, #mpLeave, #mpStart').count()) break;
-    const joinBtn = page.locator('[data-act="join"], button:has-text("加入")');
-    if (await joinBtn.count()) {
-      await joinBtn.first().click().catch(() => {});
-      await page.waitForTimeout(2000);
-    } else break;
-  }
-  await page.waitForSelector('#seats, #mpLeave', { timeout: 15000 }).catch(() => {});
   return { ctx, page, name, uid, errors };
 }
 
@@ -360,8 +346,20 @@ async function waitFor(fn, ms = 15000) {
 }
 async function queueAddonUI(p, hostP) {
   await p.page.bringToFront();
-  await p.page.locator('#mpAddon:not([disabled])').click();
-  await p.page.waitForSelector('#mpBuyinPicker', { timeout: 5000 });
+  const btn = await p.page.waitForSelector('#mpAddon:not([disabled])', { timeout: 8000 }).catch(() => null);
+  if (!btn) {
+    log('加碼鈕不可按', p.name, JSON.stringify(await p.page.evaluate(() => ({
+      bar: document.getElementById('mpAddon')?.closest('div')?.innerHTML?.slice(0, 400) ?? null,
+      addon: document.getElementById('mpAddon')?.outerHTML ?? null,
+      body: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300) }))), 'toasts', JSON.stringify(await toasts(p)));
+    throw new Error('加碼鈕不可按');
+  }
+  await btn.click();
+  const pk = await p.page.waitForSelector('#mpBuyinPicker', { timeout: 5000 }).catch(() => null);
+  if (!pk) {
+    log('picker 沒出現', p.name, 'toasts', JSON.stringify(await toasts(p)), 'bank(db)', (await readDoc(`pokerPlayers/${p.uid}`))?.bank);
+    throw new Error('加碼選擇器沒出現');
+  }
   const dflt = Number(await p.page.locator('#mpBuyinPicker input[type="number"]').inputValue());
   await p.page.locator('#mpBuyinPicker [data-confirm]').click();
   await p.page.waitForSelector('#mpAddonCancel', { timeout: 8000 });
@@ -388,47 +386,52 @@ async function main() {
       guests.push(g);
     }
     const players = [host, ...guests];
+    // QA 登入的 uid 只是信箱提示（hostadd@test.local），實際 uid 是 auth emulator 產生的 localId。
+    const AUTH = process.env.FIREBASE_AUTH_EMULATOR_HOST;
+    const acc = await (await fetch(`http://${AUTH}/identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts:query`, {
+      method: 'POST', headers: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' }, body: '{}' })).json();
+    const byEmail = Object.fromEntries((acc.userInfo || []).map(u => [u.email, u.localId]));
+    for (const p of players) {
+      const real = byEmail[`${p.uid}@test.local`];
+      log('uid', p.name, 'hint', p.uid, '→ 實際', real, '讀取路徑', `pokerPlayers/${real}`);
+      p.uid = real;
+    }
+    // 新玩家送 2,000 全攜入後帳戶是 0；測試前用 emulator owner 給每人帳戶 8,000（只寫本機 emulator）。
+    if (!process.env.NO_SEED) for (const p of players) {
+      const r = await fetch(`http://${EMU}/v1/projects/${PROJECT}/databases/(default)/documents/pokerPlayers/${p.uid}?updateMask.fieldPaths=bank`, {
+        method: 'PATCH', headers: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: { bank: { integerValue: '8000' } } }) });
+      log('seed bank', p.name, r.status);
+    }
+    await sleep(800);
     R.seatedN = await waitFor(async () => { const n = await occupiedFromHost(host.page); return n >= 6 && n; }, 20000);
     const room0 = await readDoc(`pokerRooms/${roomId}`);
     const bb = room0.config.bb;
     const g1 = guests[0], g2 = guests[1], g3 = guests[2];
     const seatOf = (room, p) => room.seatUids.indexOf(p.uid);
 
-    // 情境 1＋5（兩手之間）：大雄加碼；靜香加碼後取消
+    // 情境 1（兩手之間）：大雄加碼，房主在開下一手前處理
     await host.page.screenshot({ path: join(ART, '390-between-lobby.png') });
-    const bank1 = (await readDoc(`pokerPlayers/${g1.uid}`)).bank;
-    const d1 = await step('addon g1', () => queueAddonUI(g1, host), 30000);
-    ok('預設 50 大盲（帳戶不足就全部）', d1 === Math.min(50 * bb, bank1), { d1, bb, bank1 });
-    await g1.page.screenshot({ path: join(ART, '390-queued.png') });
-    const bank2 = (await readDoc(`pokerPlayers/${g2.uid}`)).bank;
-    await step('addon g2', () => queueAddonUI(g2, host), 30000);
-    await g2.page.bringToFront();
-    await g2.page.locator('#mpAddonCancel').click();
-    await g2.page.waitForSelector('#mpAddonCancel', { state: 'detached', timeout: 8000 });
-    const q2 = await readDoc(`pokerRooms/${roomId}/addons/${g2.uid}`);
-    ok('情境5 取消後排隊清空', q2 && q2.items.length === 0, q2);
-
-    // 開第一手：起手籌碼含加碼、全桌看到訊息、取消者不扣
     const before = await readDoc(`pokerRooms/${roomId}`);
     const s1 = seatOf(before, g1);
-    const st = await step('startHand1', () => startHand(players), 90000);
-    R.started1 = st.ok;
-    const after = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return r.lastMoneyEvent?.type === 'addon' && r; }, 15000);
+    const bank1 = (await readDoc(`pokerPlayers/${g1.uid}`)).bank;
+    const total0 = before.chipTotal;
+    const d1 = await step('addon g1', () => queueAddonUI(g1, host), 30000);
+    ok('預設 50 大盲（帳戶不足就全部）', d1 === Math.min(50 * bb, bank1), { d1, bb, bank1 });
+    await g1.page.screenshot({ path: join(ART, '390-queued.png') }).catch(() => {});
+    const after = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return r.lastMoneyEvent?.type === 'addon' && r.lastMoneyEvent.uid === g1.uid && r; }, 15000);
     ok('情境1 加碼上桌（stacks+x）', after && after.stacks[s1] === before.stacks[s1] + d1, { before: before.stacks[s1], after: after?.stacks[s1] });
-    const p1 = await readDoc(`pokerPlayers/${g1.uid}`);
-    ok('情境1 帳戶扣款＝x', p1.bank === bank1 - d1, { bank1, now: p1.bank });
-    ok('情境5 取消者帳戶不扣', (await readDoc(`pokerPlayers/${g2.uid}`)).bank === bank2);
+    ok('情境1 帳戶扣款＝x', (await readDoc(`pokerPlayers/${g1.uid}`)).bank === bank1 - d1);
     await sleep(1500);
     const seen = await Promise.all(players.map(toasts));
-    const msg = `${NAMES[1]} 加碼`;
-    ok('情境1 全桌看到「大雄 加碼」', seen.filter((t, i) => i !== 1 && t.some(x => x.includes(msg))).length === 5, seen.map(t => t.filter(x => x.includes('加碼'))));
+    ok('情境1 全桌看到「大雄 加碼」', seen.filter((t, i) => i !== 1 && t.some(x => x.includes(`${NAMES[1]} 加碼`))).length === 5, seen.map(t => t.filter(x => x.includes('加碼'))));
+    await host.page.screenshot({ path: join(ART, '390-host-after-addon.png') });
 
-    // 情境 3：手中沒蓋牌 → 加碼鈕灰；情境 2：蓋牌後加碼不影響本手
+    const st = await step('startHand1', () => startHand(players), 90000);
+    // 情境 3：手中沒蓋牌 → 加碼鈕灰
     const inHand = await waitFor(async () => (await g3.page.locator('#mpFold').count()) > 0, 10000);
-    const grey = await g3.page.locator('#mpAddon[disabled]').count();
-    ok('情境3 手中沒蓋牌加碼鈕灰', inHand && grey === 1);
+    ok('情境3 手中沒蓋牌加碼鈕灰', inHand && (await g3.page.locator('#mpAddon[disabled]').count()) === 1);
     await g3.page.screenshot({ path: join(ART, '390-inhand-grey.png') });
-    // 等靜香輪到再蓋牌（其他人 check/call）
     let folded = false;
     for (let i = 0; i < 80 && !folded; i++) {
       for (const p of players) {
@@ -440,31 +443,33 @@ async function main() {
       }
       await host.page.bringToFront(); await sleep(400);
     }
-    ok('靜香蓋牌', folded); log('folded', folded);
+    ok('小夫蓋牌', folded); log('folded', folded);
     const midRoom = await readDoc(`pokerRooms/${roomId}`);
     const s3 = seatOf(midRoom, g3);
-    const potBefore = midRoom.pub?.pot ?? null;
-    const enabled = await waitFor(async () => (await g3.page.locator('#mpAddon:not([disabled])').count()) > 0, 8000);
-    ok('情境2 蓋牌後加碼鈕可按', enabled);
     const bank3 = (await readDoc(`pokerPlayers/${g3.uid}`)).bank;
-    const d3 = enabled ? await step('addon g3', () => queueAddonUI(g3, host), 30000) : 0;
+    ok('情境2 蓋牌後加碼鈕可按', await waitFor(async () => (await g3.page.locator('#mpAddon:not([disabled])').count()) > 0, 8000));
+    // 情境 5：手中排隊後取消 → 不扣
+    await step('addon g3 cancel-case', () => queueAddonUI(g3, host), 30000);
+    await g3.page.bringToFront();
+    await g3.page.locator('#mpAddonCancel').click();
+    await g3.page.waitForSelector('#mpAddonCancel', { state: 'detached', timeout: 8000 }).catch(() => {});
+    const q3 = await readDoc(`pokerRooms/${roomId}/addons/${g3.uid}`);
+    ok('情境5 取消後排隊清空、帳戶不扣', q3?.items?.length === 0 && (await readDoc(`pokerPlayers/${g3.uid}`)).bank === bank3, q3);
+    { const t3 = await waitFor(async () => { const t = await toasts(g3); return t.includes('已取消加碼，帳戶沒有扣') && t; }, 3000); ok('情境5 本人看到「已取消加碼」', !!t3, await toasts(g3)); }
+    // 情境 2：再排一筆，本手不動
+    const d3 = await step('addon g3', () => queueAddonUI(g3, host), 30000);
     await g3.page.screenshot({ path: join(ART, '390-folded-queued.png') });
     const midRoom2 = await readDoc(`pokerRooms/${roomId}`);
     ok('情境2 手中排隊不動本手（stacks、底池、帳戶不變）',
-      midRoom2.stacks[s3] === midRoom.stacks[s3] && (midRoom2.pub?.pot ?? null) === potBefore &&
-      (await readDoc(`pokerPlayers/${g3.uid}`)).bank === bank3, { pot: [potBefore, midRoom2.pub?.pot] });
-    const hand = await step('play1', () => playToShowdown(players, st.host), 150000);
-    R.hand1 = hand;
-    // 第二手開始前上桌
-    const ho = await readDoc(`pokerRooms/${roomId}`);
+      midRoom2.stacks[s3] === midRoom.stacks[s3] && JSON.stringify(midRoom2.pub?.pots ?? midRoom2.pub?.pot ?? null) === JSON.stringify(midRoom.pub?.pots ?? midRoom.pub?.pot ?? null) &&
+      (await readDoc(`pokerPlayers/${g3.uid}`)).bank === bank3);
+    R.hand1 = await step('play1', () => playToShowdown(players, st.host), 150000);
+    const after2 = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return (r.sess?.[s3]?.topUpChips || 0) === d3 && r; }, 20000);
+    ok('情境2 這手結束後才上桌（sess.topUpChips＝x）', !!after2, { d3 });
+    ok('情境2 帳戶扣款＝x', (await readDoc(`pokerPlayers/${g3.uid}`)).bank === bank3 - d3);
+    ok('籌碼守恆 chipTotal＝原總額＋所有加碼', after2 && after2.chipTotal === total0 + d1 + d3, { total0, now: after2?.chipTotal });
     const st2 = await step('startHand2', () => startHand(players), 90000);
     R.started2 = st2.ok;
-    const after2 = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return r.lastMoneyEvent?.type === 'addon' && r.lastMoneyEvent.uid === g3.uid && r; }, 15000);
-    ok('情境2 下一手才上桌（hand_over stacks＋x）', after2 && after2.stacks[s3] === ho.stacks[s3] + d3, { ho: ho.stacks[s3], after: after2?.stacks[s3], d3 });
-    ok('情境2 帳戶扣款＝x', (await readDoc(`pokerPlayers/${g3.uid}`)).bank === bank3 - d3);
-    const total = after2 ? after2.stacks.reduce((a, b) => a + b, 0) : -1;
-    ok('chipTotal 與 stacks 合計一致', after2 && after2.chipTotal === total, { chipTotal: after2?.chipTotal, total });
-    await host.page.screenshot({ path: join(ART, '390-host-after-addon.png') });
 
     R.errs = players.flatMap(p => p.errors).filter(e => !/favicon|Fonts|net::ERR_FAILED|AbortError|Failed to load|座位已被佔用/i.test(e)).slice(0, 8);
     R.ok = Object.values(R.checks).every(c => c.ok) && R.errs.length === 0;

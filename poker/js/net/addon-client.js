@@ -30,9 +30,10 @@ export async function cancelAddons(fb, { uid, roomId }) {
   const ref = fs.doc(db, 'pokerRooms', roomId, 'addons', uid);
   return fs.runTransaction(db, async (tx) => {
     const cur = (await tx.get(ref)).data?.() || null;
-    if (!cur?.items?.length) return cur;
+    // 房主已處理（清空）就沒有可取消的：回報 cancelled:false，畫面提示「已上桌，不能取消」。
+    if (!cur?.items?.length) return { cancelled: false };
     const next = { items: [], seq: (cur.seq || 0) + 1, at: fs.serverTimestamp() };
     tx.set(ref, next);
-    return next;
+    return { cancelled: true, ...next };
   });
 }
