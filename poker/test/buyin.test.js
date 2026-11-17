@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, defaultCreateBuyin, stepBuyinAmount } from '../js/net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, defaultCreateBuyin, stepBuyinAmount, remainingBank } from '../js/net/buyin-policy.js';
 import { buyinAll, buyinAmount, ensurePlayerGrant } from '../js/net/ledger.js';
+import { addonOptions, queuedTotal } from '../js/net/addon-client.js';
 import { hostAliveMs } from '../js/net/host-disconnect.js';
 
 const source = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
@@ -125,7 +126,15 @@ test('足額入座先同步提示，再買入並送出 SIT', async () => {
     assertMinimumBuyin, wholeBalance, buyinOptions,
     pickBuyinAmount: options => { events.push('picker'); return options.amount; }, toast: msg => events.push(msg),
     buyinAmount: async (...args) => { events.push(['buyin', args[3]]); },
-    getPlayer: async () => ({ bank: 0, inPlay: 8765, tableRoomId: 'r' }),
+    getPlayer: (function () {
+      let reads = 0;
+      return async () => {
+        reads += 1;
+        return reads === 1
+          ? { bank: 8765, inPlay: 0, tableRoomId: null }
+          : { bank: 0, inPlay: 8765, tableRoomId: 'r' };
+      };
+    })(),
     intents: { send: async intent => events.push([intent.type, intent.seat]) },
     friendlyError: e => e.message,
   });
@@ -181,7 +190,15 @@ test('訪客入座先讀房主 presence：離線阻擋，近期活動或讀取�
       pickBuyinAmount: options => { events.push('picker'); return options.amount; },
       toast: msg => events.push(msg),
       buyinAmount: async () => { events.push('buyin'); },
-      getPlayer: async () => ({ bank: 0, inPlay: 8765, tableRoomId: 'r' }),
+      getPlayer: (function () {
+        let reads = 0;
+        return async () => {
+          reads += 1;
+          return reads === 1
+            ? { bank: 8765, inPlay: 0, tableRoomId: null }
+            : { bank: 0, inPlay: 8765, tableRoomId: 'r' };
+        };
+      })(),
       intents: { send: async intent => events.push(intent.type) },
       hostLoop: { seatPlayer: async () => {} },
       friendlyError: e => e.message,
@@ -339,8 +356,28 @@ test('R32b ±500 與不足 500 的剩餘額、上下限', () => {
   assert.equal(stepBuyinAmount(99500,1,1000,99800),99800);
 });
 
+test('R38 ±：滿額非整數先回到上一檔 500，再按下限停住', () => {
+  // 5/10，帳戶 1,300：500→1,000→1,300，− 反向 1,300→1,000→500
+  assert.equal(stepBuyinAmount(500,1,500,1300),1000);
+  assert.equal(stepBuyinAmount(1000,1,500,1300),1300);
+  assert.equal(stepBuyinAmount(1300,-1,500,1300),1000);
+  assert.equal(stepBuyinAmount(1000,-1,500,1300),500);
+  assert.equal(stepBuyinAmount(500,-1,500,1300),500);
+  // 10/20 最低 1,000：1,000→1,300→1,000
+  assert.equal(stepBuyinAmount(1000,1,1000,1300),1300);
+  assert.equal(stepBuyinAmount(1300,-1,1000,1300),1000);
+  assert.equal(stepBuyinAmount(1000,-1,1000,1300),1000);
+  // 加碼最低 1 大盲（20）：1,300→1,000→500→20
+  assert.equal(stepBuyinAmount(1300,-1,20,1300),1000);
+  assert.equal(stepBuyinAmount(500,-1,20,1300),20);
+  assert.equal(remainingBank(1300,500),800);
+  assert.equal(remainingBank(1300,1000),300);
+  assert.equal(remainingBank(1300,1300),0);
+  assert.equal(remainingBank(null,1000),null);
+});
+
 test('R32b F3 合計獨立列，四顆動作鈕不含取消；範圍錯誤中文與焦點鍵盤', () => {
-  const ctx=vm.createContext({queuedTotal:q=>q.items.reduce((n,i)=>n+i.amount,0),myAddonQueue:{items:[{amount:1000},{amount:1500}]},fmtChips:n=>n.toLocaleString('en-US'),addonBusy:false});
+  const ctx=vm.createContext({queuedTotal:q=>q.items.reduce((n,i)=>n+i.amount,0),myAddonQueue:{items:[{amount:1000},{amount:1500}]},fmtChips:n=>n.toLocaleString('en-US'),addonBusy:false,addonOptions,playerDoc:{bank:8000},room:{config:{bb:20}}});
   vm.runInContext(source.slice(source.indexOf('function addonButtonsHtml('),source.indexOf('function wireAddonButtons(')),ctx);
   assert.doesNotMatch(ctx.addonButtonsHtml(true),/mpAddonCancel/);
   const bar=source.slice(source.indexOf('function renderActBar('),source.indexOf('function pickBuyinAmount('));
@@ -363,7 +400,7 @@ test('R32b 選額面板 Esc 取消、焦點復原、尾數全加與中文錯誤'
     return nodes.get(key);
   };
   const el = {setAttribute(){},querySelector:node,addEventListener:(type,fn)=>keys[type]=fn,remove:()=>events.push('remove')};
-  const ctx = vm.createContext({fmtChips:n=>n.toLocaleString('en-US'),stepBuyinAmount,toast:()=>events.push('toast'),
+  const ctx = vm.createContext({fmtChips:n=>n.toLocaleString('en-US'),stepBuyinAmount,remainingBank,toast:()=>events.push('toast'),
     document:{activeElement:{focus:()=>events.push('restore')},createElement:()=>el,
       body:{appendChild(){},classList:{add(){},remove(){}}}}});
   vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('),source.indexOf('async function sitDown(')),ctx);
@@ -391,7 +428,7 @@ test('R36 加碼最低行內提示由 minHint 啟用，入座維持原行為', a
       return nodes.get(key);
     };
     const el = { setAttribute() {}, querySelector: node, addEventListener() {}, remove() {} };
-    const ctx = vm.createContext({ fmtChips: n => n.toLocaleString('en-US'), stepBuyinAmount,
+    const ctx = vm.createContext({ fmtChips: n => n.toLocaleString('en-US'), stepBuyinAmount, remainingBank,
       document: { createElement: () => el, body: { appendChild() {}, classList: { add() {}, remove() {} } } } });
     vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('), source.indexOf('function addonButtonsHtml(')), ctx);
     const pending = ctx.pickBuyinAmount({ min: 20, max: 2000, step: 1, amount: 20, minHint });
@@ -414,4 +451,53 @@ test('R36 加碼最低行內提示由 minHint 啟用，入座維持原行為', a
     node('[data-cancel]').click(); assert.equal(await pending, null);
   }
   assert.match(source, /minHint: '已是最低加碼（1 大盲）'/);
+});
+
+for (const state of ['兩手之間', '蓋牌', '暫離', '手中未蓋牌']) {
+  test(`R38 ${state} 帳戶不足一大盲停用並優先提示`, () => {
+    const ctx = vm.createContext({ addonOptions, queuedTotal, playerDoc: { bank: 19 }, room: { config: { bb: 20 } }, myAddonQueue: null, addonBusy: false });
+    vm.runInContext(source.slice(source.indexOf('function addonButtonsHtml('), source.indexOf('function wireAddonButtons(')), ctx);
+    const html = ctx.addonButtonsHtml(state !== '手中未蓋牌');
+    assert.match(html, /帳戶不足 1 大盲/);
+    assert.match(html, /aria-describedby="mpAddonHint" disabled/);
+    assert.doesNotMatch(html, /這手結束後可加碼/);
+    ctx.playerDoc.bank = 1019; ctx.myAddonQueue = { items: [{ amount: 1000 }] };
+    assert.match(ctx.addonButtonsHtml(true), /帳戶不足 1 大盲/);
+  });
+}
+test('R38 取消觸控尺寸與公共牌可及性名稱', () => {
+  const css = readFileSync(new URL('../css/game.css', import.meta.url), 'utf8');
+  assert.match(css, /#mpAddonQueueRow button\{min-width:44px;min-height:44px;/);
+  assert.match(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /id="board" role="group" aria-label="公共牌"/);
+});
+
+test('R38 加碼面板＋補滿非500倍數剩餘額可以確認', async () => {
+  const nodes = new Map();
+  const node = key => {
+    if (!nodes.has(key)) nodes.set(key, { value: '1,000', hidden: true, textContent: '', dataset: {},
+      addEventListener(type, fn) { this[type] = fn; }, focus() {} });
+    return nodes.get(key);
+  };
+  const el = { setAttribute() {}, querySelector: node, addEventListener() {}, remove() {} };
+  const ctx = vm.createContext({ fmtChips: n => n.toLocaleString('en-US'), stepBuyinAmount, remainingBank,
+    document: { createElement: () => el, body: { appendChild() {}, classList: { add() {}, remove() {} } } } });
+  vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('), source.indexOf('function addonButtonsHtml(')), ctx);
+  const opts = addonOptions(2300, 20, 1000);
+  const pending = ctx.pickBuyinAmount({ ...opts, bank: opts.max, bankSuffix: '（上桌時才扣）', pendingText: null });
+  assert.equal(node('#mpBuyinBank').textContent, '300（上桌時才扣）');
+  node('[data-plus]').click();
+  assert.equal(node('input[type="text"]').value, '1,300');
+  assert.equal(node('#mpBuyinBank').textContent, '0（上桌時才扣）');
+  node('[data-minus]').click();
+  assert.equal(node('input[type="text"]').value, '1,000');
+  assert.equal(node('#mpBuyinBank').textContent, '300（上桌時才扣）');
+  node('[data-plus]').click();
+  node('[data-confirm]').click();
+  assert.equal(await pending, 1300);
+});
+test('R38 伺服器帳戶更新時同步重畫加碼動作列', () => {
+  let renders = 0;
+  const ctx = vm.createContext({ screen: 'table', renderActBar: () => renders++, globalThis: {} });
+  vm.runInContext(source.slice(source.indexOf('function paintAccount('), source.indexOf('/** @type {any} */', source.indexOf('function paintAccount('))), ctx);
+  ctx.paintAccount(); assert.equal(renders, 1);
 });

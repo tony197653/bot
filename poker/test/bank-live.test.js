@@ -56,8 +56,10 @@ test('監聽自己帳戶：伺服器數字到才算數、外部加減帳戶即�
 
 test('大廳、開新牌桌、入座小框都有帳戶，未確認顯示 —', () => {
   assert.match(lobby, /bankFresh === false \|\| !player \? '—'/);
-  assert.match(lobby, /id="mpCreateBank">\$\{bankText\}/);
-  assert.match(mp, /id="mpBuyinBank">\$\{options\.bankText \?\? '—'\}/);
+  assert.match(lobby, /id="mpCreateBank"/);
+  assert.match(lobby, /remainingBank\(bank, defaults\.chips\)|bankText/);
+  assert.match(mp, /id="mpBuyinBank"/);
+  assert.match(mp, /options\.bankText \?\? '—'|remainingBank\(options\.bank/);
   assert.match(mp, /bankText: accountText\(\)/);
 });
 

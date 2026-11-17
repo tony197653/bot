@@ -48,7 +48,7 @@ export async function ensurePlayerGrant(fb, uid, roomId, n, profile) {
   const id = `${roomId}_0_grant`;
   const batch = fs.writeBatch(db);
   batch.set(pref, {
-    displayName: profile.displayName.slice(0, 60),
+    displayName: String(profile?.displayName || '').slice(0, 60),
     photoURL: profile.photoURL,
     bank: n,
     inPlay: 0,

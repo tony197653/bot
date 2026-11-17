@@ -574,6 +574,23 @@ await t('#L3', '建房同批寫 hostRoomId＝roomId', 'ok', async () => {
   b.update(doc(d, 'pokerPlayers', 'H'), { hostRoomId: rid, updatedAt: serverTimestamp() });
   return b.commit();
 });
+// R38：非 500 倍數只允許建房者當前帳戶全額。
+for (const [bank, chips, expected] of [[1300, 1300, 'ok'], [8000, 1300, 'deny'], [1300, 300, 'deny']]) {
+  await t('#R38', `5/10 帳戶 ${bank} 建房 ${chips}`, expected, async () => {
+    await env.clearFirestore();
+    await env.withSecurityRulesDisabled(ctx => setDoc(doc(ctx.firestore(), 'pokerPlayers', 'H'),
+      player({ bank, total: bank, inPlay: 0, tableRoomId: null, sessionNo: 0, hostRoomId: null, lastRoomId: 'x' })));
+  }, async () => {
+    const d = db('H'); const b = writeBatch(d); const rid = 'R38';
+    const room = lobbyCreate(rid, '338');
+    room.config = { ...room.config, sb: 5, bb: 10, newPlayerChips: chips };
+    room.lobby.blinds = '5/10';
+    b.set(doc(d, 'pokerCodes', '338'), { roomId: rid, hostUid: 'H', createdAt: serverTimestamp(), expiresAt: exp24(0) });
+    b.set(doc(d, 'pokerRooms', rid), room);
+    b.update(doc(d, 'pokerPlayers', 'H'), { hostRoomId: rid, updatedAt: serverTimestamp() });
+    return b.commit();
+  });
+}
 await t('#L3', '建房未寫 hostRoomId 被拒', 'deny', async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {

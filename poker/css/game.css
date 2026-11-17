@@ -1171,7 +1171,7 @@ body.mp-buyin-open #act{visibility:hidden}
 .mp-buyin-step button,.mp-affix-row button{min-width:44px;min-height:44px}
 #mpBuyinPicker [data-error]{grid-column:1 / -1}
 #mpAddonQueueRow{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:14px}
-#mpAddonQueueRow button{min-height:36px;white-space:nowrap}
+#mpAddonQueueRow button{min-width:44px;min-height:44px;white-space:nowrap}
 .btns #mpCall{white-space:nowrap}
 .btns #mpStart{font-size:14px;white-space:nowrap;flex:2 1 0}
 #mpToast.mp-toast-warning{color:var(--warn);border:1px solid var(--warn)}

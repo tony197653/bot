@@ -131,3 +131,24 @@ test('R32b 加碼 transaction 被拒仍發布本人中文提示、清除佇列�
   assert.equal(f.data.get('pokerPlayers/u').bank, 1000);
   assert.equal(f.loop.getEngine().seats[1].chips, 500);
 });
+
+for (let attempt = 1; attempt <= 3; attempt++) {
+  test(`R38 HAND_OVER 排2500後帳戶剩2000：清排隊、提示、下一手繼續 #${attempt}`, async t => {
+    const f = fixture(t, { bank: 6000 });
+    const engine = f.loop.getEngine();
+    engine.phase = 'hand_over'; engine.handNumber = 3;
+    f.room.pub = { ...f.room.pub, phase: 'hand_over', handNo: 3 };
+    f.data.get('pokerRooms/r').pub = structuredClone(f.room.pub);
+    f.enqueue([{ id: 'u_1', amount: 1000 }, { id: 'u_2', amount: 1500 }]);
+    f.data.get('pokerPlayers/u').bank = 2000;
+    assert.equal(await f.loop.startHand(), true);
+    await f.flush();
+    assert.deepEqual(f.data.get('pokerRooms/r/addons/u').items, []);
+    assert.equal(f.data.get('pokerRooms/r').pub.rejects.u, '帳戶不足，沒有加碼');
+    assert.equal(f.data.get('pokerPlayers/u').bank, 2000);
+    assert.equal(f.loop.getEngine().seats[1].chips + (f.loop.getEngine().seats[1].bet || 0), 500);
+    assert.notEqual(f.loop.getEngine().phase, 'hand_over');
+    f.data.get('pokerPlayers/u').bank = 6000; await f.flush();
+    assert.equal(f.data.get('pokerPlayers/u').bank, 6000);
+  });
+}

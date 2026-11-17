@@ -13,6 +13,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
     setAttribute(k, v) { this.attrs[k] = v; },
   }));
   const minus = { addEventListener(_type, fn) { this.click = fn; } }, plus = { addEventListener(_type, fn) { this.click = fn; } }, hint = {}, minHint = {};
+  const bankEl = { textContent: '', dataset: {} };
   const input = { value: chips, addEventListener() {} }, error = {}, button = { addEventListener() {}, focus() {} }, cancel = {};
   const form = {
     querySelectorAll: () => radios, querySelector: () => button,
@@ -20,7 +21,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
   };
   cancel.addEventListener = (_type, fn) => { cancel.click = fn; };
   const root = { querySelector: selector => ({
-    '[data-chips-minus]': minus, '[data-chips-plus]': plus, '#mpCreateMinHint': minHint, '#mpCreateChipsHint': hint, '#createForm': form, '#mpCreateChips': input, '#mpCreateLiveErr': error,
+    '[data-chips-minus]': minus, '[data-chips-plus]': plus, '#mpCreateMinHint': minHint, '#mpCreateChipsHint': hint, '#createForm': form, '#mpCreateChips': input, '#mpCreateLiveErr': error, '#mpCreateBank': bankEl,
     '[data-act="cancel"]': cancel,
   })[selector] };
   const OriginalFormData = globalThis.FormData;
@@ -31,7 +32,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
   try {
     renderCreateRoom(root, { defaults: { sb, chips }, bank, onDraft: d => drafts.push(d),
       onSubmit: d => submitted.push(d), onCancel: () => cancelled++ });
-    return { radios, input, error, button, drafts, submitted, cancel, minus, plus, hint, minHint, root,
+    return { radios, input, error, button, drafts, submitted, cancel, minus, plus, hint, minHint, bankEl, root,
       get cancelled() { return cancelled; },
       change(name) { events.change({ target: { name: name || '' } }); },
       submit() { events.submit({ preventDefault() {}, target: form }); },
@@ -117,7 +118,7 @@ test('首次無帳戶：盲注可用且自動補足；標籤不高於 bank', () 
 
 const source = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
 test('doCreate 使用重讀 bank：拒絕不足／超額／低於50BB，合法才建立', async () => {
-  for (const [bank, bb, chips, allowed] of [[1000,10,500,true],[2000,50,2000,false],[2000,20,2500,false],[2000,20,500,false],[2000,20,2000,true],[null,50,2000,false]]) {
+  for (const [bank, bb, chips, allowed] of [[1300,10,1300,true],[8000,10,1300,false],[1000,10,500,true],[2000,50,2000,false],[2000,20,2500,false],[2000,20,500,false],[2000,20,2000,true],[null,50,2000,false]]) {
     let creates = 0, reads = 0;
     const ctx = vm.createContext({ getFirebase: () => ({}), getUser: () => ({ uid: 'u' }),
       createAttempt: 0, createTimeoutMs: () => 15000, setTimeout, clearTimeout, createDraft: {}, creating: false, createError: '', playerDoc: { bank: 99999 },
@@ -153,5 +154,32 @@ test('R36 開桌最低提示與帳戶、標籤順序', () => {
     h.change('blinds'); assert.equal(h.minHint.hidden, true);
     h.minus.click(); assert.equal(h.minHint.textContent, '已是最低攜入（50 大盲）');
     assert.equal(chipsOf(h.input.value), 1000);
+  } finally { h.restore(); }
+});
+
+test('R38 開桌＋補滿非500倍數帳戶可送出；非全部仍拒絕', () => {
+  const h = formHarness({ bank: 1300, sb: 10, chips: 1000 });
+  try {
+    h.plus.click(); assert.equal(chipsOf(h.input.value), 1300);
+    assert.equal(h.button.disabled, false); h.submit();
+    assert.equal(h.submitted[0].newPlayerChips, 1300);
+    assert.equal(createRoomBuyinError(1300, 5, 10, 8000), '攜入須為 500 的倍數');
+  } finally { h.restore(); }
+});
+
+test('R38 開桌 ±：500→1,000→1,300，帳戶剩餘跟著變，− 回到倍數並在 50 大盲停下', () => {
+  const h = formHarness({ bank: 1300, sb: 5, chips: 500 });
+  try {
+    assert.equal(chipsOf(h.input.value), 500);
+    assert.equal(h.bankEl.textContent, '800');
+    h.plus.click(); assert.equal(chipsOf(h.input.value), 1000); assert.equal(h.bankEl.textContent, '300');
+    h.plus.click(); assert.equal(chipsOf(h.input.value), 1300); assert.equal(h.bankEl.textContent, '0');
+    assert.equal(h.button.disabled, false);
+    h.minus.click(); assert.equal(chipsOf(h.input.value), 1000); assert.equal(h.bankEl.textContent, '300');
+    h.minus.click(); assert.equal(chipsOf(h.input.value), 500); assert.equal(h.bankEl.textContent, '800');
+    h.minus.click();
+    assert.equal(chipsOf(h.input.value), 500);
+    assert.equal(h.minHint.textContent, '已是最低攜入（50 大盲）');
+    assert.equal(h.minHint.hidden, false);
   } finally { h.restore(); }
 });

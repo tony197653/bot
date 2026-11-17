@@ -3,7 +3,7 @@
  * 我的牌桌 state classes (.mp-mine.is-host / .is-guest / .is-settle) for BD restyle.
  */
 
-import { canAffordBlinds, createRoomBuyinError, defaultCreateBuyin, stepBuyinAmount } from '../net/buyin-policy.js';
+import { canAffordBlinds, createRoomBuyinError, defaultCreateBuyin, stepBuyinAmount, remainingBank } from '../net/buyin-policy.js';
 
 import { formatCode, shareUrl, ROOM_CONST } from '../net/room.js';
 
@@ -732,7 +732,7 @@ export function renderCreateRoom(root, vm) {
           </div>
         </fieldset>
         <div class="mp-affix">
-          <span class="mp-acct mp-acct-row mp-acct-bank">帳戶 <b id="mpCreateBank">${bankText}</b></span>
+          <span class="mp-acct mp-acct-row mp-acct-bank">帳戶 <b id="mpCreateBank"${bank == null ? "" : ` data-bank="${bank}"`}>${bank == null || remainingBank(bank, defaults.chips) == null ? bankText : fmtChips(remainingBank(bank, defaults.chips))}</b></span>
           <div class="mp-affix-row">
             <button type="button" data-chips-minus aria-label="減少 500">−</button>
             <label class="mp-create-chips-field"><span>攜入籌碼</span>
@@ -758,6 +758,14 @@ export function renderCreateRoom(root, vm) {
   const liveErr = $('#mpCreateLiveErr', root);
   const minHint = $('#mpCreateMinHint', root);
   const chipsValue = () => Number(String(chipsIn?.value || '').replaceAll(',', ''));
+  const bankEl = $('#mpCreateBank', root);
+  const paintRemaining = () => {
+    if (!bankEl || bank == null) return;
+    const left = remainingBank(bank, chipsValue());
+    if (left == null) return;
+    bankEl.dataset.bank = String(bank);
+    bankEl.textContent = fmtChips(left);
+  };
   $('.mp-create', root)?.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } });
   form?.querySelector('input[name="name"]')?.focus?.();
   for (const [selector, direction] of [['[data-chips-minus]', -1], ['[data-chips-plus]', 1]]) {
@@ -817,6 +825,7 @@ export function renderCreateRoom(root, vm) {
     if (minHint) minHint.hidden = true;
     submitError = '';
     validateChips(adjust);
+    paintRemaining();
     persist();
   };
   form?.addEventListener('input', () => update(false));
@@ -834,6 +843,7 @@ export function renderCreateRoom(root, vm) {
     });
   }
   validateChips(true);
+  paintRemaining();
   persist();
   form?.addEventListener('submit', (e) => {
     e.preventDefault();

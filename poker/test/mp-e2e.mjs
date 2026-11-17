@@ -344,6 +344,12 @@ async function joinViaLink(browser, base, name, uid, viewport, roomId, code) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
+  // R38：保留產品首次贈碼失敗原因，避免只有入座後的「還沒有帳戶」。
+  page.on('console', message => {
+    if (message.type() === 'warning' && /^grant\b/.test(message.text())) {
+      console.log('DIAG player-grant', message.text());
+    }
+  });
   await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
     timeout: 20000,
@@ -398,7 +404,7 @@ async function sitIfNeeded(page) {
   console.log('DIAG sit-picker', JSON.stringify(d));
   try {
     const port = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
-    const r = await fetch(`http://${port}/v1/projects/demo-poker/databases/(default)/documents/rooms?pageSize=5`, { headers: { Authorization: 'Bearer owner' } });
+    const r = await fetch(`http://${port}/v1/projects/demo-poker/databases/(default)/documents/pokerRooms?pageSize=5`, { headers: { Authorization: 'Bearer owner' } });
     console.log('DIAG rooms', (await r.text()).slice(0, 3000));
   } catch (x) { console.log('DIAG rooms err', String(x)); }
   await page.screenshot({ path: join(ART, 'diag-sit-picker.png'), fullPage: true }).catch(() => {});

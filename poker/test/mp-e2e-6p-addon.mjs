@@ -597,8 +597,12 @@ async function main() {
     await g5.page.bringToFront();
     await g5.page.locator('#mpAddon:not([disabled])').click().catch(() => {});
     const shownBank = await g5.page.waitForSelector('#mpBuyinBank', { timeout: 5000 }).then(e => e.innerText()).catch(() => '');
+    const shownAmt = await g5.page.locator('#mpBuyinPicker input[type=text]').inputValue().catch(() => '');
+    const amt = Number(String(shownAmt).replaceAll(',', '')) || 0;
+    const shownLeft = Number(String(shownBank).replace(/（.*?）/g, '').replaceAll(',', '')) || 0;
     await g5.page.screenshot({ path: join(ART, '390-addon-picker.png') });
-    ok('情境10 前台帳戶即時顯示', shownBank.replace(/[^\d]/g, '') === String(bank5b), { shownBank, bank5b });
+    // 加碼面板「帳戶」改顯示剩餘（總額減目前加碼）。即時性用 剩餘＋輸入 = 伺服器帳戶 核對。
+    ok('情境10 前台帳戶即時顯示', shownLeft + amt === bank5b, { shownBank, shownAmt, amt, shownLeft, bank5b });
     await g5.page.locator('#mpBuyinPicker [data-cancel]').click().catch(() => {});
     const total2 = (await readDoc(`pokerRooms/${roomId}`)).chipTotal;
     ok('籌碼守恆（第二手後）', total2 === total0 + d1 + d3 + 1000, { total2 });

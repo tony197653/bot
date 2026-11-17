@@ -71,3 +71,10 @@ it('牌局中與低於大盲的要求拒絕且不寫入', async () => {
   await assert.rejects(g.run, /加碼資料無效/);
   assert.equal(g.data.get('pokerPlayers/u').bank, 1000);
 });
+
+it('R38 加碼可用完非500倍數的全部剩餘帳戶', async () => {
+  const f = fixture(1300, [{ id: 'u_1', amount: 1000 }, { id: 'u_2', amount: 300 }]);
+  assert.equal((await f.run()).amount, 1300);
+  assert.equal(f.data.get('pokerPlayers/u').bank, 0);
+  assert.equal(f.data.get('pokerRooms/r').stacks[0], 1800);
+});

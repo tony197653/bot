@@ -59,7 +59,7 @@ import {
   listenLeaderboard,
 } from '../net/ledger.js';
 import { addonOptions, queuedTotal, queueAddon, cancelAddons } from '../net/addon-client.js';
-import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, stepBuyinAmount } from '../net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, stepBuyinAmount, remainingBank } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
 import {
   createIntentSender,
@@ -160,9 +160,24 @@ function accountText() {
 /** 帳戶數字變了：大廳整頁重畫；開新牌桌、入座小框只改那一行（不打斷輸入） */
 function paintAccount() {
   if (screen === 'lobby') { paint(); return; }
+  if (screen === 'table') renderActBar();
   for (const id of ['mpCreateBank', 'mpBuyinBank']) {
     const el = globalThis.document?.getElementById(id);
-    if (el) el.textContent = accountText();
+    if (!el) continue;
+    const input = id === 'mpCreateBank'
+      ? globalThis.document?.getElementById('mpCreateChips')
+      : globalThis.document?.querySelector('#mpBuyinPicker input[type="text"]');
+    let bank = Number(el.dataset.bank);
+    if (id === 'mpCreateBank' && playerFresh && playerDoc) {
+      bank = Number(playerDoc.bank) || 0;
+      el.dataset.bank = String(bank);
+    }
+    if (input && Number.isFinite(bank)) {
+      const amt = Number(String(input.value || '').replaceAll(',', '')) || 0;
+      el.textContent = `${fmtChips(Math.max(0, bank - amt))}${el.dataset.bankSuffix || ''}`;
+    } else {
+      el.textContent = accountText();
+    }
   }
 }
 /** @type {any} */
@@ -1826,7 +1841,7 @@ async function doCreate(data) {
     paint();
     return;
   }
-  if (data.newPlayerChips < 50 * data.bb || data.newPlayerChips > 100000 || data.newPlayerChips % 500) {
+  if (data.newPlayerChips < 50 * data.bb || data.newPlayerChips > 100000) {
     createError = `起始籌碼要在 ${(50 * data.bb).toLocaleString('en-US')}–100,000 之間，且是 500 的倍數；請改完再按「開房」`;
     paint();
     return;
@@ -3081,7 +3096,7 @@ function pickBuyinAmount(options) {
   el.setAttribute('aria-labelledby', 'mpBuyinTitle');
   el.innerHTML = `<div class="mp-close-result-card">
     <h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>
-    <p class="mp-acct mp-acct-bank">帳戶 <b id="mpBuyinBank">${options.bankText ?? '—'}</b></p>
+    <p class="mp-acct mp-acct-bank">帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b></p>
     <div class="mp-buyin-step">
       <button type="button" data-minus aria-label="減少 500">−</button>
       <input aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">
@@ -3100,12 +3115,21 @@ function pickBuyinAmount(options) {
   const number = el.querySelector('input[type="text"]');
   const slider = el.querySelector('input[type="range"]');
   const error = el.querySelector('[data-error]');
+  const bankEl = el.querySelector('#mpBuyinBank');
   const minHint = options.minHint ? el.querySelector('[data-min-hint]') : null;
   const clearMinHint = () => { if (minHint) minHint.hidden = true; };
   const value = () => Number(number.value.replaceAll(',', ''));
-  const setAmount = amount => { number.value = fmtChips(amount); slider.value = String(amount); error.hidden = true; clearMinHint(); };
-  number.addEventListener('input', () => { clearMinHint(); slider.value = String(value()); });
-  number.addEventListener('blur', () => { if (Number.isFinite(value())) number.value = fmtChips(value()); });
+  const paintRemaining = () => {
+    if (!bankEl || !Number.isFinite(options.bank)) return;
+    const left = remainingBank(options.bank, Number.isFinite(value()) ? value() : 0);
+    if (left == null) return;
+    bankEl.dataset.bank = String(options.bank);
+    if (options.bankSuffix) bankEl.dataset.bankSuffix = options.bankSuffix;
+    bankEl.textContent = `${fmtChips(left)}${options.bankSuffix || ''}`;
+  };
+  const setAmount = amount => { number.value = fmtChips(amount); slider.value = String(amount); error.hidden = true; clearMinHint(); paintRemaining(); };
+  number.addEventListener('input', () => { clearMinHint(); slider.value = String(value()); paintRemaining(); });
+  number.addEventListener('blur', () => { if (Number.isFinite(value())) number.value = fmtChips(value()); paintRemaining(); });
   slider.addEventListener('input', () => setAmount(Number(slider.value)));
   for (const [selector, direction] of [['[data-minus]', -1], ['[data-plus]', 1]]) {
     el.querySelector(selector).addEventListener('click', () => {
@@ -3118,6 +3142,7 @@ function pickBuyinAmount(options) {
       setAmount(stepBuyinAmount(value(), direction, options.min, options.max));
     });
   }
+  paintRemaining();
   number.focus();
   return new Promise(resolve => {
     const close = amount => {
@@ -3138,7 +3163,7 @@ function pickBuyinAmount(options) {
     el.querySelector('[data-confirm]').addEventListener('click', () => {
       const amount = value();
       if (!Number.isSafeInteger(amount) || amount < options.min || amount > options.max ||
-          (amount - options.min) % options.step !== 0) {
+          ((amount - options.min) % options.step !== 0 && amount !== options.max && amount !== options.bank)) {
         error.hidden = false;
         error.textContent = `請輸入 ${fmtChips(options.min)}–${fmtChips(options.max)}，每次 ${fmtChips(options.step)}`;
         number.focus();
@@ -3153,9 +3178,12 @@ function pickBuyinAmount(options) {
 /** 加碼鈕；排隊合計與取消顯示於動作列上方。enabled=false 時灰掉（手中未蓋牌）。 */
 function addonButtonsHtml(enabled) {
   const queued = queuedTotal(myAddonQueue);
-  const hint = !enabled && !queued
+  const insufficient = !addonOptions(playerDoc?.bank, room?.config?.bb, queued);
+  const hint = insufficient
+    ? '<span class="mp-addon-hint" id="mpAddonHint">帳戶不足 1 大盲</span>'
+    : !enabled && !queued
     ? '<span class="mp-addon-hint" id="mpAddonHint">這手結束後可加碼</span>' : '';
-  const add = `${hint}<button type="button" class="ghost" id="mpAddon" ${hint ? 'aria-describedby="mpAddonHint"' : ''} ${enabled && !addonBusy ? '' : 'disabled'}>加碼</button>`;
+  const add = `${hint}<button type="button" class="ghost" id="mpAddon" ${hint ? 'aria-describedby="mpAddonHint"' : ''} ${enabled && !insufficient && !addonBusy ? '' : 'disabled'}>加碼</button>`;
   return add;
 }
 
@@ -3188,7 +3216,8 @@ async function requestAddon() {
   if (!opts) { toast('帳戶不足，沒有加碼'); return; }
   const targetRoomId = roomId;
   const amount = await pickBuyinAmount({ ...opts, title: '加碼', confirmText: '加碼',
-    minHint: '已是最低加碼（1 大盲）', pendingText: null, bankText: `${accountText()}（上桌時才扣）`, hint: '這手結束後上桌' });
+    minHint: '已是最低加碼（1 大盲）', pendingText: null, bank: opts.max, bankSuffix: '（上桌時才扣）',
+    bankText: `${accountText()}（上桌時才扣）`, hint: '這手結束後上桌' });
   if (amount == null || roomId !== targetRoomId) return;
   addonBusy = true;
   paintTableChrome();
@@ -3254,6 +3283,29 @@ async function sitDown(seat) {
     toast('你已入座，要換位請先離座');
     return;
   }
+  // 進桌贈碼若被吞掉，記憶體裡沒有帳戶，這裡補一次再檢查 50 大盲。
+  if (wholeBalance(playerDoc, roomId) == null) {
+    try {
+      const server = await getPlayer(fb, user.uid);
+      if (server) {
+        playerDoc = { uid: user.uid, ...server };
+      } else {
+        const g = await ensurePlayerGrant(
+          fb,
+          user.uid,
+          roomId,
+          room.config.newPlayerChips,
+          {
+            displayName: user.displayName || user.uid || '玩家',
+            photoURL: user.photoURL || null,
+          },
+        );
+        playerDoc = { uid: user.uid, ...(g.player || {}) };
+      }
+    } catch (e) {
+      console.warn('sit grant', e);
+    }
+  }
   try {
     assertMinimumBuyin(wholeBalance(playerDoc, roomId), room.config.bb);
   } catch (e) {
@@ -3264,7 +3316,7 @@ async function sitDown(seat) {
   try {
     const targetRoomId = roomId;
     const amount = playerDoc?.tableRoomId === roomId ? playerDoc.inPlay
-      : await pickBuyinAmount({ ...buyinOptions(playerDoc, room.config), bankText: accountText() });
+      : await pickBuyinAmount({ ...buyinOptions(playerDoc, room.config), bank: playerDoc?.bank, bankText: accountText() });
     if (amount == null || !room || roomId !== targetRoomId) return;
     toast('入座中…');
     if (room.hostUid !== user.uid) {
@@ -3285,8 +3337,37 @@ async function sitDown(seat) {
       }
     }
     if (playerDoc?.tableRoomId !== roomId) {
-      await buyinAmount(fb, user.uid, roomId, room.config.bb, amount);
-      playerDoc = await getPlayer(fb, user.uid);
+      // 確認後若伺服器還沒有帳戶（進桌贈碼失敗或只寫在記憶體），補贈一次再買入，避免「還沒有帳戶」。
+      let server = null;
+      try {
+        server = await getPlayer(fb, user.uid);
+      } catch (e) {
+        console.warn('sit grant', e);
+      }
+      if (!server) {
+        try {
+          const g = await ensurePlayerGrant(
+            fb,
+            user.uid,
+            roomId,
+            room.config.newPlayerChips,
+            {
+              displayName: user.displayName || user.uid || '玩家',
+              photoURL: user.photoURL || null,
+            },
+          );
+          server = g?.player ? { uid: user.uid, ...g.player } : await getPlayer(fb, user.uid);
+        } catch (e) {
+          console.warn('sit grant', e);
+          throw e;
+        }
+      }
+      if (!server) throw new Error('還沒有帳戶');
+      playerDoc = { uid: user.uid, ...server };
+      if (playerDoc.tableRoomId !== roomId) {
+        await buyinAmount(fb, user.uid, roomId, room.config.bb, amount);
+        playerDoc = await getPlayer(fb, user.uid);
+      }
     }
     if (!intents) throw new Error('連線準備中，請再點一次空位');
     const pub = room.pub || {};
