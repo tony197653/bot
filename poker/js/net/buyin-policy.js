@@ -1,5 +1,5 @@
 /** Client admission and chosen carry-in policy. */
-export const DEFAULT_NEW_PLAYER_CHIPS = 2000;
+export const DEFAULT_NEW_PLAYER_CHIPS = 1000;
 
 /** 開房專用短提示；不改動入座規則。 */
 export function canAffordBlinds(bank, bb) {
@@ -18,7 +18,8 @@ export function createRoomBuyinError(chips, sb, bb, bank = null) {
 }
 
 export function defaultCreateBuyin(chips, bb, bank = null) {
-  return canAffordBlinds(bank, bb) ? Math.max(chips, 50 * bb) : chips;
+  // 換盲注時重設為 50 大盲。5/10 的 50 大盲＝500，低於規則下限 1,000，未改規則，故至少 1,000，再受帳戶與上限限制。
+  return Math.min(Math.max(1000, 50 * bb), 100000, bank ?? 100000);
 }
 
 export function wholeBalance(player, roomId) {
@@ -46,4 +47,9 @@ export function buyinLabel(player, roomId, session, config = { bb: 20, newPlayer
   const amount = session?.buyIn ?? (player?.tableRoomId === roomId ? player.inPlay
     : Math.min(player?.bank || 0, Math.max(50 * config.bb, config.newPlayerChips ?? DEFAULT_NEW_PLAYER_CHIPS)));
   return `${session ? '本次買入' : '攜入'} ${(Number(amount) || 0).toLocaleString('en-US')} 籌碼`;
+}
+
+/** ±500；最後不足 500 時取到邊界，合法性仍由原面板驗證。 */
+export function stepBuyinAmount(amount, direction, min, max) {
+  return Math.max(min, Math.min(max, amount + direction * 500));
 }

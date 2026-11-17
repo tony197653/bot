@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../js/net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, defaultCreateBuyin, stepBuyinAmount } from '../js/net/buyin-policy.js';
 import { buyinAll, buyinAmount, ensurePlayerGrant } from '../js/net/ledger.js';
 import { hostAliveMs } from '../js/net/host-disconnect.js';
 
@@ -61,7 +61,7 @@ test('禁止帶著另一桌帳戶買入', async () => {
 });
 
 test('牌桌顯示整筆餘額，入座後顯示實際 session 買入而非輸贏後籌碼', () => {
-  assert.equal(buyinLabel({ bank: 8765 }, 'r'), '攜入 2,000 籌碼');
+  assert.equal(buyinLabel({ bank: 8765 }, 'r'), '攜入 1,000 籌碼');
   assert.equal(buyinLabel({ bank: 0, inPlay: 8765, tableRoomId: 'r' }, 'r'), '攜入 8,765 籌碼');
   assert.equal(buyinLabel({ bank: 0, inPlay: 8765 }, 'r', { buyIn: 8765 }), '本次買入 8,765 籌碼');
 });
@@ -94,8 +94,8 @@ test('房主自動入座同樣先檢查門檻', () => {
   assert.ok(block.indexOf('await buyinAmount(') < block.indexOf('await hostLoop?.seatPlayer('));
 });
 
-test('新玩家預設 2000，首次贈送仍依房間設定；不覆寫既有帳戶', async () => {
-  assert.equal(DEFAULT_NEW_PLAYER_CHIPS, 2000);
+test('新玩家預設 1000，首次贈送仍依房間設定；不覆寫既有帳戶', async () => {
+  assert.equal(DEFAULT_NEW_PLAYER_CHIPS, 1000);
   const room = readFileSync(new URL('../js/net/room.js', import.meta.url), 'utf8');
   assert.match(room, /newPlayerChips: opts.newPlayerChips \?\? DEFAULT_NEW_PLAYER_CHIPS/);
   for (const amount of [2000, 5000]) {
@@ -264,16 +264,16 @@ test('大廳先結算、重讀再檢查；不足不進桌，已綁同桌可回�
 test('選額視窗同步建立，取消不送出、確認保留指定額並同步提示', async () => {
   for(const confirm of [false,true]) {
     const nodes=new Map(),events=[];
-    const node=key=>{if(!nodes.has(key))nodes.set(key,{value:'1500',addEventListener:(type,fn)=>nodes.get(key)[type]=fn,reportValidity(){}});return nodes.get(key);};
-    const el={setAttribute(){},querySelector:node,remove:()=>events.push('remove')};
-    const ctx=vm.createContext({document:{createElement:()=>el,body:{appendChild:()=>events.push('paint')}},toast:msg=>events.push(msg)});
+    const node=key=>{if(!nodes.has(key))nodes.set(key,{value:'1,500',focus:()=>events.push('focus'),addEventListener:(type,fn)=>nodes.get(key)[type]=fn,reportValidity(){}});return nodes.get(key);};
+    const el={setAttribute(){},addEventListener(){},querySelector:node,remove:()=>events.push('remove')};
+    const ctx=vm.createContext({fmtChips:n=>n.toLocaleString('en-US'),stepBuyinAmount,document:{createElement:()=>el,body:{classList:{add(){},remove(){}},appendChild:()=>events.push('paint')}},toast:msg=>events.push(msg)});
     vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('),source.indexOf('async function sitDown(')),ctx);
     const started=performance.now(),pending=ctx.pickBuyinAmount({min:1000,max:8765,step:1,amount:2000});
-    assert.deepEqual(events,['paint']);assert.ok(performance.now()-started<200);
-    assert.match(el.innerHTML,/type="number".*min="1000".*max="8765".*value="2000"/);
+    assert.deepEqual(events,['paint','focus']);assert.ok(performance.now()-started<200);
+    assert.match(el.innerHTML,/type="text".*value="2,000"/);
     assert.match(el.innerHTML,/type="range"/);
     node(confirm?'[data-confirm]':'[data-cancel]').click();
-    if(confirm)assert.deepEqual(events,['paint','入座中…','remove']);
+    if(confirm)assert.deepEqual(events,['paint','focus','入座中…','remove']);
     assert.equal(await pending,confirm?1500:null);
   }
 });
@@ -313,4 +313,65 @@ test('開桌遇到既有桌：依該桌大盲阻擋，留在大廳；先結算�
   assert.equal(events[0],'paint');await pending;
   assert.deepEqual(events,['paint','settle','read','existing','read','paint']);
   assert.equal(ctx.screen,'lobby');assert.match(messages[0],/籌碼不足.*5,000/);
+});
+
+
+test('R32b 開桌換盲注重設 50BB，5/10 依規則至少 1000，並受帳戶與上限限制', () => {
+  for (const [bb, expected] of [[10,1000],[20,1000],[50,2500],[100,5000]]) {
+    assert.equal(defaultCreateBuyin(90000, bb, 99999), expected);
+  }
+  assert.equal(defaultCreateBuyin(1000, 100, 3456), 3456);
+  assert.equal(defaultCreateBuyin(1000, 5000, 200000), 100000);
+  assert.equal(createRoomBuyinError(500,5,10,1000), '攜入須為 1,000–100,000');
+  assert.equal(createRoomBuyinError(1501,10,20,5000), '攜入須為 500 的倍數');
+});
+
+test('R32b ±500 與不足 500 的剩餘額、上下限', () => {
+  assert.equal(stepBuyinAmount(1000,1,1000,5000),1500);
+  assert.equal(stepBuyinAmount(1500,-1,1000,5000),1000);
+  assert.equal(stepBuyinAmount(1000,-1,1000,5000),1000);
+  assert.equal(stepBuyinAmount(2000,1,20,2237),2237);
+  assert.equal(stepBuyinAmount(99500,1,1000,99800),99800);
+});
+
+test('R32b F3 合計獨立列，四顆動作鈕不含取消；範圍錯誤中文與焦點鍵盤', () => {
+  const ctx=vm.createContext({queuedTotal:q=>q.items.reduce((n,i)=>n+i.amount,0),myAddonQueue:{items:[{amount:1000},{amount:1500}]},fmtChips:n=>n.toLocaleString('en-US'),addonBusy:false});
+  vm.runInContext(source.slice(source.indexOf('function addonButtonsHtml('),source.indexOf('function wireAddonButtons(')),ctx);
+  assert.doesNotMatch(ctx.addonButtonsHtml(true),/mpAddonCancel/);
+  const bar=source.slice(source.indexOf('function renderActBar('),source.indexOf('function pickBuyinAmount('));
+  assert.match(bar,/下一手前加碼 \$\{fmtChips\(queued\)\}/);
+  assert.match(bar,/取消加碼 \$\{fmtChips\(queued\)\}/);
+  assert.match(bar,/btns.before\(row\)/);
+  const picker=source.slice(source.indexOf('function pickBuyinAmount('),source.indexOf('function addonButtonsHtml('));
+  assert.doesNotMatch(picker,/reportValidity/);
+  assert.match(picker,/請輸入/);
+  assert.match(picker,/number.focus\(\)/);
+  assert.match(picker,/e.key === 'Escape'/);
+});
+
+
+test('R32b 選額面板 Esc 取消、焦點復原、尾數全加與中文錯誤', async () => {
+  const nodes = new Map(), events = [], keys = {};
+  const node = key => {
+    if (!nodes.has(key)) nodes.set(key, {value:'2,000', hidden:true,
+      addEventListener(type, fn) { this[type] = fn; }, focus() { events.push(key); }});
+    return nodes.get(key);
+  };
+  const el = {setAttribute(){},querySelector:node,addEventListener:(type,fn)=>keys[type]=fn,remove:()=>events.push('remove')};
+  const ctx = vm.createContext({fmtChips:n=>n.toLocaleString('en-US'),stepBuyinAmount,toast:()=>events.push('toast'),
+    document:{activeElement:{focus:()=>events.push('restore')},createElement:()=>el,
+      body:{appendChild(){},classList:{add(){},remove(){}}}}});
+  vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('),source.indexOf('async function sitDown(')),ctx);
+  const pending=ctx.pickBuyinAmount({min:20,max:2237,step:1,amount:2000});
+  assert.equal(events[0],'input[type="text"]');
+  node('[data-plus]').click();
+  assert.equal(node('input[type="text"]').value,'2,237');
+  node('input[type="text"]').value='2,238';
+  node('[data-confirm]').click();
+  assert.equal(node('[data-error]').hidden,false);
+  assert.match(node('[data-error]').textContent,/請輸入 20–2,237/);
+  assert.ok(!events.includes('toast'));
+  keys.keydown({key:'Escape',preventDefault(){}});
+  assert.equal(await pending,null);
+  assert.deepEqual(events.slice(-2),['remove','restore']);
 });

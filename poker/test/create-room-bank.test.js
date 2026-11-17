@@ -5,13 +5,14 @@ import vm from 'node:vm';
 import { renderCreateRoom } from '../js/ui/lobby.js';
 import { canAffordBlinds, createRoomBuyinError, defaultCreateBuyin, buyinLabel } from '../js/net/buyin-policy.js';
 
+const chipsOf = v => Number(String(v).replaceAll(',', ''));
 function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
   const events = {}, drafts = [], submitted = [];
   const radios = ['5/10', '10/20', '25/50', '50/100'].map(value => ({
     value, checked: Number(value.split('/')[0]) === sb, attrs: {},
     setAttribute(k, v) { this.attrs[k] = v; },
   }));
-  const input = { value: chips }, error = {}, button = {}, cancel = {};
+  const input = { value: chips, addEventListener() {} }, error = {}, button = { addEventListener() {}, focus() {} }, cancel = {};
   const form = {
     querySelectorAll: () => radios, querySelector: () => button,
     addEventListener: (type, callback) => { events[type] = callback; },
@@ -31,7 +32,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
       onSubmit: d => submitted.push(d), onCancel: () => cancelled++ });
     return { radios, input, error, button, drafts, submitted, cancel,
       get cancelled() { return cancelled; },
-      change() { events.change(); },
+      change(name) { events.change({ target: { name: name || '' } }); },
       submit() { events.submit({ preventDefault() {}, target: form }); },
       restore() { globalThis.FormData = OriginalFormData; } };
   } catch (e) { globalThis.FormData = OriginalFormData; throw e; }
@@ -61,14 +62,15 @@ test('取消、可用盲注切換、草稿與合法送出保留', () => {
   try {
     h.cancel.click(); assert.equal(h.cancelled, 1);
     h.radios.forEach(r => { r.checked = r.value === '5/10'; });
-    h.change(); assert.equal(h.drafts.at(-1).sb, 5);
+    h.change('blinds'); assert.equal(h.drafts.at(-1).sb, 5);
     h.radios.forEach(r => { r.checked = r.value === '10/20'; });
-    h.input.value = 500; h.change();
-    assert.equal(Number(h.input.value), 1000);
-    h.input.value = 500; h.submit(); assert.equal(h.submitted.length, 0);
-    h.input.value = 2000; h.change(); h.submit();
+    h.change('blinds');
+    assert.equal(Number(String(h.input.value).replaceAll(',', '')), 1000);
+    h.input.value = 500; h.change('chips');
+    h.submit(); assert.equal(h.submitted.length, 0);
+    h.input.value = 2000; h.change('chips'); h.submit();
     assert.equal(h.button.disabled, false); assert.equal(h.submitted[0].newPlayerChips, 2000);
-    h.input.value = 2500; h.change(); assert.equal(h.button.disabled, true);
+    h.input.value = 2500; h.change('chips'); assert.equal(h.button.disabled, true);
   } finally { h.restore(); }
 });
 
@@ -77,7 +79,7 @@ test('餘額低於所有盲注：欄位旁短提示且不抬高攜入', () => {
   try {
     assert.equal(h.button.disabled, true); assert.equal(h.error.hidden, false);
     assert.match(h.error.textContent, /200.*2,500/);
-    assert.equal(Number(h.input.value), 200);
+    assert.equal(chipsOf(h.input.value), 200);
     h.submit(); assert.equal(h.submitted.length, 0);
   } finally { h.restore(); }
 });
@@ -85,7 +87,7 @@ test('餘額低於所有盲注：欄位旁短提示且不抬高攜入', () => {
 test('首次無帳戶：盲注可用且自動補足；標籤不高於 bank', () => {
   const h = formHarness({ bank: null, chips: 2000, sb: 25 });
   try {
-    assert.ok(h.radios.every(r => !r.disabled)); assert.equal(Number(h.input.value), 2500);
+    assert.ok(h.radios.every(r => !r.disabled)); assert.equal(chipsOf(h.input.value), 2500);
     h.submit(); assert.equal(h.submitted[0].newPlayerChips, 2500);
     assert.equal(defaultCreateBuyin(2000, 50, 2000), 2000);
     assert.equal(buyinLabel({ bank: 2000 }, 'r', null, { bb: 50, newPlayerChips: 2000 }), '攜入 2,000 籌碼');

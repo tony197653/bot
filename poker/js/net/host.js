@@ -108,6 +108,7 @@ export function createHostLoop(fb, opts) {
   let startingNext = null;
   let closing = false;
   let draining = false;
+  let drainTask = null;
   /** Personal-stats chain: independent of writeChain; never awaited by game flow. */
   const statsRuntime = createHostStatsRuntime({ ...opts.stats, fs, db, roomId, uid,
     isCurrentHost: () => running && getRoom()?.hostUid === uid &&
@@ -654,12 +655,16 @@ export function createHostLoop(fb, opts) {
     }
   }
 
-  async function drainSitLeave() {
-    if (closing || !running || getRoom()?.status === 'closed' || draining) return;
+  function drainSitLeave() {
+    if (drainTask) return drainTask;
+    if (closing || !running || getRoom()?.status === 'closed') return Promise.resolve();
     draining = true;
-    try { await drainSitLeaveInner(); }
-    catch (e) { console.warn('[host] drain', e); }
-    finally { draining = false; }
+    drainTask = (async () => {
+      try { await drainSitLeaveInner(); }
+      catch (e) { console.warn('[host] drain', e); }
+      finally { draining = false; drainTask = null; }
+    })();
+    return drainTask;
   }
 
   async function drainSitLeaveInner() {
@@ -749,7 +754,19 @@ export function createHostLoop(fb, opts) {
         result = await step;
       } catch (e) {
         console.warn('[host] addon', e);
-        return;
+        // 金流 transaction 失敗仍用既有房間發布路徑通知本人。
+        rejects[playerUid] = '加碼沒成功，請再試一次';
+        if (addonQueue.get(playerUid) === queued) addonQueue.delete(playerUid);
+        queueWrite();
+        try {
+          await fb.fs.runTransaction(fb.db, async tx => {
+            const ref = fb.fs.doc(fb.db, 'pokerRooms', roomId, 'addons', playerUid);
+            const current = (await tx.get(ref)).data();
+            // 不清掉失敗之後玩家新排的項目。
+            if (current?.seq === queued.seq) tx.update(ref, { items: [] });
+          });
+        } catch (clearError) { console.warn('[host] addon clear', clearError); }
+        continue;
       }
       if (addonQueue.get(playerUid) === queued) addonQueue.delete(playerUid);
       if (result?.room) {
@@ -937,7 +954,15 @@ export function createHostLoop(fb, opts) {
   function startHand() {
     if (connectionPaused()) return false;
     if (startingNext) return startingNext;
-    if (engine?.phase !== PHASE.HAND_OVER) return startHandNow();
+    if (engine?.phase !== PHASE.HAND_OVER) {
+      if (!addonQueue.size && !draining && !leaveQueue.length) return startHandNow();
+      startingNext = (async () => {
+        await drainSitLeave();
+        if (draining || leaveQueue.length || addonQueue.size) return false;
+        return startHandNow();
+      })().finally(() => { startingNext = null; });
+      return startingNext;
+    }
     clearNextHandTimer();
     const bumpAttemptsAtClick = handsBumpAttempts;
     startingNext = (async () => {
@@ -962,7 +987,8 @@ export function createHostLoop(fb, opts) {
             engine.phase !== PHASE.HAND_OVER || engine.handNumber !== handNo) return false;
         if (getRoom()?.pub?.phase === PHASE.HAND_OVER &&
             getRoom()?.pub?.handNo === handNo && lastHandsBumpHandNo >= handNo) {
-          if (draining || leaveQueue.length) return false;
+          await drainSitLeave();
+          if (draining || leaveQueue.length || addonQueue.size) return false;
           engine = applyAction(engine, { type: 'ACK_HAND' }, { now: Date.now() });
           return startHandNow();
         }
@@ -1197,7 +1223,10 @@ export function createHostLoop(fb, opts) {
       (snap) => {
         for (const ch of snap.docChanges?.() || []) {
           const data = ch.type === 'removed' ? null : ch.doc.data();
-          if (data?.items?.length) addonQueue.set(ch.doc.id, data);
+          if (data?.items?.length) {
+            addonQueue.set(ch.doc.id, data);
+            if (rejects[ch.doc.id]) { delete rejects[ch.doc.id]; queueWrite(); }
+          }
           else addonQueue.delete(ch.doc.id);
         }
         if ([PHASE.LOBBY, PHASE.HAND_OVER].includes(engine?.phase)) void drainSitLeave();

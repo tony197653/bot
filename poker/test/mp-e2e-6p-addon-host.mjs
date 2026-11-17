@@ -272,15 +272,15 @@ async function playToShowdown(players, hostP) {
     }
     await warm.page.bringToFront().catch(() => {});
     const t = await warm.page.innerText('body');
-    if (/開始下一手|開始第一手|手結束|準備中/.test(t) && i > 4) {
+    if (/開始下一手|開始第一手|(?<!這)手結束|準備中/.test(t) && i > 4) {
       return { done: true, sawShow, ticks: i };
     }
     if (!acted) await warm.page.waitForTimeout(400);
   }
   // 本輪禁止固定等待超過 2 秒；保留原本最多 6.5 秒的收尾觀察。
-  await waitFor(async () => /亮牌|不亮|開始下一手|手結束|準備中|開始第一手/.test(await warm.page.innerText('body')), 6500);
+  await waitFor(async () => /亮牌|不亮|開始下一手|(?<!這)手結束|準備中|開始第一手/.test(await warm.page.innerText('body')), 6500);
   const t = await warm.page.innerText('body');
-  const hasShowOrNext = /亮牌|不亮|開始下一手|手結束|準備中|開始第一手/.test(t);
+  const hasShowOrNext = /亮牌|不亮|開始下一手|(?<!這)手結束|準備中|開始第一手/.test(t);
   return { done: hasShowOrNext || sawShow, sawShow, hasShowOrNext, ticks: 120 };
 }
 
@@ -339,7 +339,7 @@ async function queueAddonUI(p, hostP) {
     log('picker 沒出現', p.name, 'toasts', JSON.stringify(await toasts(p)), 'bank(db)', (await readDoc(`pokerPlayers/${p.uid}`))?.bank);
     throw new Error('加碼選擇器沒出現');
   }
-  const dflt = Number(await p.page.locator('#mpBuyinPicker input[type="number"]').inputValue());
+  const dflt = Number(String(await p.page.locator('#mpBuyinPicker input[type="text"]').inputValue()).replaceAll(',', ''));
   await p.page.locator('#mpBuyinPicker [data-confirm]').click();
   await p.page.waitForSelector('#mpAddonCancel', { timeout: 8000 });
   await hostP.page.bringToFront();
@@ -348,16 +348,19 @@ async function queueAddonUI(p, hostP) {
 
 async function foldPlayer(players, target, hostP) {
   for (let i = 0; i < 80; i++) {
+    if (await target.page.locator('#mpAddon:not([disabled])').count()) return true;
     for (const p of players) {
       if (p === target && await p.page.locator('#mpFold:not([disabled])').count()) {
-        await p.page.bringToFront(); await p.page.locator('#mpFold').click(); await hostP.page.bringToFront(); return true;
+        await p.page.bringToFront(); await p.page.locator('#mpFold').click();
+      } else if (p !== target && await p.page.locator('#mpCheck:not([disabled])').count()) {
+        await p.page.bringToFront(); await p.page.locator('#mpCheck').click(); break;
+      } else if (p !== target && await p.page.locator('#mpCall:not([disabled])').count()) {
+        await p.page.bringToFront(); await p.page.locator('#mpCall').click(); break;
       }
-      if (p !== target && await p.page.locator('#mpCheck:not([disabled])').count()) { await p.page.bringToFront(); await p.page.locator('#mpCheck').click(); break; }
-      if (p !== target && await p.page.locator('#mpCall:not([disabled])').count()) { await p.page.bringToFront(); await p.page.locator('#mpCall').click(); break; }
     }
     await hostP.page.bringToFront(); await sleep(400);
   }
-  return false;
+  return !!(await target.page.locator('#mpAddon:not([disabled])').count());
 }
 async function setBank(uid, bank) {
   const r = await fetch(`http://${EMU}/v1/projects/${PROJECT}/databases/(default)/documents/pokerPlayers/${uid}?updateMask.fieldPaths=bank`, {
@@ -370,7 +373,7 @@ async function queueAddonAmount(p, hostP, amount) {
   const prev = await p.page.evaluate(() => document.getElementById('mpAddonCancel')?.getAttribute('aria-label') || '');
   await p.page.locator('#mpAddon:not([disabled])').click();
   await p.page.waitForSelector('#mpBuyinPicker', { timeout: 5000 });
-  await p.page.locator('#mpBuyinPicker input[type="number"]').fill(String(amount));
+  await p.page.locator('#mpBuyinPicker input[type="text"]').fill(String(amount));
   await p.page.locator('#mpBuyinPicker [data-confirm]').click();
   await p.page.waitForFunction(pv => { const l = document.getElementById('mpAddonCancel')?.getAttribute('aria-label') || ''; return l && l !== pv; }, prev, { timeout: 8000 });
   await hostP.page.bringToFront();

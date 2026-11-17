@@ -59,7 +59,7 @@ import {
   listenLeaderboard,
 } from '../net/ledger.js';
 import { addonOptions, queuedTotal, queueAddon, cancelAddons } from '../net/addon-client.js';
-import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, stepBuyinAmount } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
 import {
   createIntentSender,
@@ -2632,6 +2632,15 @@ function renderActBar() {
   const mySeat = room.seatUids.indexOf(user?.uid);
   const pub = room.pub || {};
   const isHost = room.hostUid === user?.uid;
+  $('#mpAddonQueueRow')?.remove?.();
+  const queued = mySeat >= 0 && typeof queuedTotal === 'function' ? queuedTotal(myAddonQueue) : 0;
+  if (queued) {
+    const row = document.createElement('div');
+    row.id = 'mpAddonQueueRow';
+    row.innerHTML = `<span>下一手前加碼 ${fmtChips(queued)}</span><button type="button" id="mpAddonCancel" aria-label="取消加碼 ${fmtChips(queued)}" ${addonBusy ? 'disabled' : ''}>取消</button>`;
+    btns.before(row);
+    row.querySelector('button').addEventListener('click', () => void cancelAddon());
+  }
   if (hostPaused) { btns.innerHTML = '<div class="mp-spec">等待房主回來</div>'; lockMpRaisePanel(); return; }
   const seatedCount = room.seatUids.filter(Boolean).length;
   const between = pub.phase === 'lobby' || pub.phase === 'hand_over' || !pub.phase;
@@ -3073,45 +3082,74 @@ function pickBuyinAmount(options) {
   el.innerHTML = `<div class="mp-close-result-card">
     <h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>
     <p class="mp-acct">帳戶 <b id="mpBuyinBank">${options.bankText ?? '—'}</b></p>
-    <input aria-label="${options.title || '攜入籌碼'}" type="number" inputmode="numeric" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
+    <div class="mp-buyin-step">
+      <button type="button" data-minus aria-label="減少 500">−</button>
+      <input aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">
+      <button type="button" data-plus aria-label="增加 500">＋</button>
+    </div>
     <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
+    <p class="mp-err" data-error role="status" hidden></p>
     ${options.hint ? `<p class="mp-acct">${options.hint}</p>` : ''}
     <button type="button" class="mp-btn-ghost" data-cancel>取消</button>
     <button type="button" class="mp-btn-primary" data-confirm>${options.confirmText || '入座'}</button>
   </div>`;
+  const previousFocus = document.activeElement;
   document.body.appendChild(el);
-  const number = el.querySelector('input[type="number"]');
+  document.body.classList.add('mp-buyin-open');
+  const number = el.querySelector('input[type="text"]');
   const slider = el.querySelector('input[type="range"]');
-  number.addEventListener('input', () => { slider.value = number.value; });
-  slider.addEventListener('input', () => { number.value = slider.value; });
+  const error = el.querySelector('[data-error]');
+  const value = () => Number(number.value.replaceAll(',', ''));
+  const setAmount = amount => { number.value = fmtChips(amount); slider.value = String(amount); error.hidden = true; };
+  number.addEventListener('input', () => { slider.value = String(value()); });
+  number.addEventListener('blur', () => { if (Number.isFinite(value())) number.value = fmtChips(value()); });
+  slider.addEventListener('input', () => setAmount(Number(slider.value)));
+  for (const [selector, direction] of [['[data-minus]', -1], ['[data-plus]', 1]]) {
+    el.querySelector(selector).addEventListener('click', () => setAmount(stepBuyinAmount(value(), direction, options.min, options.max)));
+  }
+  number.focus();
   return new Promise(resolve => {
-    el.querySelector('[data-cancel]').addEventListener('click', () => { el.remove(); resolve(null); });
+    const close = amount => {
+      el.remove();
+      document.body.classList.remove('mp-buyin-open');
+      previousFocus?.focus?.();
+      resolve(amount);
+    };
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.preventDefault(); close(null); }
+      if (e.key === 'Tab') {
+        const first = el.querySelector('[data-minus]'), last = el.querySelector('[data-confirm]');
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+    el.querySelector('[data-cancel]').addEventListener('click', () => close(null));
     el.querySelector('[data-confirm]').addEventListener('click', () => {
-      const amount = Number(number.value);
+      const amount = value();
       if (!Number.isSafeInteger(amount) || amount < options.min || amount > options.max ||
           (amount - options.min) % options.step !== 0) {
-        number.reportValidity();
+        error.hidden = false;
+        error.textContent = `請輸入 ${fmtChips(options.min)}–${fmtChips(options.max)}，每次 ${fmtChips(options.step)}`;
+        number.focus();
         return;
       }
       toast(options.pendingText || '入座中…');
-      el.remove();
-      resolve(amount);
+      close(amount);
     });
   });
 }
 
-/** 加碼鈕：排隊中多一顆「取消加碼 N」（一顆鈕全部取消）。enabled=false 時灰掉（手中未蓋牌）。 */
+/** 加碼鈕；排隊合計與取消顯示於動作列上方。enabled=false 時灰掉（手中未蓋牌）。 */
 function addonButtonsHtml(enabled) {
   const queued = queuedTotal(myAddonQueue);
-  const add = `<button type="button" class="ghost" id="mpAddon" ${enabled && !addonBusy ? '' : 'disabled'}>加碼</button>`;
-  return queued
-    ? `${add}<button type="button" class="ghost" id="mpAddonCancel" aria-label="取消加碼 ${fmtChips(queued)}" ${addonBusy ? 'disabled' : ''}>取消 ${fmtChips(queued)}</button>`
-    : add;
+  const hint = !enabled && !queued
+    ? '<span class="mp-addon-hint" id="mpAddonHint">這手結束後可加碼</span>' : '';
+  const add = `${hint}<button type="button" class="ghost" id="mpAddon" ${hint ? 'aria-describedby="mpAddonHint"' : ''} ${enabled && !addonBusy ? '' : 'disabled'}>加碼</button>`;
+  return add;
 }
 
 function wireAddonButtons() {
   $('#mpAddon')?.addEventListener('click', () => void requestAddon());
-  $('#mpAddonCancel')?.addEventListener('click', () => void cancelAddon());
 }
 
 function startAddonQueue(fb, id, uid) {
@@ -3145,7 +3183,7 @@ async function requestAddon() {
   paintTableChrome();
   try {
     await queueAddon(fb, { uid: user.uid, roomId: targetRoomId, amount });
-    toast(`加碼 ${fmtChips(amount)}，這手結束後上桌`);
+    // F3：面板外以排隊合計列顯示，不以最後一筆取代合計。
   } catch (e) {
     toast(friendlyError(e, '加碼沒送出去，請再按一次'));
   } finally {
@@ -3812,7 +3850,9 @@ function toast(msg) {
   const el = $('#mpToast');
   if (!el) return;
   el.hidden = false;
-  el.textContent = msg;
+  const warning = msg === '帳戶不足，沒有加碼';
+  el.classList.toggle('mp-toast-warning', warning);
+  el.textContent = warning ? `⚠ ${msg}` : msg;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     el.hidden = true;

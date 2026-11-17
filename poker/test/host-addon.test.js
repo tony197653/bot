@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHostLoop } from '../js/net/host.js';
 
-function fixture(t, { bank = 1000, seated = true } = {}) {
+function fixture(t, { bank = 1000, seated = true, failAddon = false } = {}) {
   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
   const previous = globalThis.document;
   globalThis.document = { visibilityState: 'visible' };
@@ -26,6 +26,7 @@ function fixture(t, { bank = 1000, seated = true } = {}) {
     writeBatch: () => ({ set() {}, commit: async () => {} }),
     runTransaction: async (_, fn) => {
       transactions++;
+      if (failAddon && transactions === 1) throw new Error('permission-denied');
       const pending = [];
       const result = await fn({ get: async ref => snap(ref),
         update: (ref, value) => pending.push([ref, { ...data.get(ref), ...value }]),
@@ -92,15 +93,41 @@ test('帳戶不足整批拒絕，發布本人提示、不改籌碼', async t => 
   assert.deepEqual(f.data.get('pokerRooms/r/addons/u').items, []);
 });
 
-test('HAND_OVER 的排隊在下一手前處理完成', async t => {
-  const f = fixture(t);
-  f.loop.getEngine().phase = 'hand_over';
-  f.room.pub.phase = 'hand_over';
-  f.data.get('pokerRooms/r').pub.phase = 'hand_over';
-  f.enqueue();
-  assert.equal(await f.loop.startHand(), false);
-  await f.flush();
-  assert.equal(f.loop.getEngine().seats[1].chips, 600);
-  assert.equal(f.data.get('pokerRooms/r').stacks[1], 600);
-  assert.equal(f.data.get('pokerPlayers/u').bank, 900);
+for (const sittingOut of [false, true]) {
+  test(`HAND_OVER 排隊手動開手前上桌（暫離=${sittingOut}）`, async t => {
+    const f = fixture(t);
+    const engine = f.loop.getEngine();
+    // 暫離案例保留兩位可參與者，確保真的開出下一手。
+    if (sittingOut) {
+      engine.seats[2] = { ...engine.seats[0], uid: 'v', chips: 500 };
+      f.room.seatUids[2] = 'v';
+      f.room.stacks[2] = 500;
+      f.room.chipTotal += 500;
+      Object.assign(f.data.get('pokerRooms/r'), structuredClone(f.room));
+    }
+    engine.seats[1].sittingOut = sittingOut;
+    engine.phase = 'hand_over';
+    f.room.pub.phase = 'hand_over';
+    f.data.get('pokerRooms/r').pub.phase = 'hand_over';
+    f.enqueue();
+    assert.equal(await f.loop.startHand(), true);
+    const next = f.loop.getEngine();
+    assert.notEqual(next.phase, 'hand_over');
+    assert.equal(next.seats[1].chips + (next.seats[1].bet || 0), 600);
+    assert.equal(next.seats[1].sittingOut, sittingOut);
+    assert.equal(f.data.get('pokerRooms/r').stacks[1], 600);
+    assert.equal(f.data.get('pokerRooms/r').chipTotal, sittingOut ? 1600 : 1100);
+    assert.equal(f.data.get('pokerPlayers/u').bank, 900);
+    await f.flush();
+  });
+}
+
+
+test('R32b 加碼 transaction 被拒仍發布本人中文提示、清除佇列且不扣款', async t => {
+  const f = fixture(t, { failAddon: true });
+  f.enqueue(); await f.flush();
+  assert.equal(f.data.get('pokerRooms/r').pub.rejects.u, '加碼沒成功，請再試一次');
+  assert.deepEqual(f.data.get('pokerRooms/r/addons/u').items, []);
+  assert.equal(f.data.get('pokerPlayers/u').bank, 1000);
+  assert.equal(f.loop.getEngine().seats[1].chips, 500);
 });

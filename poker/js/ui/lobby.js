@@ -3,7 +3,7 @@
  * 我的牌桌 state classes (.mp-mine.is-host / .is-guest / .is-settle) for BD restyle.
  */
 
-import { canAffordBlinds, createRoomBuyinError, defaultCreateBuyin } from '../net/buyin-policy.js';
+import { canAffordBlinds, createRoomBuyinError, defaultCreateBuyin, stepBuyinAmount } from '../net/buyin-policy.js';
 
 import { formatCode, shareUrl, ROOM_CONST } from '../net/room.js';
 
@@ -735,8 +735,9 @@ export function renderCreateRoom(root, vm) {
           <span>攜入籌碼</span>
           <span class="mp-acct mp-acct-row">帳戶 <b id="mpCreateBank">${bankText}</b></span>
           <div class="mp-affix-row">
-            <input name="chips" id="mpCreateChips" type="number" inputmode="numeric" min="1000" max="100000" step="500" value="${defaults.chips}" aria-describedby="${chipsHintId} mpCreateLiveErr">
-          </div>
+            <button type="button" data-chips-minus aria-label="減少 500">−</button>
+            <input name="chips" id="mpCreateChips" type="text" inputmode="numeric" min="1000" max="100000" step="500" value="${fmtChips(defaults.chips)}" aria-describedby="${chipsHintId} mpCreateLiveErr">
+          <button type="button" data-chips-plus aria-label="增加 500">＋</button></div>
           <small id="${chipsHintId}">入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。1,000–100,000，每次 500。</small>
           <p class="mp-err" id="mpCreateLiveErr" role="status" ${error ? '' : 'hidden'}>${esc(error || '')}</p>
         </label>
@@ -754,6 +755,16 @@ export function renderCreateRoom(root, vm) {
   const form = $('#createForm', root);
   const chipsIn = $('#mpCreateChips', root);
   const liveErr = $('#mpCreateLiveErr', root);
+  const chipsValue = () => Number(String(chipsIn?.value || '').replaceAll(',', ''));
+  $('.mp-create', root)?.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } });
+  form?.querySelector('input[name="name"]')?.focus?.();
+  for (const [selector, direction] of [['[data-chips-minus]', -1], ['[data-chips-plus]', 1]]) {
+    $(selector, root)?.addEventListener('click', () => {
+      chipsIn.value = fmtChips(stepBuyinAmount(chipsValue(), direction, 1000, Math.min(100000, bank ?? 100000)));
+      update(false);
+    });
+  }
+  chipsIn?.addEventListener('blur', () => { if (Number.isFinite(chipsValue())) chipsIn.value = fmtChips(chipsValue()); });
   const persist = () => {
     if (!form || !onDraft) return;
     const fd = new FormData(form);
@@ -761,7 +772,7 @@ export function renderCreateRoom(root, vm) {
     onDraft({
       name: String(fd.get('name') || ''),
       sb,
-      chips: Number(fd.get('chips')) || defaults.chips,
+      chips: chipsValue(),
     });
   };
   const blinds = [...(form?.querySelectorAll('input[name="blinds"]') || [])];
@@ -782,8 +793,8 @@ export function renderCreateRoom(root, vm) {
       }
     }
     const [sb, bb] = (selected?.value || '10/20').split('/').map(Number);
-    if (adjust && chipsIn) chipsIn.value = defaultCreateBuyin(Number(chipsIn.value), bb, bank);
-    const msg = createRoomBuyinError(Number(chipsIn?.value), sb, bb, bank);
+    if (adjust && chipsIn) chipsIn.value = fmtChips(defaultCreateBuyin(chipsValue(), bb, bank));
+    const msg = createRoomBuyinError(chipsValue(), sb, bb, bank);
     if (liveErr) {
       liveErr.hidden = !(msg || submitError);
       liveErr.textContent = msg || submitError || '';
@@ -797,13 +808,13 @@ export function renderCreateRoom(root, vm) {
     persist();
   };
   form?.addEventListener('input', () => update(false));
-  form?.addEventListener('change', () => update(true));
+  form?.addEventListener('change', e => update(e?.target?.name === 'blinds'));
   for (const input of blinds) {
     input.closest?.('label')?.addEventListener('click', (e) => {
       if (!input.disabled) return;
       e.preventDefault();
       const [sb, bb] = input.value.split('/').map(Number);
-      const msg = createRoomBuyinError(Number(chipsIn?.value) || 0, sb, bb, bank);
+      const msg = createRoomBuyinError(chipsValue() || 0, sb, bb, bank);
       if (liveErr && msg) {
         liveErr.hidden = false;
         liveErr.textContent = msg;
@@ -819,7 +830,7 @@ export function renderCreateRoom(root, vm) {
     if (!validateChips()) return;
     const fd = new FormData(e.target);
     const [sb, bb] = String(fd.get('blinds') || '10/20').split('/').map(Number);
-    const chips = Number(fd.get('chips'));
+    const chips = chipsValue();
     const name = String(fd.get('name') || '').trim(); // M4: blank → "{名字}的牌桌" in doCreate
     onSubmit({ name, sb, bb, newPlayerChips: chips });
   });

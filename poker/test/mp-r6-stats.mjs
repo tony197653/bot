@@ -279,7 +279,7 @@ async function playOne(players, regress) {
     }
     await players[0].page.waitForTimeout(700);
     const t = await players[0].page.innerText('body').catch(() => '');
-    if (!acted && /開始下一手|開始第一手|贏得|手結束/.test(t)) return true;
+    if (!acted && /開始下一手|開始第一手|贏得|(?<!這)手結束/.test(t)) return true;
   }
   return false;
 }

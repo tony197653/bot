@@ -288,14 +288,14 @@ async function playToShowdown(players, hostP) {
     }
     await warm.page.bringToFront().catch(() => {});
     const t = await warm.page.innerText('body');
-    if (/開始下一手|開始第一手|手結束|準備中/.test(t) && i > 4) {
+    if (/開始下一手|開始第一手|(?<!這)手結束|準備中/.test(t) && i > 4) {
       return { done: true, sawShow, ticks: i };
     }
     if (!acted) await warm.page.waitForTimeout(400);
   }
   await warm.page.waitForTimeout(6500);
   const t = await warm.page.innerText('body');
-  const hasShowOrNext = /亮牌|不亮|開始下一手|手結束|準備中|開始第一手/.test(t);
+  const hasShowOrNext = /亮牌|不亮|開始下一手|(?<!這)手結束|準備中|開始第一手/.test(t);
   return { done: hasShowOrNext || sawShow, sawShow, hasShowOrNext, ticks: 120 };
 }
 

@@ -474,10 +474,10 @@ async function runFoldWin(browser, base, viewport, label) {
       folded = true;
     }
     await host.page.waitForFunction(() =>
-      /手結束|準備中|開始下一手|開始第一手|贏得|離座/.test(document.body.innerText),
+      /(?<!這)手結束|準備中|開始下一手|開始第一手|贏得|離座/.test(document.body.innerText),
     null, { timeout: 12000 }).catch(() => {});
     const body = await host.page.innerText('body');
-    if (/手結束|準備中|開始下一手|開始第一手|贏得|離座/.test(body) && folded) break;
+    if (/(?<!這)手結束|準備中|開始下一手|開始第一手|贏得|離座/.test(body) && folded) break;
   }
   await host.page.screenshot({ path: join(ART, `mp-${label}-foldwin.png`), fullPage: true });
   await guest.page.screenshot({
@@ -486,7 +486,7 @@ async function runFoldWin(browser, base, viewport, label) {
   });
   const body = await host.page.innerText('body');
   const okPhase =
-    /手結束|準備中|開始|贏得|蓋牌|過牌|跟注|離座|亮牌/.test(body) && (folded || started);
+    /(?<!這)手結束|準備中|開始|贏得|蓋牌|過牌|跟注|離座|亮牌/.test(body) && (folded || started);
   const errs = [...host.errors, ...guest.errors].filter(
     (e) =>
       !/favicon|Fonts|net::ERR_FAILED|AbortError|Failed to load|座位已被佔用/i.test(e),
@@ -535,17 +535,17 @@ async function runShowdown(browser, base, viewport, label) {
       }
     }
     const t = await host.page.innerText('body');
-    if (/開始下一手|開始第一手|手結束|準備中/.test(t) && i > 4) break;
+    if (/開始下一手|開始第一手|(?<!這)手結束|準備中/.test(t) && i > 4) break;
     await host.page.waitForTimeout(350);
   }
   // 等待亮牌或下一手狀態，不以固定延遲等待 auto-muck。
   await host.page.waitForFunction(() =>
-    /亮牌|不亮|開始下一手|手結束|準備中|開始第一手/.test(document.body.innerText),
+    /亮牌|不亮|開始下一手|(?<!這)手結束|準備中|開始第一手/.test(document.body.innerText),
   null, { timeout: 15000 });
   await host.page.screenshot({ path: join(ART, `mp-${label}-showdown.png`), fullPage: true });
   const hasShowOrNext = await host.page.evaluate(() => {
     const t = document.body.innerText;
-    return /亮牌|不亮|開始下一手|手結束|準備中|開始第一手/.test(t);
+    return /亮牌|不亮|開始下一手|(?<!這)手結束|準備中|開始第一手/.test(t);
   });
   await host.ctx.close();
   await guest.ctx.close();
@@ -618,7 +618,7 @@ async function runSoloFromLobby(browser, base, viewport, label) {
     const app = document.getElementById('app');
     return !!app && !app.classList.contains('hidden');
   });
-  const okHand = /下一手|手結束|亮牌|不亮|過牌|跟注|蓋牌|贏得/.test(body);
+  const okHand = /下一手|(?<!這)手結束|亮牌|不亮|過牌|跟注|蓋牌|贏得/.test(body);
   await p.page.screenshot({
     path: join(ART, `mp-solo-lobby-${label}.png`),
     fullPage: true,

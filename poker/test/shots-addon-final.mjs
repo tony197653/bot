@@ -110,9 +110,10 @@ async function makeHost(browser, base, name, uid, VP) {
   return { ctx, page, name, uid, errors };
 }
 
-async function createAndShare(host) {
+async function createAndShare(host, prefix) {
   await host.page.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
   await host.page.waitForSelector('form, .mp-create', { timeout: 8000 });
+  if (prefix) await capture(host, prefix, 'open-table-buyin');
   await host.page.click('button[type="submit"]');
   await host.page.waitForSelector('.mp-url', { timeout: 20000 });
   const url = (await host.page.innerText('.mp-url')).trim();
@@ -287,14 +288,14 @@ async function playToShowdown(players, hostP) {
     }
     await warm.page.bringToFront().catch(() => {});
     const t = await warm.page.innerText('body');
-    if (/開始下一手|開始第一手|手結束|準備中/.test(t) && i > 4) {
+    if (/開始下一手|開始第一手|(?<!這)手結束|準備中/.test(t) && i > 4) {
       return { done: true, sawShow, ticks: i };
     }
     if (!acted) await warm.page.waitForTimeout(400);
   }
-  await warm.page.waitForFunction(() => /亮牌|不亮|開始下一手|手結束|準備中|開始第一手/.test(document.body.innerText), null, { timeout: 6500 }).catch(() => {});
+  await warm.page.waitForFunction(() => /亮牌|不亮|開始下一手|(?<!這)手結束|準備中|開始第一手/.test(document.body.innerText), null, { timeout: 6500 }).catch(() => {});
   const t = await warm.page.innerText('body');
-  const hasShowOrNext = /亮牌|不亮|開始下一手|手結束|準備中|開始第一手/.test(t);
+  const hasShowOrNext = /亮牌|不亮|開始下一手|(?<!這)手結束|準備中|開始第一手/.test(t);
   return { done: hasShowOrNext || sawShow, sawShow, hasShowOrNext, ticks: 120 };
 }
 
@@ -352,7 +353,7 @@ async function queueAddonUI(p, hostP) {
     log('picker 沒出現', p.name, 'toasts', JSON.stringify(await toasts(p)), 'bank(db)', (await readDoc(`pokerPlayers/${p.uid}`))?.bank);
     throw new Error('加碼選擇器沒出現');
   }
-  const dflt = Number(await p.page.locator('#mpBuyinPicker input[type="number"]').inputValue());
+  const dflt = Number(String(await p.page.locator('#mpBuyinPicker input[type="text"]').inputValue()).replaceAll(',', ''));
   await p.page.locator('#mpBuyinPicker [data-confirm]').click();
   await p.page.waitForSelector('#mpAddonCancel', { timeout: 8000 });
   await hostP.page.bringToFront();
@@ -361,16 +362,19 @@ async function queueAddonUI(p, hostP) {
 
 async function foldPlayer(players, target, hostP) {
   for (let i = 0; i < 80; i++) {
+    if (await target.page.locator('#mpAddon:not([disabled])').count()) return true;
     for (const p of players) {
       if (p === target && await p.page.locator('#mpFold:not([disabled])').count()) {
-        await p.page.bringToFront(); await p.page.locator('#mpFold').click(); await hostP.page.bringToFront(); return true;
+        await p.page.bringToFront(); await p.page.locator('#mpFold').click();
+      } else if (p !== target && await p.page.locator('#mpCheck:not([disabled])').count()) {
+        await p.page.bringToFront(); await p.page.locator('#mpCheck').click(); break;
+      } else if (p !== target && await p.page.locator('#mpCall:not([disabled])').count()) {
+        await p.page.bringToFront(); await p.page.locator('#mpCall').click(); break;
       }
-      if (p !== target && await p.page.locator('#mpCheck:not([disabled])').count()) { await p.page.bringToFront(); await p.page.locator('#mpCheck').click(); break; }
-      if (p !== target && await p.page.locator('#mpCall:not([disabled])').count()) { await p.page.bringToFront(); await p.page.locator('#mpCall').click(); break; }
     }
     await hostP.page.bringToFront(); await sleep(400);
   }
-  return false;
+  return !!(await target.page.locator('#mpAddon:not([disabled])').count());
 }
 async function setBank(uid, bank) {
   const r = await fetch(`http://${EMU}/v1/projects/${PROJECT}/databases/(default)/documents/pokerPlayers/${uid}?updateMask.fieldPaths=bank`, {
@@ -383,7 +387,7 @@ async function queueAddonAmount(p, hostP, amount) {
   const prev = await p.page.evaluate(() => document.getElementById('mpAddonCancel')?.getAttribute('aria-label') || '');
   await p.page.locator('#mpAddon:not([disabled])').click();
   await p.page.waitForSelector('#mpBuyinPicker', { timeout: 5000 });
-  await p.page.locator('#mpBuyinPicker input[type="number"]').fill(String(amount));
+  await p.page.locator('#mpBuyinPicker input[type="text"]').fill(String(amount));
   await p.page.locator('#mpBuyinPicker [data-confirm]').click();
   await p.page.waitForFunction(pv => { const l = document.getElementById('mpAddonCancel')?.getAttribute('aria-label') || ''; return l && l !== pv; }, prev, { timeout: 8000 });
   await hostP.page.bringToFront();
@@ -418,7 +422,7 @@ async function runViewport(browser, base, VP) {
     const hint = `shots${prefix}${Date.now()}`;
     const host = await run('建立房主', () => makeHost(browser, base, NAMES[0], `${hint}host`, VP));
     players.push(host);
-    const { roomId, code } = await run('開桌', () => createAndShare(host));
+    const { roomId, code } = await run('開桌', () => createAndShare(host, prefix));
     for (let i = 1; i <= 2; i++) {
       const g = await run(`加入 ${i}`, () => joinViaLink(browser, base, NAMES[i], `${hint}g${i}`, roomId, code, VP));
       players.push(g);
@@ -448,17 +452,22 @@ async function runViewport(browser, base, VP) {
     await run('兩手之間加碼按鈕與預設選擇器', async () => {
       await guest.page.waitForSelector('#mpAddon:not([disabled])');
       await capture(guest, prefix, 'addon-button');
+      await capture(host, prefix, 'start-next');
       await guest.page.locator('#mpAddon').click();
       await guest.page.waitForSelector('#mpBuyinPicker');
       const room = await readDoc(`pokerRooms/${roomId}`);
       const bank = (await readDoc(`pokerPlayers/${guest.uid}`)).bank;
-      const amount = Number(await guest.page.locator('#mpBuyinPicker input[type="number"]').inputValue());
+      const amount = Number(String(await guest.page.locator('#mpBuyinPicker input[type="text"]').inputValue()).replaceAll(',', ''));
       if (amount !== 50 * room.config.bb || bank < amount) throw new Error(`預設非 50 大盲：${amount}`);
       await capture(guest, prefix, 'addon-picker');
       await guest.page.locator('#mpBuyinPicker [data-cancel]').click();
     });
     const started = await run('開始一手', () => startHand(players), 90000);
     if (!started.ok) throw new Error('未開始牌局');
+    await run('手中加碼提示截圖', async () => {
+      await guest.page.waitForSelector('#mpAddonHint, #mpAddon[disabled]', { timeout: 8000 });
+      await capture(guest, prefix, 'inhand-hint');
+    });
     await run('蓋牌後排隊截圖', async () => {
       if (!await foldPlayer(players, guest, started.host)) throw new Error('客人未蓋牌');
       const amount = await queueAddonUI(guest, started.host);
@@ -467,9 +476,12 @@ async function runViewport(browser, base, VP) {
       if (!Array.isArray(queue?.items) || queue.items.length < 2) throw new Error('排隊未達兩筆');
       const total = queue.items.reduce((sum, item) => sum + Number(item.amount), 0);
       await guest.page.waitForFunction(expected => {
+        const row = document.getElementById('mpAddonQueueRow');
         const button = document.getElementById('mpAddonCancel');
-        return button && !button.disabled && button.getClientRects().length &&
-          Number((button.textContent.match(/^取消\s+([\d,]+)$/) || [])[1]?.replaceAll(',', '')) === expected;
+        const label = button?.getAttribute('aria-label') || '';
+        const text = (row?.innerText || '') + label;
+        const n = Number((text.match(/([\d,]+)/) || [])[1]?.replaceAll(',', ''));
+        return button && !button.disabled && button.getClientRects().length && n === expected;
       }, total, { timeout: 8000 });
       await capture(guest, prefix, 'queued');
     });
