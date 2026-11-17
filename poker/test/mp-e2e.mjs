@@ -257,7 +257,7 @@ async function createAndShare(host) {
   if (code.length !== 3) throw new Error(`createAndShare bad code=${code} url=${url}`);
   scenarioRooms.push({ host, roomId, code, viewport: host.page.viewportSize() });
   await host.page.click('[data-act="enter"]');
-  await host.page.waitForSelector('#app:not(.hidden), #seats', { timeout: 20000 });
+  await host.page.waitForSelector('#seats .mp-empty-seat, #mpLeave', { state: 'attached', timeout: 20000 });
   return { roomId, code, url };
 }
 
@@ -278,17 +278,16 @@ async function joinViaLink(browser, base, name, uid, viewport, roomId, code) {
     timeout: 20000,
   });
   await page.evaluate(([u, n]) => window.__qaSignIn(u, n), [uid, name]);
-  await page.waitForSelector('#seats, .mp-lobby, .mp-ended', { timeout: 20000 }).catch(() => {});
-  await page.waitForSelector('#seats, [data-act="continue"], [data-act="enter"], .mp-ended', {
-    state: 'visible', timeout: 15000,
-  });
-  // Deep-link may land in lobby with continue card — enter table
-  const cont = page.locator('[data-act="continue"], [data-act="enter"]');
-  if (await cont.count()) {
-    await cont.first().click().catch(() => {});
-    await page.waitForTimeout(2000);
+  // 以空位／離座確認進桌；結束畫面也停止等待，入口出現時繼續進入。
+  const READY = '#seats .mp-empty-seat, #mpLeave, .mp-ended';
+  const GATE = '[data-act="continue"], [data-act="enter"], [data-act="join"]';
+  const end = Date.now() + 30000;
+  while (Date.now() < end) {
+    if (await page.locator(READY).count()) break;
+    const gate = page.locator(GATE);
+    if (await gate.count()) await gate.first().click().catch(() => {});
+    await page.waitForSelector(`${READY}, ${GATE}`, { state: 'attached', timeout: 1500 }).catch(() => {});
   }
-  await page.waitForSelector('#seats', { timeout: 15000 }).catch(() => {});
   return { ctx, page, name, uid, errors };
 }
 
@@ -348,14 +347,14 @@ async function startHand(host) {
 /** After reload+sign-in, ensure we are on the table (auto-resume or continue). */
 async function ensureOnTable(page) {
   for (let i = 0; i < 6; i++) {
-    if (await page.locator('#seats, #mpFold, #mpLeave, #mpStart').count()) return true;
+    if (await page.locator('#seats .mp-empty-seat, #mpLeave').count()) return true;
     const cont = page.locator('[data-act="continue"], [data-act="enter"]');
     if (await cont.count()) {
       await cont.first().click().catch(() => {});
     }
     await page.waitForTimeout(1000);
   }
-  return !!(await page.locator('#seats').count());
+  return !!(await page.locator('#seats .mp-empty-seat, #mpLeave').count());
 }
 
 async function runFoldWin(browser, base, viewport, label) {
@@ -735,7 +734,7 @@ async function runHostLobbyContinue(browser, base, viewport, label) {
   await host.page.waitForFunction(
     () => {
       const app = document.getElementById('app');
-      const seats = document.getElementById('seats');
+      const seats = document.querySelector('#seats .mp-empty-seat, #mpLeave');
       return (
         !!seats &&
         app &&
@@ -755,7 +754,7 @@ async function runHostLobbyContinue(browser, base, viewport, label) {
     return {
       chips,
       seated: /離座|開始第一手|開始下一手|蓋牌|觀戰/.test(body),
-      onTable: !!document.getElementById('seats'),
+      onTable: !!document.querySelector('#seats .mp-empty-seat, #mpLeave'),
     };
   });
   await host.page.screenshot({
@@ -903,11 +902,11 @@ async function runJoinCode3(browser, base, viewport, label) {
     dt.setData('text/plain', link);
     input.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true }));
   }, url);
-  await guest.page.waitForSelector('#seats', { timeout: 20000 }).catch(() => {});
+  await guest.page.waitForSelector('#seats .mp-empty-seat, #mpLeave', { state: 'attached', timeout: 20000 }).catch(() => {});
   await guest.page.waitForTimeout(1500);
   const onTable = await guest.page.evaluate(() => {
     const app = document.getElementById('app');
-    return !!document.getElementById('seats') && app && !app.classList.contains('hidden');
+    return !!document.querySelector('#seats .mp-empty-seat, #mpLeave') && app && !app.classList.contains('hidden');
   });
   await guest.page.screenshot({
     path: join(ART, `mp-${label}-join3.png`),
