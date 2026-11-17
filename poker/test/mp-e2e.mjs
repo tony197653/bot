@@ -314,7 +314,25 @@ async function sitIfNeeded(page) {
         })
         .catch(() => false);
       if (!clicked) await seatBtn.click({ force: true }).catch(() => {});
-      await page.locator('#mpBuyinPicker [data-confirm]').waitFor({ state: 'visible', timeout: 12000 });
+      await page.locator('#mpBuyinPicker [data-confirm]').waitFor({ state: 'visible', timeout: 12000 }).catch(async (e) => {
+        // DIAG R21: capture state when the buy-in picker never opens
+        const d = await page.evaluate(() => ({
+          url: location.href,
+          toast: document.querySelector('#mpToast')?.textContent || '',
+          picker: !!document.querySelector('#mpBuyinPicker'),
+          empty: document.querySelectorAll('.mp-empty-seat').length,
+          leave: !!document.querySelector('#mpLeave'),
+          text: document.body.innerText.slice(0, 600),
+        })).catch((x) => ({ evalErr: String(x) }));
+        console.log('DIAG sit-picker', JSON.stringify(d));
+        try {
+          const port = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
+          const r = await fetch(`http://${port}/v1/projects/demo-poker/databases/(default)/documents/rooms?pageSize=5`, { headers: { Authorization: 'Bearer owner' } });
+          console.log('DIAG rooms', (await r.text()).slice(0, 3000));
+        } catch (x) { console.log('DIAG rooms err', String(x)); }
+        await page.screenshot({ path: join(ART, 'diag-sit-picker.png'), fullPage: true }).catch(() => {});
+        throw e;
+      });
       await page.locator('#mpBuyinPicker [data-confirm]').click();
       await page.waitForSelector('#mpBuyinPicker', { state: 'hidden', timeout: 10000 });
     }
