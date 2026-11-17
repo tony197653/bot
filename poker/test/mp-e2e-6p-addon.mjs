@@ -115,6 +115,7 @@ async function makeHost(browser, base, name, uid) {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
+  page.on('console', (m) => { if (/\[host\]/.test(m.text())) console.log('HOSTCONSOLE', m.type(), m.text().slice(0, 300)); });
   await page.goto(`${base}/poker/?emu=1`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
     timeout: 20000,
@@ -551,11 +552,51 @@ async function main() {
     const pL = await waitFor(async () => { const p = await readDoc(`pokerPlayers/${g1.uid}`); return !p.tableRoomId && p; }, 25000);
     ok('情境7 加碼後離座結帳：帳戶＋桌上籌碼（含加碼）', !!pL && pL.bank === bankL + stackL && (pL.inPlay || 0) === 0, { bankL, stackL, now: pL?.bank });
     // 情境 4（暫離中加碼）：無手動暫離 UI，保留未覆蓋紀錄。
-    await step('情境4 暫離 UI 可用性', async () => {
-      const reason = '找不到可點擊的手動暫離 UI；mp-app.js:2700–2726 只有開始、加碼、離座，:2743 僅讀取 sittingOut；host.js:1105–1125 依心跳自動設定及清除暫離，無法用指定 UI 流程驗證暫離中加碼與回桌發牌。';
-      // 未覆蓋不算通過也不算失敗：記在 R.pending，回報時標「未核對」。
-      (R.pending ||= []).push({ name: '情境4 暫離中加碼（暫離只由心跳逾時自動設定，無手動 UI）', reason });
-    }, 3000);
+    // 情境 4：暫離中加碼。暫離沒有手動 UI，只由心跳逾時 60 秒自動設定（host.js 心跳檢查）；
+    // 這裡讓靜香的頁面變成 hidden（不再送心跳），等房主標暫離，再在牌桌頁加碼。
+    const gA = guests[1];
+    const rA = await readDoc(`pokerRooms/${roomId}`);
+    const sA = seatOf(rA, gA);
+    const setVis = (vis) => gA.page.evaluate((v) => {
+      window.__hidden = !v;
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (window.__hidden ? 'hidden' : 'visible') });
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => !!window.__hidden });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, vis);
+    await setVis(false);
+    const awayRoom = await step('等房主標暫離（>60 秒無心跳）', () => waitFor(async () => {
+      const r = await readDoc(`pokerRooms/${roomId}`);
+      return r.pub?.away?.[String(sA)] && r;
+    }, 100000), 105000);
+    ok('情境4 心跳斷 60 秒後房主標暫離', !!awayRoom);
+    // 診斷結果（systematic-debugging）：排隊有寫進去，但房主等暫離時已自動開下一手（phase=preflop），
+    // 測試原本假設「兩手之間」不成立。真實情境：暫離的人回到牌桌頁才按加碼。
+    const inHandAway = await step('暫離中這手（房主自動或手動開）', () => waitFor(async () => {
+      const r = await readDoc(`pokerRooms/${roomId}`);
+      if (['lobby', 'hand_over'].includes(r.pub?.phase)) { await startHand(players).catch(() => {}); return null; }
+      return r;
+    }, 60000), 65000);
+    const seatAway = inHandAway?.pub?.seats?.[sA];
+    ok('情境4 暫離中這手不發牌', !!seatAway && (seatAway.sittingOut === true || seatAway.folded === true), { seat: seatAway && { sittingOut: seatAway.sittingOut, folded: seatAway.folded } });
+    const bankA = (await readDoc(`pokerPlayers/${gA.uid}`)).bank;
+    const topA = inHandAway?.sess?.[sA]?.topUpChips || 0;
+    // 回到牌桌頁 → 馬上按加碼（這手已在進行，排隊等這手結束）
+    await setVis(true);
+    await step('回牌桌頁後加碼 1,000', () => queueAddonAmount(gA, host, 1000), 20000);
+    const midA = await readDoc(`pokerRooms/${roomId}`);
+    ok('情境4 手中排隊不動本手、帳戶不扣', midA.sess[sA].topUpChips === topA && (await readDoc(`pokerPlayers/${gA.uid}`)).bank === bankA);
+    await gA.page.screenshot({ path: join(ART, '390-away-addon.png') }).catch(() => {});
+    R.hand3 = await step('play3', () => playToShowdown(players, host), 150000);
+    const rA2 = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return (r.sess[sA].topUpChips || 0) === topA + 1000 && r; }, 30000);
+    ok('情境4 這手結束後加碼上桌、帳戶扣 1,000', !!rA2 && (await readDoc(`pokerPlayers/${gA.uid}`)).bank === bankA - 1000);
+    const back = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return !r.pub?.away?.[String(sA)] && r; }, 30000);
+    ok('情境4 回桌後清除暫離', !!back);
+    await step('startHand4（回桌後發牌）', () => startHand(players), 90000);
+    const r4 = await waitFor(async () => { const r = await readDoc(`pokerRooms/${roomId}`); return r.pub?.phase && !['lobby', 'hand_over'].includes(r.pub.phase) && r.pub.handNo > (inHandAway?.pub?.handNo || 0) && r; }, 20000);
+    const seatA4 = r4?.pub?.seats?.[sA];
+    ok('情境4 回桌後下一手有發牌', !!r4 && seatA4 && seatA4.sittingOut !== true && seatA4.folded !== true, { seat: seatA4 && { sittingOut: seatA4.sittingOut, folded: seatA4.folded } });
+    const total4 = (await readDoc(`pokerRooms/${roomId}`)).chipTotal;
+    log('chipTotal after 4', total4);
     R.errs = players.flatMap(p => p.errors).filter(e => !/favicon|Fonts|net::ERR_FAILED|AbortError|Failed to load|座位已被佔用/i.test(e)).slice(0, 8);
     R.ok = Object.values(R.checks).every(c => c.ok) && R.errs.length === 0;
     for (const p of players) await p.ctx.close();
