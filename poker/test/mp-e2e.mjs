@@ -10,7 +10,7 @@ import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -126,6 +126,57 @@ async function makePlayer(browser, base, name, uid, viewport) {
   return { ctx, page, name, uid, errors };
 }
 
+// 每段情境結束後，以房主 UI 收掉仍開放的牌桌（包含測試提前失敗）。
+const scenarioRooms = [];
+
+async function roomIsClosed(roomId) {
+  const rules = readFileSync(join(ROOT, 'firebase/firestore.rules'), 'utf8');
+  const env = await initializeTestEnvironment({
+    projectId: 'demo-poker',
+    firestore: { host: '127.0.0.1', port: 8195, rules },
+  });
+  try {
+    return await env.withSecurityRulesDisabled(async (ctx) => {
+      const snap = await getDoc(doc(ctx.firestore(), 'pokerRooms', roomId));
+      return snap.exists() && snap.data().status === 'closed';
+    });
+  } finally {
+    await env.cleanup();
+  }
+}
+
+async function closeRoomViaHost(host, roomId) {
+  if (await roomIsClosed(roomId)) return;
+  if (!(await host.page.locator('#btnMenu').isVisible())) {
+    await host.page.locator('[data-act="continue"]:visible, [data-act="enter"]:visible').first().click();
+  }
+  await host.page.locator('#btnMenu').waitFor({ state: 'visible', timeout: 15000 });
+  await host.page.locator('#btnMenu').click();
+  await host.page.locator('#mpBtnCloseRoom').click();
+  await host.page.locator('#mpCloseConfirmOk').click();
+  await host.page.waitForFunction(() => {
+    const title = document.getElementById('mpCloseResultT')?.textContent || '';
+    return /牌桌已收桌/.test(title);
+  }, null, { timeout: 20000 });
+  if (!(await roomIsClosed(roomId))) throw new Error(`房主 UI 收桌未完成：${roomId}`);
+}
+
+async function cleanupScenarioRooms(browser, base) {
+  for (const { host, roomId, code, viewport } of scenarioRooms) {
+    if (await roomIsClosed(roomId)) continue;
+    // 原 context 可能已關閉（斷線測試亦然）；重新以原房主身分進桌收桌。
+    const owner = await joinViaLink(
+      browser, base, host.name, host.uid, viewport, roomId, code,
+    );
+    try {
+      await closeRoomViaHost(owner, roomId);
+    } finally {
+      await owner.ctx.close();
+    }
+  }
+  scenarioRooms.length = 0;
+}
+
 async function createAndShare(host) {
   // Prefer visible CTA (empty-state #mpBtnCreateE may stay in DOM under [hidden])
   await host.page.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
@@ -148,6 +199,7 @@ async function createAndShare(host) {
   code = String(code).replace(/\D/g, '').slice(0, 3);
   if (!roomId) throw new Error(`createAndShare missing roomId from url=${url}`);
   if (code.length !== 3) throw new Error(`createAndShare bad code=${code} url=${url}`);
+  scenarioRooms.push({ host, roomId, code, viewport: host.page.viewportSize() });
   await host.page.click('[data-act="enter"]');
   await host.page.waitForSelector('#app:not(.hidden), #seats', { timeout: 20000 });
   return { roomId, code, url };
@@ -171,7 +223,9 @@ async function joinViaLink(browser, base, name, uid, viewport, roomId, code) {
   });
   await page.evaluate(([u, n]) => window.__qaSignIn(u, n), [uid, name]);
   await page.waitForSelector('#seats, .mp-lobby, .mp-ended', { timeout: 20000 }).catch(() => {});
-  await page.waitForTimeout(2500);
+  await page.waitForSelector('#seats, [data-act="continue"], [data-act="enter"], .mp-ended', {
+    state: 'visible', timeout: 15000,
+  });
   // Deep-link may land in lobby with continue card — enter table
   const cont = page.locator('[data-act="continue"], [data-act="enter"]');
   if (await cont.count()) {
@@ -205,6 +259,9 @@ async function sitIfNeeded(page) {
         })
         .catch(() => false);
       if (!clicked) await seatBtn.click({ force: true }).catch(() => {});
+      await page.locator('#mpBuyinPicker [data-confirm]').waitFor({ state: 'visible', timeout: 3000 });
+      await page.locator('#mpBuyinPicker [data-confirm]').click();
+      await page.waitForSelector('#mpBuyinPicker', { state: 'hidden', timeout: 10000 });
     }
     await page.waitForTimeout(1400);
   }
@@ -223,7 +280,7 @@ async function startHand(host) {
       const n = Number((label.match(/（(\d+)人）/) || [])[1] || 0);
       if (n >= 2 || !/人/.test(label)) {
         await start.click();
-        await host.page.waitForTimeout(3500);
+        await host.page.waitForSelector('#mpFold, #mpCheck, #mpCall', { timeout: 10000 });
         if (await host.page.locator('#mpFold, #mpCheck, #mpCall').count()) return true;
       }
     }
@@ -335,8 +392,10 @@ async function runShowdown(browser, base, viewport, label) {
     if (/開始下一手|開始第一手|手結束|準備中/.test(t) && i > 4) break;
     await host.page.waitForTimeout(350);
   }
-  // Allow host auto-muck (5s) + hold if still on showdown
-  await host.page.waitForTimeout(6500);
+  // 等待亮牌或下一手狀態，不以固定延遲等待 auto-muck。
+  await host.page.waitForFunction(() =>
+    /亮牌|不亮|開始下一手|手結束|準備中|開始第一手/.test(document.body.innerText),
+  null, { timeout: 15000 });
   await host.page.screenshot({ path: join(ART, `mp-${label}-showdown.png`), fullPage: true });
   const hasShowOrNext = await host.page.evaluate(() => {
     const t = document.body.innerText;
@@ -494,7 +553,7 @@ async function runIntentRefresh(browser, base, viewport, label) {
     [`hostir${label}`, '阿明'],
   );
   await ensureOnTable(host.page);
-  await host.page.waitForTimeout(3000);
+  await host.page.waitForSelector('#mpCall, #mpCheck, #mpFold, #mpStart', { timeout: 15000 });
   // Host may void + reshuffle; wait and optionally act
   for (let i = 0; i < 10; i++) {
     const hBtn = host.page.locator(
@@ -766,7 +825,9 @@ async function runJoinCode3(browser, base, viewport, label) {
   // Bad code via typing into hidden input
   await guest.page.focus('#mpJoinCode');
   await guest.page.keyboard.type(badCode, { delay: 40 });
-  await guest.page.waitForTimeout(2200);
+  await guest.page.waitForFunction(() =>
+    document.getElementById('mpJoinWrap')?.dataset.s === 'error',
+  null, { timeout: 10000 });
   const bad = await guest.page.evaluate(() => ({
     status: document.getElementById('mpJoinStatus')?.textContent || '',
     state: document.getElementById('mpJoinWrap')?.dataset?.s || '',
@@ -813,138 +874,16 @@ async function runJoinCode3(browser, base, viewport, label) {
   };
 }
 
-/** #28: open tables list; seat counts live; close removes; code reuse; mismatched r. */
+/** #28: 單桌收桌後代碼重用；不相符的 r 仍須顯示牌桌已結束。 */
 async function runOpenTablesList(browser, base, viewport, label) {
   const h1 = await makePlayer(browser, base, '阿明', `h1list${label}`, viewport);
   const t1 = await createAndShare(h1);
-  const h2 = await makePlayer(browser, base, '大雄', `h2list${label}`, viewport);
-  const t2 = await createAndShare(h2);
-  const h3 = await makePlayer(browser, base, '靜香', `h3list${label}`, viewport);
-  const t3 = await createAndShare(h3);
+  // 產品已改單桌（lobby.js:400–488、room.js:197–223），多桌列表斷言移除
+  // 不再連開三桌、比對多列座位數與列尺寸；保留收桌後代碼重用與失效連結。
+  await closeRoomViaHost(h1, t1.roomId);
 
-  const viewer = await makePlayer(browser, base, '小夫', `viewlist${label}`, viewport);
-  await viewer.page.waitForSelector('#mpOpenList, #mpOpenEmpty', { timeout: 15000 });
-  await viewer.page.waitForFunction(
-    (ids) => {
-      const rows = [...document.querySelectorAll('.mp-open .mp-row[data-act="open-table"]')];
-      return ids.every((id) => rows.some((r) => r.getAttribute('data-rid') === id));
-    },
-    [t1.roomId, t2.roomId, t3.roomId],
-    { timeout: 15000 },
-  ).catch(() => {});
-  await viewer.page.waitForTimeout(1500);
-
-  const before = await viewer.page.evaluate((ids) => {
-    const rows = [...document.querySelectorAll('.mp-open .mp-row[data-act="open-table"]')];
-    const empty = document.getElementById('mpOpenEmpty');
-    const emptyCs = empty ? getComputedStyle(empty) : null;
-    const byId = Object.fromEntries(
-      rows.map((r) => [r.getAttribute('data-rid'), (r.textContent || '').replace(/\s+/g, ' ')]),
-    );
-    const boxes = Object.fromEntries(
-      rows.map((r) => {
-        const id = r.getAttribute('data-rid');
-        const b = r.getBoundingClientRect();
-        return [id, { top: b.top, height: b.height, width: b.width, left: b.left }];
-      }),
-    );
-    const sampleRow = rows[0];
-    const sampleB = sampleRow?.querySelector('b');
-    const sampleEm = sampleRow?.querySelector('em');
-    return {
-      n: rows.length,
-      hasTitle: /可加入的牌桌/.test(document.body.innerText),
-      hasGoldBtn: !!document.querySelector('.mp-btn-primary'),
-      hasThreeCells: document.querySelectorAll('.mp-cell').length === 3,
-      ids: rows.map((r) => r.getAttribute('data-rid')),
-      our: ids.filter((id) => rows.some((r) => r.getAttribute('data-rid') === id)).length,
-      seats: ids.map((id) => {
-        const t = byId[id] || '';
-        const m = t.match(/(\d)\s*\/\s*6/);
-        return m ? Number(m[1]) : null;
-      }),
-      boxes,
-      // empty under list must not show when tables exist ([hidden] vs display:flex)
-      emptyHiddenAttr: empty?.hidden === true || empty?.hasAttribute('hidden') === true,
-      emptyDisplayNone: emptyCs?.display === 'none',
-      rowLineHeightOk:
-        sampleB &&
-        parseFloat(getComputedStyle(sampleB).lineHeight) >=
-          parseFloat(getComputedStyle(sampleB).fontSize) * 1.45 &&
-        sampleEm &&
-        parseFloat(getComputedStyle(sampleEm).lineHeight) >=
-          parseFloat(getComputedStyle(sampleEm).fontSize) * 1.45,
-    };
-  }, [t1.roomId, t2.roomId, t3.roomId]);
-
-  await viewer.page.screenshot({
-    path: join(ART, `mp-${label}-open-list.png`),
-    fullPage: true,
-  });
-
-  // Live seat count: guest sits at t2
-  const sitter = await joinViaLink(
-    browser,
-    base,
-    '小強',
-    `sitlist${label}`,
-    viewport,
-    t2.roomId,
-    t2.code,
-  );
-  const sat = await sitIfNeeded(sitter.page);
-  await viewer.page.waitForTimeout(2500);
-  const afterSit = await viewer.page.evaluate((id) => {
-    const row = document.querySelector(`.mp-open .mp-row[data-rid="${id}"]`);
-    const t = (row?.textContent || '').replace(/\s+/g, ' ');
-    const m = t.match(/(\d)\s*\/\s*6/);
-    const b = row?.getBoundingClientRect();
-    return {
-      text: t,
-      seated: m ? Number(m[1]) : null,
-      box: b ? { top: b.top, height: b.height, width: b.width, left: b.left } : null,
-    };
-  }, t2.roomId);
-  // Row may reorder by updatedAt; assert the row's own size is stable (no height jump)
-  const noLayoutShift =
-    before.boxes[t2.roomId] &&
-    afterSit.box &&
-    Math.abs(before.boxes[t2.roomId].height - afterSit.box.height) < 1.5 &&
-    Math.abs(before.boxes[t2.roomId].width - afterSit.box.width) < 1.5;
-
-  // Close t1 → disappears from list; code free for reuse
-  await emuCloseRoom(t1.roomId, t1.code);
-  // Clear hostRoomId so a reuse create can proceed if needed
-  {
-    const rules = readFileSync(join(ROOT, 'firebase/firestore.rules'), 'utf8');
-    const env = await initializeTestEnvironment({
-      projectId: 'demo-poker',
-      firestore: { host: '127.0.0.1', port: 8195, rules },
-    });
-    try {
-      await env.withSecurityRulesDisabled(async (ctx) => {
-        const db = ctx.firestore();
-        await updateDoc(doc(db, 'pokerPlayers', `h1list${label}`), {
-          hostRoomId: null,
-          tableRoomId: null,
-          inPlay: 0,
-        }).catch(() => {});
-      });
-    } finally {
-      await env.cleanup();
-    }
-  }
-  await viewer.page.waitForFunction(
-    (id) => !document.querySelector(`.mp-open .mp-row[data-rid="${id}"]`),
-    t1.roomId,
-    { timeout: 15000 },
-  ).catch(() => {});
-  const afterClose = await viewer.page.evaluate((id) => ({
-    n: document.querySelectorAll('.mp-open .mp-row[data-act="open-table"]').length,
-    stillHas: !!document.querySelector(`.mp-open .mp-row[data-rid="${id}"]`),
-  }), t1.roomId);
-
-  // Code reuse: force Math.random toward t1.code and create
+  // 產品已改單桌（lobby.js:400–488、room.js:197–223），多桌列表斷言移除
+  // 前桌已收妥才開新桌，保留代碼重用斷言。
   const reuser = await makePlayer(browser, base, '宜靜', `reuse${label}`, viewport);
   await reuser.page
     .locator('.mp-btn-primary[data-act="create"]:visible')
@@ -962,6 +901,7 @@ async function runOpenTablesList(browser, base, viewport, label) {
   const reuseUrl = (await reuser.page.innerText('.mp-url')).trim();
   const reuseCode = new URL(reuseUrl).searchParams.get('room') || '';
   const reuseRoomId = new URL(reuseUrl).searchParams.get('r') || '';
+  scenarioRooms.push({ host: reuser, roomId: reuseRoomId, code: reuseCode, viewport });
   await reuser.page.evaluate(() => {
     if (window.__qaOrigRandom) Math.random = window.__qaOrigRandom;
   });
@@ -975,14 +915,16 @@ async function runOpenTablesList(browser, base, viewport, label) {
   await staleCtx.route('**/*', blockProd);
   const stalePage = await staleCtx.newPage();
   await stalePage.goto(
-    `${base}/poker/?emu=1&room=${encodeURIComponent(t2.code)}&r=rOLDFAKEID`,
+    `${base}/poker/?emu=1&room=${encodeURIComponent(reuseCode)}&r=rOLDFAKEID`,
     { waitUntil: 'domcontentloaded' },
   );
   await stalePage.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
     timeout: 20000,
   });
   await stalePage.evaluate(([u, n]) => window.__qaSignIn(u, n), [`stale${label}`, '聰實']);
-  await stalePage.waitForTimeout(3500);
+  await stalePage.waitForFunction(() =>
+    /這桌已經結束了|牌桌已結束/.test(document.body.innerText),
+  null, { timeout: 15000 });
   const ended = await stalePage.evaluate(() =>
     /這桌已經結束了|牌桌已結束/.test(document.body.innerText),
   );
@@ -993,41 +935,14 @@ async function runOpenTablesList(browser, base, viewport, label) {
   await staleCtx.close();
 
   await h1.ctx.close();
-  await h2.ctx.close();
-  await h3.ctx.close();
-  await viewer.ctx.close();
-  await sitter.ctx.close();
   await reuser.ctx.close();
 
-  const seatsLive =
-    sat &&
-    afterSit.seated != null &&
-    before.seats[1] != null &&
-    afterSit.seated > before.seats[1];
-
   return {
-    ok:
-      before.our >= 3 &&
-      before.hasTitle &&
-      before.hasThreeCells &&
-      before.emptyHiddenAttr &&
-      before.emptyDisplayNone &&
-      before.rowLineHeightOk &&
-      seatsLive &&
-      noLayoutShift &&
-      !afterClose.stillHas &&
-      codeReused &&
-      ended,
-    before,
-    afterSit,
-    afterClose,
-    seatsLive,
-    noLayoutShift,
-    sat,
+    ok: codeReused && ended,
     reuse: { reuseCode, reuseRoomId, codeReused },
     ended,
-    rooms: [t1.roomId, t2.roomId, t3.roomId],
-    codes: [t1.code, t2.code, t3.code],
+    rooms: [t1.roomId, reuseRoomId],
+    codes: [t1.code, reuseCode],
   };
 }
 
@@ -1069,7 +984,8 @@ async function runMineCardStates(browser, base, viewport, label) {
   const hostCard = await host.page.evaluate(() => window.__qaMineSnapshot());
   const h1 = hostCard.height;
 
-  // Guest seated → 入座中 + create shows + 先離開 notify
+  // 產品已改單桌（lobby.js:400–488、room.js:197–223），多桌時代斷言移除
+  // Guest seated → 入座中；房間開放時沒有開桌鈕。
   const guest = await joinViaLink(browser, base, '大雄', guestUid, viewport, roomId, code);
   await sitIfNeeded(guest.page);
   await guest.page.waitForTimeout(1200);
@@ -1082,22 +998,7 @@ async function runMineCardStates(browser, base, viewport, label) {
   }));
   const guestMenu = await guest.page.evaluate(() => window.__qaOpenMenu?.() || []);
   await guest.page.evaluate(() => document.getElementById('mpMenuBtn')?.click());
-  await guest.page.locator('.mp-btn-primary[data-act="create"]:visible').first().click();
-  await guest.page.waitForTimeout(400);
-  const leaveHint = await guest.page.evaluate(() => {
-    const n = document.getElementById('mpNtc');
-    const a = document.getElementById('mpNtcA');
-    return {
-      on: n?.classList.contains('on'),
-      title: document.getElementById('mpNtcT')?.textContent || '',
-      desc: document.getElementById('mpNtcD')?.textContent || '',
-      attn: document.querySelector('.mp-mine')?.classList.contains('mp-attn'),
-      role: n?.getAttribute('role') || '',
-      sticky: n?.dataset.sticky === '1',
-      action: a?.textContent || '',
-      actionShown: !!(a && !a.hidden),
-    };
-  });
+  // 產品已改單桌（lobby.js:400–488、room.js:197–223），多桌時代斷言移除
   await guest.page.screenshot({
     path: join(ART, `mp-${label}-mine-guest.png`),
     fullPage: true,
@@ -1180,18 +1081,13 @@ async function runMineCardStates(browser, base, viewport, label) {
     hostMenu.some((t) => t === '設定') &&
     hostMenu.some((t) => t === '登出') &&
     !hostMenu.some((t) => /同一支手機輪流玩/.test(t));
+  // 產品已改單桌（lobby.js:400–488、room.js:197–223），多桌時代斷言移除
   const guestOk =
     guestCard.hasMine &&
     /入座中/.test(guestCard.tag) &&
-    guestCard.hasCreate &&
+    !guestCard.hasCreate &&
     guestCard.top === '已入座' &&
-    guestMenu.some((t) => /回到牌桌/.test(t)) &&
-    leaveHint.on &&
-    /先離開/.test(leaveHint.title) &&
-    leaveHint.role === 'status' &&
-    leaveHint.sticky &&
-    leaveHint.actionShown &&
-    /回到這一桌/.test(leaveHint.action);
+    guestMenu.some((t) => /回到牌桌/.test(t));
   const settleOk =
     settleCard.hasMine &&
     settleCard.dataK === 'settle' &&
@@ -1240,7 +1136,6 @@ async function runMineCardStates(browser, base, viewport, label) {
     hostCard,
     guestCard,
     settleCard,
-    leaveHint,
     toast,
     heightOk,
     hostAgain,
@@ -1320,7 +1215,11 @@ async function main() {
   const want = (name) => !ONLY.size || [...ONLY].some((k) => name.includes(k));
   const push = async (name, fn) => {
     if (!want(name)) return;
-    results.push({ name, ...(await fn()) });
+    try {
+      results.push({ name, ...(await fn()) });
+    } finally {
+      await cleanupScenarioRooms(browser, base);
+    }
   };
   try {
     for (const vp of [
