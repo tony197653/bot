@@ -59,7 +59,9 @@ input:focus-visible,.btn:focus-visible,.row:focus-visible,.link:focus-visible{ou
 .m-card h2{font-size:18px;margin:0 0 8px;overflow-wrap:anywhere}
 .m-card p{margin:6px 0;font-size:15px}
 .m-card .seg{margin-top:16px}
-.toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;background:var(--wine-d);color:var(--cream);padding:10px 16px;border-radius:12px;font-size:15px;max-width:calc(100% - 32px);text-align:center}
+.toast{position:fixed;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:50;background:var(--wine-d);color:var(--cream);padding:10px 16px;border-radius:12px;font-size:15px;max-width:calc(100% - 32px);text-align:center;pointer-events:none}
+/* R3：手機抽屜開著時提示改放頂部列下方，不蓋按鈕 */
+body.sheet-open .toast{bottom:auto;top:calc(max(8px,env(safe-area-inset-top)) + 60px)}
 @media (min-width:1024px){
   main.app{max-width:1280px;margin:0 auto;padding-top:16px}
   .layout{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:24px;align-items:start}

@@ -68,12 +68,14 @@ function seatLabel(p) {
 
 function renderPlayers() {
   const el = $('players');
+  const focusUid = document.activeElement?.closest?.('#players .row')?.dataset.uid; // S4：重畫後焦點放回那一列
   if (!players.length) { el.innerHTML = '<p class="empty">還沒有玩家</p>'; return; }
   el.innerHTML = players.map((p) => `<button type="button" class="row${sel === p.id ? ' sel' : ''}" data-uid="${esc(p.id)}">
     <span><span class="nm">${esc(p.displayName || '玩家')}</span><span class="sub">${esc(seatLabel(p))}</span></span>
     <span class="num">${fmt(p.bank)}<span class="sub">${p.inPlay ? '桌上 ' + fmt(p.inPlay) : '\u00a0'}</span></span></button>`).join('')
     + `<p class="foot">已載入 ${players.length} 位 · 依籌碼排序</p>`;
   el.querySelectorAll('.row').forEach((b) => b.addEventListener('click', () => openDrawer(b.dataset.uid)));
+  if (focusUid) el.querySelector(`.row[data-uid="${CSS.escape(focusUid)}"]`)?.focus();
 }
 
 /* ---------- 抽屜：加減帳戶 ---------- */
@@ -84,7 +86,7 @@ async function openDrawer(uid) {
   $('amt').value = ''; $('reason').value = '';
   $('drawerEmpty').hidden = true; $('drawerBody').hidden = false;
   $('drawer').classList.add('open');
-  if (!matchMedia('(min-width:1024px)').matches) { $('backdrop').hidden = false; setInert(true, '#players', 'header.bar'); drawerReturn = uid; setTimeout(() => $('opAdd').focus(), 0); }
+  if (!matchMedia('(min-width:1024px)').matches) { $('backdrop').hidden = false; setInert(true, '#players', 'header.bar'); document.body.classList.add('sheet-open'); drawerReturn = uid; setTimeout(() => $('opAdd').focus(), 0); }
   renderPlayers(); fillDrawer();
   statsExist = true; $('clearBtn').disabled = false; $('clearBtn').textContent = '清除個人紀錄';
   try {
@@ -94,7 +96,7 @@ async function openDrawer(uid) {
   if (sel === uid) { $('clearBtn').disabled = !statsExist; $('clearBtn').textContent = statsExist ? '清除個人紀錄' : '沒有紀錄'; }
 }
 function closeDrawer() {
-  setInert(false, '#players', 'header.bar');
+  setInert(false, '#players', 'header.bar'); document.body.classList.remove('sheet-open');
   const ret = drawerReturn; drawerReturn = null;
   sel = null; $('drawer').classList.remove('open'); $('backdrop').hidden = true;
   $('drawerEmpty').hidden = false; $('drawerBody').hidden = true; renderPlayers();
@@ -174,8 +176,11 @@ function closeModal() {
 }
 // 對話框內 Tab 只在可按的按鈕間循環（inert 之外的保險）
 function trapTab(e) {
-  if (e.key !== 'Tab' || $('modal').hidden) return;
-  const f = [...$('modal').querySelectorAll('button:not([disabled])')];
+  if (e.key !== 'Tab') return;
+  // 確認框優先；手機抽屜開著時（S3）在抽屜內循環，不停在 BODY
+  const box = !$('modal').hidden ? $('modal') : document.body.classList.contains('sheet-open') ? $('drawer') : null;
+  if (!box) return;
+  const f = [...box.querySelectorAll('button:not([disabled]),input:not([disabled])')];
   if (!f.length) return;
   const i = f.indexOf(document.activeElement);
   e.preventDefault();
