@@ -380,3 +380,38 @@ test('R32b 選額面板 Esc 取消、焦點復原、尾數全加與中文錯誤'
   assert.equal(await pending,null);
   assert.deepEqual(events.slice(-2),['remove','restore']);
 });
+
+
+test('R36 加碼最低行內提示由 minHint 啟用，入座維持原行為', async () => {
+  for (const minHint of ['已是最低加碼（1 大盲）', undefined]) {
+    const nodes = new Map();
+    const node = key => {
+      if (!nodes.has(key)) nodes.set(key, { value: '20', hidden: true,
+        addEventListener(type, fn) { this[type] = fn; }, focus() {} });
+      return nodes.get(key);
+    };
+    const el = { setAttribute() {}, querySelector: node, addEventListener() {}, remove() {} };
+    const ctx = vm.createContext({ fmtChips: n => n.toLocaleString('en-US'), stepBuyinAmount,
+      document: { createElement: () => el, body: { appendChild() {}, classList: { add() {}, remove() {} } } } });
+    vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('), source.indexOf('function addonButtonsHtml(')), ctx);
+    const pending = ctx.pickBuyinAmount({ min: 20, max: 2000, step: 1, amount: 20, minHint });
+    node('[data-minus]').click();
+    assert.equal(node('input[type="text"]').value, '20');
+    assert.doesNotMatch(el.innerHTML, /已是最低攜入/);
+    if (minHint) {
+      assert.match(el.innerHTML, /class="mp-acct" data-min-hint role="status" hidden/);
+      assert.equal(node('[data-min-hint]').textContent, minHint);
+      assert.equal(node('[data-min-hint]').hidden, false);
+      node('[data-plus]').click(); assert.equal(node('[data-min-hint]').hidden, true);
+      node('input[type="text"]').value = '20'; node('[data-minus]').click();
+      node('input[type="text"]').input(); assert.equal(node('[data-min-hint]').hidden, true);
+      node('[data-minus]').click(); node('input[type="range"]').value = '100';
+      node('input[type="range"]').input(); assert.equal(node('[data-min-hint]').hidden, true);
+    } else {
+      assert.doesNotMatch(el.innerHTML, /data-min-hint/);
+      assert.equal(nodes.has('[data-min-hint]'), false);
+    }
+    node('[data-cancel]').click(); assert.equal(await pending, null);
+  }
+  assert.match(source, /minHint: '已是最低加碼（1 大盲）'/);
+});

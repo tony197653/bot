@@ -1175,3 +1175,7 @@ body.mp-buyin-open #act{visibility:hidden}
   .log{min-height:0;flex:1;padding-bottom:24px}
   .info{flex-shrink:0}
 }
+
+.mp-create .mp-affix-row{align-items:flex-end}
+.mp-create-chips-field{flex:1;min-width:0}
+.mp-create-chips-field>span{display:block;font-size:13px;color:var(--mute);margin-bottom:6px}

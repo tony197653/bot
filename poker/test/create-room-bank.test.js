@@ -12,7 +12,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
     value, checked: Number(value.split('/')[0]) === sb, attrs: {},
     setAttribute(k, v) { this.attrs[k] = v; },
   }));
-  const minus = { addEventListener(_type, fn) { this.click = fn; } }, hint = {};
+  const minus = { addEventListener(_type, fn) { this.click = fn; } }, plus = { addEventListener(_type, fn) { this.click = fn; } }, hint = {}, minHint = {};
   const input = { value: chips, addEventListener() {} }, error = {}, button = { addEventListener() {}, focus() {} }, cancel = {};
   const form = {
     querySelectorAll: () => radios, querySelector: () => button,
@@ -20,7 +20,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
   };
   cancel.addEventListener = (_type, fn) => { cancel.click = fn; };
   const root = { querySelector: selector => ({
-    '[data-chips-minus]': minus, '#mpCreateChipsHint': hint, '#createForm': form, '#mpCreateChips': input, '#mpCreateLiveErr': error,
+    '[data-chips-minus]': minus, '[data-chips-plus]': plus, '#mpCreateMinHint': minHint, '#mpCreateChipsHint': hint, '#createForm': form, '#mpCreateChips': input, '#mpCreateLiveErr': error,
     '[data-act="cancel"]': cancel,
   })[selector] };
   const OriginalFormData = globalThis.FormData;
@@ -31,7 +31,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
   try {
     renderCreateRoom(root, { defaults: { sb, chips }, bank, onDraft: d => drafts.push(d),
       onSubmit: d => submitted.push(d), onCancel: () => cancelled++ });
-    return { radios, input, error, button, drafts, submitted, cancel, minus, hint,
+    return { radios, input, error, button, drafts, submitted, cancel, minus, plus, hint, minHint, root,
       get cancelled() { return cancelled; },
       change(name) { events.change({ target: { name: name || '' } }); },
       submit() { events.submit({ preventDefault() {}, target: form }); },
@@ -132,4 +132,26 @@ test('doCreate 使用重讀 bank：拒絕不足／超額／低於50BB，合法�
     if (chips >= 50 * bb) assert.equal(reads, 1);
     if (!allowed) assert.ok(ctx.createError);
   }
+});
+
+
+test('R36 開桌最低提示與帳戶、標籤順序', () => {
+  const h = formHarness({ bank: 8000, sb: 5, chips: 500 });
+  try {
+    assert.ok(h.root.innerHTML.indexOf('id="mpCreateBank"') < h.root.innerHTML.indexOf('<span>攜入籌碼</span>'));
+    assert.match(h.root.innerHTML, /<label class="mp-create-chips-field"><span>攜入籌碼<\/span>\s*<input name="chips"/);
+    assert.match(h.root.innerHTML, /class="mp-acct" id="mpCreateMinHint" role="status" hidden/);
+    h.minus.click();
+    assert.equal(chipsOf(h.input.value), 500);
+    assert.equal(h.minHint.textContent, '已是最低攜入（50 大盲）');
+    assert.equal(h.minHint.hidden, false);
+    assert.equal(h.error.hidden, true);
+    h.plus.click(); assert.equal(h.minHint.hidden, true);
+    h.input.value = 500; h.change('chips'); h.minus.click();
+    h.change('chips'); assert.equal(h.minHint.hidden, true);
+    h.minus.click(); h.radios.forEach(r => { r.checked = r.value === '10/20'; });
+    h.change('blinds'); assert.equal(h.minHint.hidden, true);
+    h.minus.click(); assert.equal(h.minHint.textContent, '已是最低攜入（50 大盲）');
+    assert.equal(chipsOf(h.input.value), 1000);
+  } finally { h.restore(); }
 });

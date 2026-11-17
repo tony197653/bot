@@ -3087,6 +3087,7 @@ function pickBuyinAmount(options) {
       <input aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">
       <button type="button" data-plus aria-label="增加 500">＋</button>
     </div>
+    ${options.minHint ? '<p class="mp-acct" data-min-hint role="status" hidden></p>' : ''}
     <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
     <p class="mp-err" data-error role="status" hidden></p>
     ${options.hint ? `<p class="mp-acct">${options.hint}</p>` : ''}
@@ -3099,13 +3100,23 @@ function pickBuyinAmount(options) {
   const number = el.querySelector('input[type="text"]');
   const slider = el.querySelector('input[type="range"]');
   const error = el.querySelector('[data-error]');
+  const minHint = options.minHint ? el.querySelector('[data-min-hint]') : null;
+  const clearMinHint = () => { if (minHint) minHint.hidden = true; };
   const value = () => Number(number.value.replaceAll(',', ''));
-  const setAmount = amount => { number.value = fmtChips(amount); slider.value = String(amount); error.hidden = true; };
-  number.addEventListener('input', () => { slider.value = String(value()); });
+  const setAmount = amount => { number.value = fmtChips(amount); slider.value = String(amount); error.hidden = true; clearMinHint(); };
+  number.addEventListener('input', () => { clearMinHint(); slider.value = String(value()); });
   number.addEventListener('blur', () => { if (Number.isFinite(value())) number.value = fmtChips(value()); });
   slider.addEventListener('input', () => setAmount(Number(slider.value)));
   for (const [selector, direction] of [['[data-minus]', -1], ['[data-plus]', 1]]) {
-    el.querySelector(selector).addEventListener('click', () => setAmount(stepBuyinAmount(value(), direction, options.min, options.max)));
+    el.querySelector(selector).addEventListener('click', () => {
+      if (direction < 0 && value() === options.min && minHint) {
+        error.hidden = true;
+        minHint.textContent = options.minHint;
+        minHint.hidden = false;
+        return;
+      }
+      setAmount(stepBuyinAmount(value(), direction, options.min, options.max));
+    });
   }
   number.focus();
   return new Promise(resolve => {
@@ -3177,7 +3188,7 @@ async function requestAddon() {
   if (!opts) { toast('帳戶不足，沒有加碼'); return; }
   const targetRoomId = roomId;
   const amount = await pickBuyinAmount({ ...opts, title: '加碼', confirmText: '加碼',
-    pendingText: null, bankText: `${accountText()}（上桌時才扣）`, hint: '這手結束後上桌' });
+    minHint: '已是最低加碼（1 大盲）', pendingText: null, bankText: `${accountText()}（上桌時才扣）`, hint: '這手結束後上桌' });
   if (amount == null || roomId !== targetRoomId) return;
   addonBusy = true;
   paintTableChrome();
