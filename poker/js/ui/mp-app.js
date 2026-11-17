@@ -3096,7 +3096,7 @@ function pickBuyinAmount(options) {
   el.setAttribute('aria-labelledby', 'mpBuyinTitle');
   el.innerHTML = `<div class="mp-close-result-card">
     <h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>
-    <p class="mp-acct mp-acct-bank${options.minHint ? ' mp-min-hint-row' : ''}">${options.minHint ? '<span>' : ''}帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b>${options.minHint ? '</span><span class="mp-min-hint" data-min-hint role="status"></span>' : ''}</p>
+    <p class="mp-acct mp-acct-bank${options.minHint ? ' mp-min-hint-row' : ''}">${options.minHint ? '<span class="mp-buyin-bank-anchor">' : ''}帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b>${options.minHint ? '<span class="mp-min-hint" data-min-hint role="status"></span></span>' : ''}</p>
     <div class="mp-buyin-step">
       <button type="button" data-minus aria-label="減少 500">−</button>
       <input aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">
@@ -3214,7 +3214,7 @@ async function requestAddon() {
   if (!opts) { toast('帳戶不足，沒有補碼'); return; }
   const targetRoomId = roomId;
   const amount = await pickBuyinAmount({ ...opts, title: '補碼', confirmText: '補碼',
-    minHint: '已是最低補碼（1 大盲）', pendingText: null, bank: opts.max, bankSuffix: '（上桌時才扣）',
+    minHint: '已是最低補碼', pendingText: null, bank: opts.max, bankSuffix: '（上桌時才扣）',
     bankText: `${accountText()}（上桌時才扣）`, hint: '這手結束後上桌' });
   if (amount == null || roomId !== targetRoomId) return;
   addonBusy = true;

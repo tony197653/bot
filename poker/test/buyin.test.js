@@ -429,7 +429,7 @@ test('R32b 選額面板 Esc 取消、焦點復原、尾數全加與中文錯誤'
 
 
 test('R36 補碼最低行內提示由 minHint 啟用，入座維持原行為', async () => {
-  for (const minHint of ['已是最低補碼（1 大盲）', undefined]) {
+  for (const minHint of ['已是最低補碼', undefined]) {
     const nodes = new Map();
     const hintClasses = new Set();
     const hintVisible = () => hintClasses.has('is-visible');
@@ -444,13 +444,13 @@ test('R36 補碼最低行內提示由 minHint 啟用，入座維持原行為', a
       document: { createElement: () => el, body: { appendChild() {}, classList: { add() {}, remove() {} } } } });
     vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('), source.indexOf('function addonButtonsHtml(')), ctx);
     const pending = ctx.pickBuyinAmount({ min: 20, max: 2000, step: 1, amount: 20, minHint });
-    // is-visible 只切換 CSS visibility，提示在帳戶行內持續佔位。
+    // is-visible 只切換 CSS visibility；提示在帳戶文字容器內絕對定位，不佔流內寬度。
     assert.equal(hintVisible(), false);
     node('[data-minus]').click();
     assert.equal(node('input[type="text"]').value, '20');
     assert.doesNotMatch(el.innerHTML, /已是最低攜入/);
     if (minHint) {
-      assert.match(el.innerHTML, /<p class="mp-acct mp-acct-bank mp-min-hint-row"><span>帳戶 <b id="mpBuyinBank"[^>]*>[^<]*<\/b><\/span><span class="mp-min-hint" data-min-hint role="status"><\/span><\/p>\s*<div class="mp-buyin-step">/);
+      assert.match(el.innerHTML, /<p class="mp-acct mp-acct-bank mp-min-hint-row"><span class="mp-buyin-bank-anchor">帳戶 <b id="mpBuyinBank"[^>]*>[^<]*<\/b><span class="mp-min-hint" data-min-hint role="status"><\/span><\/span><\/p>\s*<div class="mp-buyin-step">/);
       assert.equal(node('[data-min-hint]').textContent, minHint);
       assert.equal(hintVisible(), true);
       node('[data-plus]').click(); assert.equal(hintVisible(), false);
@@ -465,7 +465,7 @@ test('R36 補碼最低行內提示由 minHint 啟用，入座維持原行為', a
     }
     node('[data-cancel]').click(); assert.equal(await pending, null);
   }
-  assert.match(source, /minHint: '已是最低補碼（1 大盲）'/);
+  assert.match(source, /minHint: '已是最低補碼'/);
 });
 
 for (const state of ['兩手之間', '蓋牌', '暫離', '手中未蓋牌']) {
