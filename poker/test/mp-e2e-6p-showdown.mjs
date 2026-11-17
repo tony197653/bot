@@ -132,39 +132,25 @@ async function createAndShare(host) {
 
 async function joinViaLink(browser, base, name, uid, roomId, code) {
   const path = `/poker/?emu=1&room=${encodeURIComponent(code)}&r=${encodeURIComponent(roomId)}`;
-  const ctx = await browser.newContext({
-    viewport: VP,
-    deviceScaleFactor: 1,
-    isMobile: true,
-    hasTouch: true,
-  });
+  const ctx = await browser.newContext({ viewport: VP, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   await ctx.addInitScript(ALWAYS_VISIBLE);
   await ctx.route('**/*', blockProd);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
-    timeout: 20000,
-  });
+  await page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, { timeout: 20000 });
   await page.evaluate(([u, n]) => window.__qaSignIn(u, n), [uid, name]);
-  await page.waitForSelector('#seats, .mp-lobby, .mp-ended', { timeout: 20000 }).catch(() => {});
-  await page.waitForTimeout(2500);
-  const cont = page.locator('[data-act="continue"], [data-act="enter"]');
-  if (await cont.count()) {
-    await cont.first().click().catch(() => {});
-    await page.waitForTimeout(2000);
+  // 等條件成立：看到空位／離座就好；若停在加入／繼續畫面就按，最多 20 秒，不寫死等待。
+  const READY = '#seats .mp-empty-seat, #mpLeave';
+  const GATE = '[data-act="continue"], [data-act="enter"], [data-act="join"]';
+  const end = Date.now() + 20000;
+  while (Date.now() < end) {
+    if (await page.locator(READY).count()) break;
+    const gate = page.locator(GATE);
+    if (await gate.count()) await gate.first().click().catch(() => {});
+    await page.waitForSelector(`${READY}, ${GATE}`, { state: 'attached', timeout: 1500 }).catch(() => {});
   }
-  // Retry join if still on join/lobby with code error
-  for (let i = 0; i < 3; i++) {
-    if (await page.locator('#seats .mp-empty-seat, #mpLeave, #mpStart').count()) break;
-    const joinBtn = page.locator('[data-act="join"], button:has-text("加入")');
-    if (await joinBtn.count()) {
-      await joinBtn.first().click().catch(() => {});
-      await page.waitForTimeout(2000);
-    } else break;
-  }
-  await page.waitForSelector('#seats, #mpLeave', { timeout: 15000 }).catch(() => {});
   return { ctx, page, name, uid, errors };
 }
 
@@ -201,6 +187,9 @@ async function sitGuest(guestPage, hostPage, expectN) {
       await guestPage
         .evaluate(() => document.querySelector('.mp-empty-seat')?.click())
         .catch(() => {});
+      // 入座現在先跳攜入選擇器，確認後才送出入座。
+      const picker = await guestPage.waitForSelector('#mpBuyinPicker [data-confirm]', { timeout: 3000 }).catch(() => null);
+      if (picker) await picker.click().catch(() => {});
     }
     // Yield to host so hostLoop processes SIT (visibility forced on host ctx)
     await hostPage.bringToFront().catch(() => {});
