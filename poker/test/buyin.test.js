@@ -428,7 +428,7 @@ test('R32b 選額面板 Esc 取消、焦點復原、尾數全加與中文錯誤'
 });
 
 
-test('R36 補碼最低行內提示由 minHint 啟用，入座維持原行為', async () => {
+test('R42 補碼重用開桌金額排版，入座維持原行為', async () => {
   for (const minHint of ['已是最低補碼', undefined]) {
     const nodes = new Map();
     const hintClasses = new Set();
@@ -444,13 +444,15 @@ test('R36 補碼最低行內提示由 minHint 啟用，入座維持原行為', a
       document: { createElement: () => el, body: { appendChild() {}, classList: { add() {}, remove() {} } } } });
     vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('), source.indexOf('function addonButtonsHtml(')), ctx);
     const pending = ctx.pickBuyinAmount({ min: 20, max: 2000, step: 1, amount: 20, minHint });
-    // is-visible 只切換 CSS visibility；提示在帳戶文字容器內絕對定位，不佔流內寬度。
+    // 提示常駐標籤右側，只切換 is-visible，保留流內空間以避免位移。
     assert.equal(hintVisible(), false);
     node('[data-minus]').click();
     assert.equal(node('input[type="text"]').value, '20');
     assert.doesNotMatch(el.innerHTML, /已是最低攜入/);
     if (minHint) {
-      assert.match(el.innerHTML, /<p class="mp-acct mp-acct-bank mp-min-hint-row"><span class="mp-buyin-bank-anchor">帳戶 <b id="mpBuyinBank"[^>]*>[^<]*<\/b><span class="mp-min-hint" data-min-hint role="status"><\/span><\/span><\/p>\s*<div class="mp-buyin-step">/);
+      assert.match(el.innerHTML, /<div class="mp-affix">\s*<p class="mp-acct mp-acct-bank mp-acct-row">帳戶 <b id="mpBuyinBank"[^>]*>[^<]*<\/b><\/p>\s*<div class="mp-affix-row">/);
+      assert.match(el.innerHTML, /<div class="mp-create-chips-field"><span class="mp-min-hint-row"><label for="mpBuyinAmount">補碼<\/label><span class="mp-min-hint" data-min-hint role="status"><\/span><\/span>\s*<input id="mpBuyinAmount"/);
+      assert.doesNotMatch(el.innerHTML, /mp-buyin-bank-anchor|data-min-hint[^>]*hidden/);
       assert.equal(node('[data-min-hint]').textContent, minHint);
       assert.equal(hintVisible(), true);
       node('[data-plus]').click(); assert.equal(hintVisible(), false);
@@ -460,7 +462,8 @@ test('R36 補碼最低行內提示由 minHint 啟用，入座維持原行為', a
       node('input[type="range"]').input(); assert.equal(hintVisible(), false);
     } else {
       assert.match(el.innerHTML, /<p class="mp-acct mp-acct-bank">帳戶 /);
-      assert.doesNotMatch(el.innerHTML, /data-min-hint|mp-min-hint-row/);
+      assert.doesNotMatch(el.innerHTML, /data-min-hint|mp-min-hint-row|<label[^>]*>補碼/);
+      assert.match(el.innerHTML, /<div class="mp-buyin-step">/);
       assert.equal(nodes.has('[data-min-hint]'), false);
     }
     node('[data-cancel]').click(); assert.equal(await pending, null);

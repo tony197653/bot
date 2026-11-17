@@ -1181,18 +1181,12 @@ body.mp-buyin-open #act{visibility:hidden}
   .info{flex-shrink:0}
 }
 
-.mp-create .mp-affix-row{align-items:flex-end}
+.mp-create .mp-affix-row,#mpBuyinPicker .mp-affix-row{align-items:flex-end}
+#mpBuyinPicker .mp-affix{grid-column:1 / -1;min-width:0;text-align:left}
 .mp-create-chips-field{flex:1;min-width:0}
 .mp-create-chips-field>span{font-size:13px;color:var(--mute);margin-bottom:6px}
 .mp-min-hint-row{display:flex;align-items:baseline;gap:6px}
 .mp-create-chips-field label{white-space:nowrap}
 .mp-min-hint{visibility:hidden;white-space:nowrap;font-size:12px;color:var(--warn)}
 .mp-min-hint.is-visible{visibility:visible}
-/* 補碼帳戶維持原置中；提示絕對定位在文字右側，不佔流內寬度。窄螢幕仍用 12px，放不下再縮。 */
-#mpBuyinPicker .mp-min-hint-row{display:block;text-align:center}
-#mpBuyinPicker .mp-buyin-bank-anchor{display:inline-block;position:relative;white-space:nowrap}
-#mpBuyinPicker .mp-min-hint{position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:4px;line-height:1}
-@media(max-width:370px){
-  #mpBuyinPicker .mp-min-hint{font-size:10px;margin-left:2px}
-}
 

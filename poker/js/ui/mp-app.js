@@ -3096,12 +3096,16 @@ function pickBuyinAmount(options) {
   el.setAttribute('aria-labelledby', 'mpBuyinTitle');
   el.innerHTML = `<div class="mp-close-result-card">
     <h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>
-    <p class="mp-acct mp-acct-bank${options.minHint ? ' mp-min-hint-row' : ''}">${options.minHint ? '<span class="mp-buyin-bank-anchor">' : ''}帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b>${options.minHint ? '<span class="mp-min-hint" data-min-hint role="status"></span></span>' : ''}</p>
-    <div class="mp-buyin-step">
+    ${options.minHint ? '<div class="mp-affix">' : ''}
+    <p class="mp-acct mp-acct-bank${options.minHint ? ' mp-acct-row' : ''}">帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b></p>
+    <div class="${options.minHint ? 'mp-affix-row' : 'mp-buyin-step'}">
       <button type="button" data-minus aria-label="減少 500">−</button>
-      <input aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">
+      ${options.minHint ? '<div class="mp-create-chips-field"><span class="mp-min-hint-row"><label for="mpBuyinAmount">補碼</label><span class="mp-min-hint" data-min-hint role="status"></span></span>' : ''}
+      <input${options.minHint ? ' id="mpBuyinAmount"' : ''} aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">
+      ${options.minHint ? '</div>' : ''}
       <button type="button" data-plus aria-label="增加 500">＋</button>
     </div>
+    ${options.minHint ? '</div>' : ''}
     <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="1" value="${options.amount}">
     <p class="mp-err" data-error role="status" hidden></p>
     ${options.hint ? `<p class="mp-acct">${options.hint}</p>` : ''}
