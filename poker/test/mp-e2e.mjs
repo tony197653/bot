@@ -61,6 +61,13 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
 };
 
+// DIAG R24: step timestamps
+const T0 = Date.now();
+function step(msg) {
+  console.log(`[${((Date.now() - T0) / 1000).toFixed(1)}s] ${msg}`);
+}
+const SCENARIO_LIMIT_MS = Number(process.env.MP_E2E_SCENARIO_MS || 120000);
+
 function startStatic() {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
@@ -281,8 +288,11 @@ async function createAndShare(host) {
   if (code.length !== 3) throw new Error(`createAndShare bad code=${code} url=${url}`);
   scenarioRooms.push({ host, roomId, code, viewport: host.page.viewportSize() });
   await host.page.click('[data-act="enter"]');
+  step('createAndShare: entered, ensureOnTable');
   await ensureOnTable(host.page);
+  step('createAndShare: host sitIfNeeded');
   await sitIfNeeded(host.page);
+  step('createAndShare: wait #mpLeave');
   await host.page.waitForSelector('#mpLeave', { state: 'attached', timeout: 20000 });
   return { roomId, code, url };
 }
@@ -320,6 +330,7 @@ async function joinViaLink(browser, base, name, uid, viewport, roomId, code) {
 
 async function sitIfNeeded(page) {
   for (let i = 0; i < 10; i++) {
+    step(`sitIfNeeded try ${i}`);
     if (await page.locator('#mpLeave').count()) return true;
     await page.bringToFront().catch(() => {});
     if (await page.locator('.mp-empty-seat').count()) {
@@ -583,8 +594,11 @@ async function runSoloFromLobby(browser, base, viewport, label) {
 
 /** Non-host refresh mid-hand then call; host refresh must not spam PERMISSION_DENIED. */
 async function runIntentRefresh(browser, base, viewport, label) {
+  step('IR L596');
   const host = await makePlayer(browser, base, '阿明', `hostir${label}`, viewport);
+  step('IR L597');
   const { roomId, code } = await createAndShare(host);
+  step('IR L598');
   const guest = await joinViaLink(
     browser,
     base,
@@ -594,8 +608,11 @@ async function runIntentRefresh(browser, base, viewport, label) {
     roomId,
     code,
   );
+  step('IR L607');
   const sat = await sitIfNeeded(guest.page);
+  step('IR L608');
   await host.page.waitForTimeout(1500);
+  step('IR L609');
   const started = await startHand(host);
   // Let guest act once if possible so an intent doc exists
   for (let i = 0; i < 10; i++) {
@@ -619,16 +636,22 @@ async function runIntentRefresh(browser, base, viewport, label) {
   }
   // Guest refresh mid-hand — keep deep-link query so room resume works
   const guestUrl = guest.page.url();
+  step('IR L632');
   await guest.page.goto(guestUrl, { waitUntil: 'domcontentloaded' });
+  step('IR L633');
   await guest.page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
     timeout: 20000,
   });
+  step('IR L636');
   await guest.page.evaluate(
     ([u, n]) => window.__qaSignIn(u, n),
     [`guestir${label}`, '大雄'],
   );
+  step('IR L640');
   await ensureOnTable(guest.page);
+  step('IR L641');
   await sitIfNeeded(guest.page);
+  step('IR L642');
   await guest.page.waitForTimeout(2000);
   guest.errors.length = 0;
   // Try call/check/fold after refresh
@@ -658,15 +681,20 @@ async function runIntentRefresh(browser, base, viewport, label) {
   // Host refresh — should not flood PERMISSION_DENIED on own intents
   host.errors.length = 0;
   const hostUrl = host.page.url();
+  step('IR L671');
   await host.page.goto(hostUrl, { waitUntil: 'domcontentloaded' });
+  step('IR L672');
   await host.page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, {
     timeout: 20000,
   });
+  step('IR L675');
   await host.page.evaluate(
     ([u, n]) => window.__qaSignIn(u, n),
     [`hostir${label}`, '阿明'],
   );
+  step('IR L679');
   await ensureOnTable(host.page);
+  step('IR L680');
   await host.page.waitForSelector('#mpCall, #mpCheck, #mpFold, #mpStart, #mpLeave', { state: 'attached', timeout: 20000 });
   // Host may void + reshuffle; wait and optionally act
   for (let i = 0; i < 10; i++) {
@@ -681,11 +709,14 @@ async function runIntentRefresh(browser, base, viewport, label) {
   const hostDenied = host.errors.filter((e) =>
     /PERMISSION_DENIED|permission-denied/i.test(e),
   );
+  step('IR L694');
   await host.page.screenshot({
     path: join(ART, `mp-${label}-intent-refresh.png`),
     fullPage: true,
   });
+  step('IR L698');
   await host.ctx.close();
+  step('IR L699');
   await guest.ctx.close();
   return {
     ok: sat && started && acted && !guestDenied && hostDenied.length === 0,
@@ -1343,7 +1374,29 @@ async function main() {
   const push = async (name, fn) => {
     if (!want(name)) return;
     try {
-      results.push({ name, ...(await fn()) });
+      step(`▶ ${name}`);
+      let timer;
+      const watchdog = new Promise((_, rej) => {
+        timer = setTimeout(async () => {
+          step(`WATCHDOG ${name} 超過 ${SCENARIO_LIMIT_MS}ms，拍下所有分頁`);
+          let i = 0;
+          for (const c of browser.contexts()) {
+            for (const pg of c.pages()) {
+              const f = join(ART, `watchdog-${name}-${i++}.png`);
+              const info = await pg.evaluate(() => ({ url: location.href, toast: document.querySelector('#mpToast')?.textContent || '', text: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300) })).catch((e) => ({ err: String(e) }));
+              console.log('WATCHDOG page', f, JSON.stringify(info));
+              await pg.screenshot({ path: f }).catch(() => {});
+            }
+          }
+          rej(new Error(`watchdog ${name}`));
+        }, SCENARIO_LIMIT_MS);
+      });
+      try {
+        results.push({ name, ...(await Promise.race([fn(), watchdog])) });
+        step(`✔ ${name}`);
+      } finally {
+        clearTimeout(timer);
+      }
     } finally {
       await cleanupScenarioRooms();
     }
