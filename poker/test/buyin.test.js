@@ -428,7 +428,7 @@ test('R32b 選額面板 Esc 取消、焦點復原、尾數全加與中文錯誤'
 });
 
 
-test('R42 補碼重用開桌金額排版，入座維持原行為', async () => {
+test('R43 補碼移除頂部標題並保留金額標籤，入座維持原行為', async () => {
   for (const minHint of ['已是最低補碼', undefined]) {
     const nodes = new Map();
     const hintClasses = new Set();
@@ -439,17 +439,25 @@ test('R42 補碼重用開桌金額排版，入座維持原行為', async () => {
         addEventListener(type, fn) { this[type] = fn; }, focus() {} });
       return nodes.get(key);
     };
-    const el = { setAttribute() {}, querySelector: node, addEventListener() {}, remove() {} };
+    const attributes = new Map();
+    const el = { setAttribute: (name, value) => attributes.set(name, value), querySelector: node, addEventListener() {}, remove() {} };
     const ctx = vm.createContext({ fmtChips: n => n.toLocaleString('en-US'), stepBuyinAmount, remainingBank,
       document: { createElement: () => el, body: { appendChild() {}, classList: { add() {}, remove() {} } } } });
     vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('), source.indexOf('function addonButtonsHtml(')), ctx);
-    const pending = ctx.pickBuyinAmount({ min: 20, max: 2000, step: 1, amount: 20, minHint });
+    const pending = ctx.pickBuyinAmount({ min: 20, max: 2000, step: 1, amount: 20, minHint,
+      ...(minHint ? { title: '補碼', confirmText: '補碼', hint: '這手結束後上桌' } : {}) });
     // 提示常駐標籤右側，只切換 is-visible，保留流內空間以避免位移。
     assert.equal(hintVisible(), false);
     node('[data-minus]').click();
     assert.equal(node('input[type="text"]').value, '20');
     assert.doesNotMatch(el.innerHTML, /已是最低攜入/);
     if (minHint) {
+      assert.doesNotMatch(el.innerHTML, /<h2\b|id="mpBuyinTitle"/);
+      assert.equal(attributes.get('aria-label'), '補碼');
+      assert.equal(attributes.has('aria-labelledby'), false);
+      assert.match(el.innerHTML, /<button[^>]*data-confirm>補碼<\/button>/);
+      assert.doesNotMatch(el.innerHTML, /上桌時才扣/);
+      assert.match(el.innerHTML, /這手結束後上桌/);
       assert.match(el.innerHTML, /<div class="mp-affix">\s*<p class="mp-acct mp-acct-bank mp-acct-row">帳戶 <b id="mpBuyinBank"[^>]*>[^<]*<\/b><\/p>\s*<div class="mp-affix-row">/);
       assert.match(el.innerHTML, /<div class="mp-create-chips-field"><span class="mp-min-hint-row"><label for="mpBuyinAmount">補碼<\/label><span class="mp-min-hint" data-min-hint role="status"><\/span><\/span>\s*<input id="mpBuyinAmount"/);
       assert.doesNotMatch(el.innerHTML, /mp-buyin-bank-anchor|data-min-hint[^>]*hidden/);
@@ -461,6 +469,9 @@ test('R42 補碼重用開桌金額排版，入座維持原行為', async () => {
       node('[data-minus]').click(); node('input[type="range"]').value = '100';
       node('input[type="range"]').input(); assert.equal(hintVisible(), false);
     } else {
+      assert.match(el.innerHTML, /<h2 id="mpBuyinTitle">攜入籌碼<\/h2>/);
+      assert.equal(attributes.get('aria-labelledby'), 'mpBuyinTitle');
+      assert.equal(attributes.has('aria-label'), false);
       assert.match(el.innerHTML, /<p class="mp-acct mp-acct-bank">帳戶 /);
       assert.doesNotMatch(el.innerHTML, /data-min-hint|mp-min-hint-row|<label[^>]*>補碼/);
       assert.match(el.innerHTML, /<div class="mp-buyin-step">/);
@@ -469,6 +480,8 @@ test('R42 補碼重用開桌金額排版，入座維持原行為', async () => {
     node('[data-cancel]').click(); assert.equal(await pending, null);
   }
   assert.match(source, /minHint: '已是最低補碼'/);
+  assert.match(source, /hint: '這手結束後上桌'/);
+  assert.doesNotMatch(source, /bankSuffix: '（上桌時才扣）'/);
 });
 
 for (const state of ['兩手之間', '蓋牌', '暫離', '手中未蓋牌']) {
@@ -501,14 +514,16 @@ test('R39 補碼滿額及補碼／入座自行輸入 1,234 都可確認', async 
     document: { createElement: () => el, body: { appendChild() {}, classList: { add() {}, remove() {} } } } });
   vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('), source.indexOf('function addonButtonsHtml(')), ctx);
   const opts = addonOptions(2300, 20, 1000);
-  const pending = ctx.pickBuyinAmount({ ...opts, bank: opts.max, bankSuffix: '（上桌時才扣）', pendingText: null });
-  assert.equal(node('#mpBuyinBank').textContent, '300（上桌時才扣）');
+  const pending = ctx.pickBuyinAmount({ ...opts, bank: opts.max, title: '補碼', confirmText: '補碼', hint: '這手結束後上桌', pendingText: null });
+  assert.equal(node('#mpBuyinBank').textContent, '300');
+  assert.doesNotMatch(el.innerHTML, /上桌時才扣/);
+  assert.match(el.innerHTML, /這手結束後上桌/);
   node('[data-plus]').click();
   assert.equal(node('input[type="text"]').value, '1,300');
-  assert.equal(node('#mpBuyinBank').textContent, '0（上桌時才扣）');
+  assert.equal(node('#mpBuyinBank').textContent, '0');
   node('[data-minus]').click();
   assert.equal(node('input[type="text"]').value, '1,000');
-  assert.equal(node('#mpBuyinBank').textContent, '300（上桌時才扣）');
+  assert.equal(node('#mpBuyinBank').textContent, '300');
   node('[data-plus]').click();
   node('[data-confirm]').click();
   assert.equal(await pending, 1300);

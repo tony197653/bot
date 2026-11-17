@@ -3093,9 +3093,10 @@ function pickBuyinAmount(options) {
   el.className = 'mp-close-result';
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-modal', 'true');
-  el.setAttribute('aria-labelledby', 'mpBuyinTitle');
+  if (options.minHint) el.setAttribute('aria-label', '補碼');
+  else el.setAttribute('aria-labelledby', 'mpBuyinTitle');
   el.innerHTML = `<div class="mp-close-result-card">
-    <h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>
+    ${options.minHint ? '' : `<h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>`}
     ${options.minHint ? '<div class="mp-affix">' : ''}
     <p class="mp-acct mp-acct-bank${options.minHint ? ' mp-acct-row' : ''}">帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b></p>
     <div class="${options.minHint ? 'mp-affix-row' : 'mp-buyin-step'}">
@@ -3218,8 +3219,8 @@ async function requestAddon() {
   if (!opts) { toast('帳戶不足，沒有補碼'); return; }
   const targetRoomId = roomId;
   const amount = await pickBuyinAmount({ ...opts, title: '補碼', confirmText: '補碼',
-    minHint: '已是最低補碼', pendingText: null, bank: opts.max, bankSuffix: '（上桌時才扣）',
-    bankText: `${accountText()}（上桌時才扣）`, hint: '這手結束後上桌' });
+    minHint: '已是最低補碼', pendingText: null, bank: opts.max,
+    bankText: accountText(), hint: '這手結束後上桌' });
   if (amount == null || roomId !== targetRoomId) return;
   addonBusy = true;
   paintTableChrome();
