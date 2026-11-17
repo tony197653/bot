@@ -293,6 +293,9 @@ async function createAndShare(host) {
   await ensureOnTable(host.page);
   step('createAndShare: wait ON_TABLE');
   await host.page.waitForSelector(ON_TABLE, { state: 'attached', timeout: 20000 });
+  // 桌面空位可能先出現；等產品完成房主自動入座後才返回。
+  step('createAndShare: wait host seated');
+  await host.page.waitForSelector('#mpLeave', { state: 'attached', timeout: 20000 });
   return { roomId, code, url };
 }
 
@@ -397,13 +400,16 @@ async function startHand(host) {
 /** After reload+sign-in, ensure we are on the table (auto-resume or continue). */
 async function ensureOnTable(page) {
   const READY = ON_TABLE;
+  // Lobby CTAs may remain attached under [hidden] after entering the table.
+  const GATE = '[data-act="continue"]:visible, [data-act="enter"]:visible';
   for (let i = 0; i < 6; i++) {
     if (await page.locator(READY).count()) return true;
-    const cont = page.locator('[data-act="continue"], [data-act="enter"]');
+    const cont = page.locator(GATE);
     if (await cont.count()) {
-      await cont.first().click().catch(() => {});
+      if (await page.locator(READY).count()) return true;
+      await cont.first().click({ timeout: 1500 }).catch(() => {});
     }
-    await page.waitForSelector(`${READY}, [data-act="continue"], [data-act="enter"]`, { state: 'attached', timeout: 12000 }).catch(() => {});
+    await page.waitForSelector(`${READY}, ${GATE}`, { state: 'attached', timeout: 12000 }).catch(() => {});
   }
   return !!(await page.locator(READY).count());
 }
