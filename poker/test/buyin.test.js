@@ -118,7 +118,7 @@ test('四種盲注選項保留', () => {
 test('足額入座先同步提示，再買入並送出 SIT', async () => {
   const body = source.slice(source.indexOf('async function sitDown(seat)'), source.indexOf('async function requestLeave()'));
   const events = [];
-  const context = vm.createContext({
+  const context = vm.createContext({ accountText: () => '—',
     getFirebase: () => ({}), getUser: () => ({ uid: 'u' }),
     room: { seatUids: Array(6).fill(null), config: { bb: 20 }, pub: { handNo: 3, actionSeq: 4 } },
     roomId: 'r', sittingBusy: false, playerDoc: { bank: 8765 },
@@ -157,7 +157,7 @@ test('訪客入座先讀房主 presence：離線阻擋，近期活動或讀取�
     { name: '房主本人', host: true, roomAge: 180_000 },
   ]) {
     const events = [];
-    const context = vm.createContext({
+    const context = vm.createContext({ accountText: () => '—',
       Date: { now: () => now },
       getFirebase: () => ({ db: {}, fs: {
         doc: (_db, ...path) => path.join('/'),

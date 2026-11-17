@@ -75,6 +75,7 @@ test('房主重新登入先靜默結算已被關閉的房間，回大廳且不�
     playerDoc: null, rescueReason: null, rescueOk: false, rescueChips: null,
     authState: { user: null }, hostLoop: null, leaderPreview: [], fetchLeaderboard: async () => [],
     onUser: fn => { authHandler = fn; }, screen: 'auth', deepRoom: null,
+    watchSelfPlayer: () => {}, stopWatchSelfPlayer: () => {}, playerFresh: false,
     paint: () => {
       paints++;
       assert.equal(ctx.screen, 'lobby');

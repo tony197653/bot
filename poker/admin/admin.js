@@ -137,7 +137,7 @@ async function doAdjust() {
   const { db, fs } = fb;
   const id = adjId();
   try {
-    await fs.runTransaction(db, async (tx) => {
+    const done = await fs.runTransaction(db, async (tx) => {
       const ref = fs.doc(db, 'pokerPlayers', v.p.id);
       const cur = (await tx.get(ref)).data();
       const bank = cur.bank + v.delta;
@@ -147,7 +147,11 @@ async function doAdjust() {
         type: 'adjust', amount: Math.abs(v.delta), delta: v.delta, reason: v.reason,
         roomId: '', sessionNo: 0, bankAfter: bank, by: me.uid, at: fs.serverTimestamp(),
       });
+      return { bank, total: bank + (cur.inPlay || 0) };
     });
+    // 寫入成功就先用算出的數字更新列表和抽屜（transaction 沒有本機預寫，不等推送；之後監聽的伺服器資料為準）
+    players = players.map((p) => (p.id === v.p.id ? { ...p, ...done } : p)).sort((a, b) => (b.bank || 0) - (a.bank || 0));
+    renderPlayers();
     $('amt').value = ''; $('reason').value = '';
     toast('已記入帳本');
   } catch (e) {

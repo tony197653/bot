@@ -515,7 +515,7 @@ export async function getPlayer(fb, uid) {
   return data;
 }
 
-function cachePlayer(uid, data) {
+export function cachePlayer(uid, data) {
   try {
     localStorage.setItem(
       `${LS_PREFIX}.player.${uid}`,

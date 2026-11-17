@@ -419,6 +419,7 @@ export function renderMpLobby(root, vm) {
   const openTables = listedTables.slice(0, 1);
   const name = user?.displayName || '玩家';
   const bank = player?.bank ?? 0;
+  const bankTxt = vm.bankFresh === false || !player ? '—' : fmtChips(bank);
   const inPlay = player?.inPlay ?? 0;
   const total = player?.total ?? bank + inPlay;
   const needRescue = !!(player?.tableRoomId && vm.rescueAvailable);
@@ -512,7 +513,7 @@ export function renderMpLobby(root, vm) {
         </button>
         <span class="mp-nm">${esc(name)}</span>
         <span class="mp-stl" id="mpStl">${esc(statusWord)}</span>
-        <span class="mp-amt" id="mpAmtAcc" aria-label="帳戶 ${fmtChips(bank)}"><small>帳戶</small><b id="mpBAcc">${fmtChips(bank)}</b></span>
+        <span class="mp-amt" id="mpAmtAcc" aria-label="帳戶 ${bankTxt}"><small>帳戶</small><b id="mpBAcc">${bankTxt}</b></span>
         <span class="mp-amt" id="mpAmtTab" aria-label="牌桌 ${shownInPlay ? fmtChips(shownInPlay) : 0}"><small>牌桌</small><b id="mpBTab" class="${tableBalZero}">${tableBal}</b></span>
         <div class="mp-mw">
           <button type="button" class="mp-mbtn m7" id="mpMenuBtn" aria-label="開啟選單"
@@ -706,7 +707,7 @@ function wireLobbyMenu(root) {
 }
 
 export function renderCreateRoom(root, vm) {
-  const { defaults, onCancel, onSubmit, onDraft, creating, error, bank = null } = vm;
+  const { defaults, onCancel, onSubmit, onDraft, creating, error, bank = null, bankText = bank == null ? '—' : fmtChips(bank) } = vm;
   const chipsHintId = 'mpCreateChipsHint';
   let submitError = error;
   root.innerHTML = `
@@ -732,6 +733,7 @@ export function renderCreateRoom(root, vm) {
         </fieldset>
         <label class="mp-affix">
           <span>攜入籌碼</span>
+          <span class="mp-acct mp-acct-row">帳戶 <b id="mpCreateBank">${bankText}</b></span>
           <div class="mp-affix-row">
             <input name="chips" id="mpCreateChips" type="number" inputmode="numeric" min="1000" max="100000" step="500" value="${defaults.chips}" aria-describedby="${chipsHintId} mpCreateLiveErr">
           </div>
