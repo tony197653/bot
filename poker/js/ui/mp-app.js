@@ -58,6 +58,7 @@ import {
   cachePlayer,
   listenLeaderboard,
 } from '../net/ledger.js';
+import { addonOptions, queuedTotal, queueAddon, cancelAddons } from '../net/addon-client.js';
 import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
 import {
@@ -170,6 +171,12 @@ let room = null;
 let roomId = null;
 /** @type {(() => void)|null} */
 let stopRoom = null;
+// 加碼：自己的排隊文件、已顯示過的全桌加碼訊息與帳戶不足提示
+let stopAddonQ = null;
+let myAddonQueue = null;
+let seenAddonKey = '';
+let seenAddonReject = '';
+let addonBusy = false;
 /** @type {ReturnType<typeof createHostLoop>|null} */
 let hostLoop = null;
 /** Test-only: emulator pages may opt into stats via window.__qaStats; production never reads it. */
@@ -2051,6 +2058,8 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true, fromContinue
       const wasBusted = previousSelfSeat >= 0 && (room.stacks?.[previousSelfSeat] === 0 ||
         room.pub?.seats?.[previousSelfSeat]?.chips === 0);
       room = r;
+      noteAddonEvents(r, user.uid, first);
+      if (first) startAddonQueue(fb, id, user.uid);
       if (!metadata?.hasPendingWrites && !metadata?.fromCache) {
         hostRoomUpdatedMs = r.updatedAt?.toMillis?.() ?? hostRoomUpdatedMs;
         const live = Math.max(hostBeatMs ?? 0, hostRoomUpdatedMs ?? 0);
@@ -2694,7 +2703,8 @@ function renderActBar() {
     (pub.phase === 'lobby' || !pub.handNo)
   ) {
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始第一手（${seatedCount}人）</button>
-      <button type="button" class="ghost" id="mpLeave">離座</button>`;
+      ${addonButtonsHtml(true)}<button type="button" class="ghost" id="mpLeave">離座</button>`;
+    wireAddonButtons();
     $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
@@ -2702,14 +2712,16 @@ function renderActBar() {
 
   if (between && isHost && seatedCount >= 2 && pub.phase === 'hand_over') {
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始下一手（${seatedCount}人）</button>
-      <button type="button" class="ghost" id="mpLeave">離座</button>`;
+      ${addonButtonsHtml(true)}<button type="button" class="ghost" id="mpLeave">離座</button>`;
+    wireAddonButtons();
     $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
   }
 
   if (between) {
-    btns.innerHTML = '<button type="button" class="ghost" id="mpLeave">離座</button>';
+    btns.innerHTML = `${addonButtonsHtml(true)}<button type="button" class="ghost" id="mpLeave">離座</button>`;
+    wireAddonButtons();
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
   }
@@ -2727,7 +2739,9 @@ function renderActBar() {
     ${canCheck
       ? `<button type="button" class="call" id="mpCheck" ${dis}>過牌</button>`
       : `<button type="button" class="call" id="mpCall" ${dis}>跟注 ${fmtChips(toCall)}</button>`}
-    <button type="button" class="raise" id="mpRaise" ${dis}>加注</button>`;
+    <button type="button" class="raise" id="mpRaise" ${dis}>加注</button>
+    ${addonButtonsHtml(!!(pub.seats?.[mySeat]?.folded || pub.seats?.[mySeat]?.sittingOut))}`;
+  wireAddonButtons();
   const send = (type, amount) => {
     btns.querySelectorAll('button').forEach((b) => {
       b.disabled = true;
@@ -3057,12 +3071,13 @@ function pickBuyinAmount(options) {
   el.setAttribute('aria-modal', 'true');
   el.setAttribute('aria-labelledby', 'mpBuyinTitle');
   el.innerHTML = `<div class="mp-close-result-card">
-    <h2 id="mpBuyinTitle">攜入籌碼</h2>
+    <h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>
     <p class="mp-acct">帳戶 <b id="mpBuyinBank">${options.bankText ?? '—'}</b></p>
-    <input aria-label="攜入籌碼" type="number" inputmode="numeric" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
+    <input aria-label="${options.title || '攜入籌碼'}" type="number" inputmode="numeric" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
     <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
     <button type="button" class="mp-btn-ghost" data-cancel>取消</button>
-    <button type="button" class="mp-btn-primary" data-confirm>入座</button>
+    ${options.hint ? `<p class="mp-acct">${options.hint}</p>` : ''}
+    <button type="button" class="mp-btn-primary" data-confirm>${options.confirmText || '入座'}</button>
   </div>`;
   document.body.appendChild(el);
   const number = el.querySelector('input[type="number"]');
@@ -3078,11 +3093,104 @@ function pickBuyinAmount(options) {
         number.reportValidity();
         return;
       }
-      toast('入座中…');
+      toast(options.pendingText || '入座中…');
       el.remove();
       resolve(amount);
     });
   });
+}
+
+/** 加碼鈕：排隊中多一顆「取消加碼 N」（一顆鈕全部取消）。enabled=false 時灰掉（手中未蓋牌）。 */
+function addonButtonsHtml(enabled) {
+  const queued = queuedTotal(myAddonQueue);
+  const add = `<button type="button" class="ghost" id="mpAddon" ${enabled && !addonBusy ? '' : 'disabled'}>加碼</button>`;
+  return queued
+    ? `${add}<button type="button" class="ghost" id="mpAddonCancel" ${addonBusy ? 'disabled' : ''}>取消加碼 ${fmtChips(queued)}</button>`
+    : add;
+}
+
+function wireAddonButtons() {
+  $('#mpAddon')?.addEventListener('click', () => void requestAddon());
+  $('#mpAddonCancel')?.addEventListener('click', () => void cancelAddon());
+}
+
+function startAddonQueue(fb, id, uid) {
+  stopAddonQueue();
+  try {
+    stopAddonQ = fb.fs.onSnapshot(fb.fs.doc(fb.db, 'pokerRooms', id, 'addons', uid), (s) => {
+      if (roomId !== id) return;
+      myAddonQueue = s.exists() ? s.data() : null;
+      if (screen === 'table') paintTableChrome();
+    }, () => {});
+  } catch { /* 沒有 onSnapshot 的環境 */ }
+}
+
+function stopAddonQueue() {
+  stopAddonQ?.();
+  stopAddonQ = null;
+  myAddonQueue = null;
+}
+
+async function requestAddon() {
+  const fb = getFirebase();
+  const user = getUser();
+  if (!fb || !user || !room || addonBusy || !room.seatUids.includes(user.uid)) return;
+  const opts = addonOptions(playerDoc?.bank, room.config?.bb, queuedTotal(myAddonQueue));
+  if (!opts) { toast('帳戶不足，無法加碼'); return; }
+  const targetRoomId = roomId;
+  const amount = await pickBuyinAmount({ ...opts, title: '加碼', confirmText: '加碼',
+    pendingText: '加碼排隊中…', bankText: `${accountText()}（上桌時才扣）`, hint: '這手結束後上桌' });
+  if (amount == null || roomId !== targetRoomId) return;
+  addonBusy = true;
+  paintTableChrome();
+  try {
+    await queueAddon(fb, { uid: user.uid, roomId: targetRoomId, amount });
+    toast(`加碼 ${fmtChips(amount)}，這手結束後上桌`);
+  } catch (e) {
+    toast(friendlyError(e, '加碼沒送出去，請再按一次'));
+  } finally {
+    addonBusy = false;
+    if (screen === 'table') paintTableChrome();
+  }
+}
+
+async function cancelAddon() {
+  const fb = getFirebase();
+  const user = getUser();
+  if (!fb || !user || !roomId || addonBusy) return;
+  addonBusy = true;
+  paintTableChrome();
+  try {
+    await cancelAddons(fb, { uid: user.uid, roomId });
+    toast('已取消加碼，帳戶沒有扣');
+  } catch (e) {
+    toast(friendlyError(e, '取消沒送出去，請再按一次'));
+  } finally {
+    addonBusy = false;
+    if (screen === 'table') paintTableChrome();
+  }
+}
+
+/** 上桌時才全桌顯示「小明 加碼 2,000」；帳戶不足只給本人看。第一次進房不補播舊訊息。 */
+function noteAddonEvents(r, myUid, first) {
+  const ev = r.lastMoneyEvent;
+  const key = ev?.type === 'addon' ? `${r.id || ''}:${(ev.ids || []).join(',')}` : seenAddonKey;
+  const reject = r.pub?.rejects?.[myUid] || '';
+  if (!first && key !== seenAddonKey && ev?.type === 'addon') {
+    const who = ev.uid === myUid ? '你' : displayNameOf(ev.uid);
+    toast(`${who} 加碼 ${fmtChips(ev.amount)}`);
+    if (ev.uid === myUid) void refreshPlayerAfterAddon(myUid);
+  }
+  if (!first && reject && reject !== seenAddonReject && reject.includes('加碼')) toast(reject);
+  seenAddonKey = key;
+  seenAddonReject = reject;
+}
+
+async function refreshPlayerAfterAddon(uid) {
+  try {
+    const p = await getPlayer(getFirebase(), uid);
+    if (p) playerDoc = p;
+  } catch { /* 下次快照再更新 */ }
 }
 
 async function sitDown(seat) {
@@ -3571,6 +3679,7 @@ function tearDownRoom() {
   hostSitPending = false;
   stopRoom?.();
   stopRoom = null;
+  stopAddonQueue();
   stopHole?.();
   stopHole = null;
   presence?.stop();
