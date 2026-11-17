@@ -319,12 +319,12 @@ async function joinViaLink(browser, base, name, uid, viewport, roomId, code) {
   await page.evaluate(([u, n]) => window.__qaSignIn(u, n), [uid, name]);
   // 以空位／離座確認進桌；結束畫面也停止等待，入口出現時繼續進入。
   const READY = '#seats .mp-empty-seat, #mpLeave, .mp-ended';
-  const GATE = '[data-act="continue"], [data-act="enter"], [data-act="join"]';
+  const GATE = '[data-act="continue"]:visible, [data-act="enter"]:visible, [data-act="join"]:visible';
   const end = Date.now() + 30000;
   while (Date.now() < end) {
     if (await page.locator(READY).count()) break;
     const gate = page.locator(GATE);
-    if (await gate.count()) await gate.first().click().catch(() => {});
+    if (await gate.count()) await gate.first().click({ timeout: 1500 }).catch(() => {});
     await page.waitForSelector(`${READY}, ${GATE}`, { state: 'attached', timeout: 1500 }).catch(() => {});
   }
   return { ctx, page, name, uid, errors };
@@ -737,21 +737,124 @@ async function runIntentRefresh(browser, base, viewport, label) {
   };
 }
 
-/** #23 Host leaves to lobby → 我的牌桌 → back in seat with stack intact. */
+// 對齊 2026-11 已拿掉 soft-detach 的現產品：房主確認離開＝收桌、籌碼回帳戶。
+async function hostAccountSnapshot(roomId) {
+  const host = process.env.FIRESTORE_EMULATOR_HOST || '';
+  if (!/^(?:127\.0\.0\.1|localhost|\[::1\]):[0-9]{1,5}$/.test(host)) {
+    throw new Error('房主帳戶快照需要本機 FIRESTORE_EMULATOR_HOST（含連接埠）');
+  }
+  const root = `http://${host}/v1/projects/demo-poker/databases/(default)/documents`;
+  const read = async (path) => {
+    const url = `${root}/${path}`;
+    const response = await fetch(url, {
+      headers: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(15000),
+      redirect: 'error',
+    });
+    if (!response.ok) throw new Error(`房主帳戶快照 REST ${response.status}：${url}`);
+    const document = await response.json();
+    if (!document.fields) throw new Error(`房主帳戶快照缺少文件欄位：${path}`);
+    return document.fields;
+  };
+  const decode = (fields, key, optional = false) => {
+    const value = fields[key];
+    if (!value && optional) return null;
+    if (value) {
+      if ('nullValue' in value) return null;
+      if ('stringValue' in value) return value.stringValue;
+      if ('integerValue' in value || 'doubleValue' in value) {
+        const number = Number(value.integerValue ?? value.doubleValue);
+        if (Number.isFinite(number)) return number;
+      }
+    }
+    throw new Error(`房主帳戶快照欄位缺少或格式無效：${roomId}/${key}`);
+  };
+  const room = await read(`pokerRooms/${encodeURIComponent(roomId)}`);
+  const hostUid = decode(room, 'hostUid');
+  if (typeof hostUid !== 'string' || !hostUid) {
+    throw new Error(`房主帳戶快照 hostUid 無效：${roomId}`);
+  }
+  const player = await read(`pokerPlayers/${encodeURIComponent(hostUid)}`);
+  return {
+    status: decode(room, 'status'),
+    bank: decode(player, 'bank'),
+    inPlay: decode(player, 'inPlay'),
+    tableRoomId: decode(player, 'tableRoomId', true),
+    hostRoomId: decode(player, 'hostRoomId', true),
+  };
+}
+
+async function confirmHostLeaveAndCheck(host, roomId, before) {
+  await host.page.locator('#btnBackLobby').click();
+  await host.page.locator('#mpLeaveConfirmOk:visible').click();
+  await host.page.waitForSelector('.mp-lobby', { state: 'visible', timeout: 20000 });
+  const expectedBank = Number(before.bank) + Number(before.inPlay);
+  if (!Number.isFinite(expectedBank) || !(Number(before.inPlay) > 0)) {
+    throw new Error(`房主離開前籌碼資料無效：${JSON.stringify(before)}`);
+  }
+  let after;
+  const deadline = Date.now() + 15000;
+  do {
+    after = await hostAccountSnapshot(roomId);
+    if (after.status === 'closed' && after.bank === expectedBank && after.inPlay === 0 &&
+        !after.tableRoomId && !after.hostRoomId) break;
+    await host.page.waitForTimeout(250);
+  } while (Date.now() < deadline);
+  await host.page.waitForFunction((bank) => {
+    const text = document.getElementById('mpBAcc')?.textContent || '';
+    return Number(text.replace(/[,，\s]/g, '')) === bank &&
+      !document.querySelector('.mp-mine') && !/我的牌桌/.test(document.body.innerText);
+  }, expectedBank, { timeout: 15000 });
+  const lobby = await host.page.evaluate(() => ({
+    hasMine: !!document.querySelector('.mp-mine'),
+    hasMyTable: /我的牌桌/.test(document.body.innerText),
+    topHeight: Math.round(document.querySelector('.mp-lobby .mp-top')?.getBoundingClientRect().height || 0),
+    top: window.__qaTopStatus?.() || '',
+  }));
+  return {
+    ok: after.status === 'closed' && after.bank === expectedBank && after.inPlay === 0 &&
+      !after.tableRoomId && !after.hostRoomId && !lobby.hasMine && !lobby.hasMyTable,
+    reason: '房主確認離開後應收桌、籌碼全數回帳戶、清除綁定且無我的牌桌卡',
+    before, after, expectedBank, lobby,
+  };
+}
+
+/** #23 房主確認離開後收桌、回帳戶與乾淨大廳（保留原情境名稱）。 */
 async function runHostLobbyContinue(browser, base, viewport, label) {
   const host = await makePlayer(browser, base, '阿明', `hostlc${label}`, viewport);
   const { roomId } = await createAndShare(host);
-  await host.page.waitForSelector('#heroChips, .ch.st', { timeout: 12000 });
-  const before = await host.page.evaluate(() => {
-    const chips = document.querySelector('#heroChips, .ch.st')?.textContent || '';
-    const body = document.body.innerText;
-    return { chips, seated: /離座|開始第一手|開始下一手|蓋牌/.test(body) };
-  });
-  // PL: soft leave via top 「‹ 大廳」only (no bottom 回大廳 / menu「大廳」)
+  const before = await hostAccountSnapshot(roomId);
+  // 現行 ‹ 大廳會開啟確認離開對話框；不再 soft-detach。
   const leaveBtn = host.page.locator('#btnBackLobby');
-  await leaveBtn.waitFor({ state: 'visible', timeout: 15000 });
+  let leaveError = null;
+  try {
+    await leaveBtn.waitFor({ state: 'visible', timeout: 15000 });
+  } catch (error) {
+    leaveError = error.message;
+  }
   const leaveBox = await leaveBtn.boundingBox();
   const vp = host.page.viewportSize();
+  // 44px 熱區可因負 margin 超出邊緣；檢查實際文字範圍與點擊能力。
+  const leaveTextInViewport = !leaveError && await leaveBtn.evaluate((el) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const rects = [];
+    while (walker.nextNode()) {
+      if (!walker.currentNode.textContent.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(walker.currentNode);
+      rects.push(...Array.from(range.getClientRects()));
+    }
+    return rects.length > 0 && rects.every((rect) =>
+      rect.width > 0 && rect.height > 0 && rect.left >= 0 && rect.top >= 0 &&
+      rect.right <= window.innerWidth && rect.bottom <= window.innerHeight);
+  });
+  if (!leaveError && leaveTextInViewport) {
+    try {
+      await leaveBtn.click({ trial: true, timeout: 15000 });
+    } catch (error) {
+      leaveError = error.message;
+    }
+  }
   const menuDupes = await host.page.evaluate(() => {
     const pop = document.getElementById('menuPop');
     const lobby = document.getElementById('btnLobby');
@@ -768,18 +871,15 @@ async function runHostLobbyContinue(browser, base, viewport, label) {
       popExists: !!pop,
     };
   });
-  if (
-    !leaveBox ||
-    leaveBox.y + leaveBox.height > (vp?.height || 0) + 1 ||
-    leaveBox.x + leaveBox.width > (vp?.width || 0) + 1 ||
-    leaveBox.y < 0
-  ) {
+  if (!leaveBox || leaveError || !leaveTextInViewport) {
     await host.ctx.close();
     return {
       ok: false,
       roomId,
       before,
-      reason: '#btnBackLobby not fully in viewport',
+      reason: '#btnBackLobby invisible, text outside viewport, or not clickable',
+      leaveError,
+      leaveTextInViewport,
       leaveBox,
       vp,
       menuDupes,
@@ -795,92 +895,13 @@ async function runHostLobbyContinue(browser, base, viewport, label) {
       menuDupes,
     };
   }
-  await leaveBtn.click();
-  await host.page.waitForSelector('.mp-lobby', { timeout: 15000 });
-  await host.page.waitForFunction(() => {
-    const mine = window.__qaMineSnapshot?.();
-    return /房主/.test(mine?.tag || '') && /回到牌桌/.test(mine?.act || '');
-  }, null, { timeout: 12000 });
-  const lobby = await host.page.evaluate(async () => {
-    const info =
-      typeof window.__qaRefreshRescue === 'function'
-        ? await window.__qaRefreshRescue()
-        : {};
-    const mine = window.__qaMineSnapshot?.() || {};
-    const t = document.body.innerText;
-    return {
-      ...info,
-      ...mine,
-      hasMyTable: /我的牌桌/.test(t),
-      hasRescue: /房主失聯/.test(t),
-      isHostCard: /房主/.test(mine.tag || '') && /回到牌桌/.test(mine.act || ''),
-      createHidden: mine.hasCreate === false,
-      text: t.slice(0, 400),
-    };
-  });
+  // 不再檢查「我的牌桌／回到牌桌」或回到原座位：2026-11 已移除 soft-detach。
+  const result = await confirmHostLeaveAndCheck(host, roomId, before);
   await host.page.screenshot({
-    path: join(ART, `mp-${label}-host-lobby-continue.png`),
-    fullPage: true,
-  });
-  if (!lobby.hasMyTable || lobby.hasRescue || !lobby.isHostCard || !lobby.createHidden) {
-    await host.ctx.close();
-    return {
-      ok: false,
-      roomId,
-      lobby,
-      before,
-      reason: 'lobby missing host card / showed 房主失聯 / create still visible',
-    };
-  }
-  await host.page.click('.mp-my[data-act="continue"]');
-  await host.page.waitForFunction(
-    () => {
-      const app = document.getElementById('app');
-      const seats = document.querySelector('#seats .mp-empty-seat, #mpLeave');
-      return (
-        !!seats &&
-        app &&
-        !app.classList.contains('hidden') &&
-        (!!document.getElementById('mpLeave') ||
-          !!document.getElementById('mpStart') ||
-          /離座|開始第一手|開始下一手|觀戰/.test(document.body.innerText))
-      );
-    },
-    null,
-    { timeout: 20000 },
-  );
-  await host.page.waitForSelector('#heroChips, .ch.st', { timeout: 12000 });
-  const after = await host.page.evaluate(() => {
-    const chips = document.querySelector('#heroChips, .ch.st')?.textContent || '';
-    const body = document.body.innerText;
-    return {
-      chips,
-      seated: /離座|開始第一手|開始下一手|蓋牌|觀戰/.test(body),
-      onTable: !!document.querySelector('#seats .mp-empty-seat, #mpLeave'),
-    };
-  });
-  await host.page.screenshot({
-    path: join(ART, `mp-${label}-host-lobby-back.png`),
-    fullPage: true,
+    path: join(ART, `mp-${label}-host-lobby-continue.png`), fullPage: true,
   });
   await host.ctx.close();
-  const stackOk =
-    !before.chips || !after.chips || before.chips === after.chips || /2[,.]?000/.test(after.chips);
-  return {
-    ok:
-      before.seated &&
-      lobby.hasMyTable &&
-      !lobby.hasRescue &&
-      lobby.hostLoop === true &&
-      after.onTable &&
-      after.seated &&
-      stackOk,
-    roomId,
-    before,
-    lobby,
-    after,
-    stackOk,
-  };
+  return { ...result, roomId, menuDupes };
 }
 
 /** #23/#host: simulated ≥10m stale → still no「房主失聯」 for self. */
@@ -1107,10 +1128,9 @@ async function runOpenTablesList(browser, base, viewport, label) {
   };
 }
 
-/** §2.1/§2.2: host / guest / settle cards + away toast (f7e147a 50px top bar). */
+/** 保留 mine-card-states 名稱：現行收桌後無卡，並檢查 50px 大廳頂列。 */
 async function runMineCardStates(browser, base, viewport, label) {
   const hostUid = `hostmc${label}`;
-  const guestUid = `guestmc${label}`;
   const host = await makePlayer(browser, base, '阿明', hostUid, viewport);
   // Idle lobby: 「在大廳」+ menu items (no primary continue/settle); core CTAs visible
   const idle = await host.page.evaluate(() => {
@@ -1139,148 +1159,16 @@ async function runMineCardStates(browser, base, viewport, label) {
     path: join(ART, `mp-${label}-lobby-empty-r5.png`),
     fullPage: true,
   });
-  const { roomId, code } = await createAndShare(host);
-  await host.page.evaluate(() => window.__qaLeaveToLobby());
-  await host.page.waitForSelector('.mp-mine.is-host, .mp-mine', { timeout: 15000 });
-  const hostCard = await host.page.evaluate(() => window.__qaMineSnapshot());
-  const h1 = hostCard.height;
-
-  // 產品已改單桌（lobby.js:400–488、room.js:197–223），多桌時代斷言移除
-  // Guest seated → 入座中；房間開放時沒有開桌鈕。
-  const guest = await joinViaLink(browser, base, '大雄', guestUid, viewport, roomId, code);
-  await sitIfNeeded(guest.page);
-  await guest.page.waitForTimeout(1200);
-  await guest.page.evaluate(() => window.__qaLeaveToLobby());
-  await guest.page.waitForSelector('.mp-lobby', { timeout: 15000 });
-  await guest.page.waitForFunction(() => {
-    const mine = window.__qaMineSnapshot?.();
-    return mine?.hasMine && /入座中/.test(mine.tag || '');
-  }, null, { timeout: 12000 });
-  const guestCard = await guest.page.evaluate(() => ({
-    ...window.__qaMineSnapshot(),
-    top: window.__qaTopStatus?.() || '',
-  }));
-  const guestMenu = await guest.page.evaluate(() => window.__qaOpenMenu?.() || []);
-  await guest.page.evaluate(() => document.getElementById('mpMenuBtn')?.click());
-  // 產品已改單桌（lobby.js:400–488、room.js:197–223），多桌時代斷言移除
-  await guest.page.screenshot({
-    path: join(ART, `mp-${label}-mine-guest.png`),
-    fullPage: true,
+  const { roomId } = await createAndShare(host);
+  const before = await hostAccountSnapshot(roomId);
+  // 對齊 2026-11 拿掉 soft-detach 的現產品。
+  // 舊房主「回到牌桌」、訪客「入座中」、待結帳卡與卡高比較均依賴離開後保留牌桌，
+  // 改驗收桌／回帳戶／無殘卡；不再接續加入已收掉的桌或執行其卡片／通知鏈。
+  const result = await confirmHostLeaveAndCheck(host, roomId, before);
+  await host.page.screenshot({
+    path: join(ART, `mp-${label}-mine-closed.png`), fullPage: true,
   });
-  await guest.page.evaluate(() => window.__qaHideNotify?.());
-
-  // Snapshot host while table still open (closing for settle would flip host → 待結帳)
-  const hostAgain = await host.page.evaluate(() => ({
-    ...window.__qaMineSnapshot(),
-    top: window.__qaTopStatus?.() || '',
-  }));
-  const hostMenu = await host.page.evaluate(() => window.__qaOpenMenu?.() || []);
-  await host.page.evaluate(() => document.getElementById('mpMenuBtn')?.click());
-  const topBar = await host.page.evaluate(() => {
-    const top = document.querySelector('.mp-lobby .mp-top');
-    if (!top) return null;
-    const r = top.getBoundingClientRect();
-    const foot = document.querySelector('.mp-foot');
-    const footLinks = [...document.querySelectorAll('.mp-foot [data-act="solo"], .mp-foot [data-act="signout"]')];
-    return {
-      h: Math.round(r.height),
-      hasTotal: /總計/.test(document.body.innerText),
-      footHidden: !foot || getComputedStyle(foot).display === 'none',
-      footHasLegacy: footLinks.length > 0,
-      hasMenu: !!document.getElementById('mpMenuBtn'),
-      menuIsM7: document.getElementById('mpMenuBtn')?.classList.contains('m7') === true,
-    };
-  });
-
-  // Settle: close room → guest sees 結帳離開
-  await emuCloseRoom(roomId, code);
-  await guest.page.evaluate(async () => {
-    await window.__qaRefreshRescue?.();
-  });
-  await guest.page.waitForFunction(() => {
-    const mine = window.__qaMineSnapshot?.();
-    return mine?.hasMine && mine.dataK === 'settle' && /結帳離開/.test(mine.act || '');
-  }, null, { timeout: 12000 });
-  const settleCard = await guest.page.evaluate(() => ({
-    ...window.__qaMineSnapshot(),
-    top: window.__qaTopStatus?.() || '',
-  }));
-  const settleMenu = await guest.page.evaluate(() => window.__qaOpenMenu?.() || []);
-  await guest.page.evaluate(() => document.getElementById('mpMenuBtn')?.click());
-  await guest.page.screenshot({
-    path: join(ART, `mp-${label}-mine-settle.png`),
-    fullPage: true,
-  });
-
-  // Away toast + top status 「已自動離座」
-  const toast = await guest.page.evaluate(() => {
-    window.__qaShowAwayToast?.();
-    const n = document.getElementById('mpNtc');
-    const a = document.getElementById('mpNtcA');
-    return {
-      on: n?.classList.contains('on'),
-      title: document.getElementById('mpNtcT')?.textContent || '',
-      role: n?.getAttribute('role'),
-      style: getComputedStyle(n).transitionProperty || '',
-      top: window.__qaTopStatus?.() || '',
-      sticky: n?.dataset.sticky === '1',
-      action: a?.textContent || '',
-      actionShown: !!(a && !a.hidden),
-    };
-  });
-  await guest.page.screenshot({
-    path: join(ART, `mp-${label}-away-toast.png`),
-    fullPage: true,
-  });
-
   await host.ctx.close();
-  await guest.ctx.close();
-
-  const hostOk =
-    hostCard.hasMine &&
-    /房主/.test(hostCard.tag) &&
-    /回到牌桌/.test(hostCard.act) &&
-    !hostCard.hasCreate &&
-    !/房主失聯/.test(hostCard.text) &&
-    hostAgain.top === '我是房主' &&
-    hostMenu.some((t) => /回到牌桌/.test(t)) &&
-    hostMenu.some((t) => t === '戰績') &&
-    hostMenu.some((t) => t === '設定') &&
-    hostMenu.some((t) => t === '登出') &&
-    !hostMenu.some((t) => /同一支手機輪流玩/.test(t));
-  // 產品已改單桌（lobby.js:400–488、room.js:197–223），多桌時代斷言移除
-  const guestOk =
-    guestCard.hasMine &&
-    /入座中/.test(guestCard.tag) &&
-    !guestCard.hasCreate &&
-    guestCard.top === '已入座' &&
-    guestMenu.some((t) => /回到牌桌/.test(t));
-  const settleOk =
-    settleCard.hasMine &&
-    settleCard.dataK === 'settle' &&
-    /結帳離開/.test(settleCard.act) &&
-    settleCard.hasCreate &&
-    settleCard.top === '待結帳' &&
-    settleMenu.some((t) => /結帳離開/.test(t));
-  const toastOk =
-    toast.on &&
-    /自動離座/.test(toast.title) &&
-    toast.role === 'status' &&
-    toast.top === '已自動離座' &&
-    toast.sticky &&
-    toast.actionShown &&
-    /知道了/.test(toast.action);
-  const heightOk =
-    h1 > 0 &&
-    Math.abs((guestCard.height || 0) - (settleCard.height || 0)) < 8;
-  const barOk =
-    topBar &&
-    topBar.h === 50 &&
-    topBar.footHidden &&
-    !topBar.footHasLegacy &&
-    !topBar.hasTotal &&
-    topBar.hasMenu &&
-    topBar.menuIsM7;
   const idleOk =
     idle.top === '在大廳' &&
     idle.h === 50 &&
@@ -1297,19 +1185,11 @@ async function runMineCardStates(browser, base, viewport, label) {
     !idle.menu.some((t) => /回到牌桌|結帳離開/.test(t));
 
   return {
-    ok: idleOk && hostOk && guestOk && settleOk && toastOk && heightOk && barOk,
+    ...result,
+    ok: idleOk && result.ok && result.lobby.topHeight === 50 && result.lobby.top === '在大廳',
+    roomId,
     idle,
     idleOk,
-    hostCard,
-    guestCard,
-    settleCard,
-    toast,
-    heightOk,
-    hostAgain,
-    hostMenu,
-    guestMenu,
-    settleMenu,
-    topBar,
   };
 }
 
@@ -1401,7 +1281,11 @@ async function main() {
         }, SCENARIO_LIMIT_MS);
       });
       try {
-        results.push({ name, ...(await Promise.race([fn(), watchdog])) });
+        const r = await Promise.race([fn(), watchdog]);
+        if (r?.ok === false) {
+          throw new Error(`${name}: ${r.reason || JSON.stringify(r)}`);
+        }
+        results.push({ name, ...r });
         step(`✔ ${name}`);
       } finally {
         clearTimeout(timer);
