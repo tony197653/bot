@@ -2542,7 +2542,7 @@ function renderSeatOverlays() {
       el.dataset.seat = String(i);
       el.setAttribute('aria-label', `坐到座位 ${i + 1}`);
       el.innerHTML = `<div class="plate plateA mp-empty-plate"><span>空位 ${i + 1}</span></div>`;
-      el.addEventListener('click', () => sitDown(i));
+      el.addEventListener('click', () => { el.focus(); sitDown(i); });
       seatsEl.appendChild(el);
     }
   }
@@ -3126,7 +3126,9 @@ function pickBuyinAmount(options) {
   const value = () => Number(number.value.replaceAll(',', ''));
   const paintRemaining = () => {
     if (!bankEl || !Number.isFinite(options.bank)) return;
-    const left = remainingBank(options.bank, Number.isFinite(value()) ? value() : 0);
+    const amount = value();
+    const valid = Number.isSafeInteger(amount) && amount >= options.min && amount <= options.max;
+    const left = valid ? remainingBank(options.bank, amount) : options.bank;
     if (left == null) return;
     bankEl.dataset.bank = String(options.bank);
     if (options.bankSuffix) bankEl.dataset.bankSuffix = options.bankSuffix;
@@ -3219,7 +3221,7 @@ async function requestAddon() {
   if (!opts) { toast('帳戶不足，沒有補碼'); return; }
   const targetRoomId = roomId;
   const amount = await pickBuyinAmount({ ...opts, title: '補碼', confirmText: '補碼', amountLabel: '本次補碼',
-    minHint: '已是最低補碼', pendingText: null, bank: opts.max,
+    minHint: '已是最低補碼', pendingText: null, bank: playerDoc?.bank,
     bankText: accountText(), hint: '這手結束後上桌' });
   if (amount == null || roomId !== targetRoomId) return;
   addonBusy = true;

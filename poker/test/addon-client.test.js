@@ -11,7 +11,7 @@ test('加碼數量：預設 50 大盲、不足就全部、最少 1 大盲、扣�
 });
 
 function fakeFb() {
-  const data = new Map();
+  const data = new Map([['pokerRooms/r', { config: { bb: 20 } }], ['pokerPlayers/u', { bank: 150000 }]]);
   return { data, fb: { db: {}, fs: { doc: (_, ...p) => p.join('/'), serverTimestamp: () => 'TS',
     runTransaction: async (_, fn) => fn({ get: async r => ({ data: () => data.get(r) }), set: (r, v) => data.set(r, v) }) } } };
 }
@@ -28,4 +28,18 @@ test('多筆排隊累加、seq 遞增；一顆鈕全部取消', async () => {
   // 房主已處理（清空）後再按取消：不寫入、回報不能取消
   assert.equal((await cancelAddons(fb, { uid: 'u', roomId: 'r' })).cancelled, false);
   assert.equal(data.get('pokerRooms/r/addons/u').seq, 3);
+});
+
+test('R45 補碼單筆上限及可用帳戶邊界', async () => {
+  assert.equal(addonOptions(150000, 20).max, 100000);
+  assert.equal(addonOptions(150000, 20, 60000).max, 90000);
+  for (const amount of [19, 20.5, -1, 100001]) {
+    const { fb, data } = fakeFb();
+    await assert.rejects(queueAddon(fb, { uid: 'u', roomId: 'r', amount }));
+    assert.equal(data.has('pokerRooms/r/addons/u'), false);
+  }
+  const { fb, data } = fakeFb();
+  for (const amount of [100000, 1234]) await queueAddon(fb, { uid: 'u', roomId: 'r', amount });
+  assert.equal(queuedTotal(data.get('pokerRooms/r/addons/u')), 101234);
+  await assert.rejects(queueAddon(fb, { uid: 'u', roomId: 'r', amount: 50000 }));
 });

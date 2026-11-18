@@ -2,6 +2,10 @@
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, Timestamp, runTransaction, setLogLevel } from 'firebase/firestore';
 import fs from 'node:fs';
+import * as firestore from 'firebase/firestore';
+import { buyinAmount } from '../js/net/ledger.js';
+import { queueAddon } from '../js/net/addon-client.js';
+import assert from 'node:assert/strict';
 setLogLevel('silent');
 
 const RULES = process.env.RULES || 'firestore.rules';
@@ -955,6 +959,52 @@ await t('#takeover', 'lobby 房可 takeover（presence+updatedAt 過期）', 'ok
     pub: { ...r.pub, phase: 'hand_over', voided: true, board: [], actor: null },
   });
 });
+
+// R45：runner 實際收集的入座／補碼邊界。產品防線與繞過面板的直接寫入分開驗證。
+for (const [amount, allowed] of [[999, false], [1234, true], [100000, true], [100001, false]]) {
+  const setup = () => seed({ players: { B: player({ bank: 150000, total: 150000, inPlay: 0, tableRoomId: null, sessionNo: 0 }) } });
+  await t('#R45', `入座產品函式 ${amount}`, 'ok', setup, async () => {
+    const action = buyinAmount({ db: db('B'), fs: firestore }, 'B', R, 20, amount);
+    if (allowed) await assertSucceeds(action); else await assert.rejects(action);
+  });
+  await t('#R45', `入座規則直接寫入 ${amount}`, allowed ? 'ok' : 'deny', setup,
+    () => buyinBatch('B', R, { player: { bank: 150000 - amount, inPlay: amount }, ledger: { amount, bankAfter: 150000 - amount } }));
+}
+for (const [amount, allowed] of [[19, false], [1234, true], [100000, true], [100001, false]]) {
+  const setup = () => seed({ players: { A: player({ bank: 150000, total: 155000 }) } });
+  await t('#R45', `補碼產品函式 ${amount}`, 'ok', setup, async () => {
+    const action = queueAddon({ db: db('A'), fs: firestore }, { uid: 'A', roomId: R, amount, id: 'r45' });
+    if (allowed) await assertSucceeds(action); else await assert.rejects(action);
+  });
+  await t('#R45', `補碼規則直接寫入 ${amount}`, allowed ? 'ok' : 'deny', setup,
+    () => setDoc(doc(db('A'), 'pokerRooms', R, 'addons', 'A'), { items: [{ id: 'r45', amount }], seq: 1, at: serverTimestamp() }));
+}
+
+// 規則每次只准新加 1 筆（避免 20 筆一次驗證超過 1000 運算式）。多筆案例先放前綴再追加最後一筆。
+async function seedAddonPrefix(items, seq = 1) {
+  if (!items.length) return;
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'pokerRooms', R, 'addons', 'A'), {
+      items, seq, at: Timestamp.now(),
+    });
+  });
+}
+for (const [name, items, allowed] of [
+  ['多筆合計超過 100,000', [{ id: 'a', amount: 100000 }, { id: 'b', amount: 1234 }], true],
+  ['合計超過帳戶', [{ id: 'a', amount: 100000 }, { id: 'b', amount: 50001 }], false],
+  ['小數', [{ id: 'a', amount: 20.5 }], false],
+  ['第 20 筆超限', Array.from({ length: 20 }, (_, i) => ({ id: String(i), amount: i === 19 ? 100001 : 20 })), false],
+  ['20 筆合法', Array.from({ length: 20 }, (_, i) => ({ id: String(i), amount: 20 })), true],
+]) {
+  await t('#R45', `補碼規則 ${name}`, allowed ? 'ok' : 'deny',
+    async () => {
+      await seed({ players: { A: player({ bank: 150000, total: 155000 }) } });
+      if (items.length > 1) await seedAddonPrefix(items.slice(0, -1));
+    },
+    () => setDoc(doc(db('A'), 'pokerRooms', R, 'addons', 'A'), {
+      items, seq: items.length > 1 ? 2 : 1, at: serverTimestamp(),
+    }));
+}
 
 fs.writeFileSync(process.env.OUT || 'results.json', JSON.stringify({ rules: RULES, startAt: 'Timestamp.now()', results, raceInfo, retry, cancelBack }, null, 1));
 for (const r of results) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.group} ${r.name} | 預期 ${r.expect} 實際 ${r.got} ${r.pass ? '' : r.err}`);

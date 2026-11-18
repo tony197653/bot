@@ -107,6 +107,7 @@ export async function buyinAmount(fb, uid, roomId, bb, chosenAmount) {
 
   const no = p.sessionNo + 1;
   const amount = assertMinimumBuyin(chosenAmount ?? p.bank, bb);
+  if (amount > 100000) throw new Error('攜入金額不可超過 100,000');
   if (amount > p.bank) throw new Error('籌碼不足，攜入金額不可超過帳戶餘額');
   const remaining = p.bank - amount;
   const id = `${roomId}_${no}_buyin`;

@@ -276,7 +276,7 @@ service cloud.firestore {
         return request.auth.uid == r.hostUid && roomOpen(r.status) && betweenHands(r.pub)
           && ev.keys().hasOnly(['type', 'seat', 'uid', 'amount', 'ids'])
           && i is int && i >= 0 && i <= 5 && ev.uid is string && ev.uid != '' && r.seatUids[i] == ev.uid
-          && ev.amount is int && ev.amount > 0 && ev.amount <= 100000000
+          && ev.amount is int && ev.amount > 0 && ev.amount <= 100000 * ev.ids.size()
           && ev.ids is list && ev.ids.size() >= 1 && ev.ids.size() <= 20
           && d.rev == r.rev + 1 && d.updatedAt == request.time
           && d.diff(r).affectedKeys().hasOnly(['lastMoneyEvent', 'rev', 'updatedAt', 'stacks', 'sess', 'chipTotal'])
@@ -507,16 +507,56 @@ service cloud.firestore {
       // 動作意圖：每人一份，覆寫，seq 只能變大；turn＝送出時看到的 pub.actionSeq（房主用來去重）
       // 自助加碼排隊（ADDON-SPEC §11）：每人一份；本人加一筆或清空（取消），房主處理後清空
       match /addons/{uid} {
-        function addonsShapeOk(d) {
+        // 每次只准新加 1 筆或清空；只驗證新筆＋合計，避免 20 筆一次驗超過 1000 運算式。
+        function addonOneOk(item) {
+          let bb = roomOf(roomId).config.bb;
+          return item is map && item.keys().hasOnly(['id', 'amount'])
+            && item.id is string && item.id.size() > 0
+            && item.amount is int && item.amount >= bb && item.amount <= 100000;
+        }
+        function addonQueueTotal(items) {
+          return (items.size() > 0 ? items[0].amount : 0)
+            + (items.size() > 1 ? items[1].amount : 0)
+            + (items.size() > 2 ? items[2].amount : 0)
+            + (items.size() > 3 ? items[3].amount : 0)
+            + (items.size() > 4 ? items[4].amount : 0)
+            + (items.size() > 5 ? items[5].amount : 0)
+            + (items.size() > 6 ? items[6].amount : 0)
+            + (items.size() > 7 ? items[7].amount : 0)
+            + (items.size() > 8 ? items[8].amount : 0)
+            + (items.size() > 9 ? items[9].amount : 0)
+            + (items.size() > 10 ? items[10].amount : 0)
+            + (items.size() > 11 ? items[11].amount : 0)
+            + (items.size() > 12 ? items[12].amount : 0)
+            + (items.size() > 13 ? items[13].amount : 0)
+            + (items.size() > 14 ? items[14].amount : 0)
+            + (items.size() > 15 ? items[15].amount : 0)
+            + (items.size() > 16 ? items[16].amount : 0)
+            + (items.size() > 17 ? items[17].amount : 0)
+            + (items.size() > 18 ? items[18].amount : 0)
+            + (items.size() > 19 ? items[19].amount : 0);
+        }
+        function addonsMetaOk(d) {
           return d.keys().hasOnly(['items', 'seq', 'at']) && d.items is list && d.items.size() <= 20
             && d.seq is int && d.at == request.time;
         }
+        function addonAppendOk(d) {
+          return addonOneOk(d.items[d.items.size() - 1])
+            && addonQueueTotal(d.items) <= get(playerPath(uid)).data.bank;
+        }
         allow get: if isSelf(uid) || (signedIn() && roomOf(roomId).hostUid == request.auth.uid);
         allow list: if signedIn() && roomOf(roomId).hostUid == request.auth.uid;
-        allow create: if isSelf(uid) && addonsShapeOk(request.resource.data) && request.resource.data.seq >= 1
-          && request.auth.uid in roomOf(roomId).members;
-        allow update: if (isSelf(uid) && addonsShapeOk(request.resource.data)
-            && request.resource.data.seq > resource.data.seq)
+        allow create: if isSelf(uid) && addonsMetaOk(request.resource.data)
+          && request.resource.data.seq >= 1
+          && request.auth.uid in roomOf(roomId).members
+          && (request.resource.data.items.size() == 0
+            || (request.resource.data.items.size() == 1 && addonAppendOk(request.resource.data)));
+        allow update: if (isSelf(uid) && addonsMetaOk(request.resource.data)
+            && request.resource.data.seq > resource.data.seq
+            && (request.resource.data.items.size() == 0
+              || (request.resource.data.items.size() == resource.data.items.size() + 1
+                && request.resource.data.items[0:resource.data.items.size()] == resource.data.items
+                && addonAppendOk(request.resource.data))))
           || (signedIn() && roomOf(roomId).hostUid == request.auth.uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['items'])
             && request.resource.data.items == []);
@@ -671,7 +711,7 @@ service cloud.firestore {
           && d.tableRoomId is string && d.lastRoomId == d.tableRoomId
           && request.auth.uid in r.members && roomOpen(r.status)
           && d.inPlay is int && d.inPlay >= 50 * r.config.bb
-          && d.inPlay <= resource.data.bank && d.bank == resource.data.bank - d.inPlay
+          && d.inPlay <= 100000 && d.inPlay <= resource.data.bank && d.bank == resource.data.bank - d.inPlay
           && d.total == resource.data.total
           && d.sessionNo == resource.data.sessionNo + 1
           && d.updatedAt == request.time
@@ -717,7 +757,8 @@ service cloud.firestore {
         let a = getAfter(roomPath(p.tableRoomId)).data;
         let ev = a.lastMoneyEvent;
         return p.tableRoomId != null && request.auth.uid == a.hostUid
-          && ev.get('type', '') == 'addon' && ev.uid == uid && a.rev == roomOf(p.tableRoomId).rev + 1
+          && ev.get('type', '') == 'addon' && ev.uid == uid
+          && ev.amount is int && ev.amount >= a.config.bb && ev.amount <= 100000 * ev.ids.size() && a.rev == roomOf(p.tableRoomId).rev + 1
           && d.diff(p).affectedKeys().hasOnly(['bank', 'inPlay', 'updatedAt'])
           && d.bank == p.bank - ev.amount && d.bank >= 0 && d.inPlay == p.inPlay + ev.amount
           && d.updatedAt == request.time;
@@ -752,7 +793,7 @@ service cloud.firestore {
           return d.type == 'buyin' && isSelf(uid)
             && entryId == d.roomId + '_' + string(d.sessionNo) + '_buyin'
             && p.tableRoomId == d.roomId && p.sessionNo == d.sessionNo
-            && d.amount == p.inPlay && d.bankAfter == p.bank;
+            && d.amount <= 100000 && d.amount == p.inPlay && d.bankAfter == p.bank;
         }
         // 房主失聯 10 分鐘以上（房間和房主心跳都沒更新），或房間已收桌
         function hostGone(r, roomId) {
@@ -833,7 +874,7 @@ service cloud.firestore {
             && ev.get('type', '') == 'addon' && ev.uid == uid && d.seat == ev.seat
             && entryId.size() > prefix.size() && entryId.split('_addon_')[0] + '_addon_' == prefix
             && entryId.split('_addon_')[1] in ev.ids
-            && d.amount > 0 && d.amount <= ev.amount;
+            && d.amount >= a.config.bb && d.amount <= 100000 && d.amount <= ev.amount;
         }
         allow create: if signedIn() && entryKeysOk(request.resource.data)
           && (grantOk(request.resource.data) || buyinEntryOk(request.resource.data)

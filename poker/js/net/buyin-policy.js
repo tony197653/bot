@@ -36,7 +36,7 @@ export function assertMinimumBuyin(amount, bb) {
 
 export function buyinOptions(player, config) {
   const min = 50 * config.bb;
-  const max = player?.bank || 0;
+  const max = Math.min(player?.bank || 0, 100000);
   assertMinimumBuyin(max, config.bb);
   return { min, max, step: 1,
     amount: Math.max(min, Math.min(config.newPlayerChips ?? DEFAULT_NEW_PLAYER_CHIPS, max)) };

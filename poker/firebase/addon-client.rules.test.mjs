@@ -15,7 +15,9 @@ fs.setLogLevel('silent');
 test('addon 前台：成員排隊多筆、全部取消放行；非成員、代別人排、亂改 seq 被擋', async () => {
   const env = await initializeTestEnvironment({ projectId: 'demo-addon-client', firestore: { host, port: Number(port), rules } });
   await env.withSecurityRulesDisabled(async c => {
-    await fs.setDoc(fs.doc(c.firestore(), 'pokerRooms', 'r1'), { hostUid: 'host', members: ['host', 'p1'], status: 'open' });
+    await fs.setDoc(fs.doc(c.firestore(), 'pokerRooms', 'r1'), { hostUid: 'host', members: ['host', 'p1'], status: 'open', config: { bb: 20 } });
+    await fs.setDoc(fs.doc(c.firestore(), 'pokerPlayers', 'p1'), { bank: 150000 });
+    await fs.setDoc(fs.doc(c.firestore(), 'pokerPlayers', 'x'), { bank: 150000 });
   });
   const fb = uid => ({ db: env.authenticatedContext(uid).firestore(), fs });
   const read = async () => (await fs.getDoc(fs.doc(fb('p1').db, 'pokerRooms', 'r1', 'addons', 'p1'))).data();

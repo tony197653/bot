@@ -237,8 +237,8 @@ test('自選買入只扣指定金額、帳本餘額正確且 total 不變', asyn
 });
 
 test('選額預設、最低、上限與不整除的餘額', () => {
-  for (const [bank, preset, amount] of [[8765,2000,2000],[2000,5000,2000],[2000,500,1000]]) {
-    assert.deepEqual(buyinOptions({ bank }, { bb: 20, newPlayerChips: preset }), { min:1000,max:bank,amount,step:1 });
+  for (const [bank, preset, amount] of [[8765,2000,2000],[2000,5000,2000],[2000,500,1000],[150000,150000,100000]]) {
+    assert.deepEqual(buyinOptions({ bank }, { bb: 20, newPlayerChips: preset }), { min:1000,max:Math.min(bank,100000),amount,step:1 });
   }
   assert.throws(() => buyinOptions({ bank:999 }, { bb:20 }), /籌碼不足/);
 });
@@ -279,19 +279,21 @@ test('大廳先結算、重讀再檢查；不足不進桌，已綁同桌可回�
 });
 
 test('選額視窗同步建立，取消不送出、確認保留指定額並同步提示', async () => {
-  for(const confirm of [false,true]) {
+  for(const confirm of [false,true,'escape']) {
     const nodes=new Map(),events=[];
     const node=key=>{if(!nodes.has(key))nodes.set(key,{value:'1,500',focus:()=>events.push('focus'),addEventListener:(type,fn)=>nodes.get(key)[type]=fn,reportValidity(){}});return nodes.get(key);};
-    const el={setAttribute(){},addEventListener(){},querySelector:node,remove:()=>events.push('remove')};
-    const ctx=vm.createContext({fmtChips:n=>n.toLocaleString('en-US'),stepBuyinAmount,document:{createElement:()=>el,body:{classList:{add(){},remove(){}},appendChild:()=>events.push('paint')}},toast:msg=>events.push(msg)});
+    const el={setAttribute(){},addEventListener(type, fn){this[type]=fn;},querySelector:node,remove:()=>events.push('remove')};
+    const ctx=vm.createContext({fmtChips:n=>n.toLocaleString('en-US'),stepBuyinAmount,document:{activeElement:{focus:()=>events.push('returnFocus')},createElement:()=>el,body:{classList:{add(){},remove(){}},appendChild:()=>events.push('paint')}},toast:msg=>events.push(msg)});
     vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('),source.indexOf('async function sitDown(')),ctx);
     const started=performance.now(),pending=ctx.pickBuyinAmount({min:1000,max:8765,step:1,amount:2000});
     assert.deepEqual(events,['paint','focus']);assert.ok(performance.now()-started<200);
     assert.match(el.innerHTML,/type="text".*value="2,000"/);
     assert.match(el.innerHTML,/type="range"/);
-    node(confirm?'[data-confirm]':'[data-cancel]').click();
-    if(confirm)assert.deepEqual(events,['paint','focus','入座中…','remove']);
-    assert.equal(await pending,confirm?1500:null);
+    if(confirm==='escape') el.keydown({key:'Escape',preventDefault(){}});
+    else node(confirm?'[data-confirm]':'[data-cancel]').click();
+    if(confirm===true)assert.deepEqual(events,['paint','focus','入座中…','remove','returnFocus']);
+    assert.equal(events.at(-1),'returnFocus');
+    assert.equal(await pending,confirm===true?1500:null);
   }
 });
 
@@ -539,6 +541,10 @@ test('R39 補碼滿額及補碼／入座自行輸入 1,234 都可確認', async 
     assert.match(el.innerHTML, /type="range"[^>]*step="1"/);
     const number = node('input[type="text"]');
     const slider = node('input[type="range"]');
+    for (const invalid of ['-1', '20.5', '', 'abc', String(options.max + 1)]) {
+      number.value = invalid; number.input();
+      assert.equal(node('#mpBuyinBank').textContent, options.bank.toLocaleString('en-US'));
+    }
     number.value = '1,234.0001';
     number.blur();
     node('[data-confirm]').click();
@@ -557,4 +563,14 @@ test('R38 伺服器帳戶更新時同步重畫補碼動作列', () => {
   const ctx = vm.createContext({ screen: 'table', renderActBar: () => renders++, globalThis: {} });
   vm.runInContext(source.slice(source.indexOf('function paintAccount('), source.indexOf('/** @type {any} */', source.indexOf('function paintAccount('))), ctx);
   ctx.paintAccount(); assert.equal(renders, 1);
+});
+
+test('R45 入座產品函式拒絕超過單筆上限，100,000 與非 500 倍數可買入', async () => {
+  for (const amount of [1234, 100000, 100001]) {
+    const fb = fakeFirebase({ bank: 150000, inPlay: 0, tableRoomId: null, sessionNo: 0, total: 150000 });
+    if (amount > 100000) {
+      await assert.rejects(buyinAmount(fb, 'u', 'r', 20, amount), /100,000/);
+      assert.equal(fb.commits, 0);
+    } else assert.equal((await buyinAmount(fb, 'u', 'r', 20, amount)).amount, amount);
+  }
 });
