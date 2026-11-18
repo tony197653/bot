@@ -3093,7 +3093,7 @@ function pickBuyinAmount(options) {
   el.className = 'mp-close-result';
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-modal', 'true');
-  if (options.minHint) el.setAttribute('aria-label', '補碼');
+  if (options.minHint) el.setAttribute('aria-label', options.title || '攜入籌碼');
   else el.setAttribute('aria-labelledby', 'mpBuyinTitle');
   el.innerHTML = `<div class="mp-close-result-card">
     ${options.minHint ? '' : `<h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>`}
@@ -3101,7 +3101,7 @@ function pickBuyinAmount(options) {
     <p class="mp-acct mp-acct-bank${options.minHint ? ' mp-acct-row' : ''}">帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b></p>
     <div class="${options.minHint ? 'mp-affix-row' : 'mp-buyin-step'}">
       <button type="button" data-minus aria-label="減少 500">−</button>
-      ${options.minHint ? '<div class="mp-create-chips-field"><span class="mp-min-hint-row"><label for="mpBuyinAmount">補碼</label><span class="mp-min-hint" data-min-hint role="status"></span></span>' : ''}
+      ${options.minHint ? `<div class="mp-create-chips-field"><span class="mp-min-hint-row"><label for="mpBuyinAmount">${options.amountLabel || '攜入籌碼'}</label><span class="mp-min-hint" data-min-hint role="status"></span></span>` : ''}
       <input${options.minHint ? ' id="mpBuyinAmount"' : ''} aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">
       ${options.minHint ? '</div>' : ''}
       <button type="button" data-plus aria-label="增加 500">＋</button>
@@ -3218,7 +3218,7 @@ async function requestAddon() {
   const opts = addonOptions(playerDoc?.bank, room.config?.bb, queuedTotal(myAddonQueue));
   if (!opts) { toast('帳戶不足，沒有補碼'); return; }
   const targetRoomId = roomId;
-  const amount = await pickBuyinAmount({ ...opts, title: '補碼', confirmText: '補碼',
+  const amount = await pickBuyinAmount({ ...opts, title: '補碼', confirmText: '補碼', amountLabel: '本次補碼',
     minHint: '已是最低補碼', pendingText: null, bank: opts.max,
     bankText: accountText(), hint: '這手結束後上桌' });
   if (amount == null || roomId !== targetRoomId) return;
@@ -3319,7 +3319,8 @@ async function sitDown(seat) {
   try {
     const targetRoomId = roomId;
     const amount = playerDoc?.tableRoomId === roomId ? playerDoc.inPlay
-      : await pickBuyinAmount({ ...buyinOptions(playerDoc, room.config), bank: playerDoc?.bank, bankText: accountText() });
+      : await pickBuyinAmount({ ...buyinOptions(playerDoc, room.config), title: '攜入籌碼', amountLabel: '攜入籌碼',
+          minHint: '已是最低攜入', bank: playerDoc?.bank, bankText: accountText() });
     if (amount == null || !room || roomId !== targetRoomId) return;
     toast('入座中…');
     if (room.hostUid !== user.uid) {

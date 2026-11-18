@@ -428,13 +428,17 @@ test('R32b 選額面板 Esc 取消、焦點復原、尾數全加與中文錯誤'
 });
 
 
-test('R43 補碼移除頂部標題並保留金額標籤，入座維持原行為', async () => {
-  for (const minHint of ['已是最低補碼', undefined]) {
+test('R44 入座與補碼共用無標題排版及最低提示', async () => {
+  for (const isAddon of [true, false]) {
+    const minHint = isAddon ? '已是最低補碼' : '已是最低攜入';
+    const title = isAddon ? '補碼' : '攜入籌碼';
+    const amountLabel = isAddon ? '本次補碼' : '攜入籌碼';
+    const min = isAddon ? 20 : 1000;
     const nodes = new Map();
     const hintClasses = new Set();
     const hintVisible = () => hintClasses.has('is-visible');
     const node = key => {
-      if (!nodes.has(key)) nodes.set(key, { value: '20', hidden: true,
+      if (!nodes.has(key)) nodes.set(key, { value: String(min), hidden: true,
         classList: { add: name => hintClasses.add(name), remove: name => hintClasses.delete(name) },
         addEventListener(type, fn) { this[type] = fn; }, focus() {} });
       return nodes.get(key);
@@ -444,42 +448,40 @@ test('R43 補碼移除頂部標題並保留金額標籤，入座維持原行為'
     const ctx = vm.createContext({ fmtChips: n => n.toLocaleString('en-US'), stepBuyinAmount, remainingBank,
       document: { createElement: () => el, body: { appendChild() {}, classList: { add() {}, remove() {} } } } });
     vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('), source.indexOf('function addonButtonsHtml(')), ctx);
-    const pending = ctx.pickBuyinAmount({ min: 20, max: 2000, step: 1, amount: 20, minHint,
-      ...(minHint ? { title: '補碼', confirmText: '補碼', hint: '這手結束後上桌' } : {}) });
+    const pending = ctx.pickBuyinAmount({ min, max: 2000, step: 1, amount: min, minHint,
+      title, amountLabel, ...(isAddon ? { confirmText: '補碼', hint: '這手結束後上桌' } : {}) });
     // 提示常駐標籤右側，只切換 is-visible，保留流內空間以避免位移。
     assert.equal(hintVisible(), false);
     node('[data-minus]').click();
-    assert.equal(node('input[type="text"]').value, '20');
-    assert.doesNotMatch(el.innerHTML, /已是最低攜入/);
-    if (minHint) {
-      assert.doesNotMatch(el.innerHTML, /<h2\b|id="mpBuyinTitle"/);
-      assert.equal(attributes.get('aria-label'), '補碼');
-      assert.equal(attributes.has('aria-labelledby'), false);
-      assert.match(el.innerHTML, /<button[^>]*data-confirm>補碼<\/button>/);
-      assert.doesNotMatch(el.innerHTML, /上桌時才扣/);
+    assert.equal(node('input[type="text"]').value, String(min));
+    assert.doesNotMatch(el.innerHTML, /<h2\b|mpBuyinTitle/);
+    assert.equal(attributes.get('aria-label'), title);
+    assert.equal(attributes.has('aria-labelledby'), false);
+    assert.match(el.innerHTML, new RegExp(`<button[^>]*data-confirm>${isAddon ? '補碼' : '入座'}</button>`));
+    assert.match(el.innerHTML, new RegExp(`<label for="mpBuyinAmount">${amountLabel}</label>`));
+    assert.doesNotMatch(el.innerHTML, /<label[^>]*>補碼<\/label>|上桌時才扣/);
+    if (isAddon) {
+      assert.doesNotMatch(el.innerHTML, /已是最低攜入/);
       assert.match(el.innerHTML, /這手結束後上桌/);
-      assert.match(el.innerHTML, /<div class="mp-affix">\s*<p class="mp-acct mp-acct-bank mp-acct-row">帳戶 <b id="mpBuyinBank"[^>]*>[^<]*<\/b><\/p>\s*<div class="mp-affix-row">/);
-      assert.match(el.innerHTML, /<div class="mp-create-chips-field"><span class="mp-min-hint-row"><label for="mpBuyinAmount">補碼<\/label><span class="mp-min-hint" data-min-hint role="status"><\/span><\/span>\s*<input id="mpBuyinAmount"/);
-      assert.doesNotMatch(el.innerHTML, /mp-buyin-bank-anchor|data-min-hint[^>]*hidden/);
-      assert.equal(node('[data-min-hint]').textContent, minHint);
-      assert.equal(hintVisible(), true);
-      node('[data-plus]').click(); assert.equal(hintVisible(), false);
-      node('input[type="text"]').value = '20'; node('[data-minus]').click();
-      node('input[type="text"]').input(); assert.equal(hintVisible(), false);
-      node('[data-minus]').click(); node('input[type="range"]').value = '100';
-      node('input[type="range"]').input(); assert.equal(hintVisible(), false);
     } else {
-      assert.match(el.innerHTML, /<h2 id="mpBuyinTitle">攜入籌碼<\/h2>/);
-      assert.equal(attributes.get('aria-labelledby'), 'mpBuyinTitle');
-      assert.equal(attributes.has('aria-label'), false);
-      assert.match(el.innerHTML, /<p class="mp-acct mp-acct-bank">帳戶 /);
-      assert.doesNotMatch(el.innerHTML, /data-min-hint|mp-min-hint-row|<label[^>]*>補碼/);
-      assert.match(el.innerHTML, /<div class="mp-buyin-step">/);
-      assert.equal(nodes.has('[data-min-hint]'), false);
+      assert.doesNotMatch(el.innerHTML, /補碼|這手結束後上桌/);
     }
+    assert.match(el.innerHTML, /<div class="mp-affix">\s*<p class="mp-acct mp-acct-bank mp-acct-row">帳戶 <b id="mpBuyinBank"[^>]*>[^<]*<\/b><\/p>\s*<div class="mp-affix-row">/);
+    assert.match(el.innerHTML, /<div class="mp-create-chips-field"><span class="mp-min-hint-row"><label for="mpBuyinAmount">(?:本次補碼|攜入籌碼)<\/label><span class="mp-min-hint" data-min-hint role="status"><\/span><\/span>\s*<input id="mpBuyinAmount"/);
+    assert.doesNotMatch(el.innerHTML, /mp-buyin-bank-anchor|data-min-hint[^>]*hidden/);
+    assert.equal(node('[data-min-hint]').textContent, minHint);
+    assert.equal(hintVisible(), true);
+    node('[data-plus]').click(); assert.equal(hintVisible(), false);
+    node('input[type="text"]').value = String(min); node('[data-minus]').click();
+    node('input[type="text"]').input(); assert.equal(hintVisible(), false);
+    node('[data-minus]').click(); node('input[type="range"]').value = '100';
+    node('input[type="range"]').input(); assert.equal(hintVisible(), false);
     node('[data-cancel]').click(); assert.equal(await pending, null);
   }
   assert.match(source, /minHint: '已是最低補碼'/);
+  assert.match(source, /minHint: '已是最低攜入'/);
+  assert.match(source, /amountLabel: '本次補碼'/);
+  assert.match(source, /amountLabel: '攜入籌碼'/);
   assert.match(source, /hint: '這手結束後上桌'/);
   assert.doesNotMatch(source, /bankSuffix: '（上桌時才扣）'/);
 });
