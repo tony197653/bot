@@ -344,7 +344,7 @@ async function waitFor(fn, ms = 15000) {
   while (Date.now() < end) { const v = await fn(); if (v) return v; await sleep(300); }
   return null;
 }
-async function queueAddonUI(p, hostP) {
+async function queueAddonUI(p, hostP, { roomId, seat, sessionNo, beforeTopUpChips }) {
   await p.page.bringToFront();
   const btn = await p.page.waitForSelector('#mpAddon:not([disabled])', { timeout: 8000 }).catch(() => null);
   if (!btn) {
@@ -362,8 +362,16 @@ async function queueAddonUI(p, hostP) {
   }
   const dflt = Number(String(await p.page.locator('#mpBuyinPicker input[type="text"]').inputValue()).replaceAll(',', ''));
   await p.page.locator('#mpBuyinPicker [data-confirm]').click();
-  await p.page.waitForSelector('#mpAddonCancel', { timeout: 8000 });
+  // 兩手之間房主可能立刻上桌；排隊取消鈕是短暫狀態。
   await hostP.page.bringToFront();
+  const accepted = await waitFor(async () => {
+    if (await p.page.locator('#mpAddonCancel').isVisible()) return 'queued';
+    const r = await readDoc(`pokerRooms/${roomId}`);
+    const s = r?.sess?.[seat];
+    return r?.seatUids?.[seat] === p.uid && s?.uid === p.uid &&
+      s.sessionNo === sessionNo && s.topUpChips === beforeTopUpChips + dflt && 'applied';
+  }, 8000);
+  if (!accepted) throw new Error('補碼確認後未看到排隊或上桌');
   return dflt;
 }
 
@@ -495,7 +503,9 @@ async function main() {
     }, 15000);
     const { seat, sess } = initial;
     const amount = await step('兩手之間由客人 UI 補碼並等上桌', async () => {
-      const amount = await queueAddonUI(guest, host);
+      const amount = await queueAddonUI(guest, host, {
+        roomId, seat, sessionNo: sess.sessionNo, beforeTopUpChips: sess.topUpChips || 0,
+      });
       requireCheck('補碼預設＝50 大盲或剩餘帳戶', amount === Math.min(50 * initial.room.config.bb, initial.bank), { amount, bank: initial.bank });
       const room = await waitFor(async () => {
         const r = await readDoc(`pokerRooms/${roomId}`);

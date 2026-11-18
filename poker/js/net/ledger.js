@@ -39,10 +39,22 @@ function isDenied(e) {
  * @param {number} n newPlayerChips
  * @param {{ displayName: string, photoURL: string|null }} profile
  */
+async function readPlayerSnap(fs, ref) {
+  if (typeof fs.getDocFromServer === 'function') {
+    try {
+      const fresh = await fs.getDocFromServer(ref);
+      if (fresh.exists()) return fresh;
+    } catch {
+      /* 退回一般 getDoc */
+    }
+  }
+  return fs.getDoc(ref);
+}
+
 export async function ensurePlayerGrant(fb, uid, roomId, n, profile) {
   const { db, fs } = fb;
   const pref = fs.doc(db, 'pokerPlayers', uid);
-  const snap = await fs.getDoc(pref);
+  const snap = await readPlayerSnap(fs, pref);
   if (snap.exists()) return { created: false, player: snap.data() };
 
   const id = `${roomId}_0_grant`;
@@ -82,7 +94,7 @@ export async function ensurePlayerGrant(fb, uid, roomId, n, profile) {
     await batch.commit();
   } catch (e) {
     if (!isDenied(e)) throw e;
-    const again = await fs.getDoc(pref);
+    const again = await readPlayerSnap(fs, pref);
     if (again.exists()) return { created: false, player: again.data() };
     throw e;
   }
@@ -93,12 +105,13 @@ export async function ensurePlayerGrant(fb, uid, roomId, n, profile) {
 /**
  * Player-chosen buy-in; uncarried chips stay in bank.
  */
-export async function buyinAmount(fb, uid, roomId, bb, chosenAmount) {
+export async function buyinAmount(fb, uid, roomId, bb, chosenAmount, fallbackPlayer) {
   const { db, fs } = fb;
   const pref = fs.doc(db, 'pokerPlayers', uid);
-  const snap = await fs.getDoc(pref);
-  if (!snap.exists()) throw new Error('還沒有帳戶');
-  const p = snap.data();
+  const snap = await readPlayerSnap(fs, pref);
+  const p = snap.exists() ? snap.data()
+    : (fallbackPlayer && fallbackPlayer.uid === uid ? fallbackPlayer : null);
+  if (!p) throw new Error('還沒有帳戶');
   if (p.tableRoomId === roomId) {
     assertMinimumBuyin(p.inPlay, bb);
     return { skipped: true, amount: p.inPlay, sessionNo: p.sessionNo, player: p };

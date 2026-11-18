@@ -21,6 +21,7 @@ function fakeFirebase(player) {
     fs: {
       doc: (_db, ...path) => path.join('/'),
       getDoc: async () => ({ exists: () => player != null, data: () => player }),
+      getDocFromServer: async () => ({ exists: () => player != null, data: () => player }),
       writeBatch: () => batch, serverTimestamp: () => 'now',
     },
   };
@@ -110,6 +111,16 @@ test('新玩家預設 1000，首次贈送仍依房間設定；不覆寫既有帳
   assert.equal(fb.commits, 0);
 });
 
+test('buyinAmount 在 getDoc 暫時看不到既有帳戶時可用 fallbackPlayer', async () => {
+  const fb = fakeFirebase(null);
+  const fallback = { uid: 'u', bank: 2000, inPlay: 0, tableRoomId: null, sessionNo: 0, total: 2000 };
+  const result = await buyinAmount(fb, 'u', 'r', 20, 1000, fallback);
+  assert.equal(result.amount, 1000);
+  assert.equal(fb.commits, 1);
+  assert.equal(fb.writes[0].data.inPlay, 1000);
+  assert.equal(fb.writes[0].data.bank, 1000);
+});
+
 test('四種盲注選項保留', () => {
   const lobby = readFileSync(new URL('../js/ui/lobby.js', import.meta.url), 'utf8');
   assert.ok(lobby.includes("[['5','10'],['10','20'],['25','50'],['50','100']]"));
@@ -146,6 +157,29 @@ test('足額入座先同步提示，再買入並送出 SIT', async () => {
   await pending;
   assert.deepEqual(events, ['picker', '入座中…', ['buyin', 20], ['SIT', 2]]);
   assert.equal(context.sittingBusy, false);
+});
+
+test('贈碼後 getPlayer 暫時看不到帳戶時，不重送 create、改用記憶中的帳戶買入', async () => {
+  const body = source.slice(source.indexOf('async function sitDown(seat)'), source.indexOf('async function requestLeave()'));
+  const events = [];
+  const granted = { uid: 'u', bank: 1000, inPlay: 0, tableRoomId: null, sessionNo: 0 };
+  const context = vm.createContext({ accountText: () => '—',
+    getFirebase: () => ({}), getUser: () => ({ uid: 'u', displayName: '大雄' }),
+    room: { seatUids: Array(6).fill(null), config: { bb: 20, newPlayerChips: 1000 }, pub: { handNo: 0, actionSeq: 0 } },
+    roomId: 'r', sittingBusy: false, playerDoc: { ...granted },
+    assertMinimumBuyin, wholeBalance, buyinOptions,
+    pickBuyinAmount: options => { events.push('picker'); return options.amount; }, toast: msg => events.push(msg),
+    buyinAmount: async (...args) => { events.push(['buyin', args[3], args[5]?.bank]); },
+    getPlayer: async () => null,
+    ensurePlayerGrant: async () => { events.push('grant'); return { created: true, player: granted }; },
+    intents: { send: async intent => events.push([intent.type, intent.seat]) },
+    friendlyError: e => e.message,
+    Number,
+  });
+  vm.runInContext(body, context);
+  await context.sitDown(1);
+  assert.deepEqual(events, ['picker', '入座中…', ['buyin', 20, 1000], ['SIT', 1]]);
+  assert.ok(!events.includes('grant'));
 });
 
 test('實際買入放在手機也顯示的 meta-a 區塊', () => {

@@ -3357,6 +3357,10 @@ async function sitDown(seat) {
       } catch (e) {
         console.warn('sit grant', e);
       }
+      // 剛進桌贈碼成功時，用戶端 getDoc 可能仍回不存在；不可對已有帳戶再送一次 create。
+      if (!server && playerDoc?.uid === user.uid && Number.isFinite(playerDoc.bank)) {
+        server = playerDoc;
+      }
       if (!server) {
         try {
           const g = await ensurePlayerGrant(
@@ -3378,8 +3382,8 @@ async function sitDown(seat) {
       if (!server) throw new Error('還沒有帳戶');
       playerDoc = { uid: user.uid, ...server };
       if (playerDoc.tableRoomId !== roomId) {
-        await buyinAmount(fb, user.uid, roomId, room.config.bb, amount);
-        playerDoc = await getPlayer(fb, user.uid);
+        await buyinAmount(fb, user.uid, roomId, room.config.bb, amount, playerDoc);
+        playerDoc = await getPlayer(fb, user.uid) || playerDoc;
       }
     }
     if (!intents) throw new Error('連線準備中，請再點一次空位');
@@ -3394,7 +3398,10 @@ async function sitDown(seat) {
       await hostLoop?.seatPlayer(seat, user.uid);
     }
   } catch (e) {
-    toast(friendlyError(e, '入座失敗，請再點一次空位'));
+    const raw = String(e?.message || e?.code || '');
+    toast(/permission-denied|PERMISSION_DENIED/i.test(raw) && /L749|L776|1000 expressions|_0_grant/i.test(raw)
+      ? '入座沒送出去，請再點一次空位'
+      : friendlyError(e, '入座失敗，請再點一次空位'));
   } finally {
     sittingBusy = false;
   }
