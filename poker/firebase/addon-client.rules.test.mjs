@@ -12,12 +12,15 @@ const [host, port] = endpoint.split(':');
 const rules = readFileSync(new URL('./firestore.rules', import.meta.url), 'utf8');
 fs.setLogLevel('silent');
 
-test('addon 前台：成員排隊多筆、全部取消放行；非成員、代別人排、亂改 seq 被擋', async () => {
+test('addon 前台：成員排隊多筆、全部取消放行；非成員、代別人排、亂改 seq 被擋', async t => {
   const env = await initializeTestEnvironment({ projectId: 'demo-addon-client', firestore: { host, port: Number(port), rules } });
+  t.after(() => env.cleanup());
+  await env.clearFirestore();
   await env.withSecurityRulesDisabled(async c => {
-    await fs.setDoc(fs.doc(c.firestore(), 'pokerRooms', 'r1'), { hostUid: 'host', members: ['host', 'p1'], status: 'open', config: { bb: 20 } });
-    await fs.setDoc(fs.doc(c.firestore(), 'pokerPlayers', 'p1'), { bank: 150000 });
-    await fs.setDoc(fs.doc(c.firestore(), 'pokerPlayers', 'x'), { bank: 150000 });
+    const d = c.firestore();
+    await fs.setDoc(fs.doc(d, 'pokerRooms', 'r1'), { hostUid: 'host', members: ['host', 'p1'], status: 'open', config: { bb: 20 } });
+    await fs.setDoc(fs.doc(d, 'pokerPlayers', 'p1'), { bank: 150000 });
+    await fs.setDoc(fs.doc(d, 'pokerPlayers', 'x'), { bank: 150000 });
   });
   const fb = uid => ({ db: env.authenticatedContext(uid).firestore(), fs });
   const read = async () => (await fs.getDoc(fs.doc(fb('p1').db, 'pokerRooms', 'r1', 'addons', 'p1'))).data();
@@ -33,13 +36,18 @@ test('addon 前台：成員排隊多筆、全部取消放行；非成員、代�
   // 取消後可再排
   await assertSucceeds(queueAddon(fb('p1'), { uid: 'p1', roomId: 'r1', amount: 20, id: 'c' }));
   assert.equal((await read()).seq, 4);
+  // 房主清空後，同一人也可再排；房主不改玩家的 seq。
+  await assertSucceeds(fs.updateDoc(fs.doc(fb('host').db, 'pokerRooms', 'r1', 'addons', 'p1'), { items: [] }));
+  assert.deepEqual((await read()).items, []);
+  await assertSucceeds(queueAddon(fb('p1'), { uid: 'p1', roomId: 'r1', amount: 1234, id: 'd' }));
+  assert.deepEqual((await read()).items, [{ id: 'd', amount: 1234 }]);
+  assert.equal((await read()).seq, 5);
   // 非成員
   await assertFails(queueAddon(fb('x'), { uid: 'x', roomId: 'r1', amount: 100 }));
   // 代別人排
   await assertFails(queueAddon(fb('host'), { uid: 'p1', roomId: 'r1', amount: 100 }));
   // seq 不遞增
-  await assertFails(fs.setDoc(fs.doc(fb('p1').db, 'pokerRooms', 'r1', 'addons', 'p1'), { items: [], seq: 4, at: fs.serverTimestamp() }));
+  await assertFails(fs.setDoc(fs.doc(fb('p1').db, 'pokerRooms', 'r1', 'addons', 'p1'), { items: [], seq: 5, at: fs.serverTimestamp() }));
   // 刪除不行
   await assertFails(fs.deleteDoc(fs.doc(fb('p1').db, 'pokerRooms', 'r1', 'addons', 'p1')));
-  await env.cleanup();
 });

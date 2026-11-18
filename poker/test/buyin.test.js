@@ -574,3 +574,67 @@ test('R45 入座產品函式拒絕超過單筆上限，100,000 與非 500 倍數
     } else assert.equal((await buyinAmount(fb, 'u', 'r', 20, amount)).amount, amount);
   }
 });
+
+test('R46 入座／補碼輸入非法即停用確認，合法輸入、滑桿及 ± 立即恢復', async () => {
+  for (const min of [1000, 20]) {
+    const nodes = new Map();
+    const document = { activeElement: null, body: { appendChild() {}, classList: { add() {}, remove() {} } } };
+    const node = key => {
+      if (!nodes.has(key)) nodes.set(key, { value: '1,000', hidden: true, disabled: false, dataset: {},
+        addEventListener(type, fn) { this[type] = fn; }, focus() { document.activeElement = this; } });
+      return nodes.get(key);
+    };
+    const el = { setAttribute() {}, querySelector: node, addEventListener(type, fn) { this[type] = fn; }, remove() {} };
+    document.createElement = () => el;
+    const ctx = vm.createContext({ document, fmtChips: n => n.toLocaleString('en-US'), stepBuyinAmount, remainingBank });
+    vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('), source.indexOf('function addonButtonsHtml(')), ctx);
+    const pending = ctx.pickBuyinAmount({ min, max: 2000, amount: 1000, bank: 2000, pendingText: null });
+    const number = node('input[type="text"]'), slider = node('input[type="range"]');
+    const confirm = node('[data-confirm]'), bank = node('#mpBuyinBank');
+    assert.equal(confirm.disabled, false);
+    for (const invalid of ['-1', '1.5', '', '   ', '100001', '2001', String(min - 1)]) {
+      number.value = invalid; number.input();
+      assert.equal(confirm.disabled, true, `${min} 下限、輸入 ${JSON.stringify(invalid)}`);
+      assert.equal(bank.textContent, '2,000');
+      number.blur();
+      assert.equal(confirm.disabled, true);
+      number.value = '1,234'; number.input();
+      assert.equal(confirm.disabled, false);
+      assert.equal(bank.textContent, '766');
+    }
+    number.value = ''; number.input();
+    node('[data-minus]').focus();
+    el.keydown({ key: 'Tab', shiftKey: true, preventDefault() {} });
+    assert.equal(document.activeElement, node('[data-cancel]'), '停用的確認鈕不納入焦點循環');
+    el.keydown({ key: 'Tab', shiftKey: false, preventDefault() {} });
+    assert.equal(document.activeElement, node('[data-minus]'));
+    slider.value = '2000'; slider.input();
+    assert.equal(confirm.disabled, false); assert.equal(bank.textContent, '0');
+    number.value = '-1'; number.input(); node('[data-plus]').click();
+    assert.equal(confirm.disabled, false);
+    number.value = '100001'; number.input(); node('[data-minus]').click();
+    assert.equal(confirm.disabled, false);
+    number.value = '1,234'; number.input(); confirm.click();
+    assert.equal(await pending, 1234);
+  }
+});
+
+test('R46 帳戶快照重畫開桌／入座／補碼：非法值保留完整帳戶', () => {
+  for (const id of ['mpCreateBank', 'mpBuyinBank']) {
+    for (const min of id === 'mpCreateBank' ? [1000] : [1000, 20]) {
+      const bank = { dataset: { bank: '2000' }, textContent: '' };
+      const input = { value: '', min: String(min), max: '100000' };
+      const ctx = vm.createContext({ screen: 'create', playerFresh: true, playerDoc: { bank: 2000 },
+        fmtChips: n => n.toLocaleString('en-US'), globalThis: { document: {
+          getElementById: key => key === id ? bank : key === 'mpCreateChips' ? input : null,
+          querySelector: () => input,
+        } } });
+      vm.runInContext(source.slice(source.indexOf('function paintAccount('), source.indexOf('/** @type {any} */', source.indexOf('function paintAccount('))), ctx);
+      for (const invalid of ['-1', '1.5', '', '   ', '100001', '2001', String(min - 1)]) {
+        input.value = invalid; ctx.paintAccount();
+        assert.equal(bank.textContent, '2,000');
+      }
+      input.value = '1,234'; ctx.paintAccount(); assert.equal(bank.textContent, '766');
+    }
+  }
+});

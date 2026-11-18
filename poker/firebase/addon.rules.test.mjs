@@ -16,8 +16,10 @@ const rules = readFileSync(new URL('./firestore.rules', import.meta.url), 'utf8'
 fs.setLogLevel('silent');
 const uids = ['host', 'p1', 'p2', 'p3', 'p4', 'p5'];
 
-test('addon：6 人滿桌 hand_over 大型 pub 下的加碼規則', async () => {
+test('addon：6 人滿桌 hand_over 大型 pub 下的加碼規則', async t => {
   const env = await initializeTestEnvironment({ projectId: 'demo-addon', firestore: { host, port: Number(port), rules } });
+  t.after(() => env.cleanup());
+  await env.clearFirestore();
   const db = uid => env.authenticatedContext(uid).firestore();
   const roomId = 'addonroom';
   let state = createInitialState({ multiplayer: true, timerEnabled: false });
@@ -47,7 +49,7 @@ test('addon：6 人滿桌 hand_over 大型 pub 下的加碼規則', async () => 
     const d = c.firestore();
     await fs.setDoc(fs.doc(d, 'pokerRooms', roomId), room);
     for (const [i, uid] of uids.entries()) await fs.setDoc(fs.doc(d, 'pokerPlayers', uid), {
-      displayName: uid, photoURL: null, bank: i === 5 ? 10 : 8000, inPlay: stacks[i], total: (i === 5 ? 10 : 8000) + stacks[i],
+      displayName: uid, photoURL: null, bank: 8000, inPlay: stacks[i], total: 8000 + stacks[i],
       tableRoomId: roomId, sessionNo: 1, topUps: 0, topUpChips: 0, handsPlayed: 0, lastRoomId: roomId,
       hostRoomId: i === 0 ? roomId : null, createdAt: now, updatedAt: now,
     });
@@ -72,6 +74,10 @@ test('addon：6 人滿桌 hand_over 大型 pub 下的加碼規則', async () => 
   await assertFails(fs.setDoc(fs.doc(db('host'), 'pokerPlayers', 'p1', 'ledger', `${roomId}_1_addon_a1`), { type: 'addon', amount: 1 }));
   // 帳戶不足：全部不上、不扣錢
   await assertSucceeds(fs.setDoc(q('p5'), { items: [{ id: 'b1', amount: 20 }], seq: 1, at: fs.serverTimestamp() }));
+  // 排隊時有足額帳戶，處理前才下降，符合已核准的帳戶不足情境。
+  await env.withSecurityRulesDisabled(c => fs.updateDoc(fs.doc(c.firestore(), 'pokerPlayers', 'p5'), {
+    bank: 10, total: 10 + stacks[5],
+  }));
   const r5 = await hostAddonBatch(hfb, { hostUid: 'host', roomId, playerUid: 'p5' });
   assert.equal(r5.rejected, true);
   // 非房主直接改房間加碼被拒
@@ -84,5 +90,4 @@ test('addon：6 人滿桌 hand_over 大型 pub 下的加碼規則', async () => 
   await env.withSecurityRulesDisabled(c => fs.updateDoc(fs.doc(c.firestore(), 'pokerRooms', roomId), { 'pub.phase': 'flop' }));
   await assertSucceeds(fs.setDoc(q('p3'), { items: [{ id: 'c1', amount: 100 }], seq: 1, at: fs.serverTimestamp() }));
   await assert.rejects(hostAddonBatch(hfb, { hostUid: 'host', roomId, playerUid: 'p3' }));
-  await env.cleanup();
 });

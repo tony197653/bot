@@ -173,8 +173,12 @@ function paintAccount() {
       el.dataset.bank = String(bank);
     }
     if (input && Number.isFinite(bank)) {
-      const amt = Number(String(input.value || '').replaceAll(',', '')) || 0;
-      el.textContent = `${fmtChips(Math.max(0, bank - amt))}${el.dataset.bankSuffix || ''}`;
+      const bounds = id === 'mpCreateBank' ? input
+        : globalThis.document?.querySelector('#mpBuyinPicker input[type="range"]');
+      const amt = Number(String(input.value || '').replaceAll(',', ''));
+      const valid = Number.isSafeInteger(amt) && amt >= Number(bounds?.min)
+        && amt <= Math.min(bank, Number(bounds?.max));
+      el.textContent = `${fmtChips(valid ? bank - amt : bank)}${el.dataset.bankSuffix || ''}`;
     } else {
       el.textContent = accountText();
     }
@@ -3119,15 +3123,17 @@ function pickBuyinAmount(options) {
   const number = el.querySelector('input[type="text"]');
   const slider = el.querySelector('input[type="range"]');
   const error = el.querySelector('[data-error]');
+  const confirm = el.querySelector('[data-confirm]');
   const bankEl = el.querySelector('#mpBuyinBank');
   const minHint = options.minHint ? el.querySelector('[data-min-hint]') : null;
   if (minHint) minHint.textContent = options.minHint;
   const clearMinHint = () => minHint?.classList.remove('is-visible');
   const value = () => Number(number.value.replaceAll(',', ''));
   const paintRemaining = () => {
-    if (!bankEl || !Number.isFinite(options.bank)) return;
     const amount = value();
     const valid = Number.isSafeInteger(amount) && amount >= options.min && amount <= options.max;
+    confirm.disabled = !valid;
+    if (!bankEl || !Number.isFinite(options.bank)) return;
     const left = valid ? remainingBank(options.bank, amount) : options.bank;
     if (left == null) return;
     bankEl.dataset.bank = String(options.bank);
@@ -3160,13 +3166,14 @@ function pickBuyinAmount(options) {
     el.addEventListener('keydown', e => {
       if (e.key === 'Escape') { e.preventDefault(); close(null); }
       if (e.key === 'Tab') {
-        const first = el.querySelector('[data-minus]'), last = el.querySelector('[data-confirm]');
+        const first = el.querySelector('[data-minus]');
+        const last = confirm.disabled ? el.querySelector('[data-cancel]') : confirm;
         if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
         else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
       }
     });
     el.querySelector('[data-cancel]').addEventListener('click', () => close(null));
-    el.querySelector('[data-confirm]').addEventListener('click', () => {
+    confirm.addEventListener('click', () => {
       const amount = value();
       if (!Number.isSafeInteger(amount) || amount < options.min || amount > options.max) {
         error.hidden = false;

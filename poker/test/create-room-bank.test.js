@@ -39,6 +39,7 @@ function formHarness({ bank = 2000, sb = 10, chips = 2000 } = {}) {
     return { radios, input, error, button, drafts, submitted, cancel, minus, plus, hint, minHint, bankEl, root,
       get cancelled() { return cancelled; },
       change(name) { events.change({ target: { name: name || '' } }); },
+      type() { events.input({ target: { name: 'chips' } }); },
       submit() { events.submit({ preventDefault() {}, target: form }); },
       restore() { globalThis.FormData = OriginalFormData; } };
   } catch (e) { globalThis.FormData = OriginalFormData; throw e; }
@@ -195,5 +196,21 @@ test('R38 開桌 ±：500→1,000→1,300，帳戶剩餘跟著變，− 回到�
     h.minus.click();
     assert.equal(chipsOf(h.input.value), 500);
     assert.equal(h.minHint.classList.contains('is-visible'), true);
+  } finally { h.restore(); }
+});
+
+test('R46 開桌即時 input：非法值顯示完整帳戶並停用送出，合法值恢復', () => {
+  const h = formHarness({ bank: 2000, sb: 10, chips: 1000 });
+  try {
+    for (const invalid of ['-1', '1.5', '', '   ', '100001', '2001', '999']) {
+      h.input.value = invalid; h.type();
+      assert.equal(h.bankEl.textContent, '2,000', JSON.stringify(invalid));
+      assert.equal(h.button.disabled, true);
+      h.submit(); assert.equal(h.submitted.length, 0);
+      h.input.value = '1,234'; h.type();
+      assert.equal(h.bankEl.textContent, '766');
+      assert.equal(h.button.disabled, false);
+    }
+    h.submit(); assert.equal(h.submitted[0].newPlayerChips, 1234);
   } finally { h.restore(); }
 });

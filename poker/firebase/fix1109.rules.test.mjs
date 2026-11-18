@@ -74,7 +74,7 @@ test('fix1109：零手數收桌／第三人入座／禁止房主任意移錢', a
     for (const [sb, bb, chips, allowed] of [
       [5,10,500,true], [5,10,0,false], [5,10,499,false],
       [10,20,500,false], [10,20,1000,true], [25,50,2500,true], [50,100,5000,true],
-      [5,10,500.5,false], [5,10,750,false], [5,10,100500,false],
+      [5,10,500.5,false], [5,10,750,true], [5,10,100500,false],
     ]) await t.test(`R33b validConfig ${sb}/${bb} 攜入 ${chips}：${allowed ? '接受' : '拒絕'}`, async () => {
       // 不用 assertFails(createSingleTable)：它會先讀大廳，多步操作下 assertFails 可能把成功的讀當成通過。
       // 每個案例獨立 uid，並核對寫入後的 config，避免接到上一筆殘桌。

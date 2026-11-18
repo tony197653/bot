@@ -540,23 +540,33 @@ service cloud.firestore {
           return d.keys().hasOnly(['items', 'seq', 'at']) && d.items is list && d.items.size() <= 20
             && d.seq is int && d.at == request.time;
         }
-        function addonAppendOk(d) {
-          return addonOneOk(d.items[d.items.size() - 1])
-            && addonQueueTotal(d.items) <= get(playerPath(uid)).data.bank;
+        function addonAppendOk(items, index) {
+          return index >= 0 && index < items.size()
+            ? addonOneOk(items[index])
+              && addonQueueTotal(items) <= get(playerPath(uid)).data.bank
+            : false;
+        }
+        function addonUpdateOk(items, previous) {
+          // 空隊列另走第一筆，避免 [0:0] 切片；取消不計算任何索引。
+          return items.size() == 0 ? true
+            : previous.size() == 0
+              ? (items.size() == 1 ? addonAppendOk(items, 0) : false)
+              : (items.size() == previous.size() + 1
+                ? items[0:previous.size()] == previous
+                  && addonAppendOk(items, previous.size())
+                : false);
         }
         allow get: if isSelf(uid) || (signedIn() && roomOf(roomId).hostUid == request.auth.uid);
         allow list: if signedIn() && roomOf(roomId).hostUid == request.auth.uid;
         allow create: if isSelf(uid) && addonsMetaOk(request.resource.data)
           && request.resource.data.seq >= 1
           && request.auth.uid in roomOf(roomId).members
-          && (request.resource.data.items.size() == 0
-            || (request.resource.data.items.size() == 1 && addonAppendOk(request.resource.data)));
+          && (request.resource.data.items.size() == 0 ? true
+            : (request.resource.data.items.size() == 1
+              ? addonAppendOk(request.resource.data.items, 0) : false));
         allow update: if (isSelf(uid) && addonsMetaOk(request.resource.data)
             && request.resource.data.seq > resource.data.seq
-            && (request.resource.data.items.size() == 0
-              || (request.resource.data.items.size() == resource.data.items.size() + 1
-                && request.resource.data.items[0:resource.data.items.size()] == resource.data.items
-                && addonAppendOk(request.resource.data))))
+            && addonUpdateOk(request.resource.data.items, resource.data.items))
           || (signedIn() && roomOf(roomId).hostUid == request.auth.uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['items'])
             && request.resource.data.items == []);

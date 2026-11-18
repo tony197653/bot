@@ -762,7 +762,9 @@ export function renderCreateRoom(root, vm) {
   const bankEl = $('#mpCreateBank', root);
   const paintRemaining = () => {
     if (!bankEl || bank == null) return;
-    const left = remainingBank(bank, chipsValue());
+    const [sb, bb] = (blinds.find(input => input.checked)?.value || '10/20').split('/').map(Number);
+    const amount = chipsValue();
+    const left = createRoomBuyinError(amount, sb, bb, bank) ? bank : remainingBank(bank, amount);
     if (left == null) return;
     bankEl.dataset.bank = String(bank);
     bankEl.textContent = fmtChips(left);
