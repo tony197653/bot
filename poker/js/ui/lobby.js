@@ -3,7 +3,7 @@
  * 我的牌桌 state classes (.mp-mine.is-host / .is-guest / .is-settle) for BD restyle.
  */
 
-import { canAffordBlinds, createRoomBuyinError, defaultCreateBuyin } from '../net/buyin-policy.js';
+import { canAffordBlinds, createRoomBuyinError, defaultCreateBuyin, stepBuyinAmount, remainingBank } from '../net/buyin-policy.js';
 
 import { formatCode, shareUrl, ROOM_CONST } from '../net/room.js';
 
@@ -731,15 +731,18 @@ export function renderCreateRoom(root, vm) {
               </label>`).join('')}
           </div>
         </fieldset>
-        <label class="mp-affix">
-          <span>攜入籌碼</span>
-          <span class="mp-acct mp-acct-row">帳戶 <b id="mpCreateBank">${bankText}</b></span>
+        <div class="mp-affix">
+          <span class="mp-acct mp-acct-row mp-acct-bank">帳戶 <b id="mpCreateBank"${bank == null ? "" : ` data-bank="${bank}"`}>${bank == null || remainingBank(bank, defaults.chips) == null ? bankText : fmtChips(remainingBank(bank, defaults.chips))}</b></span>
           <div class="mp-affix-row">
-            <input name="chips" id="mpCreateChips" type="number" inputmode="numeric" min="1000" max="100000" step="500" value="${defaults.chips}" aria-describedby="${chipsHintId} mpCreateLiveErr">
-          </div>
-          <small id="${chipsHintId}">入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。1,000–100,000，每次 500。</small>
+            <button type="button" data-chips-minus aria-label="減少 500">−</button>
+            <div class="mp-create-chips-field">
+              <span class="mp-min-hint-row"><label for="mpCreateChips">攜入籌碼</label><span class="mp-min-hint" id="mpCreateMinHint" role="status">已是最低攜入（50 大盲）</span></span>
+              <input name="chips" id="mpCreateChips" type="text" inputmode="numeric" min="${50 * defaults.sb * 2}" max="100000" step="1" value="${fmtChips(defaults.chips)}" aria-describedby="${chipsHintId} mpCreateLiveErr">
+            </div>
+          <button type="button" data-chips-plus aria-label="增加 500">＋</button></div>
+          <small id="${chipsHintId}">入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。${fmtChips(50 * defaults.sb * 2)}–100,000。按 ± 每次增減 500。</small>
           <p class="mp-err" id="mpCreateLiveErr" role="status" ${error ? '' : 'hidden'}>${esc(error || '')}</p>
-        </label>
+        </div>
         <div class="mp-rules">
           <h3>固定規則</h3>
           <ul>
@@ -754,6 +757,30 @@ export function renderCreateRoom(root, vm) {
   const form = $('#createForm', root);
   const chipsIn = $('#mpCreateChips', root);
   const liveErr = $('#mpCreateLiveErr', root);
+  const minHint = $('#mpCreateMinHint', root);
+  const chipsValue = () => Number(String(chipsIn?.value || '').replaceAll(',', ''));
+  const bankEl = $('#mpCreateBank', root);
+  const paintRemaining = () => {
+    if (!bankEl || bank == null) return;
+    const [sb, bb] = (blinds.find(input => input.checked)?.value || '10/20').split('/').map(Number);
+    const amount = chipsValue();
+    const left = createRoomBuyinError(amount, sb, bb, bank) ? bank : remainingBank(bank, amount);
+    if (left == null) return;
+    bankEl.dataset.bank = String(bank);
+    bankEl.textContent = fmtChips(left);
+  };
+  $('.mp-create', root)?.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } });
+  form?.querySelector('input[name="name"]')?.focus?.();
+  for (const [selector, direction] of [['[data-chips-minus]', -1], ['[data-chips-plus]', 1]]) {
+    $(selector, root)?.addEventListener('click', () => {
+      const minimum = 50 * Number(blinds.find(input => input.checked)?.value.split('/')[1] || 20);
+      const atMinimum = direction < 0 && chipsValue() === minimum;
+      if (!atMinimum) chipsIn.value = fmtChips(stepBuyinAmount(chipsValue(), direction, minimum, Math.min(100000, bank ?? 100000)));
+      update(false);
+      if (atMinimum) minHint?.classList.add('is-visible');
+    });
+  }
+  chipsIn?.addEventListener('blur', () => { if (Number.isSafeInteger(chipsValue())) chipsIn.value = fmtChips(chipsValue()); });
   const persist = () => {
     if (!form || !onDraft) return;
     const fd = new FormData(form);
@@ -761,7 +788,7 @@ export function renderCreateRoom(root, vm) {
     onDraft({
       name: String(fd.get('name') || ''),
       sb,
-      chips: Number(fd.get('chips')) || defaults.chips,
+      chips: chipsValue(),
     });
   };
   const blinds = [...(form?.querySelectorAll('input[name="blinds"]') || [])];
@@ -782,8 +809,11 @@ export function renderCreateRoom(root, vm) {
       }
     }
     const [sb, bb] = (selected?.value || '10/20').split('/').map(Number);
-    if (adjust && chipsIn) chipsIn.value = defaultCreateBuyin(Number(chipsIn.value), bb, bank);
-    const msg = createRoomBuyinError(Number(chipsIn?.value), sb, bb, bank);
+    if (chipsIn) chipsIn.min = String(50 * bb);
+    const hint = $(`#${chipsHintId}`, root);
+    if (hint) hint.textContent = `入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。${fmtChips(50 * bb)}–100,000。按 ± 每次增減 500。`;
+    if (adjust && chipsIn) chipsIn.value = fmtChips(defaultCreateBuyin(chipsValue(), bb, bank));
+    const msg = createRoomBuyinError(chipsValue(), sb, bb, bank);
     if (liveErr) {
       liveErr.hidden = !(msg || submitError);
       liveErr.textContent = msg || submitError || '';
@@ -792,18 +822,20 @@ export function renderCreateRoom(root, vm) {
     return !msg;
   };
   const update = (adjust) => {
+    minHint?.classList.remove('is-visible');
     submitError = '';
     validateChips(adjust);
+    paintRemaining();
     persist();
   };
   form?.addEventListener('input', () => update(false));
-  form?.addEventListener('change', () => update(true));
+  form?.addEventListener('change', e => update(e?.target?.name === 'blinds'));
   for (const input of blinds) {
     input.closest?.('label')?.addEventListener('click', (e) => {
       if (!input.disabled) return;
       e.preventDefault();
       const [sb, bb] = input.value.split('/').map(Number);
-      const msg = createRoomBuyinError(Number(chipsIn?.value) || 0, sb, bb, bank);
+      const msg = createRoomBuyinError(chipsValue() || 0, sb, bb, bank);
       if (liveErr && msg) {
         liveErr.hidden = false;
         liveErr.textContent = msg;
@@ -811,6 +843,7 @@ export function renderCreateRoom(root, vm) {
     });
   }
   validateChips(true);
+  paintRemaining();
   persist();
   form?.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -819,7 +852,7 @@ export function renderCreateRoom(root, vm) {
     if (!validateChips()) return;
     const fd = new FormData(e.target);
     const [sb, bb] = String(fd.get('blinds') || '10/20').split('/').map(Number);
-    const chips = Number(fd.get('chips'));
+    const chips = chipsValue();
     const name = String(fd.get('name') || '').trim(); // M4: blank → "{名字}的牌桌" in doCreate
     onSubmit({ name, sb, bb, newPlayerChips: chips });
   });

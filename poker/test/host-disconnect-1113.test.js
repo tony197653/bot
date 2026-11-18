@@ -123,7 +123,7 @@ test('HD1113：斷線 modifier 僅用於暫停／回來，清空及其他提示�
 test('HD1113：暫停顯示等待文字，房主回來或收桌清除暫停後恢復動作',()=>{
   for (const closed of [false,true]) {
     const btns={innerHTML:'old buttons'},act={};
-    const c=vm.createContext({hostPaused:true,hostReturned:false,hostReturnedTimer:7,
+    const c=vm.createContext({hostPaused:true,addonButtonsHtml:()=>"",wireAddonButtons:()=>{},hostReturned:false,hostReturnedTimer:7,
       room:{status:'playing',hostUid:'h',seatUids:['p'],config:{bb:20},pub:{phase:'flop',actor:0}},
       getUser:()=>({uid:'p'}),hostBeatMs:Date.now(),hostRoomUpdatedMs:null,
       disconnectState,hostAliveMs,DISCONNECT_COPY,hostSitPending:false,
@@ -191,7 +191,7 @@ test('HD1113：執行完整 tearDownRoom 清空斷線 banner，保留其他既�
   for (const copy of [DISCONNECT_COPY.paused, DISCONNECT_COPY.returned, '其他既有提示']) {
     const banner=bannerElement(copy);const cleared=[];
     const c=vm.createContext({hostPaused:true,hostReturned:true,hostReturnedTimer:7,
-      stopHostBeat:null,stopSoundVisibility:null,stopRoom:null,stopHole:null,enterRoomTimeout:null,
+      stopHostBeat:null,stopSoundVisibility:null,stopRoom:null,stopAddonQueue:()=>{},stopHole:null,enterRoomTimeout:null,
       presence:null,hostLoop:null,intents:null,animQ:null,room:{status:'playing'},roomId:'r',
       DISCONNECT_COPY,$:s=>s==='#mpBanner'?banner:null,
       document:{getElementById:()=>null},clearTimeout:id=>cleared.push(id),

@@ -71,6 +71,28 @@ test('fix1109：零手數收桌／第三人入座／禁止房主任意移錢', a
     return b.commit();
   };
   try {
+    for (const [sb, bb, chips, allowed] of [
+      [5,10,500,true], [5,10,0,false], [5,10,499,false],
+      [10,20,500,false], [10,20,1000,true], [25,50,2500,true], [50,100,5000,true],
+      [5,10,500.5,false], [5,10,750,true], [5,10,100500,false],
+    ]) await t.test(`R33b validConfig ${sb}/${bb} 攜入 ${chips}：${allowed ? '接受' : '拒絕'}`, async () => {
+      // 不用 assertFails(createSingleTable)：它會先讀大廳，多步操作下 assertFails 可能把成功的讀當成通過。
+      // 每個案例獨立 uid，並核對寫入後的 config，避免接到上一筆殘桌。
+      await env.clearFirestore();
+      const uid = `host-${sb}-${bb}-${String(chips).replace('.', 'p')}`;
+      const request = createSingleTable({ fs, db: db(uid) }, {
+        uid, name: '牌桌', displayName: '房主', sb, bb, newPlayerChips: chips,
+      });
+      if (allowed) {
+        const created = await assertSucceeds(request);
+        const snap = await fs.getDoc(fs.doc(db(uid), 'pokerRooms', created.roomId));
+        assert.equal(snap.data().config.newPlayerChips, chips);
+        assert.equal(snap.data().config.sb, sb);
+        assert.equal(snap.data().config.bb, bb);
+      } else {
+        await assert.rejects(request);
+      }
+    });
     await t.test('本人單批次自選買入 1500：bank 3000 變 1500、inPlay 1500、total 不變', async () => {
       await seedBuyer(3000);
       await assertSucceeds(rawBuyin(1500, 1500));

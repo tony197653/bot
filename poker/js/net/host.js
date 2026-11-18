@@ -16,7 +16,7 @@ import {
 } from '../engine/index.js';
 import { estimateMpDealTotalMs, MP_FX } from '../ui/fx-mp.js';
 import { DEAL_FX } from '../ui/fx.js';
-import { nightKeyOf, hostCashoutBatch, hostCloseAllBatch } from './ledger.js';
+import { nightKeyOf, hostCashoutBatch, hostCloseAllBatch, hostAddonBatch } from './ledger.js';
 import { recordWrite, hostMustStopNewHand } from './quota.js';
 import { listenPresence } from './presence.js';
 import {
@@ -71,10 +71,18 @@ export function createHostLoop(fb, opts) {
   const {
     roomId,
     uid,
-    getRoom,
+    getRoom: readRoom,
     onLocalState,
     displayNameOf,
   } = opts;
+  // ADDON-SPEC：補碼 transaction 寫完、房間快照還沒到之前，沿用剛寫入的房間（新 rev／stacks），免得下一筆寫入用舊 rev
+  let addonRoom = null;
+  function getRoom() {
+    const room = readRoom();
+    if (!addonRoom || !room || room.status === 'closed' || room.hostUid !== uid ||
+        (room.rev ?? 0) >= addonRoom.rev) return room;
+    return addonRoom;
+  }
   const { db, fs } = fb;
 
   /** @type {object|null} */
@@ -90,12 +98,17 @@ export function createHostLoop(fb, opts) {
   /** @type {(() => void)|null} */
   let stopIntentListen = null;
   /** @type {(() => void)|null} */
+  let stopAddonListen = null;
+  /** ADDON-SPEC §11: uid → queue doc with items */
+  const addonQueue = new Map();
+  /** @type {(() => void)|null} */
   let stopPresenceListen = null;
   let lastWriteAt = 0;
   let writeChain = Promise.resolve();
   let startingNext = null;
   let closing = false;
   let draining = false;
+  let drainTask = null;
   /** Personal-stats chain: independent of writeChain; never awaited by game flow. */
   const statsRuntime = createHostStatsRuntime({ ...opts.stats, fs, db, roomId, uid,
     isCurrentHost: () => running && getRoom()?.hostUid === uid &&
@@ -362,6 +375,8 @@ export function createHostLoop(fb, opts) {
       };
 
       await fs.updateDoc(fs.doc(db, 'pokerRooms', roomId), patch);
+      // 補碼後快照未到前，接著的寫入也要接續已確認的 rev
+      if (addonRoom) addonRoom = { ...latest, ...patch };
       lobbyHostUid = latest.hostUid;
       lastWriteAt = Date.now();
       recordWrite();
@@ -464,7 +479,7 @@ export function createHostLoop(fb, opts) {
         scheduleNextHand(1000);
         return;
       }
-      if (draining || leaveQueue.length) {
+      if (draining || leaveQueue.length || addonQueue.size) {
         void drainSitLeave();
         scheduleNextHand(1000);
         return;
@@ -640,12 +655,16 @@ export function createHostLoop(fb, opts) {
     }
   }
 
-  async function drainSitLeave() {
-    if (closing || !running || getRoom()?.status === 'closed' || draining) return;
+  function drainSitLeave() {
+    if (drainTask) return drainTask;
+    if (closing || !running || getRoom()?.status === 'closed') return Promise.resolve();
     draining = true;
-    try { await drainSitLeaveInner(); }
-    catch (e) { console.warn('[host] drain', e); }
-    finally { draining = false; }
+    drainTask = (async () => {
+      try { await drainSitLeaveInner(); }
+      catch (e) { console.warn('[host] drain', e); }
+      finally { draining = false; drainTask = null; }
+    })();
+    return drainTask;
   }
 
   async function drainSitLeaveInner() {
@@ -704,6 +723,61 @@ export function createHostLoop(fb, opts) {
       const item = sitQueue.shift();
       if (room.seatUids.includes(item.uid)) continue;
       await seatPlayer(item.seat, item.uid);
+    }
+    await drainAddons();
+  }
+
+  // ADDON-SPEC §9.5：兩手之間、離座與入座之後、開下一手之前；每人一筆 transaction，依座位順序
+  async function drainAddons() {
+    if (!addonQueue.size) return;
+    await writeChain;
+    const saved = getRoom();
+    if (!saved || ![PHASE.LOBBY, PHASE.HAND_OVER].includes(engine.phase) ||
+        ![PHASE.LOBBY, PHASE.HAND_OVER].includes(saved.pub?.phase)) return;
+    if (engine.phase === PHASE.HAND_OVER &&
+        (saved.pub.handNo !== engine.handNumber || lastHandsBumpHandNo < engine.handNumber)) return;
+    const order = [...addonQueue.keys()].sort((a, b) =>
+      (saved.seatUids.indexOf(a) + 7) % 7 - (saved.seatUids.indexOf(b) + 7) % 7);
+    for (const playerUid of order) {
+      if (closing || !running || getRoom()?.status === 'closed' || getRoom()?.hostUid !== uid) return;
+      const queued = addonQueue.get(playerUid);
+      let result;
+      // 根因修正：transaction 和本地 addonRoom 更新必須在 writeChain 同一步完成，
+      // 否則 queueWrite 會在 commit 後、本地更新前讀到舊 rev（重複版本號）。
+      const step = writeChain.then(async () => {
+        const r = await hostAddonBatch(fb, { hostUid: uid, roomId, playerUid });
+        if (r?.room) addonRoom = r.room;
+        return r;
+      });
+      writeChain = step.catch(() => {});
+      try {
+        result = await step;
+      } catch (e) {
+        console.warn('[host] addon', e);
+        // 金流 transaction 失敗仍用既有房間發布路徑通知本人。
+        rejects[playerUid] = '補碼沒成功，請再試一次';
+        if (addonQueue.get(playerUid) === queued) addonQueue.delete(playerUid);
+        queueWrite();
+        try {
+          await fb.fs.runTransaction(fb.db, async tx => {
+            const ref = fb.fs.doc(fb.db, 'pokerRooms', roomId, 'addons', playerUid);
+            const current = (await tx.get(ref)).data();
+            // 不清掉失敗之後玩家新排的項目。
+            if (current?.seq === queued.seq) tx.update(ref, { items: [] });
+          });
+        } catch (clearError) { console.warn('[host] addon clear', clearError); }
+        continue;
+      }
+      if (addonQueue.get(playerUid) === queued) addonQueue.delete(playerUid);
+      if (result?.room) {
+                addonRoom = result.room;
+        lastWriteAt = Date.now();
+        recordWrite();
+        applyAndPublish({ type: 'TOP_UP', seat: result.seat, amount: result.amount });
+      } else if (result?.rejected) {
+        rejects[playerUid] = result.message;
+        queueWrite();
+      }
     }
   }
 
@@ -880,7 +954,15 @@ export function createHostLoop(fb, opts) {
   function startHand() {
     if (connectionPaused()) return false;
     if (startingNext) return startingNext;
-    if (engine?.phase !== PHASE.HAND_OVER) return startHandNow();
+    if (engine?.phase !== PHASE.HAND_OVER) {
+      if (!addonQueue.size && !draining && !leaveQueue.length) return startHandNow();
+      startingNext = (async () => {
+        await drainSitLeave();
+        if (draining || leaveQueue.length || addonQueue.size) return false;
+        return startHandNow();
+      })().finally(() => { startingNext = null; });
+      return startingNext;
+    }
     clearNextHandTimer();
     const bumpAttemptsAtClick = handsBumpAttempts;
     startingNext = (async () => {
@@ -905,7 +987,8 @@ export function createHostLoop(fb, opts) {
             engine.phase !== PHASE.HAND_OVER || engine.handNumber !== handNo) return false;
         if (getRoom()?.pub?.phase === PHASE.HAND_OVER &&
             getRoom()?.pub?.handNo === handNo && lastHandsBumpHandNo >= handNo) {
-          if (draining || leaveQueue.length) return false;
+          await drainSitLeave();
+          if (draining || leaveQueue.length || addonQueue.size) return false;
           engine = applyAction(engine, { type: 'ACK_HAND' }, { now: Date.now() });
           return startHandNow();
         }
@@ -1135,18 +1218,26 @@ export function createHostLoop(fb, opts) {
       },
     );
 
+    if (fs.collection) stopAddonListen = fs.onSnapshot(
+      fs.collection(db, 'pokerRooms', roomId, 'addons'),
+      (snap) => {
+        for (const ch of snap.docChanges?.() || []) {
+          const data = ch.type === 'removed' ? null : ch.doc.data();
+          if (data?.items?.length) {
+            addonQueue.set(ch.doc.id, data);
+            if (rejects[ch.doc.id]) { delete rejects[ch.doc.id]; queueWrite(); }
+          }
+          else addonQueue.delete(ch.doc.id);
+        }
+        if ([PHASE.LOBBY, PHASE.HAND_OVER].includes(engine?.phase)) void drainSitLeave();
+      },
+    );
+
     stopPresenceListen = listenPresence(fb, roomId, (map) => {
       presenceMap = map;
-      for (const [u, info] of Object.entries(map)) {
-        const prev = presenceSeen[u];
-        // Track local time of last change of beatMs
-        if (prev == null || info.beatMs !== (presenceMap[u]?._lastBeat || 0)) {
-          presenceSeen[u] = Date.now();
-        }
-      }
-      // Simpler: any snapshot updates seen time for each uid present
+      // Initialize seen time for each uid on its first snapshot
       for (const u of Object.keys(map)) {
-        if (!presenceSeen[u]) presenceSeen[u] = Date.now();
+        if (presenceSeen[u] == null) presenceSeen[u] = Date.now();
       }
       // Update when beat changes
       for (const [u, info] of Object.entries(map)) {
@@ -1174,6 +1265,8 @@ export function createHostLoop(fb, opts) {
     clearRevealTimer();
     clearNextHandTimer();
     stopIntentListen?.();
+    stopAddonListen?.();
+    addonQueue.clear();
     stopPresenceListen?.();
   }
 

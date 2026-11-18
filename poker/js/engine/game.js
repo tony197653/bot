@@ -1076,7 +1076,7 @@ function doVoidHand(s, action) {
 }
 
 /**
- * Top-up add-on: only HAND_OVER/LOBBY, seat chips === 0, amount === config.topUpAmount.
+ * Player add-on: only HAND_OVER/LOBBY; preserve away status.
  */
 function doTopUp(s, action) {
   if (s.phase !== PHASE.LOBBY && s.phase !== PHASE.HAND_OVER) {
@@ -1087,12 +1087,11 @@ function doTopUp(s, action) {
   if (!Number.isInteger(seat) || seat < 0 || seat >= s.config.maxSeats) throw err('座位無效');
   const p = s.seats[seat];
   if (!p) throw err('座位是空的');
-  if (p.chips !== 0) throw err('籌碼不是 0，不能補碼');
-  const need = s.config.topUpAmount ?? 2000;
-  if (amount !== need) throw err(`補碼必須是 ${need}`);
-  p.chips = amount;
+  if (!Number.isSafeInteger(amount) || amount < s.config.bigBlind) {
+    throw err('補碼至少 1 大盲，且必須是整數');
+  }
+  p.chips += amount;
   p.buyInTotal += amount;
-  p.sittingOut = false;
   return s;
 }
 
@@ -1144,7 +1143,8 @@ export function getLegalActions(s, seat) {
 
   /** @type {typeof none} */
   const L = {
-    fold: toCall > 0,
+    // 輪到自己就可以蓋牌（含可過牌時的 check-fold）；前台蓋牌鈕在行動權時也是亮的。
+    fold: true,
     check: toCall === 0,
     call: toCall > 0 && p.chips > 0,
     callAmount: Math.min(toCall, p.chips),

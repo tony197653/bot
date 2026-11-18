@@ -58,7 +58,8 @@ import {
   cachePlayer,
   listenLeaderboard,
 } from '../net/ledger.js';
-import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel } from '../net/buyin-policy.js';
+import { addonOptions, queuedTotal, queueAddon, cancelAddons } from '../net/addon-client.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, stepBuyinAmount, remainingBank } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
 import {
   createIntentSender,
@@ -159,9 +160,28 @@ function accountText() {
 /** 帳戶數字變了：大廳整頁重畫；開新牌桌、入座小框只改那一行（不打斷輸入） */
 function paintAccount() {
   if (screen === 'lobby') { paint(); return; }
+  if (screen === 'table') renderActBar();
   for (const id of ['mpCreateBank', 'mpBuyinBank']) {
     const el = globalThis.document?.getElementById(id);
-    if (el) el.textContent = accountText();
+    if (!el) continue;
+    const input = id === 'mpCreateBank'
+      ? globalThis.document?.getElementById('mpCreateChips')
+      : globalThis.document?.querySelector('#mpBuyinPicker input[type="text"]');
+    let bank = Number(el.dataset.bank);
+    if (id === 'mpCreateBank' && playerFresh && playerDoc) {
+      bank = Number(playerDoc.bank) || 0;
+      el.dataset.bank = String(bank);
+    }
+    if (input && Number.isFinite(bank)) {
+      const bounds = id === 'mpCreateBank' ? input
+        : globalThis.document?.querySelector('#mpBuyinPicker input[type="range"]');
+      const amt = Number(String(input.value || '').replaceAll(',', ''));
+      const valid = Number.isSafeInteger(amt) && amt >= Number(bounds?.min)
+        && amt <= Math.min(bank, Number(bounds?.max));
+      el.textContent = `${fmtChips(valid ? bank - amt : bank)}${el.dataset.bankSuffix || ''}`;
+    } else {
+      el.textContent = accountText();
+    }
   }
 }
 /** @type {any} */
@@ -170,6 +190,12 @@ let room = null;
 let roomId = null;
 /** @type {(() => void)|null} */
 let stopRoom = null;
+// 補碼：自己的排隊文件、已顯示過的全桌補碼訊息與帳戶不足提示
+let stopAddonQ = null;
+let myAddonQueue = null;
+let seenAddonKey = '';
+let seenAddonReject = '';
+let addonBusy = false;
 /** @type {ReturnType<typeof createHostLoop>|null} */
 let hostLoop = null;
 /** Test-only: emulator pages may opt into stats via window.__qaStats; production never reads it. */
@@ -1819,8 +1845,8 @@ async function doCreate(data) {
     paint();
     return;
   }
-  if (data.newPlayerChips < 1000 || data.newPlayerChips > 100000 || data.newPlayerChips % 500) {
-    createError = '起始籌碼要在 1,000–100,000 之間，且是 500 的倍數；請改完再按「開房」';
+  if (data.newPlayerChips < 50 * data.bb || data.newPlayerChips > 100000) {
+    createError = `起始籌碼要在 ${(50 * data.bb).toLocaleString('en-US')}–100,000 之間，請改完再按「開房」`;
     paint();
     return;
   }
@@ -2051,6 +2077,8 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true, fromContinue
       const wasBusted = previousSelfSeat >= 0 && (room.stacks?.[previousSelfSeat] === 0 ||
         room.pub?.seats?.[previousSelfSeat]?.chips === 0);
       room = r;
+      noteAddonEvents(r, user.uid, first);
+      if (first) startAddonQueue(fb, id, user.uid);
       if (!metadata?.hasPendingWrites && !metadata?.fromCache) {
         hostRoomUpdatedMs = r.updatedAt?.toMillis?.() ?? hostRoomUpdatedMs;
         const live = Math.max(hostBeatMs ?? 0, hostRoomUpdatedMs ?? 0);
@@ -2518,7 +2546,7 @@ function renderSeatOverlays() {
       el.dataset.seat = String(i);
       el.setAttribute('aria-label', `坐到座位 ${i + 1}`);
       el.innerHTML = `<div class="plate plateA mp-empty-plate"><span>空位 ${i + 1}</span></div>`;
-      el.addEventListener('click', () => sitDown(i));
+      el.addEventListener('click', () => { el.focus(); sitDown(i); });
       seatsEl.appendChild(el);
     }
   }
@@ -2623,6 +2651,15 @@ function renderActBar() {
   const mySeat = room.seatUids.indexOf(user?.uid);
   const pub = room.pub || {};
   const isHost = room.hostUid === user?.uid;
+  $('#mpAddonQueueRow')?.remove?.();
+  const queued = mySeat >= 0 && typeof queuedTotal === 'function' ? queuedTotal(myAddonQueue) : 0;
+  if (queued) {
+    const row = document.createElement('div');
+    row.id = 'mpAddonQueueRow';
+    row.innerHTML = `<span>下一手前補碼 ${fmtChips(queued)}</span><button type="button" id="mpAddonCancel" aria-label="取消補碼 ${fmtChips(queued)}" ${addonBusy ? 'disabled' : ''}>取消</button>`;
+    btns.before(row);
+    row.querySelector('button').addEventListener('click', () => void cancelAddon());
+  }
   if (hostPaused) { btns.innerHTML = '<div class="mp-spec">等待房主回來</div>'; lockMpRaisePanel(); return; }
   const seatedCount = room.seatUids.filter(Boolean).length;
   const between = pub.phase === 'lobby' || pub.phase === 'hand_over' || !pub.phase;
@@ -2694,7 +2731,8 @@ function renderActBar() {
     (pub.phase === 'lobby' || !pub.handNo)
   ) {
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始第一手（${seatedCount}人）</button>
-      <button type="button" class="ghost" id="mpLeave">離座</button>`;
+      ${addonButtonsHtml(true)}<button type="button" class="ghost" id="mpLeave">離座</button>`;
+    wireAddonButtons();
     $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
@@ -2702,14 +2740,16 @@ function renderActBar() {
 
   if (between && isHost && seatedCount >= 2 && pub.phase === 'hand_over') {
     btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始下一手（${seatedCount}人）</button>
-      <button type="button" class="ghost" id="mpLeave">離座</button>`;
+      ${addonButtonsHtml(true)}<button type="button" class="ghost" id="mpLeave">離座</button>`;
+    wireAddonButtons();
     $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
   }
 
   if (between) {
-    btns.innerHTML = '<button type="button" class="ghost" id="mpLeave">離座</button>';
+    btns.innerHTML = `${addonButtonsHtml(true)}<button type="button" class="ghost" id="mpLeave">離座</button>`;
+    wireAddonButtons();
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
   }
@@ -2727,7 +2767,9 @@ function renderActBar() {
     ${canCheck
       ? `<button type="button" class="call" id="mpCheck" ${dis}>過牌</button>`
       : `<button type="button" class="call" id="mpCall" ${dis}>跟注 ${fmtChips(toCall)}</button>`}
-    <button type="button" class="raise" id="mpRaise" ${dis}>加注</button>`;
+    <button type="button" class="raise" id="mpRaise" ${dis}>加注</button>
+    ${addonButtonsHtml(!!(pub.seats?.[mySeat]?.folded || pub.seats?.[mySeat]?.sittingOut))}`;
+  wireAddonButtons();
   const send = (type, amount) => {
     btns.querySelectorAll('button').forEach((b) => {
       b.disabled = true;
@@ -3055,34 +3097,190 @@ function pickBuyinAmount(options) {
   el.className = 'mp-close-result';
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-modal', 'true');
-  el.setAttribute('aria-labelledby', 'mpBuyinTitle');
+  if (options.minHint) el.setAttribute('aria-label', options.title || '攜入籌碼');
+  else el.setAttribute('aria-labelledby', 'mpBuyinTitle');
   el.innerHTML = `<div class="mp-close-result-card">
-    <h2 id="mpBuyinTitle">攜入籌碼</h2>
-    <p class="mp-acct">帳戶 <b id="mpBuyinBank">${options.bankText ?? '—'}</b></p>
-    <input aria-label="攜入籌碼" type="number" inputmode="numeric" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
-    <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="${options.step}" value="${options.amount}">
+    ${options.minHint ? '' : `<h2 id="mpBuyinTitle">${options.title || '攜入籌碼'}</h2>`}
+    ${options.minHint ? '<div class="mp-affix">' : ''}
+    <p class="mp-acct mp-acct-bank${options.minHint ? ' mp-acct-row' : ''}">帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b></p>
+    <div class="${options.minHint ? 'mp-affix-row' : 'mp-buyin-step'}">
+      <button type="button" data-minus aria-label="減少 500">−</button>
+      ${options.minHint ? `<div class="mp-create-chips-field"><span class="mp-min-hint-row"><label for="mpBuyinAmount">${options.amountLabel || '攜入籌碼'}</label><span class="mp-min-hint" data-min-hint role="status"></span></span>` : ''}
+      <input${options.minHint ? ' id="mpBuyinAmount"' : ''} aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">
+      ${options.minHint ? '</div>' : ''}
+      <button type="button" data-plus aria-label="增加 500">＋</button>
+    </div>
+    ${options.minHint ? '</div>' : ''}
+    <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="1" value="${options.amount}">
+    <p class="mp-err" data-error role="status" hidden></p>
+    ${options.hint ? `<p class="mp-acct">${options.hint}</p>` : ''}
     <button type="button" class="mp-btn-ghost" data-cancel>取消</button>
-    <button type="button" class="mp-btn-primary" data-confirm>入座</button>
+    <button type="button" class="mp-btn-primary" data-confirm>${options.confirmText || '入座'}</button>
   </div>`;
+  const previousFocus = document.activeElement;
   document.body.appendChild(el);
-  const number = el.querySelector('input[type="number"]');
+  document.body.classList.add('mp-buyin-open');
+  const number = el.querySelector('input[type="text"]');
   const slider = el.querySelector('input[type="range"]');
-  number.addEventListener('input', () => { slider.value = number.value; });
-  slider.addEventListener('input', () => { number.value = slider.value; });
-  return new Promise(resolve => {
-    el.querySelector('[data-cancel]').addEventListener('click', () => { el.remove(); resolve(null); });
-    el.querySelector('[data-confirm]').addEventListener('click', () => {
-      const amount = Number(number.value);
-      if (!Number.isSafeInteger(amount) || amount < options.min || amount > options.max ||
-          (amount - options.min) % options.step !== 0) {
-        number.reportValidity();
+  const error = el.querySelector('[data-error]');
+  const confirm = el.querySelector('[data-confirm]');
+  const bankEl = el.querySelector('#mpBuyinBank');
+  const minHint = options.minHint ? el.querySelector('[data-min-hint]') : null;
+  if (minHint) minHint.textContent = options.minHint;
+  const clearMinHint = () => minHint?.classList.remove('is-visible');
+  const value = () => Number(number.value.replaceAll(',', ''));
+  const paintRemaining = () => {
+    const amount = value();
+    const valid = Number.isSafeInteger(amount) && amount >= options.min && amount <= options.max;
+    confirm.disabled = !valid;
+    if (!bankEl || !Number.isFinite(options.bank)) return;
+    const left = valid ? remainingBank(options.bank, amount) : options.bank;
+    if (left == null) return;
+    bankEl.dataset.bank = String(options.bank);
+    if (options.bankSuffix) bankEl.dataset.bankSuffix = options.bankSuffix;
+    bankEl.textContent = `${fmtChips(left)}${options.bankSuffix || ''}`;
+  };
+  const setAmount = amount => { number.value = fmtChips(amount); slider.value = String(amount); error.hidden = true; clearMinHint(); paintRemaining(); };
+  number.addEventListener('input', () => { clearMinHint(); slider.value = String(value()); paintRemaining(); });
+  number.addEventListener('blur', () => { if (Number.isSafeInteger(value())) number.value = fmtChips(value()); paintRemaining(); });
+  slider.addEventListener('input', () => setAmount(Number(slider.value)));
+  for (const [selector, direction] of [['[data-minus]', -1], ['[data-plus]', 1]]) {
+    el.querySelector(selector).addEventListener('click', () => {
+      if (direction < 0 && value() === options.min && minHint) {
+        error.hidden = true;
+        minHint.classList.add('is-visible');
         return;
       }
-      toast('入座中…');
+      setAmount(stepBuyinAmount(value(), direction, options.min, options.max));
+    });
+  }
+  paintRemaining();
+  number.focus();
+  return new Promise(resolve => {
+    const close = amount => {
       el.remove();
+      document.body.classList.remove('mp-buyin-open');
+      previousFocus?.focus?.();
       resolve(amount);
+    };
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.preventDefault(); close(null); }
+      if (e.key === 'Tab') {
+        const first = el.querySelector('[data-minus]');
+        const last = confirm.disabled ? el.querySelector('[data-cancel]') : confirm;
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+    el.querySelector('[data-cancel]').addEventListener('click', () => close(null));
+    confirm.addEventListener('click', () => {
+      const amount = value();
+      if (!Number.isSafeInteger(amount) || amount < options.min || amount > options.max) {
+        error.hidden = false;
+        error.textContent = `請輸入 ${fmtChips(options.min)}–${fmtChips(options.max)}`;
+        number.focus();
+        return;
+      }
+      if (options.pendingText !== null) toast(options.pendingText || '入座中…');
+      close(amount);
     });
   });
+}
+
+/** 補碼鈕；排隊合計與取消顯示於動作列上方。enabled=false 時灰掉（手中未蓋牌）。 */
+function addonButtonsHtml(enabled) {
+  const queued = queuedTotal(myAddonQueue);
+  const insufficient = !addonOptions(playerDoc?.bank, room?.config?.bb, queued);
+  const hint = insufficient
+    ? '<span class="mp-addon-hint" id="mpAddonHint">帳戶不足 1 大盲</span>'
+    : !enabled && !queued
+    ? '<span class="mp-addon-hint" id="mpAddonHint">這手結束後可補碼</span>' : '';
+  const add = `${hint}<button type="button" class="ghost" id="mpAddon" ${hint ? 'aria-describedby="mpAddonHint"' : ''} ${enabled && !insufficient && !addonBusy ? '' : 'disabled'}>補碼</button>`;
+  return add;
+}
+
+function wireAddonButtons() {
+  $('#mpAddon')?.addEventListener('click', () => void requestAddon());
+}
+
+function startAddonQueue(fb, id, uid) {
+  stopAddonQueue();
+  try {
+    stopAddonQ = fb.fs.onSnapshot(fb.fs.doc(fb.db, 'pokerRooms', id, 'addons', uid), (s) => {
+      if (roomId !== id) return;
+      myAddonQueue = s.exists() ? s.data() : null;
+      if (screen === 'table') paintTableChrome();
+    }, () => {});
+  } catch { /* 沒有 onSnapshot 的環境 */ }
+}
+
+function stopAddonQueue() {
+  stopAddonQ?.();
+  stopAddonQ = null;
+  myAddonQueue = null;
+}
+
+async function requestAddon() {
+  const fb = getFirebase();
+  const user = getUser();
+  if (!fb || !user || !room || addonBusy || !room.seatUids.includes(user.uid)) return;
+  const opts = addonOptions(playerDoc?.bank, room.config?.bb, queuedTotal(myAddonQueue));
+  if (!opts) { toast('帳戶不足，沒有補碼'); return; }
+  const targetRoomId = roomId;
+  const amount = await pickBuyinAmount({ ...opts, title: '補碼', confirmText: '補碼', amountLabel: '本次補碼',
+    minHint: '已是最低補碼', pendingText: null, bank: playerDoc?.bank,
+    bankText: accountText(), hint: '這手結束後上桌' });
+  if (amount == null || roomId !== targetRoomId) return;
+  addonBusy = true;
+  paintTableChrome();
+  try {
+    await queueAddon(fb, { uid: user.uid, roomId: targetRoomId, amount });
+    // F3：面板外以排隊合計列顯示，不以最後一筆取代合計。
+  } catch (e) {
+    toast(friendlyError(e, '補碼沒送出去，請再按一次'));
+  } finally {
+    addonBusy = false;
+    if (screen === 'table') paintTableChrome();
+  }
+}
+
+async function cancelAddon() {
+  const fb = getFirebase();
+  const user = getUser();
+  if (!fb || !user || !roomId || addonBusy) return;
+  addonBusy = true;
+  paintTableChrome();
+  try {
+    const r = await cancelAddons(fb, { uid: user.uid, roomId });
+    toast(r?.cancelled ? '已取消補碼，帳戶沒有扣' : '已上桌，不能取消');
+  } catch (e) {
+    toast(friendlyError(e, '取消沒送出去，請再按一次'));
+  } finally {
+    addonBusy = false;
+    if (screen === 'table') paintTableChrome();
+  }
+}
+
+/** 上桌時才全桌顯示「小明 補碼 2,000」；帳戶不足只給本人看。第一次進房不補播舊訊息。 */
+function noteAddonEvents(r, myUid, first) {
+  const ev = r.lastMoneyEvent;
+  const key = ev?.type === 'addon' ? `${r.id || ''}:${(ev.ids || []).join(',')}` : seenAddonKey;
+  const reject = r.pub?.rejects?.[myUid] || '';
+  if (!first && key !== seenAddonKey && ev?.type === 'addon') {
+    const who = ev.uid === myUid ? '你' : displayNameOf(ev.uid);
+    toast(`${who} 補碼 ${fmtChips(ev.amount)}`);
+    if (ev.uid === myUid) void refreshPlayerAfterAddon(myUid);
+  }
+  if (!first && reject && reject !== seenAddonReject && reject.includes('補碼')) toast(reject);
+  seenAddonKey = key;
+  seenAddonReject = reject;
+}
+
+async function refreshPlayerAfterAddon(uid) {
+  try {
+    const p = await getPlayer(getFirebase(), uid);
+    if (p) playerDoc = p;
+  } catch { /* 下次快照再更新 */ }
 }
 
 async function sitDown(seat) {
@@ -3097,6 +3295,29 @@ async function sitDown(seat) {
     toast('你已入座，要換位請先離座');
     return;
   }
+  // 進桌贈碼若被吞掉，記憶體裡沒有帳戶，這裡補一次再檢查 50 大盲。
+  if (wholeBalance(playerDoc, roomId) == null) {
+    try {
+      const server = await getPlayer(fb, user.uid);
+      if (server) {
+        playerDoc = { uid: user.uid, ...server };
+      } else {
+        const g = await ensurePlayerGrant(
+          fb,
+          user.uid,
+          roomId,
+          room.config.newPlayerChips,
+          {
+            displayName: user.displayName || user.uid || '玩家',
+            photoURL: user.photoURL || null,
+          },
+        );
+        playerDoc = { uid: user.uid, ...(g.player || {}) };
+      }
+    } catch (e) {
+      console.warn('sit grant', e);
+    }
+  }
   try {
     assertMinimumBuyin(wholeBalance(playerDoc, roomId), room.config.bb);
   } catch (e) {
@@ -3107,7 +3328,8 @@ async function sitDown(seat) {
   try {
     const targetRoomId = roomId;
     const amount = playerDoc?.tableRoomId === roomId ? playerDoc.inPlay
-      : await pickBuyinAmount({ ...buyinOptions(playerDoc, room.config), bankText: accountText() });
+      : await pickBuyinAmount({ ...buyinOptions(playerDoc, room.config), title: '攜入籌碼', amountLabel: '攜入籌碼',
+          minHint: '已是最低攜入', bank: playerDoc?.bank, bankText: accountText() });
     if (amount == null || !room || roomId !== targetRoomId) return;
     toast('入座中…');
     if (room.hostUid !== user.uid) {
@@ -3128,8 +3350,37 @@ async function sitDown(seat) {
       }
     }
     if (playerDoc?.tableRoomId !== roomId) {
-      await buyinAmount(fb, user.uid, roomId, room.config.bb, amount);
-      playerDoc = await getPlayer(fb, user.uid);
+      // 確認後若伺服器還沒有帳戶（進桌贈碼失敗或只寫在記憶體），補贈一次再買入，避免「還沒有帳戶」。
+      let server = null;
+      try {
+        server = await getPlayer(fb, user.uid);
+      } catch (e) {
+        console.warn('sit grant', e);
+      }
+      if (!server) {
+        try {
+          const g = await ensurePlayerGrant(
+            fb,
+            user.uid,
+            roomId,
+            room.config.newPlayerChips,
+            {
+              displayName: user.displayName || user.uid || '玩家',
+              photoURL: user.photoURL || null,
+            },
+          );
+          server = g?.player ? { uid: user.uid, ...g.player } : await getPlayer(fb, user.uid);
+        } catch (e) {
+          console.warn('sit grant', e);
+          throw e;
+        }
+      }
+      if (!server) throw new Error('還沒有帳戶');
+      playerDoc = { uid: user.uid, ...server };
+      if (playerDoc.tableRoomId !== roomId) {
+        await buyinAmount(fb, user.uid, roomId, room.config.bb, amount);
+        playerDoc = await getPlayer(fb, user.uid);
+      }
     }
     if (!intents) throw new Error('連線準備中，請再點一次空位');
     const pub = room.pub || {};
@@ -3571,6 +3822,7 @@ function tearDownRoom() {
   hostSitPending = false;
   stopRoom?.();
   stopRoom = null;
+  stopAddonQueue();
   stopHole?.();
   stopHole = null;
   presence?.stop();
@@ -3703,7 +3955,9 @@ function toast(msg) {
   const el = $('#mpToast');
   if (!el) return;
   el.hidden = false;
-  el.textContent = msg;
+  const warning = msg === '帳戶不足，沒有補碼';
+  el.classList.toggle('mp-toast-warning', warning);
+  el.textContent = warning ? `⚠ ${msg}` : msg;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     el.hidden = true;

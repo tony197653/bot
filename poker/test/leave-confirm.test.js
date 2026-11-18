@@ -144,7 +144,7 @@ describe('收桌即時回饋與單次讀取（source contracts）', () => {
   });
   it('開房不等待收桌；停止／關桌後不重排下一手或離座重試', () => {
     assert.doesNotMatch(section(app, 'async function doCreate', 'async function doJoin'), /closeInFlight/);
-    for (const [start, end] of [['function scheduleNextHand', 'function afterEngineChange'], ['async function drainSitLeave()', 'async function drainSitLeaveInner']]) {
+    for (const [start, end] of [['function scheduleNextHand', 'function afterEngineChange'], ['function drainSitLeave()', 'async function drainSitLeaveInner']]) {
       assert.match(section(host, start, end), /closing \|\| !running \|\| getRoom\(\)\?\.status === 'closed'/);
     }
     const stop = section(host, 'function stop()', '\n  return {');
