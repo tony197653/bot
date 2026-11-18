@@ -1,0 +1,172 @@
+[
+  {
+    "type": "閱讀題組",
+    "lesson": "A Message to Our Company",
+    "group": "letter",
+    "passage": "I owe my family and all of you an apology.\n\nI was unfaithful to my wife. My actions hurt her and our children. There is no excuse for what I did. I am deeply sorry.\n\nThroughout my life, my family has given me love and support. They deserve my honesty and loyalty. Instead, I let them down and damaged the life we built together. I take full responsibility for what I did and the hurt I caused, and I accept the criticism that comes with it.\n\nTo my wife and family: I love you. I know an apology cannot undo what I have done. I hope our family will heal and that, over time, I can earn back your trust.\n\nTo my colleagues at NVIDIA, including those I have worked alongside for decades, and to our board, partners, and shareholders around the world: you deserve better from me. Leading NVIDIA is the privilege of my life. My responsibility is to serve you and be worthy of your trust. I have fallen short of that responsibility. I am fully committed to NVIDIA and will work to earn back your confidence.\n\nRegarding the national security concerns raised in news reports, NVIDIA’s Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully. I love our country and our company. I am committed to protecting NVIDIA and supporting America’s national security. I am proud and grateful to be an American.\n\nMy family bears no responsibility for my choices. I do. Please give them privacy.\n\nJensen",
+    "id": "jl01",
+    "difficulty": "中",
+    "stem": "What is this letter mainly about?",
+    "options": [
+      "NVIDIA's plans for a new product",
+      "The writer's apology and his promise to take responsibility",
+      "A report on America's national security",
+      "The writer's decision to leave the company"
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（The writer's apology and his promise to take responsibility）。信一開頭就寫 I owe my family and all of you an apology，並說 I take full responsibility for what I did and the hurt I caused，也向同事表示會努力 earn back your confidence。這封信的主旨是道歉並承擔責任。選項一（NVIDIA's plans for a new product）：信裡沒有提到新產品計畫。選項三（A report on America's national security）：信中只說董事會已啟動獨立調查，並寫 I am committed to protecting NVIDIA and supporting America's national security，但這不是全文主旨。選項四（The writer's decision to leave the company）：信裡沒有說他要離開公司，反而寫 I am fully committed to NVIDIA。"
+  },
+  {
+    "type": "閱讀題組",
+    "lesson": "A Message to Our Company",
+    "group": "letter",
+    "passage": "I owe my family and all of you an apology.\n\nI was unfaithful to my wife. My actions hurt her and our children. There is no excuse for what I did. I am deeply sorry.\n\nThroughout my life, my family has given me love and support. They deserve my honesty and loyalty. Instead, I let them down and damaged the life we built together. I take full responsibility for what I did and the hurt I caused, and I accept the criticism that comes with it.\n\nTo my wife and family: I love you. I know an apology cannot undo what I have done. I hope our family will heal and that, over time, I can earn back your trust.\n\nTo my colleagues at NVIDIA, including those I have worked alongside for decades, and to our board, partners, and shareholders around the world: you deserve better from me. Leading NVIDIA is the privilege of my life. My responsibility is to serve you and be worthy of your trust. I have fallen short of that responsibility. I am fully committed to NVIDIA and will work to earn back your confidence.\n\nRegarding the national security concerns raised in news reports, NVIDIA’s Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully. I love our country and our company. I am committed to protecting NVIDIA and supporting America’s national security. I am proud and grateful to be an American.\n\nMy family bears no responsibility for my choices. I do. Please give them privacy.\n\nJensen",
+    "id": "jl02",
+    "difficulty": "易",
+    "stem": "In the first sentence, [[I owe my family and all of you an apology]] is closest in meaning to:",
+    "options": [
+      "I should say sorry to my family and to all of you.",
+      "My family and all of you should say sorry to me.",
+      "I want my family and all of you to pay me back.",
+      "I have already said sorry many times."
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（I should say sorry to my family and to all of you.）。原文第一句是 I owe my family and all of you an apology，owe someone an apology 的意思是「應該向某人道歉」。選項二把對象反過來，變成家人與各位該向他道歉，與原文相反。選項三把 owe 誤解成要別人還錢。選項四說他已經道過很多次歉，原文並沒有這樣寫。"
+  },
+  {
+    "type": "閱讀題組",
+    "lesson": "A Message to Our Company",
+    "group": "letter",
+    "passage": "I owe my family and all of you an apology.\n\nI was unfaithful to my wife. My actions hurt her and our children. There is no excuse for what I did. I am deeply sorry.\n\nThroughout my life, my family has given me love and support. They deserve my honesty and loyalty. Instead, I let them down and damaged the life we built together. I take full responsibility for what I did and the hurt I caused, and I accept the criticism that comes with it.\n\nTo my wife and family: I love you. I know an apology cannot undo what I have done. I hope our family will heal and that, over time, I can earn back your trust.\n\nTo my colleagues at NVIDIA, including those I have worked alongside for decades, and to our board, partners, and shareholders around the world: you deserve better from me. Leading NVIDIA is the privilege of my life. My responsibility is to serve you and be worthy of your trust. I have fallen short of that responsibility. I am fully committed to NVIDIA and will work to earn back your confidence.\n\nRegarding the national security concerns raised in news reports, NVIDIA’s Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully. I love our country and our company. I am committed to protecting NVIDIA and supporting America’s national security. I am proud and grateful to be an American.\n\nMy family bears no responsibility for my choices. I do. Please give them privacy.\n\nJensen",
+    "id": "jl03",
+    "difficulty": "中",
+    "stem": "What does the writer mean by [[There is no excuse for what I did]]?",
+    "options": [
+      "He has a good reason for his actions.",
+      "He cannot remember what he did.",
+      "Nothing can make his actions acceptable.",
+      "Other people made him do it."
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（Nothing can make his actions acceptable.）。原文寫 There is no excuse for what I did，意思是他所做的事沒有任何藉口可以開脫。選項一說他有正當理由，與這句相反。選項二說他不記得做過什麼，原文沒有提到。選項四把責任推給別人，但原文強調沒有藉口，並由他自己負責。"
+  },
+  {
+    "type": "閱讀題組",
+    "lesson": "A Message to Our Company",
+    "group": "letter",
+    "passage": "I owe my family and all of you an apology.\n\nI was unfaithful to my wife. My actions hurt her and our children. There is no excuse for what I did. I am deeply sorry.\n\nThroughout my life, my family has given me love and support. They deserve my honesty and loyalty. Instead, I let them down and damaged the life we built together. I take full responsibility for what I did and the hurt I caused, and I accept the criticism that comes with it.\n\nTo my wife and family: I love you. I know an apology cannot undo what I have done. I hope our family will heal and that, over time, I can earn back your trust.\n\nTo my colleagues at NVIDIA, including those I have worked alongside for decades, and to our board, partners, and shareholders around the world: you deserve better from me. Leading NVIDIA is the privilege of my life. My responsibility is to serve you and be worthy of your trust. I have fallen short of that responsibility. I am fully committed to NVIDIA and will work to earn back your confidence.\n\nRegarding the national security concerns raised in news reports, NVIDIA’s Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully. I love our country and our company. I am committed to protecting NVIDIA and supporting America’s national security. I am proud and grateful to be an American.\n\nMy family bears no responsibility for my choices. I do. Please give them privacy.\n\nJensen",
+    "id": "jl04",
+    "difficulty": "易",
+    "stem": "In “I let them down and damaged the life we built together,” the word [[them]] refers to:",
+    "options": [
+      "his colleagues at NVIDIA",
+      "the board, partners, and shareholders",
+      "people who wrote news reports",
+      "his family"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（his family）。前一句是 Throughout my life, my family has given me love and support. They deserve my honesty and loyalty. 接著寫 Instead, I let them down and damaged the life we built together，所以 them 指的是他的家人。選項一、選項二是後面寫給 NVIDIA 同事、董事會、夥伴與股東的對象，不是這一句的 them。選項三（people who wrote news reports）在這一段沒有出現。"
+  },
+  {
+    "type": "閱讀題組",
+    "lesson": "A Message to Our Company",
+    "group": "letter",
+    "passage": "I owe my family and all of you an apology.\n\nI was unfaithful to my wife. My actions hurt her and our children. There is no excuse for what I did. I am deeply sorry.\n\nThroughout my life, my family has given me love and support. They deserve my honesty and loyalty. Instead, I let them down and damaged the life we built together. I take full responsibility for what I did and the hurt I caused, and I accept the criticism that comes with it.\n\nTo my wife and family: I love you. I know an apology cannot undo what I have done. I hope our family will heal and that, over time, I can earn back your trust.\n\nTo my colleagues at NVIDIA, including those I have worked alongside for decades, and to our board, partners, and shareholders around the world: you deserve better from me. Leading NVIDIA is the privilege of my life. My responsibility is to serve you and be worthy of your trust. I have fallen short of that responsibility. I am fully committed to NVIDIA and will work to earn back your confidence.\n\nRegarding the national security concerns raised in news reports, NVIDIA’s Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully. I love our country and our company. I am committed to protecting NVIDIA and supporting America’s national security. I am proud and grateful to be an American.\n\nMy family bears no responsibility for my choices. I do. Please give them privacy.\n\nJensen",
+    "id": "jl05",
+    "difficulty": "中",
+    "stem": "[[I take full responsibility for what I did and the hurt I caused]] is closest in meaning to:",
+    "options": [
+      "I accept that I am completely at fault for my actions and the pain they caused.",
+      "I will let other people share the blame with me.",
+      "I need more time before I can talk about it.",
+      "I want someone else to explain what happened."
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（I accept that I am completely at fault for my actions and the pain they caused.）。原文是 I take full responsibility for what I did and the hurt I caused，表示他為自己的行為和造成的傷害負全部責任。選項二說要讓別人一起承擔，與 full responsibility 相反。選項三、選項四都把問題推延或交給別人說明，原文沒有這樣說；同一句還寫 and I accept the criticism that comes with it。"
+  },
+  {
+    "type": "閱讀題組",
+    "lesson": "A Message to Our Company",
+    "group": "letter",
+    "passage": "I owe my family and all of you an apology.\n\nI was unfaithful to my wife. My actions hurt her and our children. There is no excuse for what I did. I am deeply sorry.\n\nThroughout my life, my family has given me love and support. They deserve my honesty and loyalty. Instead, I let them down and damaged the life we built together. I take full responsibility for what I did and the hurt I caused, and I accept the criticism that comes with it.\n\nTo my wife and family: I love you. I know an apology cannot undo what I have done. I hope our family will heal and that, over time, I can earn back your trust.\n\nTo my colleagues at NVIDIA, including those I have worked alongside for decades, and to our board, partners, and shareholders around the world: you deserve better from me. Leading NVIDIA is the privilege of my life. My responsibility is to serve you and be worthy of your trust. I have fallen short of that responsibility. I am fully committed to NVIDIA and will work to earn back your confidence.\n\nRegarding the national security concerns raised in news reports, NVIDIA’s Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully. I love our country and our company. I am committed to protecting NVIDIA and supporting America’s national security. I am proud and grateful to be an American.\n\nMy family bears no responsibility for my choices. I do. Please give them privacy.\n\nJensen",
+    "id": "jl06",
+    "difficulty": "易",
+    "stem": "According to the letter, what does the writer hope to do for his wife and family over time?",
+    "options": [
+      "Start a new company with them",
+      "Undo everything with one apology",
+      "Earn back their trust",
+      "Ask them to lead the investigation"
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（Earn back their trust）。原文寫 To my wife and family: … I hope our family will heal and that, over time, I can earn back your trust。選項一（Start a new company with them）原文沒有。選項二與 I know an apology cannot undo what I have done 相反，他知道單靠道歉無法抹去已做的事。選項四把調查交給家人，原文說調查是董事會啟動的。"
+  },
+  {
+    "type": "閱讀題組",
+    "lesson": "A Message to Our Company",
+    "group": "letter",
+    "passage": "I owe my family and all of you an apology.\n\nI was unfaithful to my wife. My actions hurt her and our children. There is no excuse for what I did. I am deeply sorry.\n\nThroughout my life, my family has given me love and support. They deserve my honesty and loyalty. Instead, I let them down and damaged the life we built together. I take full responsibility for what I did and the hurt I caused, and I accept the criticism that comes with it.\n\nTo my wife and family: I love you. I know an apology cannot undo what I have done. I hope our family will heal and that, over time, I can earn back your trust.\n\nTo my colleagues at NVIDIA, including those I have worked alongside for decades, and to our board, partners, and shareholders around the world: you deserve better from me. Leading NVIDIA is the privilege of my life. My responsibility is to serve you and be worthy of your trust. I have fallen short of that responsibility. I am fully committed to NVIDIA and will work to earn back your confidence.\n\nRegarding the national security concerns raised in news reports, NVIDIA’s Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully. I love our country and our company. I am committed to protecting NVIDIA and supporting America’s national security. I am proud and grateful to be an American.\n\nMy family bears no responsibility for my choices. I do. Please give them privacy.\n\nJensen",
+    "id": "jl07",
+    "difficulty": "中",
+    "stem": "In “I have fallen short of that responsibility,” [[that responsibility]] refers to:",
+    "options": [
+      "starting an independent investigation",
+      "giving his family privacy",
+      "leaving NVIDIA as soon as possible",
+      "serving his colleagues and being worthy of their trust"
+    ],
+    "answer": 3,
+    "explain": "正解是選項四（serving his colleagues and being worthy of their trust）。前一句是 My responsibility is to serve you and be worthy of your trust. 接著 I have fallen short of that responsibility，所以 that responsibility 就是「為你們服務，並且配得上你們的信任」。這裡的 you 是 To my colleagues at NVIDIA … 這一段的對象。選項一的調查出現在下一段，不是這句的責任。選項二（giving his family privacy）是信末的請求，不是這裡的 responsibility。選項三（leaving NVIDIA as soon as possible）與 I am fully committed to NVIDIA 相反。"
+  },
+  {
+    "type": "閱讀題組",
+    "lesson": "A Message to Our Company",
+    "group": "letter",
+    "passage": "I owe my family and all of you an apology.\n\nI was unfaithful to my wife. My actions hurt her and our children. There is no excuse for what I did. I am deeply sorry.\n\nThroughout my life, my family has given me love and support. They deserve my honesty and loyalty. Instead, I let them down and damaged the life we built together. I take full responsibility for what I did and the hurt I caused, and I accept the criticism that comes with it.\n\nTo my wife and family: I love you. I know an apology cannot undo what I have done. I hope our family will heal and that, over time, I can earn back your trust.\n\nTo my colleagues at NVIDIA, including those I have worked alongside for decades, and to our board, partners, and shareholders around the world: you deserve better from me. Leading NVIDIA is the privilege of my life. My responsibility is to serve you and be worthy of your trust. I have fallen short of that responsibility. I am fully committed to NVIDIA and will work to earn back your confidence.\n\nRegarding the national security concerns raised in news reports, NVIDIA’s Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully. I love our country and our company. I am committed to protecting NVIDIA and supporting America’s national security. I am proud and grateful to be an American.\n\nMy family bears no responsibility for my choices. I do. Please give them privacy.\n\nJensen",
+    "id": "jl08",
+    "difficulty": "易",
+    "stem": "What does the writer say about his work at NVIDIA?",
+    "options": [
+      "He will sell the company to his partners.",
+      "He is fully committed to NVIDIA and will work to earn back their confidence.",
+      "He will stop working with the board.",
+      "He wants his family to take over the company."
+    ],
+    "answer": 1,
+    "explain": "正解是選項二（He is fully committed to NVIDIA and will work to earn back their confidence.）。原文寫 I am fully committed to NVIDIA and will work to earn back your confidence。選項一、選項三、選項四（賣掉公司、停止與董事會合作、讓家人接管）原文都沒有提到。"
+  },
+  {
+    "type": "閱讀題組",
+    "lesson": "A Message to Our Company",
+    "group": "letter",
+    "passage": "I owe my family and all of you an apology.\n\nI was unfaithful to my wife. My actions hurt her and our children. There is no excuse for what I did. I am deeply sorry.\n\nThroughout my life, my family has given me love and support. They deserve my honesty and loyalty. Instead, I let them down and damaged the life we built together. I take full responsibility for what I did and the hurt I caused, and I accept the criticism that comes with it.\n\nTo my wife and family: I love you. I know an apology cannot undo what I have done. I hope our family will heal and that, over time, I can earn back your trust.\n\nTo my colleagues at NVIDIA, including those I have worked alongside for decades, and to our board, partners, and shareholders around the world: you deserve better from me. Leading NVIDIA is the privilege of my life. My responsibility is to serve you and be worthy of your trust. I have fallen short of that responsibility. I am fully committed to NVIDIA and will work to earn back your confidence.\n\nRegarding the national security concerns raised in news reports, NVIDIA’s Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully. I love our country and our company. I am committed to protecting NVIDIA and supporting America’s national security. I am proud and grateful to be an American.\n\nMy family bears no responsibility for my choices. I do. Please give them privacy.\n\nJensen",
+    "id": "jl09",
+    "difficulty": "中",
+    "stem": "According to the letter, which is true about the investigation?",
+    "options": [
+      "The Board of Directors started it, and the writer will cooperate fully.",
+      "The writer started it and has already finished it.",
+      "The writer's family will be in charge of it.",
+      "It has proved that the news reports were wrong."
+    ],
+    "answer": 0,
+    "explain": "正解是選項一（The Board of Directors started it, and the writer will cooperate fully.）。原文寫 NVIDIA's Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully。選項二說他自己已經做完調查，與 Board of Directors has initiated 以及 will cooperate 不符。選項三說家人主持調查，原文沒有。選項四說調查已證明新聞不實，原文只說針對 news reports 中的疑慮啟動調查，並未公布結果。"
+  },
+  {
+    "type": "閱讀題組",
+    "lesson": "A Message to Our Company",
+    "group": "letter",
+    "passage": "I owe my family and all of you an apology.\n\nI was unfaithful to my wife. My actions hurt her and our children. There is no excuse for what I did. I am deeply sorry.\n\nThroughout my life, my family has given me love and support. They deserve my honesty and loyalty. Instead, I let them down and damaged the life we built together. I take full responsibility for what I did and the hurt I caused, and I accept the criticism that comes with it.\n\nTo my wife and family: I love you. I know an apology cannot undo what I have done. I hope our family will heal and that, over time, I can earn back your trust.\n\nTo my colleagues at NVIDIA, including those I have worked alongside for decades, and to our board, partners, and shareholders around the world: you deserve better from me. Leading NVIDIA is the privilege of my life. My responsibility is to serve you and be worthy of your trust. I have fallen short of that responsibility. I am fully committed to NVIDIA and will work to earn back your confidence.\n\nRegarding the national security concerns raised in news reports, NVIDIA’s Board of Directors has initiated an independent investigation. I support the investigation and will cooperate fully. I love our country and our company. I am committed to protecting NVIDIA and supporting America’s national security. I am proud and grateful to be an American.\n\nMy family bears no responsibility for my choices. I do. Please give them privacy.\n\nJensen",
+    "id": "jl10",
+    "difficulty": "中",
+    "stem": "According to the last paragraph, which is true?",
+    "options": [
+      "The writer's family should also be blamed.",
+      "The board should be given more privacy.",
+      "The writer's family bears no responsibility for his choices, and he asks people to give them privacy.",
+      "The writer will not take responsibility for his choices."
+    ],
+    "answer": 2,
+    "explain": "正解是選項三（The writer's family bears no responsibility for his choices, and he asks people to give them privacy.）。原文最後寫 My family bears no responsibility for my choices. I do. Please give them privacy. 這裡的 them 指的是 my family；他也寫 I do，表示責任在他自己。選項一說家人也該被責備，與 bears no responsibility 相反。選項二把隱私的對象改成董事會。選項四說他不負責任，與 I do 相反。"
+  }
+]
