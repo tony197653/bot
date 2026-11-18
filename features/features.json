@@ -1,6 +1,6 @@
 {
   "_說明": "功能庫資料檔。格式說明請看同資料夾的 README.md。改完存檔即可，不必動 index.html。",
-  "updated": "2026-11-17",
+  "updated": "2026-11-18",
   "source": "技能 feature-index（含 references/ 比較表）",
   "notes": [
     {
@@ -448,6 +448,17 @@
           "note": "方向鍵、Enter／空白、按 1–4；手機不啟用。"
         }
       ]
+    },
+    {
+      "name": "從帳號加值",
+      "status": "已驗證",
+      "skill": "",
+      "primary": {
+        "name": "Cloud Firestore",
+        "url": "https://github.com/firebase/firebase-js-sdk",
+        "note": "德撲補碼已用。遊戲中從帳戶加值（補碼、加碼、儲值、買入）：排隊可取消，一手結束後入帳，金額有上下限。"
+      },
+      "alternatives": []
     }
   ]
 }
