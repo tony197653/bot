@@ -454,9 +454,9 @@
       "status": "已驗證",
       "skill": "",
       "primary": {
-        "name": "Cloud Firestore（排隊，一手結束後入帳）",
+        "name": "Cloud Firestore",
         "url": "https://github.com/firebase/firebase-js-sdk",
-        "note": "已用於德撲補碼。遊戲中可從帳戶加值（補碼、加碼、儲值、買入）：先排隊，可取消；一手結束後才入帳，金額有上下限。https://tony-poker.web.app/friday-poker/"
+        "note": "德撲補碼已用。遊戲中從帳戶加值（補碼、加碼、儲值、買入）：排隊可取消，一手結束後入帳，金額有上下限。"
       },
       "alternatives": []
     }
