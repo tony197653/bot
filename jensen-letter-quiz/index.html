@@ -173,7 +173,7 @@ function updateBlanks(container,q){
  });
 }
 function passageTitle(q){return `${q.type==='克漏字題組'?'克漏字':'閱讀'}篇章 · ${rich(q.lesson)}`;}
-function sourceLink(){return '<p class="source"><a href="https://nvidianews.nvidia.com/news/a-message-to-our-company"><span>NVIDIA Newsroom</span><wbr><span>〈A Message to Our Company〉（2026年11月8日）</span></a></p>';}
+function sourceLink(){return '<p class="source"><a href="https://nvidianews.nvidia.com/news/a-message-to-our-company"><span>NVIDIA Newsroom</span><wbr><span>〈A Message to Our Company〉</span><wbr><span>（2026年11月8日）</span></a></p>';}
 function action(label,id,secondary=false){return `<button class="btn ${secondary?'b2':'b4'}" id="${id}">${label}</button>`;}
 function focusHeading(){main.querySelector('h1,h2')?.focus({preventScroll:true});}
 function home(){mode='home';round=[...bank];responses=[];document.getElementById('top').hidden=true;main.className='home-main';main.innerHTML=`<section class="card c1 intro"><h1 tabindex="-1">黃仁勳致員工信閱讀測驗</h1><p class="description">公開信全文 10 題，答完即看解說。</p>${sourceLink()}</section><div class="actions">${action(`${!loaded?'<span class="spin" aria-hidden="true"></span>':''}開始作答`,'start')}</div><p class="keys">Enter 開始作答</p>`;document.getElementById('start').disabled=!loaded;document.getElementById('start').setAttribute('aria-busy',String(!loaded));document.getElementById('start').onclick=()=>start(prepared,false);window.scrollTo(0,0);}
