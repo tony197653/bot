@@ -54,7 +54,7 @@
 <script>
 'use strict';
 const LETTERS='ABCD';
-const VOCABULARY=[['take off','起飛'],['booster','推進器（火箭第一節）'],['spacecraft','太空船'],['orbit','軌道'],['separate','分開'],['release','釋放'],['satellite','衛星'],['guidance system','導引系統'],['engineer','工程師'],['mechanical','機械的'],['in midair','在半空中'],['astronaut','太空人']];
+const VOCABULARY=[['rocket','火箭'],['take off','起飛'],['engine','引擎'],['catch','接住']];
 function vocabularyHTML(){return `<section class="card c1 vocabulary" aria-labelledby="vocabulary-title"><h2><button type="button" class="vocabulary-toggle" id="vocabulary-title" aria-expanded="true" aria-controls="vocabulary-content">重要單字與片語<span class="vocabulary-chevron" aria-hidden="true"></span></button></h2><div class="vocabulary-content" id="vocabulary-content" aria-hidden="false"><div><table aria-labelledby="vocabulary-title"><tbody>${VOCABULARY.map(([en,zh])=>`<tr><td lang="en">${en}</td><td>${zh}</td></tr>`).join('')}</tbody></table></div></div></section>`;}
 function setVocabularyExpanded(expanded){const button=document.getElementById('vocabulary-title');const content=document.getElementById('vocabulary-content');if(!button||!content)return;button.setAttribute('aria-expanded',String(expanded));content.setAttribute('aria-hidden',String(!expanded));content.inert=!expanded;}
 function collapseVocabularyAfterAnswer(){const card=document.querySelector('.vocabulary');if(!card||card.dataset.answered)return;card.dataset.answered='true';setVocabularyExpanded(false);}
@@ -173,7 +173,7 @@ function updateBlanks(container,q){
  });
 }
 function passageTitle(q){return `${q.type==='克漏字題組'?'克漏字':'閱讀'}篇章 · ${rich(q.lesson)}`;}
-function sourceLink(){return '<p class="source">Adapted from <a href="https://apnews.com/article/spacex-elon-musk-starship-rocket-df394c1b5a0f85e11194f9ff7db9ee6b">AP News〈SpaceX’s Starship returns from orbit and is captured by launch pad arms in a dramatic first〉（November 14, 2026）</a></p>';}
+function sourceLink(){return '<p class="source">From <a href="https://apnews.com/article/spacex-elon-musk-starship-rocket-df394c1b5a0f85e11194f9ff7db9ee6b">AP News</a>（November 14, 2026）</p>';}
 function action(label,id,secondary=false){return `<button class="btn ${secondary?'b2':'b4'}" id="${id}">${label}</button>`;}
 function focusHeading(){main.querySelector('h1,h2')?.focus({preventScroll:true});}
 function home(){mode='home';round=[...bank];responses=[];document.getElementById('top').hidden=true;main.className='home-main';main.innerHTML=`<section class="card c1 intro"><h1 tabindex="-1">Starship 英文閱讀測驗</h1><p class="description">太空新聞改寫短文 10 題，答完即看解說。</p>${sourceLink()}</section><div class="actions">${action(`${!loaded?'<span class="spin" aria-hidden="true"></span>':''}開始作答`,'start')}</div><p class="keys">Enter 開始作答</p>`;document.getElementById('start').disabled=!loaded;document.getElementById('start').setAttribute('aria-busy',String(!loaded));document.getElementById('start').onclick=()=>start(prepared,false);window.scrollTo(0,0);}
