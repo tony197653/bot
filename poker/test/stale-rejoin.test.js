@@ -89,7 +89,7 @@ test('room=null 過渡保留返回鈕、桌名與可空籌碼，不使用 bank',
   const nodes = new Map();
   const context = vm.createContext({
     room: {}, screen: 'lobby', playerDoc: { bank: 999, inPlay: 0 },
-    paint: () => {}, getUser: () => ({ uid: 'u' }), nameOrStub: () => '你',
+    paint: () => {}, paintTableAvatar: () => {}, getUser: () => ({ uid: 'u' }), nameOrStub: () => '你',
     getLastRoom: () => null, fmtChips: String, esc: String,
     $: (s) => { if (!nodes.has(s)) nodes.set(s, { hidden: true, querySelectorAll: () => [] }); return nodes.get(s); },
   });

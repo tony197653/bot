@@ -5,6 +5,7 @@
 
 import { canAffordBlinds, createRoomBuyinError, defaultCreateBuyin, stepBuyinAmount, remainingBank } from '../net/buyin-policy.js';
 
+import { avatarInnerHtml } from './avatars.js';
 import { formatCode, shareUrl, ROOM_CONST } from '../net/room.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -213,8 +214,9 @@ function pipsHtml(n) {
 function rowHostName(t) {
   return t.hostName || t.lobby?.hostName || '房主';
 }
-function rowHostPhoto(t) {
-  return t.hostPhoto || t.lobby?.hostPhoto || '';
+function rowHostPhoto(t, photoOf) {
+  const cached = photoOf?.(t.hostUid);
+  return cached === undefined ? t.hostPhoto || t.lobby?.hostPhoto || '' : cached;
 }
 function rowName(t) {
   return t.name || t.lobby?.name || '牌桌';
@@ -232,11 +234,7 @@ function openRowLabel(t, seated, full) {
 }
 
 function hostAvHtml(hostName, hostPhoto, hostUid) {
-  const uidAttr = `data-ps-uid="${esc(hostUid || '')}"`;
-  if (hostPhoto) {
-    return `<img class="mp-hav" ${uidAttr} src="${esc(hostPhoto)}" alt="" width="36" height="36">`;
-  }
-  return `<span class="mp-hav" ${uidAttr} aria-hidden="true">${esc((hostName || '?')[0])}</span>`;
+  return `<span class="mp-hav" data-ps-uid="${esc(hostUid || '')}" data-ps-name="${esc(hostName)}" data-photo="${esc(hostPhoto || '')}" aria-hidden="true">${avatarInnerHtml(hostPhoto, hostName, { size: 36 })}</span>`;
 }
 
 function seatedCountOf(t) {
@@ -250,7 +248,7 @@ function seatedCountOf(t) {
 }
 
 /** @param {object} t open-table row (pokerLobby flat or legacy room) */
-export function openRowHtml(t) {
+export function openRowHtml(t, photoOf) {
   const seated = seatedCountOf(t);
   const full = seated >= 6;
   const hostName = rowHostName(t);
@@ -260,7 +258,7 @@ export function openRowHtml(t) {
   return `<li>
     <button type="button" class="mp-row${full ? ' full' : ''}" data-act="open-table" data-rid="${esc(t.id)}"
       ${full ? 'disabled' : ''} aria-label="${esc(openRowLabel(t, seated, full))}">
-      ${hostAvHtml(hostName, rowHostPhoto(t), t.hostUid)}
+      ${hostAvHtml(hostName, rowHostPhoto(t, photoOf), t.hostUid)}
       <span class="mp-txt" aria-hidden="true">
         <span class="mp-l1"><b>${esc(name)}</b><span class="mp-tag">已滿</span></span>
         <em>${esc(hostName)} 開桌 · 房號 ${esc(code)}</em>
@@ -274,7 +272,7 @@ export function openRowHtml(t) {
   </li>`;
 }
 
-function patchOneOpenRow(row, t) {
+function patchOneOpenRow(row, t, photoOf) {
   const seated = seatedCountOf(t);
   const full = seated >= 6;
   const hostName = rowHostName(t);
@@ -284,6 +282,16 @@ function patchOneOpenRow(row, t) {
   row.classList.toggle('full', full);
   row.disabled = full;
   row.setAttribute('aria-label', openRowLabel(t, seated, full));
+  const avatar = row.querySelector('.mp-hav');
+  if (avatar) {
+    const photo = rowHostPhoto(t, photoOf) || '';
+    if (avatar.dataset.photo !== photo || avatar.dataset.psName !== hostName || avatar.dataset.psUid !== (t.hostUid || '')) {
+      avatar.dataset.photo = photo;
+      avatar.dataset.psName = hostName;
+      avatar.dataset.psUid = t.hostUid || '';
+      avatar.innerHTML = avatarInnerHtml(photo, hostName, { size: 36 });
+    }
+  }
   const bName = row.querySelector('.mp-l1 b');
   if (bName && bName.textContent !== name) bName.textContent = name;
   const em = row.querySelector('.mp-txt em');
@@ -346,7 +354,7 @@ export function wireOpenTablesDelegate(listEl, onOpenTable) {
  * Full paint only when lobby shell (#mpOpenList) is missing.
  * @returns {boolean} true if DOM was patched; false if full re-render needed
  */
-export function patchOpenTables(root, tables) {
+export function patchOpenTables(root, tables, photoOf) {
   const list = $('#mpOpenList', root);
   const empty = $('#mpOpenEmpty', root);
   const countEl = $('#mpOpenN', root);
@@ -373,10 +381,10 @@ export function patchOpenTables(root, tables) {
       .querySelector(`.mp-row[data-rid="${CSS.escape(t.id)}"]`)
       ?.closest('li');
     if (li) {
-      patchOneOpenRow(li.querySelector('.mp-row'), t);
+      patchOneOpenRow(li.querySelector('.mp-row'), t, photoOf);
     } else {
       const tmp = document.createElement('ul');
-      tmp.innerHTML = openRowHtml(t);
+      tmp.innerHTML = openRowHtml(t, photoOf);
       li = tmp.firstElementChild;
       if (!li) continue;
     }
@@ -450,7 +458,7 @@ export function renderMpLobby(root, vm) {
   const openRows =
     openTables.length === 0
       ? ''
-      : openTables.map((t) => openRowHtml(t)).join('');
+      : openTables.map((t) => openRowHtml(t, vm.photoOf)).join('');
 
   const openPanel = `<section class="mp-panel mp-open" aria-labelledby="mpOpenH">
     <div class="mp-panel-h">
@@ -489,10 +497,11 @@ export function renderMpLobby(root, vm) {
 
   const ranks = (vm.leaderPreview || [])
     .slice(0, 3)
-    .map(
-      (r, i) =>
-        `<li><span>${i + 1}. ${esc(r.displayName || '玩家')}</span><b>${fmtChips(r.total)}</b></li>`,
-    )
+    .map((row, i) => {
+      const name = row.displayName || '玩家';
+      const photo = vm.photoOf?.(row.uid) ?? row.photoURL;
+      return `<li><span class="mp-lb-who"><span class="mp-rank-index">${i + 1}.</span><span class="mp-lb-av" aria-hidden="true">${avatarInnerHtml(photo, name, { size: 28 })}</span><span class="mp-lb-nm" title="${esc(name)}">${esc(name)}</span></span><b>${fmtChips(row.total)}</b></li>`;
+    })
     .join('');
 
   const menuIco = {
@@ -899,10 +908,7 @@ export function renderJoinCode(root, vm) {
 }
 
 function avatarHtml(user) {
-  if (user?.photoURL) {
-    return `<img src="${esc(user.photoURL)}" alt="" width="40" height="40" onerror="this.outerHTML='<span class=mp-av-fallback>${esc((user.displayName||'?')[0])}</span>'">`;
-  }
-  return `<span class="mp-av-fallback">${esc((user?.displayName || '?')[0])}</span>`;
+  return avatarInnerHtml(user?.photoURL, user?.displayName, { size: 40 });
 }
 
 function wire(root, map) {

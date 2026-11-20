@@ -76,7 +76,7 @@ function harness(fb) {
     closeResultShownFor: null, closeResultChipsShown: 0, pendingCloseReturnChips: null,
     lastKnownSelfTableChips: 0, lobbyClosedSynced: new Set(), roomId: null, room: null,
     roomGoneFor: null, joinEnded: false, joinError: '', document: { getElementById: () => null },
-    hostRoomUpdatedMs: null, hostBeatMs: null, watchHostBeat: noop, updateHostDisconnect: noop,
+    hostRoomUpdatedMs: null, hostBeatMs: null, watchHostBeat: noop, updateHostDisconnect: noop, loadSeatPhoto: noop,
     stopRoom: null, startAddonQueue: () => {}, stopAddonQueue: () => {}, noteAddonEvents: () => {}, hostLoop: null, presence: null, intents: null, stopHole: null,
     animQ: null, lastRecvAt: 0, nameCache: {}, getLastRoom: () => null,
     enterOpenTable: noop, silentlySettleClosedBinding: async () => {},

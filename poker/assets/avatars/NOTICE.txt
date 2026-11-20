@@ -1,0 +1,35 @@
+Poker avatar images — source and license
+=========================================
+
+All 15 images in this folder are built from Google Noto Emoji SVGs
+(https://github.com/googlefonts/noto-emoji, folder 2D/svg/), licensed under the
+Apache License 2.0 (full text: LICENSE-Apache-2.0.txt, copied from 2D/svg/LICENSE).
+The Noto font files (SIL OFL) are NOT used.
+
+Modifications made to every file (2026-11-20):
+- Adobe Illustrator metadata (i:aipgf, i:* attributes, DOCTYPE, comments) removed.
+- Element ids prefixed with the file key.
+- Placed on a 128x128 circle with one of three shared 2-colour vertical gradients: blue #5AB0FF→#1F5FD6, pink #FF9EC4→#E0457F, gray #D3D8DF→#8E97A4 (chosen per animal for contrast).
+- Emoji scaled per file so its visible size is about 78% of the circle diameter
+  (100/128 px), centred, and kept inside radius 61.
+Additional colour changes are listed per file below.
+
+| file | Noto source | source URL | colour change |
+|---|---|---|---|
+| cat.svg | U+1F431 cat face | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u1f431.svg | none |
+| cat-gray.svg | U+1F431 cat face | (same as cat.svg) | RECOLORED: #FFC022→#B4BCC6, #FF9B31→#6F7984 (gray cat) |
+| cat-siamese.svg | U+1F431 cat face | (same as cat.svg) | RECOLORED: #FFC022→#F4E6CC, #FF9B31→#5E3F2C (siamese) |
+| cat-white.svg | U+1F431 cat face | (same as cat.svg) | RECOLORED: #FFC022→#FFFFFF, #FF9B31→#D4D7DC (white cat) |
+| dog.svg | U+1F436 dog face | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u1f436.svg | none |
+| rabbit.svg | U+1F430 rabbit face | .../emoji_u1f430.svg | none |
+| bear.svg | U+1F43B bear | .../emoji_u1f43b.svg | none |
+| panda.svg | U+1F43C panda | .../emoji_u1f43c.svg | none |
+| fox.svg | U+1F98A fox | .../emoji_u1f98a.svg | none |
+| lion.svg | U+1F981 lion | .../emoji_u1f981.svg | none |
+| tiger.svg | U+1F42F tiger face | .../emoji_u1f42f.svg | none |
+| monkey.svg | U+1F435 monkey face | .../emoji_u1f435.svg | none |
+| owl.svg | U+1F989 owl | .../emoji_u1f989.svg | none |
+| frog.svg | U+1F438 frog | .../emoji_u1f438.svg | none |
+| fish.svg | U+1F41F fish | .../emoji_u1f41f.svg | none |
+
+(".../" = https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/)

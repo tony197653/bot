@@ -237,6 +237,7 @@ input:focus-visible,.mp-float input:focus-visible,.mp-digit:focus-visible,.mp-af
   pointer-events:none;transform:rotate(-90deg);opacity:0;
   overflow:visible;
 }
+.av > .av-img,.mp-hav > .av-img,.mp-lb-av > .av-img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
 .av.is-timing .av-ring{opacity:1}
 .av-ring circle{fill:none;stroke-width:2.5;stroke-linecap:round}
 .av-ring .av-ring-bg{stroke:rgba(255,255,255,.18)}
@@ -983,8 +984,8 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-top h1{font-size:18px;font-weight:700}
 .mp-av{grid-row:1/3;grid-column:1;justify-self:start;width:44px;height:44px;margin:-2px;padding:0;border:0;background:transparent;border-radius:50%;display:grid;place-items:center}
 .mp-avatar{display:flex;align-items:center;gap:8px;font-weight:600;min-height:56px;padding:4px 8px 4px 4px;border-radius:var(--radius-sm);font-size:16px}
-.mp-av img,.mp-av-fallback,.mp-avatar img{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);box-sizing:border-box}
-.mp-av-fallback{display:inline-flex;align-items:center;justify-content:center;background:rgba(16,27,20,.9);font-family:var(--tf);font-size:17px;color:var(--ink)}
+.mp-av img,.mp-av-fallback,.mp-av .av-fallback,.mp-avatar img{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);box-sizing:border-box}
+.mp-av-fallback,.mp-av .av-fallback{display:inline-flex;align-items:center;justify-content:center;background:rgba(16,27,20,.9);font-family:var(--tf);font-size:17px;color:var(--ink)}
 .mp-nm{grid-row:1;grid-column:2;min-width:0;max-width:10em;font-size:16px;font-weight:700;line-height:24px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Status: plain text under name — not clickable, no ›/dot (f7e147a) */
 .mp-stl{grid-row:2;grid-column:2;min-width:4em;max-width:10em;height:24px;line-height:24px;font-size:13px;font-weight:500;color:var(--mute);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
@@ -1037,7 +1038,10 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-stp-next:active:not(:disabled){background:#3B4436}
 .mp-stp-next:disabled{opacity:.55;cursor:default;background:var(--sage-deep);color:#fff}
 .mp-ranks{list-style:none;display:flex;flex-direction:column;gap:8px;padding:0;margin:0}
-.mp-ranks li{display:flex;justify-content:space-between;gap:12px;font-size:14px}
+.mp-ranks li{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px}
+.mp-ranks .mp-lb-who{gap:8px}
+.mp-ranks .mp-lb-av{margin-right:0}
+.mp-rank-index,.mp-ranks b{flex:none;white-space:nowrap}
 .mp-offline{color:var(--accent);font-size:13px;text-align:center;font-weight:600}
 .mp-err{color:var(--warn);font-size:13px;margin:6px 0}
 .mp-form{display:flex;flex-direction:column;gap:16px}
@@ -1071,6 +1075,8 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-table tr:nth-child(even){background:rgba(255,255,255,.03)}
 .mp-table tr.is-me{background:rgba(230,191,90,.12)}
 .mp-table .num{text-align:right;font-variant-numeric:tabular-nums}
+.mp-stats .mp-table .num{white-space:nowrap}
+.mp-lb-player{max-width:0;width:100%}
 .mp-tag{margin-left:6px;font-size:11px;color:var(--accent)}
 /* Above act / raise panel / hero plate — never sit in the bottom action band */
 .mp-toast{position:fixed;left:max(12px,env(safe-area-inset-left));right:auto;top:max(calc(var(--top-h) + 4px),calc(var(--top-h) + env(safe-area-inset-top,0px) + 4px));bottom:auto;transform:none;z-index:80;background:color-mix(in srgb, var(--ink-solid) 88%, transparent);color:var(--paper);padding:5px 10px;border-radius:999px;font-size:12px;line-height:1.4;text-align:left;max-width:min(60vw,320px);pointer-events:none}
@@ -1190,3 +1196,9 @@ body.mp-buyin-open #act{visibility:hidden}
 .mp-min-hint{visibility:hidden;white-space:nowrap;font-size:12px;color:var(--warn)}
 .mp-min-hint.is-visible{visibility:visible}
 
+
+.mp-lb-who{display:inline-flex;align-items:center;vertical-align:middle;max-width:100%;min-width:0}
+.mp-lb-nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mp-lb-who .mp-tag{flex:none;white-space:nowrap}
+.mp-lb-av{display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;min-height:0;padding:0;margin-right:8px;border-radius:50%;border:0;background:#21392c;color:#f3ead2;font:inherit;font-size:14px}
+button.mp-lb-av{cursor:pointer}

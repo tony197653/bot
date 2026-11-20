@@ -13,6 +13,7 @@ import {
   getFirebase,
   detectInAppBrowser,
   qaEmuSignIn,
+  setUserPhoto,
 } from '../../../lib/auth/auth.js';
 import { renderAuthUi, AUTH_UI_CSS } from '../../../lib/auth/auth-ui.js';
 import {
@@ -88,6 +89,7 @@ import {
   ensureLobbyNotify,
 } from './lobby.js';
 import { renderStats } from './stats.js';
+import { avatarInnerHtml, presetKeyOf } from './avatars.js';
 import { openPersonalStats, shouldToastClosedFallback } from './personal-stats.js';
 import { STATS_ENABLED } from '../stats/host-runtime.js';
 import { createFirestoreStatsAdapter } from '../stats/firestore-adapter.js';
@@ -116,6 +118,121 @@ let screen = 'auth';
 let authState = { status: 'loading', user: null, error: null };
 /** @type {any} */
 let playerDoc = null;
+const photos = new Map();
+const requestedSeatPhotos = new Set();
+const pendingSeatProfiles = new Map();
+let savingAvatar = false;
+const attemptedPlayerPhotos = new Map();
+
+export function playerPhotoSyncPatch(playerDoc, user) {
+  if (!user || typeof playerDoc?.lastRoomId !== 'string') return null;
+  const photoURL = user.photoURL ?? null;
+  if ((playerDoc.photoURL ?? null) === photoURL) return null;
+  if (photoURL !== null) {
+    if (typeof photoURL !== 'string' || photoURL.length > 500 || !/^https:\/\/.+$/u.test(photoURL) || /\s/u.test(photoURL)) return null;
+    try {
+      new URL(photoURL);
+    } catch {
+      return null;
+    }
+  }
+  return { photoURL };
+}
+
+function syncPlayerPhoto(fb, user) {
+  if (!fb || !user || playerDoc?.uid !== user.uid) return;
+  const patch = playerPhotoSyncPatch(playerDoc, user);
+  if (!patch) return;
+  const { uid } = user;
+  const { photoURL } = patch;
+  const attempted = attemptedPlayerPhotos.get(uid) ?? new Set();
+  if (attempted.has(photoURL)) return;
+  attempted.add(photoURL);
+  attemptedPlayerPhotos.set(uid, attempted);
+
+  const { fs, db } = fb;
+  void fs.updateDoc(fs.doc(db, 'pokerPlayers', uid), {
+    ...patch,
+    updatedAt: fs.serverTimestamp(),
+  }).then(() => {
+    photos.set(uid, photoURL);
+    const current = playerDoc?.uid === uid ? playerDoc : readCachedPlayer(uid);
+    const updated = { ...current, ...patch };
+    if (playerDoc?.uid === uid) playerDoc = updated;
+    cachePlayer(uid, updated);
+  }).catch((error) => console.warn('[mp] sync player photo', error));
+}
+
+function photoOf(uid) {
+  const me = getUser();
+  return me && uid === me.uid ? me.photoURL ?? null : photos.get(uid);
+}
+
+function rememberLeaderboardPhotos(rows) {
+  for (const { uid, photoURL } of rows) {
+    if (uid) photos.set(uid, photoURL ?? null);
+  }
+}
+
+function loadSeatPhoto(fb, uid) {
+  if (!uid || uid === getUser()?.uid || requestedSeatPhotos.has(uid)) return;
+  requestedSeatPhotos.add(uid);
+  const { fs, db } = fb;
+  const previous = photos.get(uid);
+  const profile = fs.getDoc(fs.doc(db, 'pokerPlayers', uid))
+    .then((snap) => snap.exists() ? snap.data() : null)
+    .catch(() => null);
+  pendingSeatProfiles.set(uid, profile);
+  void profile.then((data) => {
+    pendingSeatProfiles.delete(uid);
+    if (!data || photos.get(uid) !== previous) return;
+    photos.set(uid, data.photoURL ?? null);
+    if (screen === 'table') refreshTableAvatars();
+  });
+}
+
+function paintTableAvatar(el, uid, name) {
+  if (!el) return;
+  const photo = photoOf(uid) || '';
+  if (el.dataset.psUid === uid && el.dataset.psName === name && el.dataset.photo === photo) return;
+  el.dataset.psUid = uid;
+  el.dataset.psName = name;
+  el.dataset.photo = photo;
+  const previous = el.querySelector(':scope > .av-img, :scope > .av-fallback') || el.firstElementChild;
+  if (previous && !previous.matches('.av-ring, .av-ring-sec')) previous.remove();
+  el.insertAdjacentHTML('afterbegin', avatarInnerHtml(photo, name, { size: 32 }));
+}
+
+function refreshTableAvatars() {
+  for (const el of document.querySelectorAll('#seats .av[data-ps-uid], #heroAv[data-ps-uid]')) {
+    paintTableAvatar(el, el.dataset.psUid, el.dataset.psName);
+  }
+}
+
+async function pickAvatar(url) {
+  const me = getUser();
+  const fb = getFirebase();
+  if (!me || !fb || savingAvatar) throw new Error('Avatar write unavailable');
+  savingAvatar = true;
+  try {
+    const { fs, db } = fb;
+    await setUserPhoto(url);
+    if (getUser()?.uid !== me.uid) return;
+    const ref = fs.doc(db, 'pokerPlayers', me.uid);
+    const snap = await fs.getDoc(ref);
+    if (snap.exists() && typeof snap.data().lastRoomId === 'string') {
+      await fs.updateDoc(ref, { photoURL: url, updatedAt: fs.serverTimestamp() });
+    }
+    if (getUser()?.uid !== me.uid) return;
+    photos.set(me.uid, url);
+    if (playerDoc?.uid === me.uid) {
+      playerDoc = { ...playerDoc, photoURL: url };
+      cachePlayer(me.uid, playerDoc);
+    }
+  } finally {
+    savingAvatar = false;
+  }
+}
 /** 帳戶數字是否已拿到伺服器資料（沒拿到前顯示「—」，不顯示 0） */
 let playerFresh = false;
 let stopSelfPlayer = null;
@@ -148,7 +265,9 @@ let stopLeaders = null;
 function watchLeaderboard(fb) {
   if (!fb || stopLeaders || typeof fb.fs?.onSnapshot !== 'function') return;
   stopLeaders = listenLeaderboard(fb, 3, (rows) => {
-    const key = (list) => list.map((r) => `${r.uid}:${r.total}:${r.displayName}`).join('|');
+    rememberLeaderboardPhotos(rows);
+    if (screen === 'table') refreshTableAvatars();
+    const key = (list) => JSON.stringify(list.map((r) => [r.uid, r.total, r.displayName, r.photoURL]));
     if (key(rows) === key(leaderPreview || [])) return;
     leaderPreview = rows;
     if (screen === 'lobby') paint();
@@ -920,7 +1039,8 @@ async function cachePlayerName(uid) {
   const fb = getFirebase();
   if (!fb) return;
   try {
-    const p = await getPlayer(fb, uid);
+    const pending = pendingSeatProfiles.get(uid);
+    const p = pending ? await pending : await getPlayer(fb, uid);
     if (p?.displayName) {
       nameCache[uid] = p.displayName;
       if (screen === 'table') paintTableChrome();
@@ -945,6 +1065,7 @@ export async function startMpApp() {
 
   const emu = isEmuMode();
   await initAuth({
+    keepPhotoURL: (url) => !!presetKeyOf(url),
     firebaseConfig: emu ? EMU_FIREBASE_CONFIG : FIREBASE_CONFIG,
     mode: 'auto',
     sameDomainAuth: !emu,
@@ -1081,6 +1202,13 @@ export async function startMpApp() {
   }
 
   onUser(async (ev) => {
+    if (ev.photoChanged && ev.user?.uid === authState.user?.uid) {
+      authState = ev;
+      syncPlayerPhoto(getFirebase(), ev.user);
+      if (screen === 'table') refreshTableAvatars();
+      else if (screen === 'lobby' || screen === 'stats') paint();
+      return;
+    }
     if (authState.user?.uid !== ev.user?.uid) {
       hostLoop?.stop();
       hostLoop = null;
@@ -1093,7 +1221,9 @@ export async function startMpApp() {
         try {
           playerDoc = await getPlayer(fb, ev.user.uid);
           playerFresh = !!playerDoc;
+          syncPlayerPhoto(fb, authState.user);
           leaderPreview = (await fetchLeaderboard(fb, 3)) || [];
+          rememberLeaderboardPhotos(leaderPreview);
         } catch {
           playerDoc = readCachedPlayer(ev.user.uid);
         }
@@ -1196,10 +1326,15 @@ function openStatsFor(uid, name) {
     const fb = getFirebase();
     const me = getUser();
     if (!fb || !me || !uid) return;
+    const cachedPhoto = photoOf(uid);
+    const host = cachedPhoto === undefined && openTables.find((table) => table.hostUid === uid);
     openPersonalStats({
       uid,
       name,
       myUid: me.uid,
+      photoURL: cachedPhoto === undefined ? host?.hostPhoto || host?.lobby?.hostPhoto : cachedPhoto,
+      googlePhotoURL: uid === me.uid ? me.authPhotoURL : null,
+      onPickAvatar: uid === me.uid ? pickAvatar : null,
       enabled: STATS_ENABLED || !!qaStatsOpts(),
       load: async (uid) => {
         const snap = await fb.fs.getDocFromServer(fb.fs.doc(fb.db, 'pokerStatsPublic', uid));
@@ -1415,6 +1550,7 @@ function paint() {
         : null;
     renderMpLobby(root, {
       user: authState.user,
+      photoOf,
       player: playerDoc,
       bankFresh: playerFresh,
       myTable,
@@ -1543,6 +1679,7 @@ function paint() {
     renderStats(root, {
       mode: statsMode,
       rows: statsRows,
+      photoOf,
       nightKey: statsNight,
       nights: [statsNight],
       myUid: authState.user?.uid,
@@ -1597,7 +1734,7 @@ function paintEnterShell(name) {
   set('#heroHole', (el) => (el.innerHTML = ''));
   set('#heroName', (el) => (el.textContent = me));
   set('#heroChips', (el) => (el.textContent = (playerDoc?.inPlay ?? getLastRoom()?.chips) != null ? fmtChips(playerDoc?.inPlay ?? getLastRoom()?.chips) : '—'));
-  set('#heroAv', (el) => (el.innerHTML = `<span>${esc(me.slice(0, 1))}</span>`));
+  set('#heroAv', (el) => paintTableAvatar(el, user?.uid || '', me));
   set('#btns', (el) => (el.innerHTML = ''));
 }
 
@@ -1635,7 +1772,7 @@ function ensureOpenTablesListen() {
       const root = $('#mpRoot');
       const mine = lobbyExitSuppressMine ? null : playerDoc?.tableRoomId || playerDoc?.hostRoomId;
       const listed = openTables.filter(t => t.id !== mine && !isLobbyRoomSuppressed(t.id) && isRoomOpenStatus(t.status));
-      if (hadTable === (openTables.length > 0) && root && patchOpenTables(root, listed)) return;
+      if (hadTable === (openTables.length > 0) && root && patchOpenTables(root, listed, photoOf)) return;
       // 單桌出現／消失時，開桌入口也必須同步更新。
       paint();
     },
@@ -2077,6 +2214,9 @@ async function enterRoom(id, { asHostSit = false, retryJoin = true, fromContinue
       const wasBusted = previousSelfSeat >= 0 && (room.stacks?.[previousSelfSeat] === 0 ||
         room.pub?.seats?.[previousSelfSeat]?.chips === 0);
       room = r;
+      if (!metadata?.fromCache && r.status !== 'closed') {
+        r.seatUids.forEach((uid) => loadSeatPhoto(fb, uid));
+      }
       noteAddonEvents(r, user.uid, first);
       if (first) startAddonQueue(fb, id, user.uid);
       if (!metadata?.hasPendingWrites && !metadata?.fromCache) {
@@ -2517,7 +2657,7 @@ function renderSeatOverlays() {
     el.innerHTML = `
       ${reveal || backs}
       <div class="plate plateA">
-        <div class="av" data-ps-uid="${esc(room.seatUids[seat] || '')}" data-ps-name="${esc(name)}"><span>${esc(name.slice(0, 1))}</span></div>
+        <div class="av" data-ps-uid="${esc(uid)}" data-ps-name="${esc(name)}" data-photo="${esc(photoOf(uid) || '')}">${avatarInnerHtml(photoOf(uid), name, { size: 32 })}</div>
         <div>
           <div class="nm">${esc(name)}${seat === room.seatUids.indexOf(room.hostUid) ? '<i class="mp-host-tag">房主</i>' : ''}${pending ? '<i class="mp-host-tag">排隊</i>' : ''}${stateTag}</div>
           <span class="ch st">${fmtChips(chips)}</span>
@@ -2572,7 +2712,7 @@ function renderSeatOverlays() {
       : (ps?.chips ?? room.stacks[mySeat] ?? 0);
     if (heroName) heroName.textContent = name;
     if (heroChips) heroChips.textContent = fmtChips(chips);
-    if (heroAv) { heroAv.innerHTML = `<span>${esc(name.slice(0, 1))}</span>`; heroAv.dataset.psUid = room.seatUids[mySeat] || ''; heroAv.dataset.psName = name; }
+    paintTableAvatar(heroAv, uid, name);
     if (heroHole) {
       const keys = myHole?.cards;
       if (!between && keys?.length === 2) {
@@ -2597,7 +2737,7 @@ function renderSeatOverlays() {
       const name = nameOrStub(user.uid, user.displayName, '你');
       if (heroName) heroName.textContent = name;
       if (heroChips) heroChips.textContent = fmtChips(Number(playerDoc?.bank) || 0);
-      if (heroAv) heroAv.innerHTML = `<span>${esc(name.slice(0, 1))}</span>`;
+      paintTableAvatar(heroAv, user.uid, name);
     } else {
       if (heroName) heroName.textContent = '請選位子';
       if (heroChips) heroChips.textContent = '';
@@ -3564,7 +3704,10 @@ async function loadStats() {
     return;
   }
   try {
-    if (statsMode === 'total') statsRows = await fetchLeaderboard(fb, 50);
+    if (statsMode === 'total') {
+      statsRows = await fetchLeaderboard(fb, 50);
+      rememberLeaderboardPhotos(statsRows);
+    }
     else statsRows = await fetchNightBoard(fb, statsNight, 50);
   } catch {
     statsRows = [];

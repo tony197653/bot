@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { renderCreateRoom, renderShareRoom, renderJoinCode, openRowHtml } from '../js/ui/lobby.js';
+import { renderCreateRoom, renderShareRoom, renderJoinCode, openRowHtml, renderMpLobby } from '../js/ui/lobby.js';
 import { renderStats } from '../js/ui/stats.js';
+import { playerPhotoSyncPatch } from '../js/ui/mp-app.js';
 const read = p => readFileSync(new URL(p, import.meta.url), 'utf8');
 const app = read('../js/ui/mp-app.js');
 const lobby = read('../js/ui/lobby.js');
@@ -62,7 +63,42 @@ test('收桌卡無頭像；沿用現有按鈕；單機 app 頭像未綁定登入
   assert.doesNotMatch(section('function showCloseResultCard(', '\nlet '), /class="(?:mp-av|av)"|avatarHtml/);
   const solo = read('../js/ui/app.js'); assert.doesNotMatch(solo, /getUser\(|photoURL|data-ps-uid/);
 });
-for (const mode of ['total', 'night']) test(`個人紀錄 ${mode} 仍渲染自身頭像`, () => {
-  const r = root(); renderStats(r, { mode, rows: [{ uid: 'me', displayName: '本人', name: '本人', total: 2000, net: 0 }], myUid: 'me', nights: [], nightKey: '20261109' });
-  assert.match(r.innerHTML, /mp-lb-av" data-ps-uid="me"/);
+for (const mode of ['total', 'night']) test(`戰績 ${mode} 將自身頭像與姓名放在同一容器`, () => {
+  const r = root(); renderStats(r, { mode, rows: [{ uid: 'me', displayName: '本人', name: '本人', total: 2000, net: 0, tableRoomId: 'r' }], myUid: 'me', nights: [], nightKey: '20261109' });
+  assert.match(r.innerHTML, /<td class="mp-lb-player"><span class="mp-lb-who"><button type="button" class="mp-lb-av" data-ps-uid="me"[^>]*>.*?<\/button>/);
+  const tag = mode === 'total' ? '<span class="mp-tag">牌桌中</span>' : '';
+  assert.ok(r.innerHTML.includes(`</button><span class="mp-lb-nm" title="本人">本人</span>${tag}</span></td>`));
+});
+
+test('大廳戰績前三名顯示靜態頭像、完整姓名提示與籌碼', () => {
+  const r = root();
+  renderMpLobby(r, {
+    photoOf: (uid) => uid === 'cached' ? 'https://example.com/cached.png' : null,
+    leaderPreview: [
+      { uid: 'cached', displayName: '王"<長名>', photoURL: 'https://example.com/old.png', total: 2000 },
+      { uid: 'row', displayName: '李', photoURL: 'https://example.com/row.png', total: 1000 },
+      { uid: 'fallback', displayName: '陳玩家', total: 900 },
+    ],
+  });
+  const ranks = r.innerHTML.match(/<ol class="mp-ranks">(.*?)<\/ol>/)[1];
+  assert.match(ranks, /<span class="mp-lb-av" aria-hidden="true"><img[^>]*src="https:\/\/example\.com\/cached\.png"[^>]*width="28" height="28"/);
+  assert.match(ranks, /<span class="mp-lb-nm" title="王&quot;&lt;長名&gt;">王&quot;&lt;長名&gt;<\/span><\/span><b>2,000<\/b>/);
+  assert.match(ranks, /src="https:\/\/example\.com\/row\.png"/);
+  assert.match(ranks, /<span class="mp-lb-av" aria-hidden="true"><span class="av-fallback">陳<\/span><\/span>/);
+  assert.doesNotMatch(ranks, /<button|data-ps-uid|old\.png/);
+});
+
+test('頭像同步只為有 lastRoomId 且頭像變更的玩家產生合法 patch', () => {
+  const player = { lastRoomId: '', photoURL: 'https://example.com/old.png' };
+  const valid = 'https://example.com/'.padEnd(500, 'a');
+  assert.deepEqual(playerPhotoSyncPatch(player, { photoURL: valid }), { photoURL: valid });
+  assert.deepEqual(playerPhotoSyncPatch(player, {}), { photoURL: null });
+  assert.equal(playerPhotoSyncPatch(player, { photoURL: player.photoURL }), null);
+  assert.equal(playerPhotoSyncPatch({ lastRoomId: '' }, { photoURL: null }), null);
+  for (const missing of [null, {}, { lastRoomId: null }]) {
+    assert.equal(playerPhotoSyncPatch(missing, { photoURL: valid }), null);
+  }
+  for (const photoURL of [valid + 'a', 'http://example.com/', 'https://', 'https://bad host/', 123]) {
+    assert.equal(playerPhotoSyncPatch(player, { photoURL }), null);
+  }
 });

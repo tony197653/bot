@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>頭像預覽</title>
+<link rel="stylesheet" href="../css/game.css">
+<style>
+  body{overflow:auto}
+  .demo-section{position:relative}
+  .demo-seats{display:flex;flex-wrap:wrap;gap:12px;padding:16px}
+  .demo-seats .plate{color:var(--plateink)}
+</style>
+</head>
+<body>
+<div class="mp-root demo-section" id="lobby"></div>
+<div class="mp-root demo-section" id="stats"></div>
+<div class="demo-seats" id="seats"></div>
+<script type="module">
+import { avatarInnerHtml, presetUrl } from '../js/ui/avatars.js';
+import { renderMpLobby } from '../js/ui/lobby.js';
+import { openPersonalStats } from '../js/ui/personal-stats.js';
+import { renderStats } from '../js/ui/stats.js';
+
+const google = 'https://avatar-preview.invalid/google.png';
+const localPhoto = new URLSearchParams(location.search).get('photo') === 'local';
+const lobby = document.getElementById('lobby');
+const stats = document.getElementById('stats');
+const seats = document.getElementById('seats');
+
+const rows = [
+  { uid: 'me', displayName: '小明', photoURL: google, total: 5000 },
+  { uid: 'preset', displayName: '小芸', photoURL: presetUrl('fox'), total: 4000 },
+  { uid: 'letter', displayName: '阿哲', photoURL: null, total: 3000 },
+];
+const [me] = rows;
+
+if (localPhoto) {
+  // 只有此預覽頁將佔位圖換成本機圖檔。
+  const replacePhoto = () => {
+    for (const img of document.querySelectorAll(`img[src="${google}"]`)) {
+      img.src = './fixtures/google-photo.png';
+    }
+  };
+  new MutationObserver(replacePhoto).observe(document.body, { childList: true, subtree: true });
+}
+
+function open(row) {
+  openPersonalStats({
+    uid: row.uid,
+    myUid: me.uid,
+    name: row.displayName,
+    photoURL: row.photoURL,
+    googlePhotoURL: google,
+    onPickAvatar: row === me ? async (url) => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      me.photoURL = url;
+      paint();
+    } : null,
+    enabled: true,
+    load: async () => ({
+      validHands: 12, wonHands: 4, netChips: 2000,
+      vpipHands: 9, vpipOppHands: 12, pfrHands: 3, pfrOppHands: 12,
+    }),
+    chips: row.total,
+  });
+}
+
+function paint() {
+  renderMpLobby(lobby, {
+    user: me,
+    player: { bank: 5000, inPlay: 0, total: 5000 },
+    bankFresh: true,
+    openTables: [{ id: 'demo', name: '週五牌局', code: '000', hostUid: me.uid, hostName: me.displayName }],
+    photoOf: (uid) => rows.find((row) => row.uid === uid)?.photoURL,
+    onAvatar: () => open(me),
+    onMyStats: () => open(me),
+  });
+  renderStats(stats, { rows, myUid: me.uid });
+  seats.innerHTML = rows.map((row) => `<div class="plate plateA">
+    <button type="button" class="av" data-ps-uid="${row.uid}" aria-label="看${row.displayName}的統計">${avatarInnerHtml(row.photoURL, row.displayName, { size: 32 })}</button>
+    <div class="nm">${row.displayName}</div>
+  </div>`).join('');
+}
+
+document.addEventListener('click', (event) => {
+  const avatar = event.target.closest('[data-ps-uid]');
+  const row = rows.find(({ uid }) => uid === avatar?.dataset.psUid);
+  if (row) open(row);
+});
+paint();
+</script>
+</body>
+</html>
