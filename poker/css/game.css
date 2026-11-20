@@ -1174,7 +1174,7 @@ body:has(#pauseScreen.is-on) #toast{
 body.mp-buyin-open #act{visibility:hidden}
 .mp-buyin-step{grid-column:1 / -1;display:flex;gap:8px;align-items:center;min-width:0}
 .mp-buyin-step input{min-width:0;flex:1}
-.mp-buyin-step button,.mp-affix-row button{min-width:44px;min-height:44px}
+.mp-buyin-step button,.mp-affix-row button{display:flex;align-items:center;justify-content:center;flex:none;min-width:44px;min-height:44px;border-radius:var(--radius-sm);border:1px solid rgba(214,180,90,.28);background:transparent;color:inherit;font-weight:600}
 #mpBuyinPicker [data-error]{grid-column:1 / -1}
 #mpAddonQueueRow{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:14px}
 #mpAddonQueueRow button{min-width:44px;min-height:44px;white-space:nowrap}
