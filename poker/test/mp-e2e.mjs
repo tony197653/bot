@@ -452,6 +452,51 @@ async function ensureOnTable(page) {
   return !!(await page.locator(READY).count());
 }
 
+// 頭像：本人在戰績浮層換預設頭像（emulator 實寫 users／pokerPlayers），大廳、牌桌、他人視角都看得到。
+async function pickAvatarVia(page, opener, key) {
+  await page.locator(opener).first().click();
+  await page.waitForSelector('.ps-sheet [data-ps="avatar"]', { timeout: 10000 });
+  await page.click('.ps-sheet [data-ps="avatar"]');
+  await page.waitForSelector(`[data-ps="pick-choice"][data-key="${key}"]`, { timeout: 5000 });
+  await page.screenshot({ path: join(ART, `mp-avatar-${page.viewportSize().width}-picker.png`) });
+  await page.click(`[data-ps="pick-choice"][data-key="${key}"]`);
+  await page.waitForSelector('.ps-pick', { state: 'detached', timeout: 10000 });
+  const head = await page.locator('.ps-head img').getAttribute('src');
+  await page.click('[data-ps="back"]');
+  return head || '';
+}
+
+async function runAvatarSeats(browser, base, viewport, label) {
+  const host = await makePlayer(browser, base, '阿明', `hostav${label}`, viewport);
+  const hostHead = await pickAvatarVia(host.page, '[data-act="avatar"]', 'fox');
+  await host.page.waitForTimeout(300);
+  const lobbyImg = await host.page.locator('.mp-av img').getAttribute('src').catch(() => '');
+  await host.page.screenshot({ path: join(ART, `mp-avatar-${label}-host-lobby.png`) });
+  const { roomId, code } = await createAndShare(host);
+  const guest = await joinViaLink(browser, base, '大雄', `guestav${label}`, viewport, roomId, code);
+  await sitIfNeeded(guest.page);
+  await guest.page.waitForSelector('#heroAv', { timeout: 10000 });
+  const guestHead = await pickAvatarVia(guest.page, '#heroAv', 'cat-white');
+  await guest.page.waitForTimeout(500);
+  const guestHero = await guest.page.locator('#heroAv img').getAttribute('src').catch(() => '');
+  const guestSeesHost = await guest.page.locator('#seats .av img').first().getAttribute('src').catch(() => '');
+  await guest.page.screenshot({ path: join(ART, `mp-avatar-${label}-guest-table.png`) });
+  await host.page.reload({ waitUntil: 'domcontentloaded' });
+  await host.page.waitForFunction(() => typeof window.__qaSignIn === 'function', null, { timeout: 20000 });
+  await host.page.evaluate(([u, n]) => window.__qaSignIn(u, n), [host.uid, host.name]);
+  await host.page.locator('[data-act="continue"]:visible, [data-act="enter"]:visible').first().click({ timeout: 15000 }).catch(() => {});
+  await host.page.waitForSelector('#seats .av img', { timeout: 20000 }).catch(() => {});
+  const hostSeesGuest = await host.page.locator('#seats .av img').first().getAttribute('src').catch(() => '');
+  const hostHero = await host.page.locator('#heroAv img').getAttribute('src').catch(() => '');
+  await host.page.screenshot({ path: join(ART, `mp-avatar-${label}-host-table.png`) });
+  const r = { hostHead, lobbyImg, guestHead, guestHero, guestSeesHost, hostSeesGuest, hostHero };
+  console.log('AVATAR', label, JSON.stringify(r));
+  const ok = /fox\.svg/.test(hostHead) && /fox\.svg/.test(lobbyImg) && /cat-white\.svg/.test(guestHead)
+    && /cat-white\.svg/.test(guestHero) && /fox\.svg/.test(guestSeesHost) && /cat-white\.svg/.test(hostSeesGuest)
+    && /fox\.svg/.test(hostHero) && !guest.errors.some((e) => /avatar/i.test(e));
+  return ok ? { ok: true, ...r } : { ok: false, reason: JSON.stringify(r) };
+}
+
 async function runFoldWin(browser, base, viewport, label) {
   const host = await makePlayer(browser, base, '阿明', `hostfw${label}`, viewport);
   const { roomId, code } = await createAndShare(host);
@@ -1272,6 +1317,7 @@ async function main() {
       { width: 390, height: 844, label: '390' },
       { width: 1280, height: 800, label: '1280' },
     ]) {
+      await push(`avatar-seats-${vp.label}`, () => runAvatarSeats(browser, base, vp, vp.label));
       await push(`foldwin-${vp.label}`, () => runFoldWin(browser, base, vp, vp.label));
       await push(`showdown-${vp.label}`, () => runShowdown(browser, base, vp, vp.label));
       await push(`solo-lobby-${vp.label}`, () => runSoloFromLobby(browser, base, vp, vp.label));
