@@ -55,8 +55,7 @@ export function avatarPickerHtml({ name, photoURL, googlePhotoURL, saving = fals
       <div class="ps-pick-grid">${options.map(({ key, label }) => {
         const original = key === 'original';
         return `<button type="button" class="ps-pick-option" data-ps="pick-choice" data-key="${key}" aria-label="${label}" title="${label}" aria-pressed="${key === selected}"${disabled}>
-          <span class="ps-pick-av">${avatarInnerHtml(original ? googlePhotoURL : presetUrl(key), name, { size: 52 })}</span>
-          ${original ? '<span>原本頭像</span>' : ''}
+          <span class="ps-pick-av">${avatarInnerHtml(original ? googlePhotoURL : presetUrl(key), name, { size: 60 })}</span>
         </button>`;
       }).join('')}</div>
       ${failed ? '<p class="ps-msg" role="alert">儲存失敗，請重試</p>' : ''}
@@ -76,9 +75,9 @@ button.ps-av{width:44px;height:44px;padding:2px;border:0;background:none;color:i
 .ps-av .av-fallback{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#21392c}
 .ps-pick{position:absolute;bottom:0;left:50%;transform:translateX(-50%);box-sizing:border-box;width:min(100%,420px);max-height:80vh;overflow:auto;padding:12px;border-radius:12px 12px 0 0;background:#13231a;color:#f3ead2}
 .ps-pick h2{font-size:1.125rem;margin:0 0 12px}
-.ps-pick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
-.ps-pick-option{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;min-height:56px;padding:3px 0;border:0;background:none;color:inherit;font:inherit;font-size:13px;cursor:pointer}
-.ps-pick-av{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:#21392c}
+.ps-pick-grid{display:grid;grid-template-columns:repeat(4,60px);grid-auto-rows:60px;gap:24px;justify-content:center;margin-bottom:12px}
+.ps-pick-option{display:grid;place-items:center;width:60px;height:60px;padding:0;border:0;background:none;color:inherit;font:inherit;font-size:13px;cursor:pointer}
+.ps-pick-av{display:grid;place-items:center;width:60px;height:60px;border-radius:50%;background:#21392c}
 .ps-pick-option[aria-pressed="true"] .ps-pick-av{box-shadow:0 0 0 3px #E8C547}`;
 /**
  * Open overlay for uid. load(): Promise<agg|null>. Returns close().

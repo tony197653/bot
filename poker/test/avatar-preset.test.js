@@ -56,7 +56,8 @@ test('浮層只有本人可換頭像，選擇器有 16 個選項且標記目前�
   const picker = avatarPickerHtml({ ...options, photoURL: presetUrl('dog'), googlePhotoURL });
   assert.equal(picker.match(/data-ps="pick-choice"/g).length, 16);
   assert.equal(picker.match(/aria-pressed="true"/g).length, 1);
-  assert.match(picker, /data-ps="pick-choice" data-key="original" aria-label="原本頭像"/);
+  assert.match(picker, /data-ps="pick-choice" data-key="original" aria-label="原本頭像" title="原本頭像"/);
+  assert.doesNotMatch(picker.replace(/<[^>]+>/g, ''), /原本頭像/);
   assert.match(picker, /data-key="dog"[^>]+aria-pressed="true"/);
 });
 
