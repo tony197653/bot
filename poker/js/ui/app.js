@@ -16,6 +16,7 @@ import {
   HOLD_MS_FOLD_WIN,
 } from '../engine/index.js';
 import { cardHtml, cardBackPair, heroBackPair, fmtChips, cardFaceInner, paintBoardSlots, raisePresetsMarkup, raisePanelCopy } from './cards-dom.js';
+import { avatarInnerHtml } from './avatars.js';
 import { onTick } from './ticker.js';
 import { mapSeatsClockwise, seatVisualPos } from './seating.js';
 import {
@@ -371,13 +372,13 @@ function goNextHandFromHold() {
 }
 
 /** SVG countdown ring around an avatar (pathLength=100 for easy dashoffset). */
-function avWithRing(initial, { timing = false } = {}) {
+function avWithRing(name, { timing = false } = {}) {
   const ring =
     `<svg class="av-ring" viewBox="0 0 36 36" aria-hidden="true">` +
     `<circle class="av-ring-bg" cx="18" cy="18" r="15"/>` +
     `<circle class="av-ring-fg" cx="18" cy="18" r="15" pathLength="100" stroke-dasharray="100" stroke-dashoffset="0"/>` +
     `</svg><span class="av-ring-sec" aria-hidden="true"></span>`;
-  return `<div class="av${timing ? ' is-timing' : ''}">${ring}<span>${esc(initial)}</span></div>`;
+  return `<div class="av${timing ? ' is-timing' : ''}">${avatarInnerHtml(null, name, { size: 32 })}${ring}</div>`;
 }
 
 function view() {
@@ -519,9 +520,8 @@ function openLobby() {
 }
 
 function rowHtml(i, name, on) {
-  const ch = name.slice(0, 1);
   return `<div class="p-row" data-seat="${i}">
-    <div class="av"><span>${esc(ch)}</span></div>
+    <div class="av">${avatarInnerHtml(null, name, { size: 32 })}</div>
     <input type="text" maxlength="12" value="${esc(name)}" aria-label="玩家${i + 1}暱稱" ${on ? '' : 'disabled'}/>
     <button type="button" data-toggle="${i}">${on ? '移除' : '加入'}</button>
   </div>`;
@@ -1015,7 +1015,7 @@ function renderTable(v) {
     el.innerHTML = `
       ${revealHtml || backs}
       <div class="plate plateA${isWin ? ' is-winner' : ''}">
-        ${avWithRing(p.name.slice(0, 1), { timing })}
+        ${avWithRing(p.name, { timing })}
         <div>
           <div class="nm">${esc(p.name)}${role}</div>
           <span class="ch st">${fmtChips(stackShow)}</span>
@@ -1119,8 +1119,7 @@ function renderTable(v) {
   {
     const avHost = mePlate?.querySelector('.av') || null;
     if (avHost && mePlate) {
-      const initial = hero ? hero.name.slice(0, 1) : '—';
-      avHost.outerHTML = avWithRing(initial, { timing: heroTiming });
+      avHost.outerHTML = avWithRing(hero?.name ?? '—', { timing: heroTiming });
       // keep id for tests / a11y hooks
       const newAv = mePlate.querySelector('.av');
       if (newAv) newAv.id = 'heroAv';
