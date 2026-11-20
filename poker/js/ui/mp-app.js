@@ -122,6 +122,46 @@ const photos = new Map();
 const requestedSeatPhotos = new Set();
 const pendingSeatProfiles = new Map();
 let savingAvatar = false;
+const attemptedPlayerPhotos = new Map();
+
+export function playerPhotoSyncPatch(playerDoc, user) {
+  if (!user || typeof playerDoc?.lastRoomId !== 'string') return null;
+  const photoURL = user.photoURL ?? null;
+  if ((playerDoc.photoURL ?? null) === photoURL) return null;
+  if (photoURL !== null) {
+    if (typeof photoURL !== 'string' || photoURL.length > 500 || !/^https:\/\/.+$/u.test(photoURL) || /\s/u.test(photoURL)) return null;
+    try {
+      new URL(photoURL);
+    } catch {
+      return null;
+    }
+  }
+  return { photoURL };
+}
+
+function syncPlayerPhoto(fb, user) {
+  if (!fb || !user || playerDoc?.uid !== user.uid) return;
+  const patch = playerPhotoSyncPatch(playerDoc, user);
+  if (!patch) return;
+  const { uid } = user;
+  const { photoURL } = patch;
+  const attempted = attemptedPlayerPhotos.get(uid) ?? new Set();
+  if (attempted.has(photoURL)) return;
+  attempted.add(photoURL);
+  attemptedPlayerPhotos.set(uid, attempted);
+
+  const { fs, db } = fb;
+  void fs.updateDoc(fs.doc(db, 'pokerPlayers', uid), {
+    ...patch,
+    updatedAt: fs.serverTimestamp(),
+  }).then(() => {
+    photos.set(uid, photoURL);
+    const current = playerDoc?.uid === uid ? playerDoc : readCachedPlayer(uid);
+    const updated = { ...current, ...patch };
+    if (playerDoc?.uid === uid) playerDoc = updated;
+    cachePlayer(uid, updated);
+  }).catch((error) => console.warn('[mp] sync player photo', error));
+}
 
 function photoOf(uid) {
   const me = getUser();
@@ -1164,6 +1204,7 @@ export async function startMpApp() {
   onUser(async (ev) => {
     if (ev.photoChanged && ev.user?.uid === authState.user?.uid) {
       authState = ev;
+      syncPlayerPhoto(getFirebase(), ev.user);
       if (screen === 'table') refreshTableAvatars();
       else if (screen === 'lobby' || screen === 'stats') paint();
       return;
@@ -1180,6 +1221,7 @@ export async function startMpApp() {
         try {
           playerDoc = await getPlayer(fb, ev.user.uid);
           playerFresh = !!playerDoc;
+          syncPlayerPhoto(fb, authState.user);
           leaderPreview = (await fetchLeaderboard(fb, 3)) || [];
           rememberLeaderboardPhotos(leaderPreview);
         } catch {

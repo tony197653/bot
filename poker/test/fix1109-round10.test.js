@@ -71,7 +71,8 @@ test('房主重新登入先靜默結算已被關閉的房間，回大廳且不�
   const fb = { db: {}, fs };
   const ctx = vm.createContext({
     console, getFirebase: () => fb, getUser: () => ({ uid: 'host' }),
-    getPlayer: async () => docs.get('pokerPlayers/host'), settleClosedRoomBinding,
+    getPlayer: async () => ({ uid: 'host', ...docs.get('pokerPlayers/host') }), settleClosedRoomBinding,
+    syncPlayerPhoto: () => {},
     playerDoc: null, rescueReason: null, rescueOk: false, rescueChips: null,
     authState: { user: null }, hostLoop: null, leaderPreview: [], fetchLeaderboard: async () => [], rememberLeaderboardPhotos: () => {},
     onUser: fn => { authHandler = fn; }, screen: 'auth', deepRoom: null,

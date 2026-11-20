@@ -497,10 +497,11 @@ export function renderMpLobby(root, vm) {
 
   const ranks = (vm.leaderPreview || [])
     .slice(0, 3)
-    .map(
-      (r, i) =>
-        `<li><span>${i + 1}. ${esc(r.displayName || '玩家')}</span><b>${fmtChips(r.total)}</b></li>`,
-    )
+    .map((row, i) => {
+      const name = row.displayName || '玩家';
+      const photo = vm.photoOf?.(row.uid) ?? row.photoURL;
+      return `<li><span class="mp-lb-who"><span class="mp-rank-index">${i + 1}.</span><span class="mp-lb-av" aria-hidden="true">${avatarInnerHtml(photo, name, { size: 28 })}</span><span class="mp-lb-nm" title="${esc(name)}">${esc(name)}</span></span><b>${fmtChips(row.total)}</b></li>`;
+    })
     .join('');
 
   const menuIco = {
