@@ -62,7 +62,9 @@ test('收桌卡無頭像；沿用現有按鈕；單機 app 頭像未綁定登入
   assert.doesNotMatch(section('function showCloseResultCard(', '\nlet '), /class="(?:mp-av|av)"|avatarHtml/);
   const solo = read('../js/ui/app.js'); assert.doesNotMatch(solo, /getUser\(|photoURL|data-ps-uid/);
 });
-for (const mode of ['total', 'night']) test(`個人紀錄 ${mode} 仍渲染自身頭像`, () => {
-  const r = root(); renderStats(r, { mode, rows: [{ uid: 'me', displayName: '本人', name: '本人', total: 2000, net: 0 }], myUid: 'me', nights: [], nightKey: '20261109' });
-  assert.match(r.innerHTML, /mp-lb-av" data-ps-uid="me"/);
+for (const mode of ['total', 'night']) test(`戰績 ${mode} 將自身頭像與姓名放在同一容器`, () => {
+  const r = root(); renderStats(r, { mode, rows: [{ uid: 'me', displayName: '本人', name: '本人', total: 2000, net: 0, tableRoomId: 'r' }], myUid: 'me', nights: [], nightKey: '20261109' });
+  assert.match(r.innerHTML, /<span class="mp-lb-who"><button type="button" class="mp-lb-av" data-ps-uid="me"[^>]*>.*?<\/button>本人/);
+  const nameAndTag = mode === 'total' ? '本人<span class="mp-tag">牌桌中</span>' : '本人';
+  assert.ok(r.innerHTML.includes(`</button>${nameAndTag}</span></td>`));
 });
