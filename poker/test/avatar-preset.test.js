@@ -9,7 +9,7 @@ const googlePhotoURL = 'https://lh3.googleusercontent.com/avatar';
 test('15 個預設網址存正式位址，預覽與本機畫面使用同站資產', () => {
   assert.deepEqual(AVATAR_PRESETS.map(({ key }) => key), [
     'cat', 'cat-gray', 'cat-siamese', 'cat-white', 'dog', 'rabbit', 'bear', 'panda',
-    'fox', 'lion', 'tiger', 'monkey', 'penguin', 'owl', 'frog',
+    'fox', 'lion', 'tiger', 'monkey', 'owl', 'frog', 'fish',
   ]);
   for (const { key } of AVATAR_PRESETS) {
     assert.equal(presetUrl(key), `https://tony-poker.web.app/friday-poker/assets/avatars/${key}.svg`);
@@ -36,7 +36,7 @@ test('頭像首字支援 Unicode，圖片與載入失敗替代內容會轉義', 
 });
 
 test('已移除的頭像沿用原 HTTPS 網址，載入失敗時顯示名字首字', () => {
-  for (const key of ['cat-orange', 'cat-black']) {
+  for (const key of ['cat-orange', 'cat-black', 'penguin']) {
     const url = presetUrl(key);
     assert.equal(presetKeyOf(url), null);
     assert.equal(avatarSrc(url), url);

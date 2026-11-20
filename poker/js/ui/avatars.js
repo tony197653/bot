@@ -4,7 +4,7 @@ export const AVATAR_PRESETS = [
   ['cat', '貓'], ['cat-gray', '灰貓'],
   ['cat-siamese', '暹羅貓'], ['cat-white', '白貓'], ['dog', '狗'], ['rabbit', '兔子'],
   ['bear', '熊'], ['panda', '貓熊'], ['fox', '狐狸'], ['lion', '獅子'], ['tiger', '老虎'],
-  ['monkey', '猴子'], ['penguin', '企鵝'], ['owl', '貓頭鷹'], ['frog', '青蛙'],
+  ['monkey', '猴子'], ['owl', '貓頭鷹'], ['frog', '青蛙'], ['fish', '魚'],
 ].map(([key, label]) => ({ key, label }));
 
 export function presetUrl(key) {

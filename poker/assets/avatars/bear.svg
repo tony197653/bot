@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 128 128" width="128" height="128">
 <!-- Noto Emoji (Apache 2.0, github.com/googlefonts/noto-emoji) on a gradient circle -->
-<defs><linearGradient id="bear-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#62D8FF"/><stop offset="1" stop-color="#1A8AD6"/></linearGradient></defs>
+<defs><linearGradient id="bear-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5AB0FF"/><stop offset="1" stop-color="#1F5FD6"/></linearGradient></defs>
 <circle cx="64" cy="64" r="64" fill="url(#bear-bg)"/>
 <svg x="10.44" y="10.86" width="107.11" height="107.11" viewBox="0 0 128 128">
 <path style="fill:#855B52;" d="M63.29,9.93c14.92,0.22,16.4,3.61,20.77,3.73c6.32,0.18,15.98-11.97,29.07-0.99

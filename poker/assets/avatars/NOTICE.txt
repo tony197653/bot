@@ -9,8 +9,7 @@ The Noto font files (SIL OFL) are NOT used.
 Modifications made to every file (2026-11-20):
 - Adobe Illustrator metadata (i:aipgf, i:* attributes, DOCTYPE, comments) removed.
 - Element ids prefixed with the file key.
-- Placed on a 128x128 circle with a 2-colour vertical gradient background
-  (own colours per animal, for contrast).
+- Placed on a 128x128 circle with one of three shared 2-colour vertical gradients: blue #5AB0FF→#1F5FD6, pink #FF9EC4→#E0457F, gray #D3D8DF→#8E97A4 (chosen per animal for contrast).
 - Emoji scaled per file so its visible size is about 78% of the circle diameter
   (100/128 px), centred, and kept inside radius 61.
 Additional colour changes are listed per file below.
@@ -29,8 +28,8 @@ Additional colour changes are listed per file below.
 | lion.svg | U+1F981 lion | .../emoji_u1f981.svg | none |
 | tiger.svg | U+1F42F tiger face | .../emoji_u1f42f.svg | none |
 | monkey.svg | U+1F435 monkey face | .../emoji_u1f435.svg | none |
-| penguin.svg | U+1F427 penguin | .../emoji_u1f427.svg | none |
 | owl.svg | U+1F989 owl | .../emoji_u1f989.svg | none |
 | frog.svg | U+1F438 frog | .../emoji_u1f438.svg | none |
+| fish.svg | U+1F41F fish | .../emoji_u1f41f.svg | none |
 
 (".../" = https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/)
