@@ -1204,7 +1204,7 @@ body.mp-buyin-open #act{visibility:hidden}
 .mp-create-chips-field{min-width:0}
 .mp-create-chips-field>span{font-size:13px;color:var(--mute);margin-bottom:6px}
 .mp-min-hint-row{display:flex;align-items:baseline;gap:6px}
-.mp-create-chips-field label{white-space:nowrap}
+.mp-create-chips-field label{white-space:nowrap;margin-left:13px}
 .mp-min-hint{visibility:hidden;white-space:nowrap;font-size:12px;color:var(--warn)}
 .mp-min-hint.is-visible{visibility:visible}
 
