@@ -2,7 +2,7 @@
 <!-- Noto Emoji (Apache 2.0, github.com/googlefonts/noto-emoji) on a gradient circle -->
 <defs><linearGradient id="cat-gray-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF8FA8"/><stop offset="1" stop-color="#D63863"/></linearGradient></defs>
 <circle cx="64" cy="64" r="64" fill="url(#cat-gray-bg)"/>
-<svg x="18" y="18" width="92" height="92" viewBox="0 0 128 128">
+<svg x="12.98" y="14.31" width="104.28" height="104.28" viewBox="0 0 128 128">
 <path style="fill:#B4BCC6;" d="M114.67,70.19C112.71,44.22,94.44,26.3,64,26.3S15.25,45.33,13.45,71.31
 	c-1.05,15.14,4.58,28.63,15.91,36.32c7.46,5.07,17.88,7.88,34.77,7.88c17.18,0,27.03-3.71,34.49-8.73
 	C111.05,98.43,115.8,85.11,114.67,70.19z"/>

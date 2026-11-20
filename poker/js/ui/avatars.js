@@ -1,7 +1,7 @@
 const PRESET_BASE = 'https://tony-poker.web.app/friday-poker/assets/avatars/';
 
 export const AVATAR_PRESETS = [
-  ['cat', '貓'], ['cat-orange', '橘貓'], ['cat-black', '黑貓'], ['cat-gray', '灰貓'],
+  ['cat', '貓'], ['cat-gray', '灰貓'],
   ['cat-siamese', '暹羅貓'], ['cat-white', '白貓'], ['dog', '狗'], ['rabbit', '兔子'],
   ['bear', '熊'], ['panda', '貓熊'], ['fox', '狐狸'], ['lion', '獅子'], ['tiger', '老虎'],
   ['monkey', '猴子'], ['penguin', '企鵝'], ['owl', '貓頭鷹'], ['frog', '青蛙'],
