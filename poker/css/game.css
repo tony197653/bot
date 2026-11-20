@@ -1048,9 +1048,9 @@ body:has(#pauseScreen.is-on) #toast{
 .mp-float span,.mp-affix>span,.mp-seg legend{display:block;font-size:13px;color:var(--mute);margin-bottom:6px}
 .mp-float input,.mp-affix input{width:100%;min-height:44px;border-radius:var(--radius-sm);border:1px solid rgba(214,180,90,.3);background:var(--surface-deep);color:var(--ink);padding:0 12px;font-size:16px}
 .mp-affix input{font-family:inherit}
-.mp-affix-row{display:flex;align-items:center;gap:8px}
+.mp-affix-row{display:grid;grid-template-columns:var(--mp-seg-col) minmax(0,1fr) var(--mp-seg-col);gap:8px;align-items:center}
 .mp-affix-row em{font-style:normal;color:var(--mute);font-size:14px}
-.mp-affix-row input{flex:1}
+.mp-affix-row input{min-width:0;width:100%}
 .mp-affix small{display:block;margin-top:6px;color:var(--mute);font-size:12px}
 .mp-seg{border:0;padding:0}
 .mp-seg-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
@@ -1172,9 +1172,9 @@ body:has(#pauseScreen.is-on) #toast{
 
 /* R32b：數量面板遮住動作列；排隊合計獨立於四顆動作鈕。 */
 body.mp-buyin-open #act{visibility:hidden}
-.mp-buyin-step{grid-column:1 / -1;display:flex;gap:8px;align-items:center;min-width:0}
-.mp-buyin-step input{min-width:0;flex:1}
-.mp-buyin-step button,.mp-affix-row button{display:flex;align-items:center;justify-content:center;flex:none;min-width:44px;min-height:44px;border-radius:var(--radius-sm);border:1px solid rgba(214,180,90,.28);background:transparent;color:inherit;font-weight:600}
+.mp-buyin-step{grid-column:1 / -1;display:grid;grid-template-columns:var(--mp-seg-col) minmax(0,1fr) var(--mp-seg-col);gap:8px;align-items:center;min-width:0}
+.mp-buyin-step input{min-width:0;width:100%}
+.mp-buyin-step button,.mp-affix-row button{display:flex;align-items:center;justify-content:center;width:100%;min-width:44px;min-height:44px;height:44px;border-radius:var(--radius-sm);border:1px solid rgba(214,180,90,.28);background:transparent;color:inherit;font-weight:600}
 #mpBuyinPicker [data-error]{grid-column:1 / -1}
 #mpAddonQueueRow{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:14px}
 #mpAddonQueueRow button{min-width:44px;min-height:44px;white-space:nowrap}
@@ -1187,9 +1187,21 @@ body.mp-buyin-open #act{visibility:hidden}
   .info{flex-shrink:0}
 }
 
-.mp-create .mp-affix-row,#mpBuyinPicker .mp-affix-row{align-items:flex-end}
+/* −／＋ 與盲注列同一套 4 欄寬：欄寬＝(min(viewport, shell max) − 兩側 padding − 3 個 gap) / 4 */
+.mp-create,#mpBuyinPicker{
+  --mp-shell-pad-x:16px;
+  --mp-seg-gap:8px;
+  --mp-shell-max:560px;
+  --mp-seg-col:calc((min(100vw, var(--mp-shell-max)) - 2 * var(--mp-shell-pad-x) - 3 * var(--mp-seg-gap)) / 4)
+}
+.mp-create .mp-affix-row{
+  grid-template-columns:repeat(4,1fr);
+  align-items:end
+}
+.mp-create .mp-affix-row > .mp-create-chips-field{grid-column:2 / 4}
+#mpBuyinPicker .mp-affix-row{align-items:end}
 #mpBuyinPicker .mp-affix{grid-column:1 / -1;min-width:0;text-align:left}
-.mp-create-chips-field{flex:1;min-width:0}
+.mp-create-chips-field{min-width:0}
 .mp-create-chips-field>span{font-size:13px;color:var(--mute);margin-bottom:6px}
 .mp-min-hint-row{display:flex;align-items:baseline;gap:6px}
 .mp-create-chips-field label{white-space:nowrap}
