@@ -1,0 +1,22 @@
+Lobby artwork — source and license
+==================================
+
+lobby-hero.webp (1206×678, WebP quality 90)
+  Homepage empty-lobby hero, 16:9. Encoded from final-hero-chosen.png
+  without cropping, resizing, or redrawing.
+
+  Playing-card artwork (10, Jack, Queen, King, and Ace of spades):
+    Byron Knoll, Vector Playing Cards, released into the public domain.
+    https://code.google.com/archive/p/vector-playing-cards/
+    http://byronknoll.blogspot.com/2011/03/vector-playing-cards.html
+    Mirror: https://github.com/notpeter/Vector-Playing-Cards
+    Wikimedia Commons: https://commons.wikimedia.org/wiki/Category:Playing_cards_set_by_Byron_Knoll
+    Attribution is appreciated but not required. The notpeter mirror also
+    offers the WTFPL in jurisdictions that do not recognize the public domain.
+
+  Background: generated felt / black-hole artwork commissioned for this
+    lobby hero (not third-party stock). Cards were composited on top.
+
+  The previous SVG, lobby-royal-flush.svg (PR #93), is kept in this folder
+  but is no longer referenced by the lobby.
+
