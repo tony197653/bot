@@ -36,7 +36,7 @@
 <div class="grid">
   <button type="button" data-wa="deal">deal（發牌）</button>
   <button type="button" data-wa="bet">bet（下注）</button>
-  <button type="button" data-ui="tap">A 點按 ui-tap</button>
+  <button type="button" data-ui="tap">A 點按（B 確認音）</button>
   <button type="button" data-ui="tick">C 微調 ui-tick</button>
   <button type="button" data-ui="confirm">B 確認音</button>
 </div>
@@ -45,7 +45,6 @@
 <div class="grid">
   <button type="button" data-el="deal">deal.mp3</button>
   <button type="button" data-el="bet">bet.mp3</button>
-  <button type="button" data-el="ui-tap">ui-tap.mp3</button>
   <button type="button" data-el="ui-tick">ui-tick.mp3</button>
 </div>
 
@@ -63,7 +62,6 @@ const status = document.getElementById('status');
 const samples = {
   deal: new URL('./assets/sfx/deal.mp3', import.meta.url).href,
   bet: new URL('./assets/sfx/bet.mp3', import.meta.url).href,
-  'ui-tap': new URL('./assets/sfx/ui-tap.mp3', import.meta.url).href,
   'ui-tick': new URL('./assets/sfx/ui-tick.mp3', import.meta.url).href,
 };
 

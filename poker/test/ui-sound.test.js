@@ -111,11 +111,11 @@ test('播放器：樣本增益、共用靜音、tick 上限及與牌桌雙向隔
       document:{hidden:false,addEventListener(){}},addEventListener:(type,fn)=>gestures.set(type,fn),removeEventListener:type=>gestures.delete(type),
       fetch:async(url)=>{ fetched.push(String(url)); return {ok:true,arrayBuffer:async()=>new ArrayBuffer(1)}; }};
     const s=await import('../js/ui/sound.js?ui-isolation');
-    assert.deepEqual(s.UI_GAIN, { tap: 0.32, confirm: 0.40, tick: 0.28 });
+    assert.deepEqual(s.UI_GAIN, { tap: 0.40, confirm: 0.40, tick: 0.28 });
     s.initSound(); s.playUiSound('tap'); assert.equal(sources.length,0); assert.equal(oscillators.length,0);
     gestures.get('pointerdown')(); await new Promise(setImmediate);
     assert.equal(sources.length,1, '解鎖靜音 buffer');
-    assert.ok(fetched.some((url) => url.endsWith('ui-tap.mp3')));
+    assert.ok(!fetched.some((url) => url.endsWith('ui-tap.mp3')));
     assert.ok(fetched.some((url) => url.endsWith('ui-tick.mp3')));
     s.playSound('deal'); const deal=sources.at(-1);
     const beforeTicks=sources.length;
@@ -128,45 +128,44 @@ test('播放器：樣本增益、共用靜音、tick 上限及與牌桌雙向隔
     s.stopSound(); s.playSound('deal'); assert.equal(sources.at(-1).started,true);
     const afterDeal=sources.length;
     s.playUiSound('tap'); s.playUiSound('confirm');
-    assert.equal(sources.length, afterDeal+1);
-    assert.equal(oscillators.length,1);
-    assert.equal(gains.filter(g => g.gain.value===0.32).length,1);
+    assert.equal(sources.length, afterDeal, 'A/B 用合成音，不播樣本');
+    assert.equal(oscillators.length,2);
     s.playUiSound('unknown'); s.playUiSound('toString');
-    assert.equal(sources.length, afterDeal+1); assert.equal(oscillators.length,1);
+    assert.equal(sources.length, afterDeal); assert.equal(oscillators.length,2);
     s.setSoundOn(false); assert.equal(storage.get('poker.sfx'),'off');
-    assert.equal(oscillators[0].stopped,true); assert.equal(sources.at(-1).stopped,true);
+    assert.ok(oscillators.every((o)=>o.stopped)); assert.equal(sources.at(-1).stopped,true);
     const countS=sources.length, countO=oscillators.length;
     s.playSound('hurry'); s.playUiSound('tap'); s.playUiSound('tick'); s.playUiSound('confirm');
     assert.equal(sources.length,countS); assert.equal(oscillators.length,countO);
     s.setSoundOn(true); assert.equal(storage.get('poker.sfx'),'on'); s.playUiSound('tap');
-    assert.equal(sources.length,countS+1); assert.equal(oscillators.length,countO);
-    window.document.hidden=true; s.playUiSound('tap'); assert.equal(sources.length,countS+1);
-    window.document.hidden=false; context.state='suspended'; context.onstatechange(); s.playUiSound('tap'); assert.equal(sources.length,countS+1);
+    assert.equal(sources.length,countS); assert.equal(oscillators.length,countO+1);
+    window.document.hidden=true; s.playUiSound('tap'); assert.equal(oscillators.length,countO+1);
+    window.document.hidden=false; context.state='suspended'; context.onstatechange(); s.playUiSound('tap'); assert.equal(oscillators.length,countO+1);
     assert.equal(s.SOUND_OPTIONS.usePlaybackAudioSession,true);
   } finally { if(oldWindow===undefined) delete globalThis.window; else globalThis.window=oldWindow; }
 });
 
-test('UI 音檔已進 assets，CREDITS 註明 Kenney CC0 來源', () => {
-  for (const name of ['ui-tap', 'ui-tick']) {
-    const st = statSync(new URL(`../assets/sfx/${name}.mp3`, import.meta.url));
-    assert.ok(st.size > 500 && st.size < 8000, name);
-  }
+test('UI tick 音檔仍在，CREDITS 註明 C 為 Kenney CC0、A／B 為合成', () => {
+  const st = statSync(new URL('../assets/sfx/ui-tick.mp3', import.meta.url));
+  assert.ok(st.size > 500 && st.size < 8000, 'ui-tick');
+  let missing = false;
+  try { statSync(new URL('../assets/sfx/ui-tap.mp3', import.meta.url)); }
+  catch { missing = true; }
+  assert.equal(missing, true, 'ui-tap.mp3 should be removed');
   const credits = readFileSync(new URL('../assets/sfx/CREDITS.md', import.meta.url), 'utf8');
-  assert.match(credits, /ui-tap\.mp3/);
-  assert.match(credits, /drop_003/);
-  assert.match(credits, /https:\/\/kenney\.nl\/assets\/interface-sounds/);
+  assert.doesNotMatch(credits, /ui-tap\.mp3/);
   assert.match(credits, /ui-tick\.mp3/);
   assert.match(credits, /chip-lay-1/);
   assert.match(credits, /https:\/\/kenney\.nl\/assets\/casino-audio/);
   assert.match(credits, /CC0 1\.0/);
-  assert.match(credits, /Web Audio 合成，未改/);
+  assert.match(credits, /660→990Hz/);
 });
 
 test('UI 目的地音量與牌桌音在合理比例：略小於下注，不小於發牌的一半', () => {
   // playSound connects table buffers at gain 1. Peaks measured from the shipped
   // mp3s (ffmpeg and Chromium decodeAudioData). UI destination peak equals UI_GAIN[kind].
   const table = { deal: 0.273, bet: 0.775 };
-  assert.ok(Math.abs(UI_GAIN.tap - 0.8 * UI_GAIN.confirm) < 1e-12);
+  assert.equal(UI_GAIN.tap, UI_GAIN.confirm);
   assert.ok(Math.abs(UI_GAIN.tick - 0.7 * UI_GAIN.confirm) < 1e-12);
   for (const [kind, peak] of Object.entries(UI_GAIN)) {
     assert.ok(peak < table.bet, `${kind} must be softer than bet (${peak} vs ${table.bet})`);
@@ -186,7 +185,7 @@ test('大廳第一次：touch 的 pointerdown 不播，pointerup／click 才播'
   const oldWindow = globalThis.window;
   const storage = new Map();
   const gestures = new Map();
-  const sources = [];
+  const sources = [], oscillators = [];
   const handlers = [];
   class AudioContext {
     constructor() { this.state = 'suspended'; this.destination = {}; this.currentTime = 0; this.sampleRate = 22050; }
@@ -204,7 +203,7 @@ test('大廳第一次：touch 的 pointerdown 不播，pointerup／click 才播'
       return node;
     }
     createGain() { return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
-    createOscillator() { return { frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {}, start() {}, stop() {} }; }
+    createOscillator() { const node={frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){this.started=true;},stop(){}}; oscillators.push(node); return node; }
   }
   try {
     const root = { addEventListener(type, handler, capture) { handlers.push({ type, handler, capture }); } };
@@ -228,9 +227,11 @@ test('大廳第一次：touch 的 pointerdown 不播，pointerup／click 才播'
     gestures.get('pointerdown')();
     const afterUnlock = sources.length;
     down.handler({ type: 'pointerdown', button: 0, pointerType: 'touch', target: btn });
-    assert.equal(sources.length, afterUnlock, 'touch pointerdown must not play the UI sample');
+    assert.equal(sources.length, afterUnlock, 'touch pointerdown must not play');
+    assert.equal(oscillators.length, 0, 'touch pointerdown must not start the B tone');
     up.handler({ type: 'pointerup', button: 0, pointerType: 'touch', target: btn });
-    assert.ok(sources.length >= afterUnlock + 1, `touch pointerup must play, got ${sources.length} after ${afterUnlock}`);
+    assert.equal(oscillators.length, 1, 'touch pointerup plays the B confirm tone for A');
+    assert.equal(sources.length, afterUnlock, 'A no longer plays a sample');
     assert.ok(gestures.has('click') && gestures.has('pointerup') && gestures.has('touchend'), 'unlock listeners include activation events');
   } finally {
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;

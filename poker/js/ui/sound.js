@@ -43,11 +43,10 @@ let gesturesArmed = false;
  *  the silent switch will not mute poker sfx. PM may set this to false. */
 export const SOUND_OPTIONS = { usePlaybackAudioSession: true };
 
-const UI_SAMPLES = { tap: 'ui-tap', tick: 'ui-tick' };
-/** Destination peaks (samples are peak-normalized, then this gain is applied).
- *  Table sfx play at gain 1: deal ≈ 0.27 (−10.5 dBFS), bet/turn/win/hurry ≈ 0.76 (−2.3 dBFS).
- *  Confirm is a bit softer than bet (~−8 dBFS); tap 0.8× and tick 0.7× that. */
-export const UI_GAIN = { tap: 0.32, confirm: 0.40, tick: 0.28 };
+const UI_SAMPLES = { tick: 'ui-tick' };
+/** Destination peaks. Table sfx play at gain 1 (deal ≈ 0.27, bet ≈ 0.76).
+ *  A and B share the confirm tone at 0.40 (~−8 dBFS). C (tick) stays 0.28. */
+export const UI_GAIN = { tap: 0.40, confirm: 0.40, tick: 0.28 };
 const uiPeaks = {};
 function bufferPeak(buffer) {
   try {
@@ -255,22 +254,25 @@ export function playUiSound(kind) {
   if (!Object.hasOwn(UI_GAIN, kind) || !enabled || typeof window === 'undefined' ||
       window.document?.hidden || !uiAudioReady()) return;
   // At the cap, drop the new voice rather than truncating an existing envelope.
-  const same = [...uiVoices].filter((v) => v.kind === kind);
-  if (same.length >= (kind === 'tick' ? 3 : 8)) return;
+  // A and B share the confirm tone; C keeps the chip sample. Cap by played
+  // sound so rapid −/＋ (tick) overlaps at most 3 voices and is not cut off.
+  const played = kind === 'tick' ? 'tick' : 'confirm';
+  const same = [...uiVoices].filter((v) => v.kind === played);
+  if (same.length >= (played === 'tick' ? 3 : 8)) return;
   let voice;
   const track = (source, gain, stopAt) => {
     const cleanup = () => {
       uiVoices.delete(voice);
       try { source.disconnect(); gain.disconnect(); } catch {}
     };
-    voice = { kind, stop() { try { source.stop(); } catch {} cleanup(); } };
+    voice = { kind: played, stop() { try { source.stop(); } catch {} cleanup(); } };
     uiVoices.add(voice);
     source.onended = cleanup;
     source.start(context.currentTime);
     if (stopAt != null) source.stop(stopAt);
   };
   try {
-    if (kind === 'confirm') {
+    if (played === 'confirm') {
       const tone = UI_TONES.confirm;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
