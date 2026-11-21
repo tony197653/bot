@@ -1,17 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AVATAR_PRESETS, avatarInnerHtml, avatarSrc, presetKeyOf, presetUrl } from '../js/ui/avatars.js';
+import { readFileSync, readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { AVATAR_BG, AVATAR_PRESETS, AVATAR_RETIRED, avatarInnerHtml, avatarSrc, presetKeyOf, presetUrl } from '../js/ui/avatars.js';
 import { avatarPickerHtml, openPersonalStats, personalStatsHtml } from '../js/ui/personal-stats.js';
 import { profilePatch } from '../../lib/auth/auth.js';
 
 const googlePhotoURL = 'https://lh3.googleusercontent.com/avatar';
 
-test('20 個預設網址存正式位址，預覽與本機畫面使用同站資產', () => {
+test('19 個預設網址存正式位址，同色相連且無猴子', () => {
   assert.deepEqual(AVATAR_PRESETS.map(({ key }) => key), [
-    'cat', 'cat-gray', 'cat-siamese', 'cat-white', 'dog', 'rabbit', 'bear', 'panda',
-    'fox', 'lion', 'tiger', 'monkey', 'owl', 'frog', 'fish',
-    'spade', 'heart', 'diamond', 'club', 'cat-calico',
+    'cat', 'cat-siamese', 'cat-white', 'cat-calico', 'dog', 'rabbit', 'fish',
+    'cat-gray', 'bear', 'panda', 'fox', 'lion', 'tiger', 'owl', 'frog',
+    'spade', 'heart', 'diamond', 'club',
   ]);
+  assert.ok(!AVATAR_PRESETS.some((p) => p.key === 'monkey'));
+  assert.deepEqual(AVATAR_RETIRED, ['monkey']);
   for (const { key } of AVATAR_PRESETS) {
     assert.equal(presetUrl(key), `https://tony-poker.web.app/friday-poker/assets/avatars/${key}.svg`);
     assert.equal(presetKeyOf(presetUrl(key)), key);
@@ -36,6 +41,27 @@ test('頭像首字支援 Unicode，圖片與載入失敗替代內容會轉義', 
   assert.match(html, /onerror="this\.outerHTML=.*av-fallback.*&amp;#39;/);
 });
 
+test('已選猴子的玩家仍顯示猴子檔，不在選擇器裡', () => {
+  const url = presetUrl('monkey');
+  assert.equal(presetKeyOf(url), 'monkey');
+  assert.equal(avatarSrc(url), new URL('../assets/avatars/monkey.svg', import.meta.url).href);
+  const html = avatarInnerHtml(url, '小明', { size: 32 });
+  assert.ok(html.includes('monkey.svg'));
+});
+
+test('頭像底色只有深藍、淺藍、紅，沒有粉紅或灰', () => {
+  const dir = join(dirname(fileURLToPath(import.meta.url)), '../assets/avatars');
+  const allowed = new Set([...AVATAR_BG.deep, ...AVATAR_BG.light, ...AVATAR_BG.red].map((c) => c.toUpperCase()));
+  const banned = ['#FF9EC4', '#E0457F', '#D3D8DF', '#8E97A4'];
+  for (const name of readdirSync(dir).filter((f) => f.endsWith('.svg'))) {
+    const svg = readFileSync(join(dir, name), 'utf8');
+    for (const color of banned) assert.doesNotMatch(svg, new RegExp(color, 'i'), name);
+    const stops = [...svg.matchAll(/stop-color="(#[0-9A-Fa-f]+)"/gi)].map((m) => m[1].toUpperCase());
+    assert.equal(stops.length, 2, name);
+    for (const stop of stops) assert.ok(allowed.has(stop), `${name} unexpected ${stop}`);
+  }
+});
+
 test('已移除的頭像沿用原 HTTPS 網址，載入失敗時顯示名字首字', () => {
   for (const key of ['cat-orange', 'cat-black', 'penguin']) {
     const url = presetUrl(key);
@@ -47,7 +73,7 @@ test('已移除的頭像沿用原 HTTPS 網址，載入失敗時顯示名字首�
   }
 });
 
-test('浮層只有本人可換頭像，選擇器有 21 個選項且標記目前選擇', () => {
+test('浮層只有本人可換頭像，選擇器有 20 個選項且標記目前選擇', () => {
   const options = { name: '小明', view: { state: 'disabled' } };
   const other = personalStatsHtml({ ...options, photoURL: presetUrl('cat'), canEdit: true });
   assert.match(other, /ps-av" aria-hidden="true"><img/);
@@ -55,7 +81,8 @@ test('浮層只有本人可換頭像，選擇器有 21 個選項且標記目前�
   assert.match(personalStatsHtml(options), /class="av-fallback">小/);
   assert.match(personalStatsHtml({ ...options, isMe: true, canEdit: true }), /<button[^>]+data-ps="avatar"/);
   const picker = avatarPickerHtml({ ...options, photoURL: presetUrl('dog'), googlePhotoURL });
-  assert.equal(picker.match(/data-ps="pick-choice"/g).length, 21);
+  assert.equal(picker.match(/data-ps="pick-choice"/g).length, 20);
+  assert.doesNotMatch(picker, /data-key="monkey"/);
   assert.equal(picker.match(/aria-pressed="true"/g).length, 1);
   assert.match(picker, /data-ps="pick-choice" data-key="original" aria-label="原本頭像" title="原本頭像"/);
   assert.doesNotMatch(picker.replace(/<[^>]+>/g, ''), /原本頭像/);
