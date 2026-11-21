@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
-import { classifyUiSound, wireUiSound } from '../js/ui/sound.js';
+import { classifyUiSound, wireUiSound, UI_GAIN } from '../js/ui/sound.js';
 import { raisePresetsMarkup } from '../js/ui/cards-dom.js';
 
 // Minimal DOM control supporting the selectors used by the classifier.
@@ -81,9 +81,9 @@ test('委派只綁一次；子元素一個 click 只播一次，radio 的 label 
   const handlers = [];
   const root = {addEventListener(type, handler, capture) { handlers.push({type,handler,capture}); }};
   wireUiSound(root); wireUiSound(root);
-  assert.equal(handlers.length,1);
-  assert.equal(handlers[0].type,'click');
-  assert.equal(handlers[0].capture,true);
+  assert.equal(handlers.length,2);
+  assert.deepEqual(handlers.map((h) => h.type).sort(), ['click', 'pointerdown']);
+  assert.ok(handlers.every((h) => h.capture === true));
   // No running context means these delegated clicks are safely silent.
   handlers[0].handler({target:element({},element({id:'mpFold'}),'span')});
   handlers[0].handler({target:element({type:'radio'},element({class:'mp-seg-item'}),'input')});
@@ -111,7 +111,7 @@ test('播放器：樣本增益、共用靜音、tick 上限及與牌桌雙向隔
       document:{hidden:false,addEventListener(){}},addEventListener:(type,fn)=>gestures.set(type,fn),removeEventListener:type=>gestures.delete(type),
       fetch:async(url)=>{ fetched.push(String(url)); return {ok:true,arrayBuffer:async()=>new ArrayBuffer(1)}; }};
     const s=await import('../js/ui/sound.js?ui-isolation');
-    assert.deepEqual(s.UI_GAIN, { tap: 0.028, confirm: 0.035, tick: 0.0245 });
+    assert.deepEqual(s.UI_GAIN, { tap: 0.32, confirm: 0.40, tick: 0.28 });
     s.initSound(); s.playUiSound('tap'); assert.equal(sources.length,0); assert.equal(oscillators.length,0);
     gestures.get('pointerdown')(); await new Promise(setImmediate);
     assert.equal(sources.length,1, '解鎖靜音 buffer');
@@ -121,7 +121,7 @@ test('播放器：樣本增益、共用靜音、tick 上限及與牌桌雙向隔
     const beforeTicks=sources.length;
     for(let i=0;i<5;i++) s.playUiSound('tick');
     assert.equal(sources.length, beforeTicks+3); assert.equal(oscillators.length,0); assert.equal(deal.stopped,undefined);
-    assert.equal(gains.at(-1).gain.value, 0.0245);
+    assert.equal(gains.at(-1).gain.value, 0.28);
     sources[beforeTicks].onended(); s.playUiSound('tick'); assert.equal(sources.length, beforeTicks+4);
     s.playSound('win'); assert.equal(deal.stopped,true);
     assert.ok(sources.slice(beforeTicks).every(n=>!n.stopped));
@@ -130,7 +130,7 @@ test('播放器：樣本增益、共用靜音、tick 上限及與牌桌雙向隔
     s.playUiSound('tap'); s.playUiSound('confirm');
     assert.equal(sources.length, afterDeal+1);
     assert.equal(oscillators.length,1);
-    assert.equal(gains.filter(g => g.gain.value===0.028).length,1);
+    assert.equal(gains.filter(g => g.gain.value===0.32).length,1);
     s.playUiSound('unknown'); s.playUiSound('toString');
     assert.equal(sources.length, afterDeal+1); assert.equal(oscillators.length,1);
     s.setSoundOn(false); assert.equal(storage.get('poker.sfx'),'off');
@@ -141,7 +141,7 @@ test('播放器：樣本增益、共用靜音、tick 上限及與牌桌雙向隔
     s.setSoundOn(true); assert.equal(storage.get('poker.sfx'),'on'); s.playUiSound('tap');
     assert.equal(sources.length,countS+1); assert.equal(oscillators.length,countO);
     window.document.hidden=true; s.playUiSound('tap'); assert.equal(sources.length,countS+1);
-    window.document.hidden=false; context.state='suspended'; s.playUiSound('tap'); assert.equal(sources.length,countS+1);
+    window.document.hidden=false; context.state='suspended'; context.onstatechange(); s.playUiSound('tap'); assert.equal(sources.length,countS+1);
     assert.equal(s.SOUND_OPTIONS.usePlaybackAudioSession,true);
   } finally { if(oldWindow===undefined) delete globalThis.window; else globalThis.window=oldWindow; }
 });
@@ -160,4 +160,70 @@ test('UI 音檔已進 assets，CREDITS 註明 Kenney CC0 來源', () => {
   assert.match(credits, /https:\/\/kenney\.nl\/assets\/casino-audio/);
   assert.match(credits, /CC0 1\.0/);
   assert.match(credits, /Web Audio 合成，未改/);
+});
+
+test('UI 目的地音量與牌桌音在合理比例：略小於下注，不小於發牌的一半', () => {
+  // playSound connects table buffers at gain 1. Peaks measured from the shipped
+  // mp3s (ffmpeg and Chromium decodeAudioData). UI destination peak equals UI_GAIN[kind].
+  const table = { deal: 0.273, bet: 0.775 };
+  assert.ok(Math.abs(UI_GAIN.tap - 0.8 * UI_GAIN.confirm) < 1e-12);
+  assert.ok(Math.abs(UI_GAIN.tick - 0.7 * UI_GAIN.confirm) < 1e-12);
+  for (const [kind, peak] of Object.entries(UI_GAIN)) {
+    assert.ok(peak < table.bet, `${kind} must be softer than bet (${peak} vs ${table.bet})`);
+    assert.ok(peak >= 0.5 * table.deal, `${kind} must stay audible vs deal (${peak} vs 0.5*${table.deal})`);
+    const vsBet = peak / table.bet;
+    assert.ok(vsBet >= 0.25 && vsBet <= 0.9, `${kind} / bet = ${vsBet}`);
+  }
+});
+
+test('大廳第一次 pointerdown：解鎖當下就能播（不必等之後的 click）', async () => {
+  const oldWindow = globalThis.window;
+  const storage = new Map();
+  const gestures = new Map();
+  const sources = [];
+  const handlers = [];
+  class AudioContext {
+    constructor() { this.state = 'suspended'; this.destination = {}; this.currentTime = 0; this.sampleRate = 22050; }
+    resume() { this.state = 'running'; return Promise.resolve(); }
+    decodeAudioData() {
+      const data = new Float32Array([0.9, -0.9, 0.5]);
+      return Promise.resolve({
+        numberOfChannels: 1, length: data.length, duration: 0.001, getChannelData: () => data,
+      });
+    }
+    createBuffer() { return { length: 1 }; }
+    createBufferSource() {
+      const node = { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
+      sources.push(node);
+      return node;
+    }
+    createGain() { return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
+    createOscillator() { return { frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {}, start() {}, stop() {} }; }
+  }
+  try {
+    const root = { addEventListener(type, handler, capture) { handlers.push({ type, handler, capture }); } };
+    globalThis.window = {
+      AudioContext,
+      localStorage: { getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v) },
+      document: { hidden: false, addEventListener() {}, ...root },
+      addEventListener: (type, fn) => gestures.set(type, fn),
+      removeEventListener: (type) => gestures.delete(type),
+      fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
+    };
+    const s = await import('../js/ui/sound.js?first-pointerdown');
+    s.initSound();
+    assert.equal(s.isSoundOn(), true);
+    await new Promise(setImmediate);
+    const down = handlers.find((h) => h.type === 'pointerdown');
+    assert.ok(down, 'document pointerdown listener');
+    const btn = element({ 'data-sfx': 'tap' });
+    // Same order as the browser: window unlock (capture) then document pointerdown.
+    gestures.get('pointerdown')();
+    down.handler({ type: 'pointerdown', button: 0, target: btn });
+    assert.ok(sources.some((n) => n.started), 'unlock + first pointerdown must start a source');
+    assert.ok(sources.length >= 2, `silent unlock + tap sample, got ${sources.length}`);
+    assert.equal(s.UI_GAIN.tap, 0.32);
+  } finally {
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+  }
 });

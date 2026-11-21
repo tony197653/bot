@@ -44,8 +44,10 @@ let gesturesArmed = false;
 export const SOUND_OPTIONS = { usePlaybackAudioSession: true };
 
 const UI_SAMPLES = { tap: 'ui-tap', tick: 'ui-tick' };
-/** In-app peaks: confirm 0.035; tap 0.8× and tick 0.7× that, after sample peak-norm. */
-export const UI_GAIN = { tap: 0.028, confirm: 0.035, tick: 0.0245 };
+/** Destination peaks (samples are peak-normalized, then this gain is applied).
+ *  Table sfx play at gain 1: deal ≈ 0.27 (−10.5 dBFS), bet/turn/win/hurry ≈ 0.76 (−2.3 dBFS).
+ *  Confirm is a bit softer than bet (~−8 dBFS); tap 0.8× and tick 0.7× that. */
+export const UI_GAIN = { tap: 0.32, confirm: 0.40, tick: 0.28 };
 const uiPeaks = {};
 function bufferPeak(buffer) {
   try {
@@ -98,7 +100,12 @@ function ensureContext() {
   if (!AudioCtx) return false;
   context = new AudioCtx();
   context.onstatechange = () => {
-    if (context.state !== 'running') { stopSound(); stopUiSounds(); armGestures(); }
+    if (context.state !== 'running') {
+      gestureUntil = 0;
+      stopSound();
+      stopUiSounds();
+      armGestures();
+    }
   };
   return true;
 }
@@ -119,6 +126,7 @@ function unlock() {
   try {
     // Create, resume, and tick a silent buffer in this user-gesture turn (iOS Safari).
     if (!ensureContext()) return;
+    markGesture();
     if (context.state !== 'running') context.resume();
     playSilentUnlock();
     syncAudioSession();
@@ -155,6 +163,7 @@ export function initSound() {
     syncAudioSession();
     armGestures();
   }
+  ensureContext();
   preload();
 }
 
@@ -198,9 +207,22 @@ const uiVoices = new Set();
 function stopUiSounds() {
   for (const voice of [...uiVoices]) voice.stop();
 }
+// iOS: resume() is async; start() in the same user-gesture turn still works.
+let gestureUntil = 0;
+function markGesture() {
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  gestureUntil = now + 1000;
+}
+function uiAudioReady() {
+  if (!context) return false;
+  if (context.state === 'running') return true;
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  return now < gestureUntil;
+}
+
 export function playUiSound(kind) {
   if (!Object.hasOwn(UI_GAIN, kind) || !enabled || typeof window === 'undefined' ||
-      window.document?.hidden || context?.state !== 'running') return;
+      window.document?.hidden || !uiAudioReady()) return;
   // At the cap, drop the new voice rather than truncating an existing envelope.
   const same = [...uiVoices].filter((v) => v.kind === kind);
   if (same.length >= (kind === 'tick' ? 3 : 8)) return;
@@ -275,12 +297,21 @@ const wiredUiRoots = new WeakSet();
 export function wireUiSound(root) {
   if (!root?.addEventListener || wiredUiRoots.has(root)) return;
   wiredUiRoots.add(root);
-  root.addEventListener('click', (event) => {
+  // pointerdown shares the iOS unlock gesture; click covers keyboard activation.
+  let lastUiAt = 0;
+  const onUi = (event) => {
+    if (event.type === 'pointerdown' && event.button != null && event.button !== 0) return;
     const control = event.target?.closest?.('[data-sfx], button, [data-act], [data-ps], .mp-seg-item, .mp-chip, .mp-lb-av, .mp-empty-seat, #seats .av, #heroAv, #raiseScrim');
     // Labels forward a second click to their radio: sound only that forwarded
     // click, also covering direct/keyboard radio clicks without doubling.
-    if (control?.matches?.('label.mp-seg-item') && !event.target?.matches?.('input[type="radio"]')) return;
+    if (control?.matches?.('label.mp-seg-item') && event.type === 'click' && !event.target?.matches?.('input[type="radio"]')) return;
     const kind = classifyUiSound(control);
-    if (kind) playUiSound(kind);
-  }, true);
+    if (!kind) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (event.type === 'click' && now - lastUiAt < 120) return;
+    lastUiAt = now;
+    playUiSound(kind);
+  };
+  root.addEventListener('pointerdown', onUi, true);
+  root.addEventListener('click', onUi, true);
 }
