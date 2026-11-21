@@ -242,3 +242,85 @@ test('大廳第一次：touch 的 pointerdown 不播，pointerup／click 才播'
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });
+
+test('同一次觸控的 pointerup／touchend／click 只播一聲；滑鼠也只一聲；連點 −／＋ 仍可各播', async () => {
+  const oldWindow = globalThis.window;
+  const oldPerf = globalThis.performance;
+  const storage = new Map();
+  const gestures = new Map();
+  const oscillators = [];
+  const sources = [];
+  const handlers = [];
+  let now = 0;
+  globalThis.performance = { now: () => now };
+  class AudioContext {
+    constructor() { this.state = 'suspended'; this.destination = {}; this.currentTime = 0; this.sampleRate = 22050; }
+    resume() { this.state = 'running'; return Promise.resolve(); }
+    decodeAudioData() {
+      const data = new Float32Array([0.9, -0.9, 0.5]);
+      return Promise.resolve({
+        numberOfChannels: 1, length: data.length, duration: 0.001, getChannelData: () => data,
+      });
+    }
+    createBuffer() { return { length: 1, duration: 0.05, getChannelData: () => new Float32Array([0.5]) }; }
+    createBufferSource() {
+      const node = { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
+      sources.push(node);
+      return node;
+    }
+    createGain() { return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
+    createOscillator() { const node={frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){this.started=true;},stop(){}}; oscillators.push(node); return node; }
+  }
+  try {
+    const root = { addEventListener(type, handler, capture) { handlers.push({ type, handler, capture }); } };
+    globalThis.window = {
+      AudioContext,
+      localStorage: { getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v) },
+      document: { hidden: false, addEventListener() {}, ...root },
+      addEventListener: (type, fn) => gestures.set(type, fn),
+      removeEventListener: (type) => gestures.delete(type),
+      fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
+    };
+    const s = await import('../js/ui/sound.js?touch-dedupe');
+    s.initSound();
+    await new Promise(setImmediate);
+    gestures.get('pointerdown')?.();
+    const byType = Object.fromEntries(handlers.map((h) => [h.type, h.handler]));
+    const tap = element({ 'data-sfx': 'tap' });
+    const plus = element({ 'data-sfx': 'tick', 'data-plus': '' });
+
+    now = 0;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'touch', target: tap });
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'touch', target: tap });
+    byType.touchend({ type: 'touchend', target: tap });
+    now = 80;
+    byType.click({ type: 'click', button: 0, target: tap });
+    assert.equal(oscillators.length, 1, 'one touch tap must play one confirm tone');
+
+    now = 1000;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'mouse', target: tap });
+    now = 1080;
+    byType.click({ type: 'click', button: 0, target: tap });
+    assert.equal(oscillators.length, 2, 'one mouse click must play one confirm tone');
+
+    const beforeTick = sources.length;
+    now = 2000;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'touch', target: plus });
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'touch', target: plus });
+    byType.touchend({ type: 'touchend', target: plus });
+    now = 2050;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'touch', target: plus });
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'touch', target: plus });
+    byType.touchend({ type: 'touchend', target: plus });
+    now = 2100;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'touch', target: plus });
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'touch', target: plus });
+    byType.touchend({ type: 'touchend', target: plus });
+    assert.equal(sources.length - beforeTick, 3, 'three rapid + taps 50ms apart must each play a tick');
+    assert.equal(oscillators.length, 2, 'rapid ticks must not add confirm tones');
+  } finally {
+    if (oldPerf === undefined) delete globalThis.performance; else globalThis.performance = oldPerf;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+  }
+});
+

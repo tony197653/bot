@@ -331,8 +331,11 @@ export function wireUiSound(root) {
   if (!root?.addEventListener || wiredUiRoots.has(root)) return;
   wiredUiRoots.add(root);
   // Play on activation-triggering events. On iOS, a touch pointerdown is not
-  // activation; pointerup/click/touchend are. Debounce the trailing click.
-  let lastUiAt = 0;
+  // activation; pointerup/click/touchend are. One lastUiAt is shared across
+  // those events so one tap = one sound. Click can lag (~120ms); pointerup and
+  // touchend are near-instant, so a short window coalesces them without
+  // swallowing a later rapid −/＋ tap (overlap cap still lives in playUiSound).
+  let lastUiAt = null;
   const isActivationPlay = (event) => {
     if (event.type === 'click' || event.type === 'touchend') return true;
     if (event.type === 'pointerup' && event.pointerType !== 'mouse') return true;
@@ -350,7 +353,8 @@ export function wireUiSound(root) {
     const kind = classifyUiSound(control);
     if (!kind) return;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if (event.type === 'click' && now - lastUiAt < 120) return;
+    const coalesceMs = event.type === 'click' ? 120 : 32;
+    if (lastUiAt != null && now - lastUiAt < coalesceMs) return;
     lastUiAt = now;
     playUiSound(kind);
   };

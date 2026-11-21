@@ -185,6 +185,15 @@ describe('附錄 M5 — M29～M34 契約', () => {
     assert.match(css, /\.mp-close-result-card h2\{[^}]*font-size:\s*16px/s);
     assert.match(css, /\.mp-close-result-card h2\{[^}]*line-height:\s*1\.5/s);
   });
+
+  it('牌桌頂列：格線欄可縮、長房名省略、⋯ 留在畫面內', () => {
+    const css = read('css/game.css');
+    assert.match(css, /\.app\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+    assert.match(css, /\.top\{[^}]*min-width:\s*0/s);
+    assert.match(css, /\.room h1\{[^}]*min-width:\s*0/s);
+    assert.match(css, /\.room h1\{[^}]*text-overflow:\s*ellipsis/s);
+    assert.match(css, /\.room h1\{[^}]*overflow:\s*hidden/s);
+  });
 });
 
 describe('附錄 M — rules/indexes 未為本附錄改動（向下相容）', () => {
