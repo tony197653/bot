@@ -336,6 +336,8 @@ export function wireUiSound(root) {
   // click (a time window alone would miss a mouse hold >120ms). Keyboard
   // Enter/Space only fires click, so it still plays once. Rapid −/＋ each
   // start a new press (overlap cap still lives in playUiSound).
+  // If the pointer slides off (no click) or is cancelled, clear the flag so
+  // the next keyboard Enter/Space click is not swallowed.
   let pressPlayed = false;
   const isActivationPlay = (event) => {
     if (event.type === 'click' || event.type === 'touchend') return true;
@@ -347,6 +349,10 @@ export function wireUiSound(root) {
   const onUi = (event) => {
     if ((event.type === 'pointerdown' || event.type === 'pointerup') && event.button != null && event.button !== 0) return;
     if (event.type === 'pointerdown') pressPlayed = false;
+    if (event.type === 'pointercancel' || event.type === 'keydown') {
+      pressPlayed = false;
+      return;
+    }
     if (!isActivationPlay(event)) return;
     const control = event.target?.closest?.('[data-sfx], button, [data-act], [data-ps], .mp-seg-item, .mp-chip, .mp-lb-av, .mp-empty-seat, #seats .av, #heroAv, #raiseScrim');
     // Labels forward a second click to their radio: sound only that forwarded
@@ -362,7 +368,7 @@ export function wireUiSound(root) {
     if (event.type !== 'click') pressPlayed = true;
     playUiSound(kind);
   };
-  for (const type of ['pointerdown', 'pointerup', 'touchend', 'click']) {
+  for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'keydown', 'touchend', 'click']) {
     root.addEventListener(type, onUi, true);
   }
 }

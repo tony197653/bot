@@ -97,10 +97,11 @@ input:focus-visible,.mp-float input:focus-visible,.mp-digit:focus-visible,.mp-af
 }
 .mp-close-result-card h2{font-size:16px;font-weight:700;line-height:1.5;margin:0}
 .mp-close-result-d{font-size:16px;line-height:1.5;color:var(--mute);margin:0}
-.room h1{font-family:var(--uf);font-weight:700;font-size:16px;letter-spacing:0;line-height:1.2;white-space:nowrap;flex:0 0 auto;min-width:0;max-width:calc(100% - 4.5em - 8px);overflow:hidden;text-overflow:ellipsis;color:var(--ink);text-shadow:none}
-.room p{font-size:13px;line-height:1.2;color:#e4d9b6;font-weight:600;white-space:nowrap;flex:1 1 auto;min-width:4.5em;overflow:hidden;text-overflow:ellipsis;text-shadow:none}
+.room h1{font-family:var(--uf);font-weight:700;font-size:16px;letter-spacing:0;line-height:1.2;white-space:nowrap;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--ink);text-shadow:none}
+.room p{font-size:13px;line-height:1.2;color:#e4d9b6;font-weight:600;white-space:nowrap;flex:0 0 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;text-shadow:none}
 .room p b{font-weight:600;color:#e4d9b6}
 .room p .meta-b{display:none}
+.room p .buyin-long{display:none}
 .menu-btn{
   width:30px;height:30px;display:flex;flex-direction:column;justify-content:center;gap:4px;align-items:center;
   border-radius:6px;flex:none;
@@ -508,6 +509,8 @@ input[type=range]::-moz-range-thumb{
   }
   .top{grid-column:1 / -1;border-radius:10px;margin-bottom:8px}
   .room h1{font-size:16px}
+  .room p .buyin-short{display:none}
+  .room p .buyin-long{display:inline}
   .room p .meta-b{display:inline;margin-left:8px}
   .stage{grid-column:1;grid-row:2 / 4}
   .table{left:8%;right:8%;top:4%;bottom:6%}

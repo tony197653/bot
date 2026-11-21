@@ -60,7 +60,7 @@ import {
   listenLeaderboard,
 } from '../net/ledger.js';
 import { addonOptions, queuedTotal, queueAddon, cancelAddons } from '../net/addon-client.js';
-import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, stepBuyinAmount, remainingBank } from '../net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, buyinLabelShort, stepBuyinAmount, remainingBank } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
 import {
   createIntentSender,
@@ -2552,8 +2552,10 @@ function paintTableChrome() {
   const meta = $('#roomMeta');
   if (meta) {
     const selfSeat = room.seatUids.indexOf(user?.uid);
-    const buyin = buyinLabel(playerDoc, roomId, selfSeat >= 0 ? room.sess?.[selfSeat] : null, room.config);
-    meta.innerHTML = `<span class="meta-a"><b>${esc(room.config.sb)}／${esc(room.config.bb)}</b>　${esc(buyin)}</span><span class="meta-b">　房號 ${esc(formatCode(room.code))}</span>`;
+    const sess = selfSeat >= 0 ? room.sess?.[selfSeat] : null;
+    const buyin = buyinLabel(playerDoc, roomId, sess, room.config);
+    const buyinShort = buyinLabelShort(playerDoc, roomId, sess, room.config);
+    meta.innerHTML = `<span class="meta-a"><b>${esc(room.config.sb)}／${esc(room.config.bb)}</b>　<span class="buyin-short">${esc(buyinShort)}</span><span class="buyin-long">${esc(buyin)}</span></span><span class="meta-b">　房號 ${esc(formatCode(room.code))}</span>`;
   }
 
   // Empty seats / sit affordance via seats container overlay labels

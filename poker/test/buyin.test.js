@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, defaultCreateBuyin, stepBuyinAmount, remainingBank } from '../js/net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, buyinLabelShort, defaultCreateBuyin, stepBuyinAmount, remainingBank } from '../js/net/buyin-policy.js';
 import { buyinAll, buyinAmount, ensurePlayerGrant } from '../js/net/ledger.js';
 import { addonOptions, queuedTotal } from '../js/net/addon-client.js';
 import { hostAliveMs } from '../js/net/host-disconnect.js';
@@ -66,6 +66,9 @@ test('牌桌顯示整筆餘額，入座後顯示實際 session 買入而非輸�
   assert.equal(buyinLabel({ bank: 8765 }, 'r'), '攜入 1,000 籌碼');
   assert.equal(buyinLabel({ bank: 0, inPlay: 8765, tableRoomId: 'r' }, 'r'), '攜入 8,765 籌碼');
   assert.equal(buyinLabel({ bank: 0, inPlay: 8765 }, 'r', { buyIn: 8765 }), '本次買入 8,765 籌碼');
+  assert.equal(buyinLabelShort({ bank: 8765 }, 'r'), '買入 1,000');
+  assert.equal(buyinLabelShort({ bank: 0, inPlay: 8765, tableRoomId: 'r' }, 'r'), '買入 8,765');
+  assert.equal(buyinLabelShort({ bank: 0, inPlay: 8765 }, 'r', { buyIn: 8765 }), '買入 8,765');
 });
 
 test('實際入座 handler 同步提示且不呼叫任何網路方法', async () => {
@@ -183,7 +186,9 @@ test('贈碼後 getPlayer 暫時看不到帳戶時，不重送 create、改用�
 });
 
 test('實際買入放在手機也顯示的 meta-a 區塊', () => {
-  assert.match(source, /class="meta-a">[^\n]*\$\{esc\(buyin\)\}<\/span><span class="meta-b">/);
+  assert.match(source, /class="meta-a">[^\n]*buyin-short[^\n]*\$\{esc\(buyinShort\)\}/);
+  assert.match(source, /buyin-long[^\n]*\$\{esc\(buyin\)\}/);
+  assert.match(source, /class="meta-b">/);
 });
 
 test('訪客入座先讀房主 presence：離線阻擋，近期活動或讀取失敗保留入座', async () => {

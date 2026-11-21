@@ -86,8 +86,8 @@ test('委派只綁一次；子元素一個 click 只播一次，radio 的 label 
   const handlers = [];
   const root = {addEventListener(type, handler, capture) { handlers.push({type,handler,capture}); }};
   wireUiSound(root); wireUiSound(root);
-  assert.equal(handlers.length,4);
-  assert.deepEqual(handlers.map((h) => h.type).sort(), ['click', 'pointerdown', 'pointerup', 'touchend']);
+  assert.equal(handlers.length,6);
+  assert.deepEqual(handlers.map((h) => h.type).sort(), ['click', 'keydown', 'pointercancel', 'pointerdown', 'pointerup', 'touchend']);
   assert.ok(handlers.every((h) => h.capture === true));
   // No running context means these delegated clicks are safely silent.
   handlers[0].handler({target:element({},element({id:'mpFold'}),'span')});
@@ -408,3 +408,67 @@ test('滑鼠或觸控按住超過 120ms 只播一聲；鍵盤 click 仍各播一
   }
 });
 
+test('取消按壓後鍵盤 Enter 仍播一聲（pointercancel／keydown 會重設旗標）', async () => {
+  const oldWindow = globalThis.window;
+  const oldPerf = globalThis.performance;
+  const storage = new Map();
+  const gestures = new Map();
+  const oscillators = [];
+  const handlers = [];
+  let now = 0;
+  globalThis.performance = { now: () => now };
+  class AudioContext {
+    constructor() { this.state = 'suspended'; this.destination = {}; this.currentTime = 0; this.sampleRate = 22050; }
+    resume() { this.state = 'running'; return Promise.resolve(); }
+    decodeAudioData() {
+      const data = new Float32Array([0.9, -0.9, 0.5]);
+      return Promise.resolve({
+        numberOfChannels: 1, length: data.length, duration: 0.001, getChannelData: () => data,
+      });
+    }
+    createBuffer() { return { length: 1, duration: 0.05, getChannelData: () => new Float32Array([0.5]) }; }
+    createBufferSource() {
+      return { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
+    }
+    createGain() { return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
+    createOscillator() { const node={frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){this.started=true;},stop(){}}; oscillators.push(node); return node; }
+  }
+  try {
+    const root = { addEventListener(type, handler, capture) { handlers.push({ type, handler, capture }); } };
+    globalThis.window = {
+      AudioContext,
+      localStorage: { getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v) },
+      document: { hidden: false, addEventListener() {}, ...root },
+      addEventListener: (type, fn) => gestures.set(type, fn),
+      removeEventListener: (type) => gestures.delete(type),
+      fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
+    };
+    const s = await import('../js/ui/sound.js?cancel-press');
+    s.initSound();
+    await new Promise(setImmediate);
+    gestures.get('pointerdown')?.();
+    const byType = Object.fromEntries(handlers.map((h) => [h.type, h.handler]));
+    const tap = element({ 'data-sfx': 'tap' });
+
+    now = 0;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'mouse', target: tap });
+    now = 200;
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'mouse', target: tap });
+    // Slid off: no click. keydown must clear the flag before the Enter click.
+    byType.keydown({ type: 'keydown', key: 'Enter', target: tap });
+    now = 250;
+    byType.click({ type: 'click', button: 0, target: tap });
+    assert.equal(oscillators.length, 2, 'keyboard Enter after a slid-off mouse press must still play');
+
+    now = 1000;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'mouse', target: tap });
+    now = 1100;
+    byType.pointercancel({ type: 'pointercancel', button: 0, pointerType: 'mouse', target: tap });
+    now = 1200;
+    byType.click({ type: 'click', button: 0, target: tap });
+    assert.equal(oscillators.length, 4, 'click after pointercancel must play (flag was reset)');
+  } finally {
+    if (oldPerf === undefined) delete globalThis.performance; else globalThis.performance = oldPerf;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+  }
+});

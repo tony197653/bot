@@ -186,16 +186,16 @@ describe('附錄 M5 — M29～M34 契約', () => {
     assert.match(css, /\.mp-close-result-card h2\{[^}]*line-height:\s*1\.5/s);
   });
 
-  it('牌桌頂列：格線欄可縮、標題優先、買入可省略、⋯ 留在畫面內', () => {
+  it('牌桌頂列：格線欄可縮、手機短買入完整、標題可省略、⋯ 留在畫面內', () => {
     const css = read('css/game.css');
     assert.match(css, /\.app\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
     assert.match(css, /\.top\{[^}]*min-width:\s*0/s);
-    assert.match(css, /\.room h1\{[^}]*flex:\s*0 0 auto/s);
-    assert.match(css, /\.room h1\{[^}]*max-width:\s*calc\(100% - 4\.5em - 8px\)/s);
+    assert.match(css, /\.room h1\{[^}]*flex:\s*1 1 auto/s);
     assert.match(css, /\.room h1\{[^}]*text-overflow:\s*ellipsis/s);
-    assert.match(css, /\.room p\{[^}]*flex:\s*1 1 auto/s);
-    assert.match(css, /\.room p\{[^}]*min-width:\s*4\.5em/s);
-    assert.match(css, /\.room p\{[^}]*text-overflow:\s*ellipsis/s);
+    assert.match(css, /\.room p\{[^}]*flex:\s*0 0 auto/s);
+    assert.match(css, /\.room p \.buyin-long\{display:\s*none/);
+    assert.match(css, /@media \(min-width:\s*1024px\)\{[\s\S]*?\.room p \.buyin-short\{display:\s*none/);
+    assert.match(css, /@media \(min-width:\s*1024px\)\{[\s\S]*?\.room p \.buyin-long\{display:\s*inline/);
   });
 });
 
