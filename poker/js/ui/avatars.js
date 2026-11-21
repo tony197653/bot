@@ -1,11 +1,30 @@
 const PRESET_BASE = 'https://tony-poker.web.app/friday-poker/assets/avatars/';
 
+/** Picker backgrounds: 深藍, 淺藍. Same-colour keys stay together. Red bg retired (unused). */
+export const AVATAR_BG = {
+  deep: ['#5AB0FF', '#1F5FD6'],
+  light: ['#D8F0FF', '#8EC4F8'],
+};
+
 export const AVATAR_PRESETS = [
-  ['cat', '貓'], ['cat-gray', '灰貓'],
-  ['cat-siamese', '暹羅貓'], ['cat-white', '白貓'], ['dog', '狗'], ['rabbit', '兔子'],
-  ['bear', '熊'], ['panda', '貓熊'], ['fox', '狐狸'], ['lion', '獅子'], ['tiger', '老虎'],
-  ['monkey', '猴子'], ['owl', '貓頭鷹'], ['frog', '青蛙'], ['fish', '魚'],
+  // 深藍（現有動物順序不變，新的接在組尾）
+  ['cat', '貓'], ['cat-siamese', '暹羅貓'], ['cat-white', '白貓'], ['cat-calico', '三花貓'],
+  ['dog', '狗'], ['rabbit', '兔子'], ['fish', '魚'], ['shark', '鯊魚'],
+  ['crown', '皇冠'], ['joker', '鬼牌'], ['dice', '骰子'], ['money-bag', '錢袋'], ['coin', '硬幣'],
+  ['sparkles', '閃亮'], ['heart-hands', '愛心手'], ['snowflake', '雪花'],
+  ['skull', '骷髏'], ['cry', '大哭'],
+  // 淺藍（現有動物與花色順序不變，新的接在組尾）
+  ['cat-gray', '灰貓'], ['bear', '熊'], ['panda', '貓熊'], ['fox', '狐狸'],
+  ['owl', '貓頭鷹'],
+  ['spade', '黑桃'], ['heart', '紅心'], ['diamond', '方塊'], ['club', '梅花'],
+  ['sunglasses', '墨鏡'], ['top-hat', '禮帽'], ['alien', '外星人'], ['teddy', '泰迪熊'], ['rainbow', '彩虹'],
+  ['robot', '機器人'], ['rocket', '火箭'], ['christmas-tree', '聖誕樹'], ['t-rex', '暴龍'],
+  ['gift', '禮物'], ['party-popper', '拉炮'], ['soccer', '足球'],
+  ['fire', '火'], ['moai', '摩艾'], ['clown', '小丑'], ['nail-polish', '亮甲'],
 ].map(([key, label]) => ({ key, label }));
+
+/** Removed from the picker; files kept so existing players still see their avatar. */
+export const AVATAR_RETIRED = ['monkey', 'tiger', 'frog', 'lion'];
 
 export function presetUrl(key) {
   return `${PRESET_BASE}${key}.svg`;
@@ -18,7 +37,8 @@ export function presetKeyOf(url) {
     if (!['https:', 'http:'].includes(parsed.protocol) || parsed.search || parsed.hash || !url.endsWith('.svg')) return null;
     const match = parsed.pathname.match(/\/friday-poker\/assets\/avatars\/([a-z-]+)\.svg$/);
     const key = match?.[1];
-    return AVATAR_PRESETS.some((preset) => preset.key === key) ? key : null;
+    const known = AVATAR_PRESETS.some((preset) => preset.key === key) || AVATAR_RETIRED.includes(key);
+    return known ? key : null;
   } catch {
     return null;
   }

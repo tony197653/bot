@@ -1,17 +1,50 @@
 Poker avatar images — source and license
 =========================================
 
-All 15 images in this folder are built from Google Noto Emoji SVGs
+Most images in this folder are built from Google Noto Emoji SVGs
 (https://github.com/googlefonts/noto-emoji, folder 2D/svg/), licensed under the
 Apache License 2.0 (full text: LICENSE-Apache-2.0.txt, copied from 2D/svg/LICENSE).
 The Noto font files (SIL OFL) are NOT used.
 
+shark.svg is Google Noto Emoji 2D 🦈 U+1F988 (Apache 2.0), deep-blue circle,
+paths and colours unchanged. It replaced the IconOven Stroke line-art shark
+(LICENSE-MIT-iconoven.txt removed; that file is no longer used).
+The original Noto fish.svg is unchanged.
+The Lucide line-art fish (fish-line.svg) and LICENSE-ISC-lucide.txt were removed
+2026-11-22: that icon was only added on this PR and never shipped to the live site.
+
+robot.svg is OpenMoji color 🤖 U+1F916 (CC BY-SA 4.0, designed by OpenMoji – the
+open-source emoji and icon project), light-blue circle, paths and colours
+unchanged. Full license: LICENSE-CC-BY-SA-openmoji.txt.
+  https://openmoji.org  https://github.com/hfg-gmuend/openmoji
+  Source: https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/svg/1F916.svg
+  This file is a CC BY-SA 4.0 adaptation (original glyph on a circular background).
+  Redistribution of this file must also be under CC BY-SA 4.0.
+
+clown.svg is the red joker (joker_red) from Tek Eye SVG Playing Cards by
+Daniel S. Fowler, dedicated to the public domain. Light-blue circle, card
+artwork unchanged. The author asks that uses link to the introduction page
+when practical: https://tekeye.uk/playing_cards/svg-playing-cards
+  File: https://tekeye.uk/playing_cards/images/svg_playing_cards/fronts/joker_red.svg
+These two replaced the Noto 2D robot and clown that were added earlier on this
+PR and had never shipped to the live site. The Noto joker (joker.svg, A04 鬼牌)
+is unchanged.
+
+
 Modifications made to every file (2026-11-20):
 - Adobe Illustrator metadata (i:aipgf, i:* attributes, DOCTYPE, comments) removed.
 - Element ids prefixed with the file key.
-- Placed on a 128x128 circle with one of three shared 2-colour vertical gradients: blue #5AB0FF→#1F5FD6, pink #FF9EC4→#E0457F, gray #D3D8DF→#8E97A4 (chosen per animal for contrast).
+- Placed on a 128x128 circle with one of two shared 2-colour vertical gradients: deep blue #5AB0FF→#1F5FD6, light blue #D8F0FF→#8EC4F8. (Red background #FF5A62→#C01828 was removed 2026-11-21 night; unused.)
 - Emoji scaled per file so its visible size is about 78% of the circle diameter
   (100/128 px), centred, and kept inside radius 61.
+2026-11-21: added spade, heart, diamond, club, and cat-calico in the same pipeline.
+2026-11-21 evening: picker drops monkey (file kept so existing photoURLs still display). Backgrounds are only deep blue, light blue, and red, grouped in that order (7 / 8 / 4). Heart and diamond glyphs recolored to cream/white so they stay visible on red.
+2026-11-21 23:15: drop frog and tiger from the picker (files kept in AVATAR_RETIRED). Replace Lucide Lab shark with IconOven Stroke shark (MIT) so the side view, triangular dorsal fin and tail read clearly at 390/60px. fish-line unchanged.
+2026-11-21 night: added shark and fish-line (Lucide / Lucide Lab, ISC) at the end of the deep-blue group after the original Noto fish: 魚→鯊魚→線條魚. Cream #F3EAD2 strokes. Contrast vs the light top stop #5AB0FF is 1.93:1 on paper, but mid/bottom and 180–512px previews read clearly, so the shared deep-blue and cream were not changed.
+2026-11-21 night: suit glyphs use poker colors (spade/club #1A1A1A / #2E2E2E; heart/diamond #B01C22 / #D7262E) on the light-blue background, listed at the end of the light-blue group. Red background retired.
+2026-11-22: 鯊魚改為 Noto Emoji 🦈 U+1F988（候選 S1，Apache 2.0，深藍底），移除 IconOven 線條鯊與 LICENSE-MIT-iconoven.txt。fish-line（Lucide，ISC）保留。依宗良挑選加入 26 張 Noto Emoji 2D 頭像，底色沿用候選頁各自的深藍或淺藍，接在各顏色組尾端。未加入 A05／A09／A10、其他 B，以及 D04／D05／D08／D10。AVATAR_RETIRED 不變。
+2026-11-22 morning: 宗良要求拿掉獅子與 Lucide 線條魚。lion 從選擇器移除並加入 AVATAR_RETIRED（檔案保留，舊玩家仍顯示）。fish-line.svg 與 LICENSE-ISC-lucide.txt 刪除（從未上正式站）。Noto 魚與 S1 鯊魚保留。清單改為 43 個（18 深藍、25 淺藍）。
+2026-11-22 07:05: 宗良定案，機器人改為候選 R1 OpenMoji（CC BY-SA 4.0，需標註），小丑改為候選 J4 Tek Eye 傳統紅鬼 joker_red（Public Domain，Daniel S. Fowler，介紹頁 https://tekeye.uk/playing_cards/svg-playing-cards）。淺藍底與在清單中的位置不變。Noto 版 robot.svg／clown.svg（僅本 PR 新增、未上正式站）已換成上述檔案。A04 鬼牌（joker.svg）保留。清單仍為 43 個（18 深藍、25 淺藍）。
 Additional colour changes are listed per file below.
 
 | file | Noto source | source URL | colour change |
@@ -31,5 +64,39 @@ Additional colour changes are listed per file below.
 | owl.svg | U+1F989 owl | .../emoji_u1f989.svg | none |
 | frog.svg | U+1F438 frog | .../emoji_u1f438.svg | none |
 | fish.svg | U+1F41F fish | .../emoji_u1f41f.svg | none |
+| shark.svg | U+1F988 shark | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u1f988.svg | none (Noto 2D on deep blue; replaced IconOven line art 2026-11-22) |
+| spade.svg | U+2660 black spade suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2660.svg | RECOLORED: #464C4F→#1A1A1A, #606265→#2E2E2E (poker black on light blue) |
+| heart.svg | U+2665 black heart suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2665.svg | RECOLORED: Noto red then cream; now #B01C22 / #D7262E (poker red on light blue) |
+| diamond.svg | U+2666 black diamond suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2666.svg | RECOLORED: Noto red then cream; now #B01C22 / #D7262E (poker red on light blue) |
+| club.svg | U+2663 black club suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2663.svg | RECOLORED: #464C4F→#1A1A1A, #606265→#2E2E2E (poker black on light blue) |
+| cat-calico.svg | U+1F431 cat face | (same as cat.svg) | RECOLORED from cat face: head #FFC022→#FFFFFF; one ear kept #FFC022/#FF9B31, the other #3A3A3C/#1E1E20; orange and black patches clipped to the head (calico / 三花貓). Noto has no calico cat emoji. |
+
+| crown.svg | U+1F451 crown | .../emoji_u1f451.svg | none (deep blue) |
+| joker.svg | U+1F0CF joker | .../emoji_u1f0cf.svg | none (deep blue) |
+| dice.svg | U+1F3B2 game die | .../emoji_u1f3b2.svg | none (deep blue) |
+| money-bag.svg | U+1F4B0 money bag | .../emoji_u1f4b0.svg | none (deep blue) |
+| coin.svg | U+1FA99 coin | .../emoji_u1fa99.svg | none (deep blue) |
+| sparkles.svg | U+2728 sparkles | .../emoji_u2728.svg | none (deep blue) |
+| heart-hands.svg | U+1FAF6 heart hands | .../emoji_u1faf6.svg | none (deep blue) |
+| snowflake.svg | U+2744 snowflake | .../emoji_u2744.svg | none (deep blue) |
+| skull.svg | U+1F480 skull | .../emoji_u1f480.svg | none (deep blue) |
+| cry.svg | U+1F62D loudly crying face | .../emoji_u1f62d.svg | none (deep blue) |
+| sunglasses.svg | U+1F60E smiling face with sunglasses | .../emoji_u1f60e.svg | none (light blue) |
+| top-hat.svg | U+1F3A9 top hat | .../emoji_u1f3a9.svg | none (light blue) |
+| alien.svg | U+1F47D alien | .../emoji_u1f47d.svg | none (light blue) |
+| teddy.svg | U+1F9F8 teddy bear | .../emoji_u1f9f8.svg | none (light blue) |
+| rainbow.svg | U+1F308 rainbow | .../emoji_u1f308.svg | none (light blue) |
+| robot.svg | OpenMoji color U+1F916 | https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/svg/1F916.svg | none (light blue). CC BY-SA 4.0, LICENSE-CC-BY-SA-openmoji.txt; designed by OpenMoji – the open-source emoji and icon project. Replaced Noto 2D 2026-11-22. |
+| rocket.svg | U+1F680 rocket | .../emoji_u1f680.svg | none (light blue) |
+| christmas-tree.svg | U+1F384 Christmas tree | .../emoji_u1f384.svg | none (light blue) |
+| t-rex.svg | U+1F996 T-Rex | .../emoji_u1f996.svg | none (light blue) |
+| gift.svg | U+1F381 wrapped gift | .../emoji_u1f381.svg | none (light blue) |
+| party-popper.svg | U+1F389 party popper | .../emoji_u1f389.svg | none (light blue) |
+| soccer.svg | U+26BD soccer ball | .../emoji_u26bd.svg | none (light blue) |
+| fire.svg | U+1F525 fire | .../emoji_u1f525.svg | none (light blue) |
+| moai.svg | U+1F5FF moai | .../emoji_u1f5ff.svg | none (light blue) |
+| clown.svg | Tek Eye joker_red, Daniel S. Fowler | https://tekeye.uk/playing_cards/images/svg_playing_cards/fronts/joker_red.svg | none (light blue). Public domain; please link https://tekeye.uk/playing_cards/svg-playing-cards . Replaced Noto clown 2026-11-22. |
+| nail-polish.svg | U+1F485 nail polish | .../emoji_u1f485.svg | none (light blue) |
+
 
 (".../" = https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/)
