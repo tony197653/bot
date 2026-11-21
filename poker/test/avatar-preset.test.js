@@ -9,14 +9,14 @@ import { profilePatch } from '../../lib/auth/auth.js';
 
 const googlePhotoURL = 'https://lh3.googleusercontent.com/avatar';
 
-test('21 個預設網址存正式位址，同色相連且無猴子', () => {
+test('19 個預設網址存正式位址，同色相連且無猴子、青蛙、老虎', () => {
   assert.deepEqual(AVATAR_PRESETS.map(({ key }) => key), [
     'cat', 'cat-siamese', 'cat-white', 'cat-calico', 'dog', 'rabbit', 'fish', 'shark', 'fish-line',
-    'cat-gray', 'bear', 'panda', 'fox', 'lion', 'tiger', 'owl', 'frog',
+    'cat-gray', 'bear', 'panda', 'fox', 'lion', 'owl',
     'spade', 'heart', 'diamond', 'club',
   ]);
-  assert.ok(!AVATAR_PRESETS.some((p) => p.key === 'monkey'));
-  assert.deepEqual(AVATAR_RETIRED, ['monkey']);
+  assert.ok(!AVATAR_PRESETS.some((p) => ['monkey', 'tiger', 'frog'].includes(p.key)));
+  assert.deepEqual(AVATAR_RETIRED, ['monkey', 'tiger', 'frog']);
   for (const { key } of AVATAR_PRESETS) {
     assert.equal(presetUrl(key), `https://tony-poker.web.app/friday-poker/assets/avatars/${key}.svg`);
     assert.equal(presetKeyOf(presetUrl(key)), key);
@@ -41,12 +41,14 @@ test('頭像首字支援 Unicode，圖片與載入失敗替代內容會轉義', 
   assert.match(html, /onerror="this\.outerHTML=.*av-fallback.*&amp;#39;/);
 });
 
-test('已選猴子的玩家仍顯示猴子檔，不在選擇器裡', () => {
-  const url = presetUrl('monkey');
-  assert.equal(presetKeyOf(url), 'monkey');
-  assert.equal(avatarSrc(url), new URL('../assets/avatars/monkey.svg', import.meta.url).href);
-  const html = avatarInnerHtml(url, '小明', { size: 32 });
-  assert.ok(html.includes('monkey.svg'));
+test('已選猴子、青蛙、老虎的玩家仍顯示原檔，不在選擇器裡', () => {
+  for (const key of ['monkey', 'tiger', 'frog']) {
+    const url = presetUrl(key);
+    assert.equal(presetKeyOf(url), key);
+    assert.equal(avatarSrc(url), new URL(`../assets/avatars/${key}.svg`, import.meta.url).href);
+    const html = avatarInnerHtml(url, '小明', { size: 32 });
+    assert.ok(html.includes(`${key}.svg`));
+  }
 });
 
 test('頭像底色只有深藍、淺藍，沒有紅底、粉紅或灰', () => {
@@ -111,7 +113,7 @@ test('已移除的頭像沿用原 HTTPS 網址，載入失敗時顯示名字首�
   }
 });
 
-test('浮層只有本人可換頭像，選擇器有 22 個選項且標記目前選擇', () => {
+test('浮層只有本人可換頭像，選擇器有 20 個選項且標記目前選擇', () => {
   const options = { name: '小明', view: { state: 'disabled' } };
   const other = personalStatsHtml({ ...options, photoURL: presetUrl('cat'), canEdit: true });
   assert.match(other, /ps-av" aria-hidden="true"><img/);
@@ -119,8 +121,8 @@ test('浮層只有本人可換頭像，選擇器有 22 個選項且標記目前�
   assert.match(personalStatsHtml(options), /class="av-fallback">小/);
   assert.match(personalStatsHtml({ ...options, isMe: true, canEdit: true }), /<button[^>]+data-ps="avatar"/);
   const picker = avatarPickerHtml({ ...options, photoURL: presetUrl('dog'), googlePhotoURL });
-  assert.equal(picker.match(/data-ps="pick-choice"/g).length, 22);
-  assert.doesNotMatch(picker, /data-key="monkey"/);
+  assert.equal(picker.match(/data-ps="pick-choice"/g).length, 20);
+  assert.doesNotMatch(picker, /data-key="(monkey|tiger|frog)"/);
   assert.equal(picker.match(/aria-pressed="true"/g).length, 1);
   assert.match(picker, /data-ps="pick-choice" data-key="original" aria-label="原本頭像" title="原本頭像"/);
   assert.doesNotMatch(picker.replace(/<[^>]+>/g, ''), /原本頭像/);

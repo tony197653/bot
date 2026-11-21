@@ -12,12 +12,12 @@ export const AVATAR_PRESETS = [
   ['dog', '狗'], ['rabbit', '兔子'], ['fish', '魚'], ['shark', '鯊魚'], ['fish-line', '線條魚'],
   // 淺藍（四花色排在此組最後）
   ['cat-gray', '灰貓'], ['bear', '熊'], ['panda', '貓熊'], ['fox', '狐狸'],
-  ['lion', '獅子'], ['tiger', '老虎'], ['owl', '貓頭鷹'], ['frog', '青蛙'],
+  ['lion', '獅子'], ['owl', '貓頭鷹'],
   ['spade', '黑桃'], ['heart', '紅心'], ['diamond', '方塊'], ['club', '梅花'],
 ].map(([key, label]) => ({ key, label }));
 
-/** Removed from the picker; file kept so existing players still see their avatar. */
-export const AVATAR_RETIRED = ['monkey'];
+/** Removed from the picker; files kept so existing players still see their avatar. */
+export const AVATAR_RETIRED = ['monkey', 'tiger', 'frog'];
 
 export function presetUrl(key) {
   return `${PRESET_BASE}${key}.svg`;
