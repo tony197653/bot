@@ -1579,7 +1579,6 @@ function paint() {
       onSignOut: () => signOut(),
       onRescue: () => doRescue(),
       onAvatar: openOwnStats,
-      onSettings: () => toast('設定還在製作中，請先用⋯選單的「戰績」'),
       lobbyStatus: awayLobbyStatus,
     });
     return;

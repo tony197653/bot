@@ -1177,9 +1177,11 @@ async function runMineCardStates(browser, base, viewport, label) {
     idle.hasCreate &&
     idle.createVisible &&
     (!idle.isEmpty || idle.emptyCta) &&
-    idle.menu.some((t) => t === '戰績') &&
-    idle.menu.some((t) => t === '設定') &&
+    idle.menu.some((t) => t === '我的戰績') &&
+    idle.menu.some((t) => t === '音效：開' || t === '音效：關') &&
     idle.menu.some((t) => t === '登出') &&
+    !idle.menu.some((t) => t === '戰績') &&
+    !idle.menu.some((t) => t === '設定') &&
     !idle.menu.some((t) => /同一支手機輪流玩/.test(t)) &&
     !idle.menu.some((t) => /回到牌桌|結帳離開/.test(t));
 

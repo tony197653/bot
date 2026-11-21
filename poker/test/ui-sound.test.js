@@ -57,17 +57,22 @@ test('分類：大廳、牌桌、單機與管理頁的實際控制項及 fallbac
   assert.equal(classifyUiSound(element({type:'submit'},element({id:'createForm'}))), 'confirm');
 });
 
-test('主要 render markup 明確標記音效，新增靜音位於設定之前', () => {
+test('主要 render markup 明確標記音效，新增靜音位於登出之前', () => {
   const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
   const lobby = read('../js/ui/lobby.js');
   const create = lobby.slice(lobby.indexOf('export function renderCreateRoom'));
+  const menu = lobby.slice(lobby.indexOf('id="mpMenu"'), lobby.indexOf('mp-cols'));
   assert.match(create, /<button data-sfx="tick"[^>]*data-chips-minus/);
   assert.match(create, /<button data-sfx="tick"[^>]*data-chips-plus/);
   assert.match(create, /<button data-sfx="confirm" type="submit"/);
   assert.match(lobby, /id="mpBtnMute"[^>]*role="menuitem"[^>]*data-sfx="tap"[^>]*aria-pressed=/);
-  assert.ok(lobby.indexOf('id="mpBtnMute"') < lobby.indexOf('data-act="settings"'));
+  assert.ok(lobby.indexOf('id="mpBtnMute"') < lobby.indexOf('data-act="signout"'));
   assert.match(lobby, /setSoundOn\(!isSoundOn\(\)\)/);
-  assert.match(lobby, /settings: \(\) => vm.onSettings\?\.\(\)/);
+  assert.match(menu, /data-act="my-stats"/);
+  assert.match(menu, /data-act="signout"/);
+  assert.doesNotMatch(menu, /data-act="stats"/);
+  assert.doesNotMatch(menu, /data-act="settings"/);
+  assert.match(lobby, /class="mp-card mp-c1" data-act="stats"/);
   const mp = read('../js/ui/mp-app.js');
   for (const [attr,kind] of [['minus','tick'],['plus','tick'],['confirm','confirm'],['cancel','tap']]) {
     assert.match(mp, new RegExp(`<button data-sfx="${kind}"[^>]*data-${attr}`));
