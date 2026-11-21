@@ -324,3 +324,87 @@ test('同一次觸控的 pointerup／touchend／click 只播一聲；滑鼠也�
   }
 });
 
+test('滑鼠或觸控按住超過 120ms 只播一聲；鍵盤 click 仍各播一次；連點 −／＋ 仍可各播', async () => {
+  const oldWindow = globalThis.window;
+  const oldPerf = globalThis.performance;
+  const storage = new Map();
+  const gestures = new Map();
+  const oscillators = [];
+  const sources = [];
+  const handlers = [];
+  let now = 0;
+  globalThis.performance = { now: () => now };
+  class AudioContext {
+    constructor() { this.state = 'suspended'; this.destination = {}; this.currentTime = 0; this.sampleRate = 22050; }
+    resume() { this.state = 'running'; return Promise.resolve(); }
+    decodeAudioData() {
+      const data = new Float32Array([0.9, -0.9, 0.5]);
+      return Promise.resolve({
+        numberOfChannels: 1, length: data.length, duration: 0.001, getChannelData: () => data,
+      });
+    }
+    createBuffer() { return { length: 1, duration: 0.05, getChannelData: () => new Float32Array([0.5]) }; }
+    createBufferSource() {
+      const node = { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
+      sources.push(node);
+      return node;
+    }
+    createGain() { return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
+    createOscillator() { const node={frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){this.started=true;},stop(){}}; oscillators.push(node); return node; }
+  }
+  try {
+    const root = { addEventListener(type, handler, capture) { handlers.push({ type, handler, capture }); } };
+    globalThis.window = {
+      AudioContext,
+      localStorage: { getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v) },
+      document: { hidden: false, addEventListener() {}, ...root },
+      addEventListener: (type, fn) => gestures.set(type, fn),
+      removeEventListener: (type) => gestures.delete(type),
+      fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
+    };
+    const s = await import('../js/ui/sound.js?held-press');
+    s.initSound();
+    await new Promise(setImmediate);
+    gestures.get('pointerdown')?.();
+    const byType = Object.fromEntries(handlers.map((h) => [h.type, h.handler]));
+    const tap = element({ 'data-sfx': 'tap' });
+    const plus = element({ 'data-sfx': 'tick', 'data-plus': '' });
+
+    now = 0;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'mouse', target: tap });
+    now = 200;
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'mouse', target: tap });
+    byType.click({ type: 'click', button: 0, target: tap });
+    assert.equal(oscillators.length, 1, 'held mouse press must play once, not again on click after 200ms');
+
+    now = 1000;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'touch', target: tap });
+    now = 1200;
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'touch', target: tap });
+    byType.touchend({ type: 'touchend', target: tap });
+    now = 1203;
+    byType.click({ type: 'click', button: 0, target: tap });
+    assert.equal(oscillators.length, 2, 'held touch press must play once');
+
+    now = 2000;
+    byType.click({ type: 'click', button: 0, target: tap });
+    now = 2300;
+    byType.click({ type: 'click', button: 0, target: tap });
+    assert.equal(oscillators.length, 4, 'keyboard Enter/Space clicks each play once');
+
+    const beforeTick = sources.length;
+    now = 4000;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'mouse', target: plus });
+    now = 4200;
+    byType.click({ type: 'click', button: 0, target: plus });
+    now = 4250;
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'mouse', target: plus });
+    now = 4450;
+    byType.click({ type: 'click', button: 0, target: plus });
+    assert.equal(sources.length - beforeTick, 2, 'two held mouse + taps must each play a tick');
+  } finally {
+    if (oldPerf === undefined) delete globalThis.performance; else globalThis.performance = oldPerf;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+  }
+});
+

@@ -331,11 +331,12 @@ export function wireUiSound(root) {
   if (!root?.addEventListener || wiredUiRoots.has(root)) return;
   wiredUiRoots.add(root);
   // Play on activation-triggering events. On iOS, a touch pointerdown is not
-  // activation; pointerup/click/touchend are. One lastUiAt is shared across
-  // those events so one tap = one sound. Click can lag (~120ms); pointerup and
-  // touchend are near-instant, so a short window coalesces them without
-  // swallowing a later rapid −/＋ tap (overlap cap still lives in playUiSound).
-  let lastUiAt = null;
+  // activation; pointerup/click/touchend are. A press that already sounded on
+  // pointerdown / pointerup / touchend must not play again on the trailing
+  // click (a time window alone would miss a mouse hold >120ms). Keyboard
+  // Enter/Space only fires click, so it still plays once. Rapid −/＋ each
+  // start a new press (overlap cap still lives in playUiSound).
+  let pressPlayed = false;
   const isActivationPlay = (event) => {
     if (event.type === 'click' || event.type === 'touchend') return true;
     if (event.type === 'pointerup' && event.pointerType !== 'mouse') return true;
@@ -345,6 +346,7 @@ export function wireUiSound(root) {
   };
   const onUi = (event) => {
     if ((event.type === 'pointerdown' || event.type === 'pointerup') && event.button != null && event.button !== 0) return;
+    if (event.type === 'pointerdown') pressPlayed = false;
     if (!isActivationPlay(event)) return;
     const control = event.target?.closest?.('[data-sfx], button, [data-act], [data-ps], .mp-seg-item, .mp-chip, .mp-lb-av, .mp-empty-seat, #seats .av, #heroAv, #raiseScrim');
     // Labels forward a second click to their radio: sound only that forwarded
@@ -352,10 +354,12 @@ export function wireUiSound(root) {
     if (control?.matches?.('label.mp-seg-item') && event.type === 'click' && !event.target?.matches?.('input[type="radio"]')) return;
     const kind = classifyUiSound(control);
     if (!kind) return;
-    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const coalesceMs = event.type === 'click' ? 120 : 32;
-    if (lastUiAt != null && now - lastUiAt < coalesceMs) return;
-    lastUiAt = now;
+    if (pressPlayed) {
+      // Trailing click of a press that already sounded: consume and stop.
+      if (event.type === 'click') pressPlayed = false;
+      return;
+    }
+    if (event.type !== 'click') pressPlayed = true;
     playUiSound(kind);
   };
   for (const type of ['pointerdown', 'pointerup', 'touchend', 'click']) {
