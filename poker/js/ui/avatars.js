@@ -7,13 +7,20 @@ export const AVATAR_BG = {
 };
 
 export const AVATAR_PRESETS = [
-  // 深藍
+  // 深藍（現有動物順序不變，新的接在組尾）
   ['cat', '貓'], ['cat-siamese', '暹羅貓'], ['cat-white', '白貓'], ['cat-calico', '三花貓'],
   ['dog', '狗'], ['rabbit', '兔子'], ['fish', '魚'], ['shark', '鯊魚'], ['fish-line', '線條魚'],
-  // 淺藍（四花色排在此組最後）
+  ['crown', '皇冠'], ['joker', '鬼牌'], ['dice', '骰子'], ['money-bag', '錢袋'], ['coin', '硬幣'],
+  ['sparkles', '閃亮'], ['heart-hands', '愛心手'], ['snowflake', '雪花'],
+  ['skull', '骷髏'], ['cry', '大哭'],
+  // 淺藍（現有動物與花色順序不變，新的接在組尾）
   ['cat-gray', '灰貓'], ['bear', '熊'], ['panda', '貓熊'], ['fox', '狐狸'],
   ['lion', '獅子'], ['owl', '貓頭鷹'],
   ['spade', '黑桃'], ['heart', '紅心'], ['diamond', '方塊'], ['club', '梅花'],
+  ['sunglasses', '墨鏡'], ['top-hat', '禮帽'], ['alien', '外星人'], ['teddy', '泰迪熊'], ['rainbow', '彩虹'],
+  ['robot', '機器人'], ['rocket', '火箭'], ['christmas-tree', '聖誕樹'], ['t-rex', '暴龍'],
+  ['gift', '禮物'], ['party-popper', '拉炮'], ['soccer', '足球'],
+  ['fire', '火'], ['moai', '摩艾'], ['clown', '小丑'], ['nail-polish', '亮甲'],
 ].map(([key, label]) => ({ key, label }));
 
 /** Removed from the picker; files kept so existing players still see their avatar. */
