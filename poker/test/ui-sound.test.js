@@ -472,3 +472,189 @@ test('取消按壓後鍵盤 Enter 仍播一聲（pointercancel／keydown 會重�
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });
+
+
+test('背景返回後按鍵會 resume suspended／interrupted 並播一聲', async () => {
+  for (const returnedState of ['suspended', 'interrupted']) {
+    const oldWindow = globalThis.window;
+    const oldPerf = globalThis.performance;
+    const storage = new Map();
+    const gestures = new Map();
+    const oscillators = [];
+    const handlers = [];
+    let visibility;
+    let audio;
+    let created = 0;
+    let now = 0;
+    globalThis.performance = { now: () => now };
+    class AudioContext {
+      constructor() {
+        created += 1;
+        audio = this;
+        this.state = 'suspended';
+        this.destination = {};
+        this.currentTime = 0;
+        this.sampleRate = 22050;
+        this.resumed = 0;
+      }
+      resume() {
+        this.resumed += 1;
+        if (this.state === 'closed') return Promise.reject(new Error('closed'));
+        if (this.blockResume) return Promise.reject(new Error('interrupted'));
+        this.state = 'running';
+        return Promise.resolve();
+      }
+      close() { this.state = 'closed'; }
+      decodeAudioData() { return Promise.resolve({ numberOfChannels: 0, length: 0 }); }
+      createBuffer() { return {}; }
+      createBufferSource() {
+        return { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
+      }
+      createGain() { return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
+      createOscillator() { const node={frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){this.started=true;},stop(){}}; oscillators.push(node); return node; }
+    }
+    try {
+      globalThis.window = {
+        AudioContext,
+        localStorage: { getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v) },
+        document: {
+          hidden: false,
+          addEventListener(type, handler, capture) {
+            if (type === 'visibilitychange') visibility = handler;
+            else handlers.push({ type, handler, capture });
+          },
+        },
+        addEventListener: (type, fn) => gestures.set(type, fn),
+        removeEventListener: (type) => gestures.delete(type),
+        fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
+      };
+      const s = await import(`../js/ui/sound.js?resume-after-bg-${returnedState}`);
+      s.initSound();
+      await new Promise(setImmediate);
+      assert.equal(typeof gestures.get('pageshow'), 'function', 'pageshow 重設解鎖');
+      assert.equal(typeof gestures.get('focus'), 'function', 'focus 重設解鎖');
+      gestures.get('pointerdown')();
+      await new Promise(setImmediate);
+      assert.equal(audio.state, 'running');
+      const firstResumes = audio.resumed;
+      now = 5000;
+      window.document.hidden = true;
+      visibility();
+      audio.state = returnedState;
+      audio.blockResume = true;
+      if (audio.onstatechange) audio.onstatechange();
+      window.document.hidden = false;
+      visibility();
+      await new Promise(setImmediate);
+      assert.equal(audio.state, returnedState, 'visibility 時沒有使用者啟動，state 維持中斷');
+      assert.equal(typeof gestures.get('pointerup'), 'function', `${returnedState} 返回後應重新掛解鎖手勢`);
+      audio.blockResume = false;
+      const byType = Object.fromEntries(handlers.map((h) => [h.type, h.handler]));
+      const tap = element({ 'data-sfx': 'tap' });
+      const before = oscillators.length;
+      // Window unlock (capture) then the button click.
+      gestures.get('click')();
+      byType.click({ type: 'click', button: 0, target: tap });
+      assert.equal(audio.state, 'running', `${returnedState} 按鍵後應 resume`);
+      assert.ok(audio.resumed > firstResumes, `${returnedState} 應呼叫 resume`);
+      assert.equal(oscillators.length, before + 1, `${returnedState} 按鍵應播一聲`);
+      s.setSoundOn(false);
+      gestures.get('click')();
+      byType.click({ type: 'click', button: 0, target: tap });
+      assert.equal(oscillators.length, before + 1, '音效關閉後不播');
+      s.setSoundOn(true);
+    } finally {
+      if (oldPerf === undefined) delete globalThis.performance; else globalThis.performance = oldPerf;
+      if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+    }
+  }
+});
+
+test('visibility 仍為 running 時 pageshow／focus 也會重掛解鎖；closed 會重建', async () => {
+  const oldWindow = globalThis.window;
+  const oldPerf = globalThis.performance;
+  const storage = new Map();
+  const gestures = new Map();
+  const oscillators = [];
+  const handlers = [];
+  let visibility;
+  let audio;
+  let created = 0;
+  let now = 0;
+  globalThis.performance = { now: () => now };
+  class AudioContext {
+    constructor() {
+      created += 1;
+      audio = this;
+      this.state = 'suspended';
+      this.destination = {};
+      this.currentTime = 0;
+      this.sampleRate = 22050;
+      this.resumed = 0;
+    }
+    resume() {
+      this.resumed += 1;
+      if (this.state === 'closed') return Promise.reject(new Error('closed'));
+      this.state = 'running';
+      return Promise.resolve();
+    }
+    close() { this.state = 'closed'; }
+    decodeAudioData() { return Promise.resolve({ numberOfChannels: 0, length: 0 }); }
+    createBuffer() { return {}; }
+    createBufferSource() {
+      return { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
+    }
+    createGain() { return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
+    createOscillator() { const node={frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){this.started=true;},stop(){}}; oscillators.push(node); return node; }
+  }
+  try {
+    globalThis.window = {
+      AudioContext,
+      localStorage: { getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v) },
+      document: {
+        hidden: false,
+        addEventListener(type, handler, capture) {
+          if (type === 'visibilitychange') visibility = handler;
+          else handlers.push({ type, handler, capture });
+        },
+      },
+      addEventListener: (type, fn) => gestures.set(type, fn),
+      removeEventListener: (type) => gestures.delete(type),
+      fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
+    };
+    const s = await import('../js/ui/sound.js?resume-closed-and-focus');
+    s.initSound();
+    await new Promise(setImmediate);
+    gestures.get('pointerdown')();
+    await new Promise(setImmediate);
+    assert.equal(created, 1);
+    assert.equal(typeof gestures.get('pointerdown'), 'undefined', '首次解鎖後卸下手勢');
+    now = 5000;
+    // State still 'running' (WebKit stale-running after app switch).
+    gestures.get('focus')();
+    assert.equal(typeof gestures.get('pointerdown'), 'function', 'focus 時即使 state=running 也重掛');
+    gestures.get('pointerdown')();
+    await new Promise(setImmediate);
+    assert.equal(typeof gestures.get('pointerdown'), 'undefined', '解鎖成功後再次卸下');
+    gestures.get('pageshow')();
+    assert.equal(typeof gestures.get('pointerdown'), 'function', 'pageshow 同樣重掛');
+
+    const byType = Object.fromEntries(handlers.map((h) => [h.type, h.handler]));
+    const tap = element({ 'data-sfx': 'tap' });
+    audio.state = 'closed';
+    window.document.hidden = true;
+    visibility();
+    window.document.hidden = false;
+    visibility();
+    await new Promise(setImmediate);
+    const before = oscillators.length;
+    gestures.get('click')();
+    byType.click({ type: 'click', button: 0, target: tap });
+    assert.equal(created, 2, 'closed 的 context 應重建');
+    assert.equal(audio.state, 'running');
+    assert.equal(oscillators.length, before + 1, '重建後按鍵應播一聲');
+  } finally {
+    if (oldPerf === undefined) delete globalThis.performance; else globalThis.performance = oldPerf;
+    if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+  }
+});

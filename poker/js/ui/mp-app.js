@@ -3237,6 +3237,7 @@ function pickBuyinAmount(options) {
   const el = document.createElement('div');
   el.id = 'mpBuyinPicker';
   el.className = 'mp-close-result';
+  el.tabIndex = -1;
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-modal', 'true');
   if (options.minHint) el.setAttribute('aria-label', options.title || '攜入籌碼');
@@ -3297,7 +3298,7 @@ function pickBuyinAmount(options) {
     });
   }
   paintRemaining();
-  number.focus();
+  el.focus?.({ preventScroll: true });
   return new Promise(resolve => {
     const close = amount => {
       el.remove();

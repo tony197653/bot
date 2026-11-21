@@ -93,18 +93,29 @@ function playSilentUnlock() {
   } catch { /* ignore */ }
 }
 
+function dropContext() {
+  const old = context;
+  context = null;
+  buffers = {};
+  loading = null;
+  if (!old) return;
+  try { old.onstatechange = null; } catch { /* ignore */ }
+  try { if (old.state !== 'closed') old.close?.(); } catch { /* ignore */ }
+}
+
 function ensureContext() {
-  if (context) return true;
+  if (context && context.state !== 'closed') return true;
+  dropContext();
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtx) return false;
   context = new AudioCtx();
   context.onstatechange = () => {
-    if (context.state !== 'running') {
-      gestureUntil = 0;
-      stopSound();
-      stopUiSounds();
-      armGestures();
-    }
+    if (!context || context.state === 'running') return;
+    gestureUntil = 0;
+    stopSound();
+    stopUiSounds();
+    if (context.state === 'closed') dropContext();
+    armGestures();
   };
   return true;
 }
@@ -138,6 +149,13 @@ function unlock() {
     // Create, resume, and tick a silent buffer in this user-gesture turn (iOS Safari).
     // Do not drop listeners until the context is actually running — a touch
     // pointerdown is not an activation event, and pointerup/click follow it.
+    //
+    // After the user leaves the page, iOS may set state to 'interrupted' or
+    // 'suspended'; resume() must run in a user-activation event
+    // (pointerup / touchend / click / keydown). If the context is closed, it
+    // is rebuilt in ensureContext().
+    // https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/state
+    // https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/resume
     if (!ensureContext()) return;
     markGesture();
     if (context.state !== 'running') context.resume();
@@ -147,24 +165,43 @@ function unlock() {
     Promise.resolve(context.state === 'running' ? undefined : context.resume())
       .catch(() => {})
       .finally(() => {
-        if (context.state === 'running') disarmGestures();
+        if (context?.state === 'running') disarmGestures();
         else armGestures();
       });
   } catch { armGestures(); }
 }
 
-function onVisibilityChange() {
-  if (window.document?.hidden) {
-    stopSound();
-    stopUiSounds();
+// Re-arm unlock when returning from the background, even if state still
+// reports 'running'. WebKit can leave the context silent after Safari loses
+// focus (bugs.webkit.org 276016, 276687); visibilitychange alone is not
+// always fired on an iOS app switch, so also listen for pageshow and focus.
+function onPageHidden() {
+  stopSound();
+  stopUiSounds();
+  gestureUntil = 0;
+  armGestures();
+}
+
+function onPageShown() {
+  if (window.document?.hidden) return;
+  gestureUntil = 0;
+  armGestures();
+  if (!context) return;
+  if (context.state === 'closed') {
+    dropContext();
     return;
   }
-  if (!context || context.state === 'running') return;
+  if (context.state === 'running') return;
   try {
     Promise.resolve(context.resume()).catch(() => {}).finally(() => {
-      if (context.state !== 'running') armGestures();
+      if (context?.state !== 'running') armGestures();
     });
   } catch { armGestures(); }
+}
+
+function onVisibilityChange() {
+  if (window.document?.hidden) onPageHidden();
+  else onPageShown();
 }
 
 export function initSound() {
@@ -174,6 +211,8 @@ export function initSound() {
     try { enabled = window.localStorage.getItem('poker.sfx') !== 'off'; } catch {}
     wireUiSound(window.document);
     window.document?.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pageshow', onPageShown);
+    window.addEventListener('focus', onPageShown);
     syncAudioSession();
     armGestures();
   }
@@ -250,9 +289,27 @@ function uiAudioReady() {
   return now < gestureUntil;
 }
 
+function hasTransientActivation() {
+  try {
+    const ua = (typeof navigator !== 'undefined' && navigator.userActivation)
+      || (typeof window !== 'undefined' && window.navigator?.userActivation);
+    return !!ua?.isActive;
+  } catch { return false; }
+}
+
 export function playUiSound(kind) {
   if (!Object.hasOwn(UI_GAIN, kind) || !enabled || typeof window === 'undefined' ||
-      window.document?.hidden || !uiAudioReady()) return;
+      window.document?.hidden) return;
+  if (!uiAudioReady()) {
+    // Resume only in a live user-activation turn (MDN AudioContext.resume /
+    // user activation). A bare playUiSound after an interrupt must stay silent.
+    if (!hasTransientActivation()) return;
+    markGesture();
+    if (ensureContext() && context.state !== 'running') {
+      try { context.resume(); } catch { /* ignore */ }
+    }
+    if (!uiAudioReady()) return;
+  }
   // At the cap, drop the new voice rather than truncating an existing envelope.
   // A and B share the confirm tone; C keeps the chip sample. Cap by played
   // sound so rapid −/＋ (tick) overlaps at most 3 voices and is not cut off.
@@ -366,6 +423,16 @@ export function wireUiSound(root) {
       return;
     }
     if (event.type !== 'click') pressPlayed = true;
+    // Resume in this activation event even if window unlock listeners
+    // were previously disarmed. Do not call unlock() here: that would
+    // play an extra silent buffer and double-count sources.
+    if (ensureContext()) {
+      markGesture();
+      if (context.state !== 'running') {
+        try { context.resume(); } catch { /* ignore */ }
+      }
+      syncAudioSession();
+    }
     playUiSound(kind);
   };
   for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'keydown', 'touchend', 'click']) {
