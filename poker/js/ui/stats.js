@@ -18,7 +18,7 @@ function rowAvatar(row, photoOf) {
   const name = row.name || row.displayName || '';
   const cached = photoOf?.(row.uid);
   const photo = cached === undefined ? row.photoURL : cached;
-  return `<button type="button" class="mp-lb-av" data-ps-uid="${esc(row.uid || '')}" data-ps-name="${esc(name)}" aria-label="看${esc(name)}的統計">${avatarInnerHtml(photo, name, { size: 28 })}</button>`;
+  return `<button type="button" class="mp-lb-av" data-ps-uid="${esc(row.uid || '')}" data-sfx="tap" data-ps-name="${esc(name)}" aria-label="看${esc(name)}的統計">${avatarInnerHtml(photo, name, { size: 28 })}</button>`;
 }
 
 /**
@@ -64,16 +64,16 @@ export function renderStats(root, vm) {
             : `<div class="mp-empty" data-e1>
                 <h3>還沒有戰績</h3>
                 <p>打完一手離座後就會出現。</p>
-                <button type="button" class="mp-btn-primary" data-act="back">回大廳</button>
+                <button data-sfx="tap" type="button" class="mp-btn-primary" data-act="back">回大廳</button>
               </div>`
         }`
       : `<div class="mp-night-pick">
           ${nights
             .map(
               (k) =>
-                `<button type="button" class="mp-chip ${k === nightKey ? 'is-on' : ''}" data-night="${esc(k)}">${esc(k)}</button>`,
+                `<button data-sfx="tap" type="button" class="mp-chip ${k === nightKey ? 'is-on' : ''}" data-night="${esc(k)}">${esc(k)}</button>`,
             )
-            .join('') || `<button type="button" class="mp-chip is-on" data-night="${esc(nightKeyOf())}">${esc(nightKeyOf())}</button>`}
+            .join('') || `<button data-sfx="tap" type="button" class="mp-chip is-on" data-night="${esc(nightKeyOf())}">${esc(nightKeyOf())}</button>`}
         </div>
         <table class="mp-table">
           <thead><tr><th>#</th><th>玩家</th><th>淨輸贏</th></tr></thead>
@@ -98,12 +98,12 @@ export function renderStats(root, vm) {
     <div class="mp-shell mp-stats">
       <header class="mp-top">
         <h1>戰績</h1>
-        <button type="button" class="mp-btn-ghost" data-act="back">回大廳</button>
+        <button data-sfx="tap" type="button" class="mp-btn-ghost" data-act="back">回大廳</button>
       </header>
       ${offline ? '<p class="mp-offline">離線資料，連上網路後會更新</p>' : ''}
       <div class="mp-seg-row" role="tablist">
-        <button type="button" class="mp-seg-item ${mode === 'total' ? 'is-on' : ''}" data-mode="total">總排行</button>
-        <button type="button" class="mp-seg-item ${mode === 'night' ? 'is-on' : ''}" data-mode="night">每晚輸贏</button>
+        <button data-sfx="tap" type="button" class="mp-seg-item ${mode === 'total' ? 'is-on' : ''}" data-mode="total">總排行</button>
+        <button data-sfx="tap" type="button" class="mp-seg-item ${mode === 'night' ? 'is-on' : ''}" data-mode="night">每晚輸贏</button>
       </div>
       ${body}
     </div>`;

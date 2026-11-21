@@ -60,7 +60,7 @@ import {
   listenLeaderboard,
 } from '../net/ledger.js';
 import { addonOptions, queuedTotal, queueAddon, cancelAddons } from '../net/addon-client.js';
-import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, stepBuyinAmount, remainingBank } from '../net/buyin-policy.js';
+import { DEFAULT_NEW_PLAYER_CHIPS, createRoomBuyinError, assertMinimumBuyin, wholeBalance, buyinOptions, buyinLabel, buyinLabelShort, stepBuyinAmount, remainingBank } from '../net/buyin-policy.js';
 import { createHostLoop } from '../net/host.js';
 import {
   createIntentSender,
@@ -772,15 +772,15 @@ function showCloseResultCard({ chips = 0, auto = false, state = 'done', retry, r
     <div class="mp-close-result-card">
       <h2 id="mpCloseResultT">${state === 'pending' ? '結算中…' : state === 'failed' ? '結算沒有完成，請再按一次收桌' : resultTitle}</h2>
       ${autoLine}
-      <button type="button" class="mp-btn-primary" id="mpCloseLobby">回大廳</button>
-      <button type="button" class="mp-b2" id="mpCloseStats">看戰績</button>
+      <button data-sfx="tap" type="button" class="mp-btn-primary" id="mpCloseLobby">回大廳</button>
+      <button data-sfx="tap" type="button" class="mp-b2" id="mpCloseStats">看戰績</button>
     </div>`;
   if (state !== 'done') {
     $('#mpCloseLobby', el)?.remove();
     $('#mpCloseStats', el)?.remove();
     if (state === 'failed') {
       const card = el.querySelector('.mp-close-result-card');
-      card.insertAdjacentHTML('beforeend', '<button type="button" class="mp-btn-primary" id="mpCloseRetry">重試</button><button type="button" class="mp-b2" id="mpCloseBack">回牌桌</button>');
+      card.insertAdjacentHTML('beforeend', '<button data-sfx="confirm" type="button" class="mp-btn-primary" id="mpCloseRetry">重試</button><button data-sfx="tap" type="button" class="mp-b2" id="mpCloseBack">回牌桌</button>');
       $('#mpCloseRetry', el)?.addEventListener('click', retry);
       $('#mpCloseBack', el)?.addEventListener('click', () => {
         hideCloseResultCard();
@@ -814,8 +814,8 @@ function showHostAloneLeaveDialog() {
   el.innerHTML = `
     <div class="mp-close-result-card">
       <h2 id="mpHostAloneT">桌上只剩你，要收桌嗎？</h2>
-      <button type="button" class="mp-btn-primary" id="mpHostAloneClose">收桌</button>
-      <button type="button" class="mp-btn-ghost" id="mpHostAloneCancel">先不要</button>
+      <button data-sfx="confirm" type="button" class="mp-btn-primary" id="mpHostAloneClose">收桌</button>
+      <button data-sfx="tap" type="button" class="mp-btn-ghost" id="mpHostAloneCancel">先不要</button>
     </div>`;
   el.hidden = false;
   $('#mpHostAloneClose', el)?.addEventListener('click', () => {
@@ -855,8 +855,8 @@ function showLeaveTableConfirm() {
           ? '是否離開並收桌？這一手會作廢，已下注的籌碼退回'
           : '是否離開並收桌？玩家將結帳回帳戶。'
         : '是否離開牌局？'}</h2>
-      <button type="button" class="mp-btn-primary" id="mpLeaveConfirmOk">確認離開</button>
-      <button type="button" class="mp-btn-ghost" id="mpLeaveConfirmCancel">取消</button>
+      <button data-sfx="confirm" type="button" class="mp-btn-primary" id="mpLeaveConfirmOk">確認離開</button>
+      <button data-sfx="tap" type="button" class="mp-btn-ghost" id="mpLeaveConfirmCancel">取消</button>
     </div>`;
   el.hidden = false;
   $('#mpLeaveConfirmCancel', el)?.addEventListener('click', () => {
@@ -1426,7 +1426,7 @@ function paint() {
             <img src="assets/auth-felt.svg" width="280" height="160" alt="" class="mp-auth-img">
           </div>
           ${authState.status === 'offline' ? '<p class="mp-offline">離線資料</p>' : ''}
-          <button type="button" class="mp-b1" id="btnGoogle">用 Google 帳號登入</button>
+          <button data-sfx="confirm" type="button" class="mp-b1" id="btnGoogle">用 Google 帳號登入</button>
         </div>`;
       $('#btnGoogle', root)?.addEventListener('click', () => signIn());
     }
@@ -1579,7 +1579,6 @@ function paint() {
       onSignOut: () => signOut(),
       onRescue: () => doRescue(),
       onAvatar: openOwnStats,
-      onSettings: () => toast('設定還在製作中，請先用⋯選單的「戰績」'),
       lobbyStatus: awayLobbyStatus,
     });
     return;
@@ -2553,8 +2552,10 @@ function paintTableChrome() {
   const meta = $('#roomMeta');
   if (meta) {
     const selfSeat = room.seatUids.indexOf(user?.uid);
-    const buyin = buyinLabel(playerDoc, roomId, selfSeat >= 0 ? room.sess?.[selfSeat] : null, room.config);
-    meta.innerHTML = `<span class="meta-a"><b>${esc(room.config.sb)}／${esc(room.config.bb)}</b>　${esc(buyin)}</span><span class="meta-b">　房號 ${esc(formatCode(room.code))}</span>`;
+    const sess = selfSeat >= 0 ? room.sess?.[selfSeat] : null;
+    const buyin = buyinLabel(playerDoc, roomId, sess, room.config);
+    const buyinShort = buyinLabelShort(playerDoc, roomId, sess, room.config);
+    meta.innerHTML = `<span class="meta-a"><b>${esc(room.config.sb)}／${esc(room.config.bb)}</b>　<span class="buyin-short">${esc(buyinShort)}</span><span class="buyin-long">${esc(buyin)}</span></span><span class="meta-b">　房號 ${esc(formatCode(room.code))}</span>`;
   }
 
   // Empty seats / sit affordance via seats container overlay labels
@@ -2657,7 +2658,7 @@ function renderSeatOverlays() {
     el.innerHTML = `
       ${reveal || backs}
       <div class="plate plateA">
-        <div class="av" data-ps-uid="${esc(uid)}" data-ps-name="${esc(name)}" data-photo="${esc(photoOf(uid) || '')}">${avatarInnerHtml(photoOf(uid), name, { size: 32 })}</div>
+        <div data-sfx="tap" class="av" data-ps-uid="${esc(uid)}" data-ps-name="${esc(name)}" data-photo="${esc(photoOf(uid) || '')}">${avatarInnerHtml(photoOf(uid), name, { size: 32 })}</div>
         <div>
           <div class="nm">${esc(name)}${seat === room.seatUids.indexOf(room.hostUid) ? '<i class="mp-host-tag">房主</i>' : ''}${pending ? '<i class="mp-host-tag">排隊</i>' : ''}${stateTag}</div>
           <span class="ch st">${fmtChips(chips)}</span>
@@ -2683,6 +2684,7 @@ function renderSeatOverlays() {
       const el = document.createElement('button');
       el.type = 'button';
       el.className = `seat pos-${pos} mp-empty-seat`;
+      el.dataset.sfx = 'tap';
       el.dataset.seat = String(i);
       el.setAttribute('aria-label', `坐到座位 ${i + 1}`);
       el.innerHTML = `<div class="plate plateA mp-empty-plate"><span>空位 ${i + 1}</span></div>`;
@@ -2796,7 +2798,7 @@ function renderActBar() {
   if (queued) {
     const row = document.createElement('div');
     row.id = 'mpAddonQueueRow';
-    row.innerHTML = `<span>下一手前補碼 ${fmtChips(queued)}</span><button type="button" id="mpAddonCancel" aria-label="取消補碼 ${fmtChips(queued)}" ${addonBusy ? 'disabled' : ''}>取消</button>`;
+    row.innerHTML = `<span>下一手前補碼 ${fmtChips(queued)}</span><button data-sfx="tap" type="button" id="mpAddonCancel" aria-label="取消補碼 ${fmtChips(queued)}" ${addonBusy ? 'disabled' : ''}>取消</button>`;
     btns.before(row);
     row.querySelector('button').addEventListener('click', () => void cancelAddon());
   }
@@ -2833,8 +2835,8 @@ function renderActBar() {
     const myPending = pending.includes(mySeat);
     if (myPending) {
       btns.innerHTML = `
-        <button type="button" class="primary" id="mpShow">亮牌</button>
-        <button type="button" class="ghost" id="mpMuck">不亮</button>`;
+        <button data-sfx="tap" type="button" class="primary" id="mpShow">亮牌</button>
+        <button data-sfx="tap" type="button" class="ghost" id="mpMuck">不亮</button>`;
       const sendReveal = (type) => {
         btns.querySelectorAll('button').forEach((b) => {
           b.disabled = true;
@@ -2870,8 +2872,8 @@ function renderActBar() {
     seatedCount >= 2 &&
     (pub.phase === 'lobby' || !pub.handNo)
   ) {
-    btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始第一手（${seatedCount}人）</button>
-      ${addonButtonsHtml(true)}<button type="button" class="ghost" id="mpLeave">離座</button>`;
+    btns.innerHTML = `<button data-sfx="confirm" type="button" class="primary" id="mpStart">開始第一手（${seatedCount}人）</button>
+      ${addonButtonsHtml(true)}<button data-sfx="tap" type="button" class="ghost" id="mpLeave">離座</button>`;
     wireAddonButtons();
     $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
@@ -2879,8 +2881,8 @@ function renderActBar() {
   }
 
   if (between && isHost && seatedCount >= 2 && pub.phase === 'hand_over') {
-    btns.innerHTML = `<button type="button" class="primary" id="mpStart">開始下一手（${seatedCount}人）</button>
-      ${addonButtonsHtml(true)}<button type="button" class="ghost" id="mpLeave">離座</button>`;
+    btns.innerHTML = `<button data-sfx="confirm" type="button" class="primary" id="mpStart">開始下一手（${seatedCount}人）</button>
+      ${addonButtonsHtml(true)}<button data-sfx="tap" type="button" class="ghost" id="mpLeave">離座</button>`;
     wireAddonButtons();
     $('#mpStart')?.addEventListener('click', startHandFromButton);
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
@@ -2888,7 +2890,7 @@ function renderActBar() {
   }
 
   if (between) {
-    btns.innerHTML = `${addonButtonsHtml(true)}<button type="button" class="ghost" id="mpLeave">離座</button>`;
+    btns.innerHTML = `${addonButtonsHtml(true)}<button data-sfx="tap" type="button" class="ghost" id="mpLeave">離座</button>`;
     wireAddonButtons();
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
@@ -2903,11 +2905,11 @@ function renderActBar() {
   const minRaise = pub.minRaiseTo || (pub.currentBet || 0) + (room.config.bb || 20);
   const dis = legal ? '' : 'disabled';
   btns.innerHTML = `
-    <button type="button" class="fold" id="mpFold" ${dis}>蓋牌</button>
+    <button data-sfx="confirm" type="button" class="fold" id="mpFold" ${dis}>蓋牌</button>
     ${canCheck
-      ? `<button type="button" class="call" id="mpCheck" ${dis}>過牌</button>`
-      : `<button type="button" class="call" id="mpCall" ${dis}>跟注 ${fmtChips(toCall)}</button>`}
-    <button type="button" class="raise" id="mpRaise" ${dis}>加注</button>
+      ? `<button data-sfx="confirm" type="button" class="call" id="mpCheck" ${dis}>過牌</button>`
+      : `<button data-sfx="confirm" type="button" class="call" id="mpCall" ${dis}>跟注 ${fmtChips(toCall)}</button>`}
+    <button data-sfx="tap" type="button" class="raise" id="mpRaise" ${dis}>加注</button>
     ${addonButtonsHtml(!!(pub.seats?.[mySeat]?.folded || pub.seats?.[mySeat]?.sittingOut))}`;
   wireAddonButtons();
   const send = (type, amount) => {
@@ -3244,18 +3246,18 @@ function pickBuyinAmount(options) {
     ${options.minHint ? '<div class="mp-affix">' : ''}
     <p class="mp-acct mp-acct-bank${options.minHint ? ' mp-acct-row' : ''}">帳戶 <b id="mpBuyinBank"${Number.isFinite(options.bank) ? ` data-bank="${options.bank}" data-bank-suffix="${(options.bankSuffix || '').replaceAll('"','')}"` : ''}>${Number.isFinite(options.bank) && remainingBank(options.bank, options.amount) != null ? `${fmtChips(remainingBank(options.bank, options.amount))}${options.bankSuffix || ''}` : (options.bankText ?? '—')}</b></p>
     <div class="${options.minHint ? 'mp-affix-row' : 'mp-buyin-step'}">
-      <button type="button" data-minus aria-label="減少 500">−</button>
+      <button data-sfx="tick" type="button" data-minus aria-label="減少 500">−</button>
       ${options.minHint ? `<div class="mp-create-chips-field"><span class="mp-min-hint-row"><label for="mpBuyinAmount">${options.amountLabel || '攜入籌碼'}</label><span class="mp-min-hint" data-min-hint role="status"></span></span>` : ''}
       <input${options.minHint ? ' id="mpBuyinAmount"' : ''} aria-label="${options.title || '攜入籌碼'}" type="text" inputmode="numeric" value="${fmtChips(options.amount)}">
       ${options.minHint ? '</div>' : ''}
-      <button type="button" data-plus aria-label="增加 500">＋</button>
+      <button data-sfx="tick" type="button" data-plus aria-label="增加 500">＋</button>
     </div>
     ${options.minHint ? '</div>' : ''}
     <input aria-label="調整攜入籌碼" type="range" min="${options.min}" max="${options.max}" step="1" value="${options.amount}">
     <p class="mp-err" data-error role="status" hidden></p>
     ${options.hint ? `<p class="mp-acct">${options.hint}</p>` : ''}
-    <button type="button" class="mp-btn-ghost" data-cancel>取消</button>
-    <button type="button" class="mp-btn-primary" data-confirm>${options.confirmText || '入座'}</button>
+    <button data-sfx="tap" type="button" class="mp-btn-ghost" data-cancel>取消</button>
+    <button data-sfx="confirm" type="button" class="mp-btn-primary" data-confirm>${options.confirmText || '入座'}</button>
   </div>`;
   const previousFocus = document.activeElement;
   document.body.appendChild(el);
@@ -3335,7 +3337,7 @@ function addonButtonsHtml(enabled) {
     ? '<span class="mp-addon-hint" id="mpAddonHint">帳戶不足 1 大盲</span>'
     : !enabled && !queued
     ? '<span class="mp-addon-hint" id="mpAddonHint">這手結束後可補碼</span>' : '';
-  const add = `${hint}<button type="button" class="ghost" id="mpAddon" ${hint ? 'aria-describedby="mpAddonHint"' : ''} ${enabled && !insufficient && !addonBusy ? '' : 'disabled'}>補碼</button>`;
+  const add = `${hint}<button data-sfx="tap" type="button" class="ghost" id="mpAddon" ${hint ? 'aria-describedby="mpAddonHint"' : ''} ${enabled && !insufficient && !addonBusy ? '' : 'disabled'}>補碼</button>`;
   return add;
 }
 
@@ -3601,8 +3603,8 @@ function renderBanner() {
     el.hidden = false;
     const msg = `今天的免費用量快用完了，這手打完先停。台北時間 ${resetTimeTaipeiLabel()} 後可以再開`;
     const actions = isHost
-      ? `<button type="button" class="mp-banner-act" id="mpQuotaClose">收桌</button>`
-      : `${mySeat >= 0 ? '<button type="button" class="mp-banner-act" id="mpQuotaLeave">離座</button>' : ''}<button type="button" class="mp-banner-act" id="mpQuotaLobby">回大廳</button>`;
+      ? `<button data-sfx="confirm" type="button" class="mp-banner-act" id="mpQuotaClose">收桌</button>`
+      : `${mySeat >= 0 ? '<button data-sfx="tap" type="button" class="mp-banner-act" id="mpQuotaLeave">離座</button>' : ''}<button data-sfx="tap" type="button" class="mp-banner-act" id="mpQuotaLobby">回大廳</button>`;
     el.innerHTML = `<span class="mp-banner-msg">${esc(msg)}</span><span class="mp-banner-acts">${actions}</span>`;
     $('#mpQuotaClose', el)?.addEventListener('click', () => mpCloseRoom());
     $('#mpQuotaLeave', el)?.addEventListener('click', () => requestLeave());
@@ -4024,8 +4026,8 @@ function ensureMpMenu() {
   const extras = document.createElement('div');
   extras.id = 'mpMenuExtras';
   extras.innerHTML = `
-    <button type="button" id="mpBtnMembers" role="menuitem">成員</button>
-    <button type="button" id="mpBtnCloseRoom" role="menuitem">收桌</button>
+    <button data-sfx="tap" type="button" id="mpBtnMembers" role="menuitem">成員</button>
+    <button data-sfx="confirm" type="button" id="mpBtnCloseRoom" role="menuitem">收桌</button>
     <div id="mpMembersPanel" class="mp-members hidden" hidden></div>`;
   pop.appendChild(extras);
 
@@ -4238,8 +4240,8 @@ function showCloseRoomConfirm(onOk) {
       <h2 id="mpCloseConfirmT">${isHandInProgress()
         ? '確定收桌？這一手會作廢，已下注的籌碼退回，所有人照桌上籌碼結帳回帳戶。'
         : '確定收桌？玩家將結帳回帳戶。'}</h2>
-      <button type="button" class="mp-btn-primary" id="mpCloseConfirmOk">確認收桌</button>
-      <button type="button" class="mp-btn-ghost" id="mpCloseConfirmCancel">取消</button>
+      <button data-sfx="confirm" type="button" class="mp-btn-primary" id="mpCloseConfirmOk">確認收桌</button>
+      <button data-sfx="tap" type="button" class="mp-btn-ghost" id="mpCloseConfirmCancel">取消</button>
     </div>`;
   el.hidden = false;
   $('#mpCloseConfirmCancel', el)?.addEventListener('click', () => {

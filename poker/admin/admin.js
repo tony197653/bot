@@ -1,6 +1,9 @@
+import { initSound } from '../js/ui/sound.js';
 // 房主管理頁（SPEC v1.2）。只改帳戶 bank（補碼）和清除個人紀錄；不碰牌桌。
 import { loadFirebase } from '../../lib/firebase/load.js';
 import { FIREBASE_CONFIG, EMU_FIREBASE_CONFIG, EMU_PORTS, isEmuMode } from '../js/net/firebase-config.js';
+
+initSound();
 
 export const ADMIN_EMAIL = 'tony197653@gmail.com';
 const MAX_DELTA = 100000;
@@ -71,7 +74,7 @@ function renderPlayers() {
   const el = $('players');
   const focusUid = document.activeElement?.closest?.('#players .row')?.dataset.uid; // S4：重畫後焦點放回那一列
   if (!players.length) { el.innerHTML = '<p class="empty">還沒有玩家</p>'; return; }
-  el.innerHTML = players.map((p) => `<button type="button" class="row${sel === p.id ? ' sel' : ''}" data-uid="${esc(p.id)}">
+  el.innerHTML = players.map((p) => `<button data-sfx="tap" type="button" class="row${sel === p.id ? ' sel' : ''}" data-uid="${esc(p.id)}">
     <span><span class="nm">${esc(p.displayName || '玩家')}</span><span class="sub">${esc(seatLabel(p))}</span></span>
     <span class="num">${fmt(p.bank)}<span class="sub">${p.inPlay ? '桌上 ' + fmt(p.inPlay) : '\u00a0'}</span></span></button>`).join('')
     + `<p class="foot">已載入 ${players.length} 位 · 依籌碼排序</p>`;

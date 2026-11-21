@@ -196,7 +196,7 @@ test('room：背景返回先等新快照，timer 可取消且不重畫', () => {
   assert.equal(r.timers.size, 0);
 });
 
-test('播放器：五檔預載、手勢解鎖、優先中斷、關閉停聲及恢復不補播', async () => {
+test('播放器：五檔牌桌加一檔 UI 預載、手勢解鎖、優先中斷、關閉停聲及恢復不補播', async () => {
   const oldWindow = globalThis.window;
   const gestures = new Map();
   const fetched = [];
@@ -238,8 +238,10 @@ test('播放器：五檔預載、手勢解鎖、優先中斷、關閉停聲及�
     assert.equal(sources.length, 1);
     assert.equal(sources[0].started, true);
     await new Promise(setImmediate);
-    assert.equal(fetched.length, 5);
-    assert.ok(fetched.every((url) => /\/assets\/sfx\/(deal|bet|turn|hurry|win)\.mp3$/.test(url)));
+    assert.equal(fetched.length, 6);
+    assert.ok(fetched.every((url) => /\/assets\/sfx\/(deal|bet|turn|hurry|win|ui-tick)\.mp3$/.test(url)));
+    assert.deepEqual([...new Set(fetched.map((url) => url.split('/').at(-1)))].sort(),
+      ['bet.mp3','deal.mp3','hurry.mp3','turn.mp3','ui-tick.mp3','win.mp3']);
     assert.equal(sources.length, 1, '解鎖不補播音效');
     sound.playSound('deal');
     sound.playSound('win');

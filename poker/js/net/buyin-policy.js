@@ -42,10 +42,19 @@ export function buyinOptions(player, config) {
     amount: Math.max(min, Math.min(config.newPlayerChips ?? DEFAULT_NEW_PLAYER_CHIPS, max)) };
 }
 
-export function buyinLabel(player, roomId, session, config = { bb: 20, newPlayerChips: DEFAULT_NEW_PLAYER_CHIPS }) {
-  const amount = session?.buyIn ?? (player?.tableRoomId === roomId ? player.inPlay
+function buyinAmount(player, roomId, session, config = { bb: 20, newPlayerChips: DEFAULT_NEW_PLAYER_CHIPS }) {
+  return session?.buyIn ?? (player?.tableRoomId === roomId ? player.inPlay
     : Math.min(player?.bank || 0, Math.max(50 * config.bb, config.newPlayerChips ?? DEFAULT_NEW_PLAYER_CHIPS)));
+}
+
+export function buyinLabel(player, roomId, session, config = { bb: 20, newPlayerChips: DEFAULT_NEW_PLAYER_CHIPS }) {
+  const amount = buyinAmount(player, roomId, session, config);
   return `${session ? '本次買入' : '攜入'} ${(Number(amount) || 0).toLocaleString('en-US')} 籌碼`;
+}
+
+/** Phone top-bar label: 「買入 1,000」 (desktop keeps buyinLabel). */
+export function buyinLabelShort(player, roomId, session, config = { bb: 20, newPlayerChips: DEFAULT_NEW_PLAYER_CHIPS }) {
+  return `買入 ${(Number(buyinAmount(player, roomId, session, config)) || 0).toLocaleString('en-US')}`;
 }
 
 /** ＋每次增加 500，最後不足 500 時取剩餘全部；−從非 500 倍數回到上一檔 500。合法性仍由原面板驗證。 */

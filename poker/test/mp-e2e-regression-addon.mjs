@@ -415,21 +415,20 @@ async function waitForLobby(page) {
 }
 async function openLobbyStats(page) {
   await waitForLobby(page);
-  const menu = page.locator('#mpRoot .mp-lobby #mpMenuBtn');
+  const card = page.locator('.mp-lobby .mp-card[data-act="stats"]');
   try {
-    await menu.waitFor({ state: 'visible', timeout: 10000 });
+    await card.waitFor({ state: 'visible', timeout: 10000 });
     // trial 保留 Playwright 的可見、穩定、啟用與接收點擊檢查；不用 force。
-    await menu.click({ trial: true, timeout: 10000 });
-    await menu.click({ timeout: 10000 });
-    await page.locator('#mpMenu:not([hidden]) [data-act="stats"]').click({ timeout: 10000 });
+    await card.click({ trial: true, timeout: 10000 });
+    await card.click({ timeout: 10000 });
   } catch (error) {
     const state = await page.evaluate(() => {
-      const btn = document.getElementById('mpMenuBtn');
-      const rect = btn?.getBoundingClientRect();
+      const el = document.querySelector('.mp-lobby .mp-card[data-act="stats"]');
+      const rect = el?.getBoundingClientRect();
       const hit = rect && document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
       return {
         rootHidden: document.getElementById('mpRoot')?.hidden,
-        menuExpanded: btn?.getAttribute('aria-expanded'),
+        hasCard: !!el,
         hit: hit && { tag: hit.tagName, id: hit.id, className: hit.className },
         dialogs: [...document.querySelectorAll('[role="dialog"]')]
           .filter(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden')

@@ -5,6 +5,7 @@
 
 import { canAffordBlinds, createRoomBuyinError, defaultCreateBuyin, stepBuyinAmount, remainingBank } from '../net/buyin-policy.js';
 
+import { isSoundOn, setSoundOn } from './sound.js';
 import { avatarInnerHtml } from './avatars.js';
 import { formatCode, shareUrl, ROOM_CONST } from '../net/room.js';
 
@@ -39,9 +40,9 @@ export function ensureLobbyNotify() {
     <div class="mp-ntc-b">
       <p class="mp-ntc-t" id="mpNtcT"></p>
       <p class="mp-ntc-d" id="mpNtcD"></p>
-      <button type="button" class="mp-ntc-a" id="mpNtcA" hidden></button>
+      <button data-sfx="tap" type="button" class="mp-ntc-a" id="mpNtcA" hidden></button>
     </div>
-    <button type="button" class="mp-ntc-x" id="mpNtcX" aria-label="關閉通知">${X_ICO}</button>`;
+    <button data-sfx="tap" type="button" class="mp-ntc-x" id="mpNtcX" aria-label="關閉通知">${X_ICO}</button>`;
   document.body.appendChild(el);
   const hide = () => hideLobbyNotify();
   $('#mpNtcX', el)?.addEventListener('click', hide);
@@ -183,7 +184,7 @@ function buildMyCard(vm) {
   const act = kind === 'settle' ? 'rescue' : 'continue';
   const html = `<section class="mp-panel mp-mine ${stateClass}" aria-labelledby="mpMyH" data-mine-k="${kind === 'settle' ? 'settle' : 'seat'}">
     <div class="mp-panel-h"><h2 id="mpMyH">我的牌桌</h2><span>${esc(note)}</span></div>
-    <button type="button" class="mp-my" data-act="${act}" data-k="${kind === 'settle' ? 'settle' : 'seat'}"
+    <button type="button" class="mp-my" data-sfx="confirm" data-act="${act}" data-k="${kind === 'settle' ? 'settle' : 'seat'}"
       data-name="${esc(name)}" aria-label="${esc(aria)}">
       <span class="mp-mt">
         <span class="mp-txt">
@@ -256,7 +257,7 @@ export function openRowHtml(t, photoOf) {
   const name = rowName(t);
   const code = formatCode(t.code || '');
   return `<li>
-    <button type="button" class="mp-row${full ? ' full' : ''}" data-act="open-table" data-rid="${esc(t.id)}"
+    <button type="button" data-sfx="tap" class="mp-row${full ? ' full' : ''}" data-act="open-table" data-rid="${esc(t.id)}"
       ${full ? 'disabled' : ''} aria-label="${esc(openRowLabel(t, seated, full))}">
       ${hostAvHtml(hostName, rowHostPhoto(t, photoOf), t.hostUid)}
       <span class="mp-txt" aria-hidden="true">
@@ -482,7 +483,7 @@ export function renderMpLobby(root, vm) {
       }</p>
       ${
         showCreateBtn && !offline
-          ? `<button type="button" class="mp-btn-primary" data-act="create" id="mpBtnCreateE">${PLUS_SVG}開新牌桌</button>`
+          ? `<button data-sfx="confirm" type="button" class="mp-btn-primary" data-act="create" id="mpBtnCreateE">${PLUS_SVG}開新牌桌</button>`
           : ''
       }
     </div>
@@ -490,9 +491,9 @@ export function renderMpLobby(root, vm) {
 
   const createBtn = showCreateBtn
     ? offline
-      ? `<button type="button" class="mp-btn-primary" data-act="create" id="mpBtnCreate" disabled aria-disabled="true">${PLUS_SVG}開新牌桌</button>
+      ? `<button data-sfx="confirm" type="button" class="mp-btn-primary" data-act="create" id="mpBtnCreate" disabled aria-disabled="true">${PLUS_SVG}開新牌桌</button>
          <p class="mp-meta">沒有網路，連上後才能開桌或加入</p>`
-      : `<button type="button" class="mp-btn-primary" data-act="create" id="mpBtnCreate">${PLUS_SVG}開新牌桌</button>`
+      : `<button data-sfx="confirm" type="button" class="mp-btn-primary" data-act="create" id="mpBtnCreate">${PLUS_SVG}開新牌桌</button>`
     : '';
 
   const ranks = (vm.leaderPreview || [])
@@ -508,7 +509,7 @@ export function renderMpLobby(root, vm) {
     back: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4.5 6.5 9 11 13.5"/></svg>`,
     settle: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 9.5h10M9 4.5v10"/></svg>`,
     stats: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3.5 14.5v-4M9 14.5v-9M14.5 14.5v-6"/></svg>`,
-    set: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="9" r="2.4"/><path d="M9 2.5v2M9 13.5v2M2.5 9h2M13.5 9h2M4.4 4.4l1.4 1.4M12.2 12.2l1.4 1.4M4.4 13.6l1.4-1.4M12.2 5.8l1.4-1.4"/></svg>`,
+    speaker: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h3l4-3v10l-4-3H3zM13 6a5 5 0 0 1 0 6"/></svg>`,
     out: `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3.5H4.5v11H7M11 6l3 3-3 3M14 9H7.5"/></svg>`,
     /* M7 kebab glyph (components c81c4f2): solid dots, no morph */
     dots: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5.5" cy="12" r="1.75"/><circle cx="12" cy="12" r="1.75"/><circle cx="18.5" cy="12" r="1.75"/></svg>`,
@@ -517,7 +518,7 @@ export function renderMpLobby(root, vm) {
   root.innerHTML = `
     <div class="mp-shell mp-lobby${openTables.length ? '' : ' is-empty'}">
       <header class="mp-top" data-status="${esc(statusWord)}">
-        <button type="button" class="mp-av" data-act="avatar" aria-label="${esc(name)}的帳號">
+        <button data-sfx="tap" type="button" class="mp-av" data-act="avatar" aria-label="${esc(name)}的帳號">
           ${avatarHtml(user)}
         </button>
         <span class="mp-nm">${esc(name)}</span>
@@ -525,19 +526,18 @@ export function renderMpLobby(root, vm) {
         <span class="mp-amt" id="mpAmtAcc" aria-label="帳戶 ${bankTxt}"><small>帳戶</small><b id="mpBAcc">${bankTxt}</b></span>
         <span class="mp-amt" id="mpAmtTab" aria-label="牌桌 ${shownInPlay ? fmtChips(shownInPlay) : 0}"><small>牌桌</small><b id="mpBTab" class="${tableBalZero}">${tableBal}</b></span>
         <div class="mp-mw">
-          <button type="button" class="mp-mbtn m7" id="mpMenuBtn" aria-label="開啟選單"
+          <button type="button" data-sfx="tap" class="mp-mbtn m7" id="mpMenuBtn" aria-label="開啟選單"
             aria-haspopup="menu" aria-expanded="false" aria-controls="mpMenu">${menuIco.dots}</button>
           <div class="mp-menu" id="mpMenu" role="menu" aria-label="功能清單" hidden>
             ${
               menuPrimary
-                ? `<button type="button" class="mp-mi pri${menuPrimary.settle ? ' settle' : ''}" role="menuitem" data-act="${menuPrimary.act}" tabindex="-1">${menuPrimary.settle ? menuIco.settle : menuIco.back}<span>${menuPrimary.label}</span></button>
+                ? `<button type="button" data-sfx="confirm" class="mp-mi pri${menuPrimary.settle ? ' settle' : ''}" role="menuitem" data-act="${menuPrimary.act}" tabindex="-1">${menuPrimary.settle ? menuIco.settle : menuIco.back}<span>${menuPrimary.label}</span></button>
             <div class="mp-sep" role="separator"></div>`
                 : ''
             }
-            <button type="button" class="mp-mi" role="menuitem" data-act="my-stats" tabindex="-1">${menuIco.stats}我的戰績</button>
-            <button type="button" class="mp-mi" role="menuitem" data-act="stats" tabindex="-1">${menuIco.stats}戰績</button>
-            <button type="button" class="mp-mi" role="menuitem" data-act="settings" tabindex="-1">${menuIco.set}設定</button>
-            <button type="button" class="mp-mi" role="menuitem" data-act="signout" tabindex="-1">${menuIco.out}登出</button>
+            <button data-sfx="tap" type="button" class="mp-mi" role="menuitem" data-act="my-stats" tabindex="-1">${menuIco.stats}我的戰績</button>
+            <button type="button" class="mp-mi" id="mpBtnMute" role="menuitem" data-act="mute" data-sfx="tap" aria-pressed="${isSoundOn()}" tabindex="-1">${menuIco.speaker}<span>音效：${isSoundOn() ? '開' : '關'}</span></button>
+            <button data-sfx="tap" type="button" class="mp-mi" role="menuitem" data-act="signout" tabindex="-1">${menuIco.out}登出</button>
           </div>
         </div>
       </header>
@@ -549,7 +549,7 @@ export function renderMpLobby(root, vm) {
         </div>
         <div class="mp-side">
           ${createBtn}
-          <article class="mp-card mp-c1" data-act="stats" role="button" tabindex="0">
+          <article data-sfx="tap" class="mp-card mp-c1" data-act="stats" role="button" tabindex="0">
             <h3>戰績</h3>
             <ol class="mp-ranks">${ranks || '<li class="mp-mute">還沒有戰績</li>'}</ol>
           </article>
@@ -564,7 +564,13 @@ export function renderMpLobby(root, vm) {
     'my-stats': () => vm.onMyStats?.(),
     signout: onSignOut,
     avatar: onAvatar,
-    settings: () => vm.onSettings?.(),
+    mute: () => {
+      setSoundOn(!isSoundOn());
+      const button = $('#mpBtnMute', root);
+      button?.setAttribute('aria-pressed', String(isSoundOn()));
+      const label = button?.querySelector('span');
+      if (label) label.textContent = `音效：${isSoundOn() ? '開' : '關'}`;
+    },
     continue: onContinue,
   });
 
@@ -723,7 +729,7 @@ export function renderCreateRoom(root, vm) {
     <div class="mp-shell mp-create">
       <header class="mp-top">
         <h1>開新牌桌</h1>
-        <button type="button" class="mp-btn-ghost" data-act="cancel">取消</button>
+        <button data-sfx="tap" type="button" class="mp-btn-ghost" data-act="cancel">取消</button>
       </header>
       <form class="mp-form" id="createForm" novalidate>
         <label class="mp-float">
@@ -734,7 +740,7 @@ export function renderCreateRoom(root, vm) {
           <legend>盲注（小盲／大盲）</legend>
           <div class="mp-seg-row" role="radiogroup">
             ${[['5','10'],['10','20'],['25','50'],['50','100']].map(([sb,bb]) => `
-              <label class="mp-seg-item">
+              <label data-sfx="tap" class="mp-seg-item">
                 <input type="radio" name="blinds" value="${sb}/${bb}" ${defaults.sb==+sb?'checked':''}>
                 <span>${sb}/${bb}</span>
               </label>`).join('')}
@@ -743,12 +749,12 @@ export function renderCreateRoom(root, vm) {
         <div class="mp-affix">
           <span class="mp-acct mp-acct-row mp-acct-bank">帳戶 <b id="mpCreateBank"${bank == null ? "" : ` data-bank="${bank}"`}>${bank == null || remainingBank(bank, defaults.chips) == null ? bankText : fmtChips(remainingBank(bank, defaults.chips))}</b></span>
           <div class="mp-affix-row">
-            <button type="button" data-chips-minus aria-label="減少 500">−</button>
+            <button data-sfx="tick" type="button" data-chips-minus aria-label="減少 500">−</button>
             <div class="mp-create-chips-field">
               <span class="mp-min-hint-row"><label for="mpCreateChips">攜入籌碼</label><span class="mp-min-hint" id="mpCreateMinHint" role="status">已是最低攜入（50 大盲）</span></span>
               <input name="chips" id="mpCreateChips" type="text" inputmode="numeric" min="${50 * defaults.sb * 2}" max="100000" step="1" value="${fmtChips(defaults.chips)}" aria-describedby="${chipsHintId} mpCreateLiveErr">
             </div>
-          <button type="button" data-chips-plus aria-label="增加 500">＋</button></div>
+          <button data-sfx="tick" type="button" data-chips-plus aria-label="增加 500">＋</button></div>
           <small id="${chipsHintId}">入座時預設帶入這個數字，可自行調整；第一次來的人也送這筆。${fmtChips(50 * defaults.sb * 2)}–100,000。按 ± 每次增減 500。</small>
           <p class="mp-err" id="mpCreateLiveErr" role="status" ${error ? '' : 'hidden'}>${esc(error || '')}</p>
         </div>
@@ -759,7 +765,7 @@ export function renderCreateRoom(root, vm) {
             <li>斷線 60 秒標暫離</li>
           </ul>
         </div>
-        <button type="submit" class="mp-btn-primary" ${creating ? 'disabled aria-busy="true"' : ''}>${creating ? '<span class="mp-spin" aria-hidden="true"></span>開房中…' : '開房'}</button>
+        <button data-sfx="confirm" type="submit" class="mp-btn-primary" ${creating ? 'disabled aria-busy="true"' : ''}>${creating ? '<span class="mp-spin" aria-hidden="true"></span>開房中…' : '開房'}</button>
       </form>
     </div>`;
   $('[data-act="cancel"]', root)?.addEventListener('click', onCancel);
@@ -874,13 +880,13 @@ export function renderShareRoom(root, vm) {
     <div class="mp-shell mp-share">
       <header class="mp-top">
         <h1>牌桌開好了</h1>
-        <button type="button" class="mp-btn-ghost" data-act="lobby">回大廳</button>
+        <button data-sfx="tap" type="button" class="mp-btn-ghost" data-act="lobby">回大廳</button>
       </header>
       <p class="mp-table-name">${esc(name)}</p>
       <p class="mp-meta">點連結加入</p>
-      <button type="button" class="mp-b2" data-act="share">分享連結</button>
-      <button type="button" class="mp-b2" data-act="copy">複製連結</button>
-      <button type="button" class="mp-btn-primary" data-act="enter">進入牌桌</button>
+      <button data-sfx="tap" type="button" class="mp-b2" data-act="share">分享連結</button>
+      <button data-sfx="tap" type="button" class="mp-b2" data-act="copy">複製連結</button>
+      <button data-sfx="confirm" type="button" class="mp-btn-primary" data-act="enter">進入牌桌</button>
       <p class="mp-url">${esc(url)}</p>
     </div>`;
   wire(root, {
@@ -902,7 +908,7 @@ export function renderJoinCode(root, vm) {
   root.innerHTML = `
     <div class="mp-shell mp-join-page${ended ? ' mp-ended' : ''}">
       <p class="mp-lead">${esc(lead)}</p>
-      <button type="button" class="mp-btn-primary" data-act="lobby">回大廳</button>
+      <button data-sfx="tap" type="button" class="mp-btn-primary" data-act="lobby">回大廳</button>
     </div>`;
   wire(root, { lobby: onLobby });
 }

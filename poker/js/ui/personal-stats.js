@@ -30,14 +30,14 @@ export function personalStatsHtml({ name, isMe, view, chips, note = '', photoURL
   const net = v.net;
   const avatar = avatarInnerHtml(photoURL, name, { size: 40 });
   const avatarHtml = isMe && canEdit
-    ? `<button type="button" class="ps-av" data-ps="avatar" aria-label="換頭像">${avatar}</button>`
+    ? `<button data-sfx="tap" type="button" class="ps-av" data-ps="avatar" aria-label="換頭像">${avatar}</button>`
     : `<span class="ps-av" aria-hidden="true">${avatar}</span>`;
-  return `<div class="ps-scrim" data-ps="scrim"></div>
+  return `<div data-sfx="tap" class="ps-scrim" data-ps="scrim"></div>
   <section class="ps-sheet" role="dialog" aria-modal="true" aria-label="${title}的統計">
     <header class="ps-head"><div class="ps-id">${avatarHtml}<h2 class="ps-title">${title}</h2></div>
-      <button type="button" class="mp-btn-ghost" data-ps="back">返回</button></header>
+      <button data-sfx="tap" type="button" class="mp-btn-ghost" data-ps="back">返回</button></header>
     ${note ? `<p class="ps-msg" role="status">${esc(note)}</p>` : ''}
-    ${msg ? `<p class="ps-msg" role="status">${msg}${view.state === 'error' ? ' <button type="button" class="mp-btn-ghost" data-ps="retry">重試</button>' : ''}</p>` : ''}
+    ${msg ? `<p class="ps-msg" role="status">${msg}${view.state === 'error' ? ' <button data-sfx="tap" type="button" class="mp-btn-ghost" data-ps="retry">重試</button>' : ''}</p>` : ''}
     <div class="ps-r1"><div><div class="ps-l">勝率</div><svg viewBox="0 0 132 132" width="132" height="132" role="img" aria-label="勝率 ${pctTxt(v.win)}">${ring(v.win, { size: 132, r: 58, w: 16, color: '#60BF88' }).replace('class="ps-rv"', 'class="ps-rv ps-big"')}</svg></div>
       <div><div class="ps-l">總手數</div><div class="ps-n ps-big">${fmt(v.hands)}</div></div></div>
     <div class="ps-r2"><div><div class="ps-l">淨贏籌碼</div><div class="ps-n${net < 0 ? ' ps-neg' : ''}">${fmt(net)}</div></div>
@@ -49,17 +49,17 @@ export function avatarPickerHtml({ name, photoURL, googlePhotoURL, saving = fals
   const selected = presetKeyOf(photoURL) || 'original';
   const options = [{ key: 'original', label: '原本頭像' }, ...AVATAR_PRESETS];
   const disabled = saving ? ' disabled' : '';
-  return `<div class="ps-scrim" data-ps="pick-cancel"></div>
+  return `<div data-sfx="tap" class="ps-scrim" data-ps="pick-cancel"></div>
     <section class="ps-pick" role="dialog" aria-modal="true" aria-label="選擇頭像">
       <h2>選擇頭像</h2>
       <div class="ps-pick-grid">${options.map(({ key, label }) => {
         const original = key === 'original';
-        return `<button type="button" class="ps-pick-option" data-ps="pick-choice" data-key="${key}" aria-label="${label}" title="${label}" aria-pressed="${key === selected}"${disabled}>
+        return `<button data-sfx="tap" type="button" class="ps-pick-option" data-ps="pick-choice" data-key="${key}" aria-label="${label}" title="${label}" aria-pressed="${key === selected}"${disabled}>
           <span class="ps-pick-av">${avatarInnerHtml(original ? googlePhotoURL : presetUrl(key), name, { size: 60 })}</span>
         </button>`;
       }).join('')}</div>
       ${failed ? '<p class="ps-msg" role="alert">儲存失敗，請重試</p>' : ''}
-      <button type="button" class="mp-btn-ghost" data-ps="pick-cancel"${disabled}>取消</button>
+      <button data-sfx="tap" type="button" class="mp-btn-ghost" data-ps="pick-cancel"${disabled}>取消</button>
     </section>`;
 }
 const CSS = `.ps-host{position:fixed;inset:0;z-index:60}.ps-scrim{position:absolute;inset:0;background:rgba(0,0,0,.55)}

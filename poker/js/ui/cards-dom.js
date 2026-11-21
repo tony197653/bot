@@ -83,7 +83,7 @@ export function raisePresetsMarkup(presets, selectedId, format = fmtChips) {
   return list
     .map(
       (p) =>
-        `<button type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.id === selectedId}">` +
+        `<button data-sfx="tap" type="button" data-to="${p.to}" data-id="${p.id}" aria-pressed="${p.id === selectedId}">` +
         `<span class="preset-lbl">${p.label}</span>` +
         `<span class="preset-amt">${format(p.to)}</span></button>`,
     )
