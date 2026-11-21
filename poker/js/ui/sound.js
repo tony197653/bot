@@ -43,13 +43,30 @@ let gesturesArmed = false;
  *  the silent switch will not mute poker sfx. PM may set this to false. */
 export const SOUND_OPTIONS = { usePlaybackAudioSession: true };
 
+const UI_SAMPLES = { tap: 'ui-tap', tick: 'ui-tick' };
+/** In-app peaks: confirm 0.035; tap 0.8× and tick 0.7× that, after sample peak-norm. */
+export const UI_GAIN = { tap: 0.028, confirm: 0.035, tick: 0.0245 };
+const uiPeaks = {};
+function bufferPeak(buffer) {
+  try {
+    let peak = 0;
+    for (let c = 0; c < (buffer.numberOfChannels || 0); c++) {
+      const data = buffer.getChannelData(c);
+      for (let i = 0; i < data.length; i++) peak = Math.max(peak, Math.abs(data[i]));
+    }
+    return peak || 1;
+  } catch { return 1; }
+}
+
 function preload() {
   if (!context || loading) return;
-  loading = Promise.all(PRIORITY.map(async (kind) => {
+  const files = [...PRIORITY, ...Object.values(UI_SAMPLES)];
+  loading = Promise.all(files.map(async (kind) => {
     try {
       const response = await window.fetch(new URL(`../../assets/sfx/${kind}.mp3`, import.meta.url));
       if (!response.ok) return;
       buffers[kind] = await context.decodeAudioData(await response.arrayBuffer());
+      if (Object.values(UI_SAMPLES).includes(kind)) uiPeaks[kind] = bufferPeak(buffers[kind]);
     } catch { /* Audio failure never affects the table. */ }
   })).catch(() => {});
 }
@@ -174,9 +191,7 @@ export function playSound(kind) {
 
 
 const UI_TONES = {
-  tap: { frequency: 620, end: 440, duration: 0.045, gain: 0.025 },
-  confirm: { frequency: 660, end: 990, duration: 0.065, gain: 0.035 },
-  tick: { frequency: 240, end: 150, duration: 0.022, gain: 0.025 },
+  confirm: { frequency: 660, end: 990, duration: 0.065, gain: UI_GAIN.confirm },
 };
 // UI voices never occupy or stop the table's `active` source.
 const uiVoices = new Set();
@@ -184,35 +199,50 @@ function stopUiSounds() {
   for (const voice of [...uiVoices]) voice.stop();
 }
 export function playUiSound(kind) {
-  const tone = Object.hasOwn(UI_TONES, kind) ? UI_TONES[kind] : null;
-  if (!tone || !enabled || typeof window === 'undefined' || window.document?.hidden ||
-      context?.state !== 'running') return;
+  if (!Object.hasOwn(UI_GAIN, kind) || !enabled || typeof window === 'undefined' ||
+      window.document?.hidden || context?.state !== 'running') return;
+  // At the cap, drop the new voice rather than truncating an existing envelope.
+  const same = [...uiVoices].filter((v) => v.kind === kind);
+  if (same.length >= (kind === 'tick' ? 3 : 8)) return;
   let voice;
-  try {
-    // A tiny attack/release prevents clicks, including rapid stepper retriggers.
-    // At the cap, drop the new voice rather than truncating an existing envelope.
-    const same = [...uiVoices].filter((v) => v.kind === kind);
-    if (same.length >= (kind === 'tick' ? 3 : 8)) return;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const now = context.currentTime;
-    oscillator.type = 'sine';
-    oscillator.frequency.setValueAtTime(tone.frequency, now);
-    oscillator.frequency.exponentialRampToValueAtTime(tone.end, now + tone.duration);
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(tone.gain, now + 0.003);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + tone.duration);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
+  const track = (source, gain, stopAt) => {
     const cleanup = () => {
       uiVoices.delete(voice);
-      try { oscillator.disconnect(); gain.disconnect(); } catch {}
+      try { source.disconnect(); gain.disconnect(); } catch {}
     };
-    voice = { kind, stop() { try { oscillator.stop(); } catch {} cleanup(); } };
+    voice = { kind, stop() { try { source.stop(); } catch {} cleanup(); } };
     uiVoices.add(voice);
-    oscillator.onended = cleanup;
-    oscillator.start(now);
-    oscillator.stop(now + tone.duration);
+    source.onended = cleanup;
+    source.start(context.currentTime);
+    if (stopAt != null) source.stop(stopAt);
+  };
+  try {
+    if (kind === 'confirm') {
+      const tone = UI_TONES.confirm;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const now = context.currentTime;
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(tone.frequency, now);
+      oscillator.frequency.exponentialRampToValueAtTime(tone.end, now + tone.duration);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(tone.gain, now + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + tone.duration);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      track(oscillator, gain, now + tone.duration);
+      return;
+    }
+    const sample = UI_SAMPLES[kind];
+    const buffer = buffers[sample];
+    if (!buffer) return;
+    const source = context.createBufferSource();
+    const gain = context.createGain();
+    source.buffer = buffer;
+    gain.gain.value = UI_GAIN[kind] / (uiPeaks[sample] || 1);
+    source.connect(gain);
+    gain.connect(context.destination);
+    track(source, gain);
   } catch { voice?.stop(); /* UI audio never affects the action. */ }
 }
 
@@ -230,7 +260,7 @@ export function classifyUiSound(el) {
       el.disabled || el.matches?.(':disabled, input[type="range"]')) return null;
   if (el.matches?.('.mp-seg-item') && el.querySelector?.('input[type="radio"]:disabled')) return null;
   const explicit = el.getAttribute('data-sfx');
-  if (explicit !== null) return Object.hasOwn(UI_TONES, explicit) ? explicit : null;
+  if (explicit !== null) return Object.hasOwn(UI_GAIN, explicit) ? explicit : null;
   for (const kind of ['tap', 'confirm', 'tick']) if (UI_IDS[kind].has(el.id)) return kind;
   if (el.matches?.('[data-chips-minus], [data-chips-plus], [data-minus], [data-plus]')) return 'tick';
   if (el.matches?.('[data-confirm], #createForm button[type="submit"]')) return 'confirm';

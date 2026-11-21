@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { classifyUiSound, wireUiSound } from '../js/ui/sound.js';
 import { raisePresetsMarkup } from '../js/ui/cards-dom.js';
 
@@ -89,45 +89,75 @@ test('委派只綁一次；子元素一個 click 只播一次，radio 的 label 
   handlers[0].handler({target:element({type:'radio'},element({class:'mp-seg-item'}),'input')});
 });
 
-test('播放器：共用靜音、背景／未解鎖靜音、tick 上限及與牌桌雙向隔離', async () => {
+test('播放器：樣本增益、共用靜音、tick 上限及與牌桌雙向隔離', async () => {
   const oldWindow = globalThis.window;
   const storage = new Map();
   const gestures = new Map();
-  const sources = [], oscillators = [];
+  const sources = [], oscillators = [], gains = [];
+  const fetched = [];
   let context;
   const param = () => ({setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}});
   class AudioContext {
     constructor() { context=this; this.state='suspended'; this.destination={}; this.currentTime=0; this.sampleRate=22050; }
     resume() { this.state='running'; return Promise.resolve(); }
-    decodeAudioData() { return Promise.resolve({}); }
+    decodeAudioData() { return Promise.resolve({ numberOfChannels: 0, length: 0 }); }
     createBuffer() { return {}; }
     createBufferSource() { const node={connect(){},disconnect(){},start(){this.started=true;},stop(){this.stopped=true;}}; sources.push(node); return node; }
     createOscillator() { const node={frequency:param(),connect(){},disconnect(){},start(){this.started=true;},stop(at){ if(at===undefined) this.stopped=true; else this.end=at; }}; oscillators.push(node); return node; }
-    createGain() { return {gain:param(),connect(){},disconnect(){}}; }
+    createGain() { const node={gain:Object.assign(param(),{value:1}),connect(){},disconnect(){}}; gains.push(node); return node; }
   }
   try {
     globalThis.window={AudioContext,localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},
       document:{hidden:false,addEventListener(){}},addEventListener:(type,fn)=>gestures.set(type,fn),removeEventListener:type=>gestures.delete(type),
-      fetch:async()=>({ok:true,arrayBuffer:async()=>new ArrayBuffer(1)})};
+      fetch:async(url)=>{ fetched.push(String(url)); return {ok:true,arrayBuffer:async()=>new ArrayBuffer(1)}; }};
     const s=await import('../js/ui/sound.js?ui-isolation');
-    s.initSound(); s.playUiSound('tap'); assert.equal(oscillators.length,0);
+    assert.deepEqual(s.UI_GAIN, { tap: 0.028, confirm: 0.035, tick: 0.0245 });
+    s.initSound(); s.playUiSound('tap'); assert.equal(sources.length,0); assert.equal(oscillators.length,0);
     gestures.get('pointerdown')(); await new Promise(setImmediate);
+    assert.equal(sources.length,1, '解鎖靜音 buffer');
+    assert.ok(fetched.some((url) => url.endsWith('ui-tap.mp3')));
+    assert.ok(fetched.some((url) => url.endsWith('ui-tick.mp3')));
     s.playSound('deal'); const deal=sources.at(-1);
+    const beforeTicks=sources.length;
     for(let i=0;i<5;i++) s.playUiSound('tick');
-    assert.equal(oscillators.length,3); assert.equal(deal.stopped,undefined);
-    oscillators[0].onended(); s.playUiSound('tick'); assert.equal(oscillators.length,4);
+    assert.equal(sources.length, beforeTicks+3); assert.equal(oscillators.length,0); assert.equal(deal.stopped,undefined);
+    assert.equal(gains.at(-1).gain.value, 0.0245);
+    sources[beforeTicks].onended(); s.playUiSound('tick'); assert.equal(sources.length, beforeTicks+4);
     s.playSound('win'); assert.equal(deal.stopped,true);
-    assert.ok(oscillators.every(o=>!o.stopped));
+    assert.ok(sources.slice(beforeTicks).every(n=>!n.stopped));
     s.stopSound(); s.playSound('deal'); assert.equal(sources.at(-1).started,true);
-    s.playUiSound('tap'); s.playUiSound('confirm'); assert.equal(oscillators.length,6);
-    s.playUiSound('unknown'); s.playUiSound('toString'); assert.equal(oscillators.length,6);
+    const afterDeal=sources.length;
+    s.playUiSound('tap'); s.playUiSound('confirm');
+    assert.equal(sources.length, afterDeal+1);
+    assert.equal(oscillators.length,1);
+    assert.equal(gains.filter(g => g.gain.value===0.028).length,1);
+    s.playUiSound('unknown'); s.playUiSound('toString');
+    assert.equal(sources.length, afterDeal+1); assert.equal(oscillators.length,1);
     s.setSoundOn(false); assert.equal(storage.get('poker.sfx'),'off');
-    assert.ok(oscillators.slice(1).every(o=>o.stopped)); assert.equal(sources.at(-1).stopped,true);
-    const count=sources.length;
-    s.playSound('hurry'); s.playUiSound('tap'); assert.equal(sources.length,count); assert.equal(oscillators.length,6);
-    s.setSoundOn(true); assert.equal(storage.get('poker.sfx'),'on'); s.playUiSound('tap'); assert.equal(oscillators.length,7);
-    window.document.hidden=true; s.playUiSound('tap'); assert.equal(oscillators.length,7);
-    window.document.hidden=false; context.state='suspended'; s.playUiSound('tap'); assert.equal(oscillators.length,7);
+    assert.equal(oscillators[0].stopped,true); assert.equal(sources.at(-1).stopped,true);
+    const countS=sources.length, countO=oscillators.length;
+    s.playSound('hurry'); s.playUiSound('tap'); s.playUiSound('tick'); s.playUiSound('confirm');
+    assert.equal(sources.length,countS); assert.equal(oscillators.length,countO);
+    s.setSoundOn(true); assert.equal(storage.get('poker.sfx'),'on'); s.playUiSound('tap');
+    assert.equal(sources.length,countS+1); assert.equal(oscillators.length,countO);
+    window.document.hidden=true; s.playUiSound('tap'); assert.equal(sources.length,countS+1);
+    window.document.hidden=false; context.state='suspended'; s.playUiSound('tap'); assert.equal(sources.length,countS+1);
     assert.equal(s.SOUND_OPTIONS.usePlaybackAudioSession,true);
   } finally { if(oldWindow===undefined) delete globalThis.window; else globalThis.window=oldWindow; }
+});
+
+test('UI 音檔已進 assets，CREDITS 註明 Kenney CC0 來源', () => {
+  for (const name of ['ui-tap', 'ui-tick']) {
+    const st = statSync(new URL(`../assets/sfx/${name}.mp3`, import.meta.url));
+    assert.ok(st.size > 500 && st.size < 8000, name);
+  }
+  const credits = readFileSync(new URL('../assets/sfx/CREDITS.md', import.meta.url), 'utf8');
+  assert.match(credits, /ui-tap\.mp3/);
+  assert.match(credits, /drop_003/);
+  assert.match(credits, /https:\/\/kenney\.nl\/assets\/interface-sounds/);
+  assert.match(credits, /ui-tick\.mp3/);
+  assert.match(credits, /chip-lay-1/);
+  assert.match(credits, /https:\/\/kenney\.nl\/assets\/casino-audio/);
+  assert.match(credits, /CC0 1\.0/);
+  assert.match(credits, /Web Audio 合成，未改/);
 });
