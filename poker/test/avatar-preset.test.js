@@ -6,10 +6,11 @@ import { profilePatch } from '../../lib/auth/auth.js';
 
 const googlePhotoURL = 'https://lh3.googleusercontent.com/avatar';
 
-test('15 個預設網址存正式位址，預覽與本機畫面使用同站資產', () => {
+test('20 個預設網址存正式位址，預覽與本機畫面使用同站資產', () => {
   assert.deepEqual(AVATAR_PRESETS.map(({ key }) => key), [
     'cat', 'cat-gray', 'cat-siamese', 'cat-white', 'dog', 'rabbit', 'bear', 'panda',
     'fox', 'lion', 'tiger', 'monkey', 'owl', 'frog', 'fish',
+    'spade', 'heart', 'diamond', 'club', 'cat-calico',
   ]);
   for (const { key } of AVATAR_PRESETS) {
     assert.equal(presetUrl(key), `https://tony-poker.web.app/friday-poker/assets/avatars/${key}.svg`);
@@ -46,7 +47,7 @@ test('已移除的頭像沿用原 HTTPS 網址，載入失敗時顯示名字首�
   }
 });
 
-test('浮層只有本人可換頭像，選擇器有 16 個選項且標記目前選擇', () => {
+test('浮層只有本人可換頭像，選擇器有 21 個選項且標記目前選擇', () => {
   const options = { name: '小明', view: { state: 'disabled' } };
   const other = personalStatsHtml({ ...options, photoURL: presetUrl('cat'), canEdit: true });
   assert.match(other, /ps-av" aria-hidden="true"><img/);
@@ -54,7 +55,7 @@ test('浮層只有本人可換頭像，選擇器有 16 個選項且標記目前�
   assert.match(personalStatsHtml(options), /class="av-fallback">小/);
   assert.match(personalStatsHtml({ ...options, isMe: true, canEdit: true }), /<button[^>]+data-ps="avatar"/);
   const picker = avatarPickerHtml({ ...options, photoURL: presetUrl('dog'), googlePhotoURL });
-  assert.equal(picker.match(/data-ps="pick-choice"/g).length, 16);
+  assert.equal(picker.match(/data-ps="pick-choice"/g).length, 21);
   assert.equal(picker.match(/aria-pressed="true"/g).length, 1);
   assert.match(picker, /data-ps="pick-choice" data-key="original" aria-label="原本頭像" title="原本頭像"/);
   assert.doesNotMatch(picker.replace(/<[^>]+>/g, ''), /原本頭像/);
