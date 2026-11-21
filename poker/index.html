@@ -35,12 +35,12 @@
 
 <div class="app hidden" id="app">
   <header class="top">
-    <button type="button" class="mp-table-back" id="btnBackLobby" aria-label="回大廳" hidden>‹ 大廳</button>
+    <button data-sfx="tap" type="button" class="mp-table-back" id="btnBackLobby" aria-label="回大廳" hidden>‹ 大廳</button>
     <div class="room">
       <h1 id="roomTitle">週五牌局</h1>
       <p id="roomMeta"><span class="meta-a"><b>盲注 10／20</b></span><span class="meta-b">　第 0 手</span></p>
     </div>
-    <button type="button" class="menu-btn" id="btnMenu" aria-label="選單" aria-expanded="false" aria-controls="menuPop">
+    <button data-sfx="tap" type="button" class="menu-btn" id="btnMenu" aria-label="選單" aria-expanded="false" aria-controls="menuPop">
       <i></i><i></i><i></i>
     </button>
     <div class="menu-pop hidden" id="menuPop" role="menu">
@@ -49,8 +49,8 @@
       <button type="button" id="btnTimerCfg" role="menuitem">計時關</button>
       <button type="button" class="hidden" id="btnPauseMenu" role="menuitem">暫停</button>
       <button type="button" class="hidden" id="btnFullscreen" role="menuitem">全螢幕</button>
-      <button type="button" id="btnMute" role="menuitem" aria-pressed="false">音效</button>
-      <button type="button" id="btnLobby" role="menuitem">大廳</button>
+      <button data-sfx="tap" type="button" id="btnMute" role="menuitem" aria-pressed="false">音效</button>
+      <button data-sfx="tap" type="button" id="btnLobby" role="menuitem">大廳</button>
       <button type="button" id="btnEndMenu" role="menuitem">結束牌局</button>
     </div>
   </header>
@@ -73,7 +73,7 @@
     <div class="me" id="meRoot">
       <div class="hole" id="heroHole" role="group" aria-label="你的手牌"></div>
       <div class="meinfo" id="mePlate">
-        <div class="av" id="heroAv"><span>—</span></div>
+        <div data-sfx="tap" class="av" id="heroAv"><span>—</span></div>
         <div>
           <b id="heroName">—</b>
           <strong id="heroChips">0</strong>
@@ -95,23 +95,23 @@
   </section>
 </div>
 
-<div class="raise-scrim" id="raiseScrim" hidden></div>
+<div data-sfx="tap" class="raise-scrim" id="raiseScrim" hidden></div>
 <div class="raise-panel" id="raisePanel" hidden aria-label="加注">
   <div class="ph">
     <b id="raiseTitle"><span id="raiseVerb">加注到</span> <span class="big" id="raiseOut">0</span></b>
     <span id="raiseHint">—</span>
   </div>
   <div class="raise" id="raiseWrap">
-    <button type="button" class="raise-step" id="raiseMinus" aria-label="減少一大盲">−</button>
+    <button data-sfx="tick" type="button" class="raise-step" id="raiseMinus" aria-label="減少一大盲">−</button>
     <div class="raise-track">
       <input type="range" id="raiseRange" min="0" max="0" value="0" aria-label="加注金額">
     </div>
-    <button type="button" class="raise-step" id="raisePlus" aria-label="增加一大盲">＋</button>
+    <button data-sfx="tick" type="button" class="raise-step" id="raisePlus" aria-label="增加一大盲">＋</button>
   </div>
   <div class="presets" id="presets"></div>
   <div class="raise-actions">
-    <button type="button" class="cancel" id="raiseCancel">取消</button>
-    <button type="button" class="ok" id="raiseConfirm">確認加注</button>
+    <button data-sfx="tap" type="button" class="cancel" id="raiseCancel">取消</button>
+    <button data-sfx="confirm" type="button" class="ok" id="raiseConfirm">確認加注</button>
   </div>
 </div>
 
@@ -138,7 +138,7 @@
     </div>
     <div class="sheet-foot">
       <div class="actions">
-        <button type="button" class="primary" id="btnStart">開始牌局</button>
+        <button data-sfx="confirm" type="button" class="primary" id="btnStart">開始牌局</button>
       </div>
     </div>
   </div>

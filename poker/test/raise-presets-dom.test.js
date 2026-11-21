@@ -47,7 +47,7 @@ function act(st, type, extra = {}, now = 1_000_000) {
 function parsePresetButtons(html) {
   const buttons = [];
   const re =
-    /<button type="button" data-to="(\d+)" data-id="([^"]+)" aria-pressed="(true|false)"><span class="preset-lbl">([^<]*)<\/span><span class="preset-amt">([^<]*)<\/span><\/button>/g;
+    /<button data-sfx="tap" type="button" data-to="(\d+)" data-id="([^"]+)" aria-pressed="(true|false)"><span class="preset-lbl">([^<]*)<\/span><span class="preset-amt">([^<]*)<\/span><\/button>/g;
   let m;
   while ((m = re.exec(html))) {
     buttons.push({

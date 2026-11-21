@@ -2390,7 +2390,7 @@ function renderActions(v) {
     if (state.pause?.active) {
       $('#btns').innerHTML = `
         <button type="button" class="fold" id="btnEnd">結束牌局</button>
-        <button type="button" class="raiseb" id="btnSummary">看戰績</button>`;
+        <button data-sfx="tap" type="button" class="raiseb" id="btnSummary">看戰績</button>`;
       $('#btnEnd').onclick = () => {
         dispatch({ type: 'END_SESSION' });
         showSummary();
@@ -2401,9 +2401,9 @@ function renderActions(v) {
     // During showdown FX: no hold ring yet (avoids cutting pot→0 / chip flights)
     if (!revealUiArmed || showdownFxBusy) {
       $('#btns').innerHTML = `
-        <button type="button" class="call" id="btnNext" disabled style="opacity:.4">下一手</button>
+        <button data-sfx="confirm" type="button" class="call" id="btnNext" disabled style="opacity:.4">下一手</button>
         <button type="button" class="fold" id="btnEnd">結束牌局</button>
-        <button type="button" class="raiseb" id="btnSummary">看戰績</button>`;
+        <button data-sfx="tap" type="button" class="raiseb" id="btnSummary">看戰績</button>`;
       $('#btnEnd').onclick = () => {
         dispatch({ type: 'END_SESSION' });
         showSummary();
@@ -2423,7 +2423,7 @@ function renderActions(v) {
         : 100;
     // 結束牌局 / 看戰績 are pre-existing HAND_OVER actions (unchanged)
     $('#btns').innerHTML = `
-      <button type="button" class="call btn-next-hold" id="btnNext">
+      <button data-sfx="confirm" type="button" class="call btn-next-hold" id="btnNext">
         <span class="btn-next-label">下一手</span>
         <span class="btn-next-cd" id="holdCd">${holdLeft}</span>
         <span class="hold-bar" aria-hidden="true"><i style="width:${holdPct}%"></i></span>
@@ -2434,7 +2434,7 @@ function renderActions(v) {
           : ''
       }
       <button type="button" class="fold" id="btnEnd">結束牌局</button>
-      <button type="button" class="raiseb" id="btnSummary">看戰績</button>`;
+      <button data-sfx="tap" type="button" class="raiseb" id="btnSummary">看戰績</button>`;
     $('#btnNext').onclick = () => {
       goNextHandFromHold();
     };
@@ -2466,8 +2466,8 @@ function renderActions(v) {
     }
     $('#showBtns').classList.remove('hidden');
     $('#showBtns').innerHTML = `
-      <button type="button" class="primary" id="btnShowBoth">亮牌</button>
-      <button type="button" id="btnMuck">不亮</button>`;
+      <button data-sfx="tap" type="button" class="primary" id="btnShowBoth">亮牌</button>
+      <button data-sfx="tap" type="button" id="btnMuck">不亮</button>`;
     $('#btnMuck').onclick = () => {
       if (revealTimer) clearTimeout(revealTimer);
       revealDeadline = null;
@@ -2489,7 +2489,7 @@ function renderActions(v) {
     // During A–E: show disabled 下一手 placeholder; no choice yet
     if (!revealUiArmed) {
       $('#btns').innerHTML = `
-        <button type="button" class="call" id="btnNext" disabled style="opacity:.45">下一手</button>`;
+        <button data-sfx="confirm" type="button" class="call" id="btnNext" disabled style="opacity:.45">下一手</button>`;
     } else {
       $('#btns').innerHTML = '';
     }
@@ -2524,23 +2524,23 @@ function renderActions(v) {
   act.classList.remove('is-dim');
 
   const foldBtn = legal.fold
-    ? `<button class="fold" type="button" id="btnFold">蓋牌<span class="key">F</span></button>`
+    ? `<button data-sfx="confirm" class="fold" type="button" id="btnFold">蓋牌<span class="key">F</span></button>`
     : `<button class="fold" type="button" disabled>蓋牌</button>`;
   let mid;
   if (legal.check) {
-    mid = `<button class="call" type="button" id="btnCheck">過牌<span class="key">C</span></button>`;
+    mid = `<button data-sfx="confirm" class="call" type="button" id="btnCheck">過牌<span class="key">C</span></button>`;
   } else if (legal.call) {
-    mid = `<button class="call" type="button" id="btnCall">跟注<small>${fmtChips(legal.callAmount)}</small></button>`;
+    mid = `<button data-sfx="confirm" class="call" type="button" id="btnCall">跟注<small>${fmtChips(legal.callAmount)}</small></button>`;
   } else {
     mid = `<button class="call" type="button" disabled>—</button>`;
   }
   let raiseBtn;
   if (legal.bet || legal.raise) {
-    raiseBtn = `<button class="raiseb" type="button" id="btnRaiseOpen">${legal.bet ? '下注' : '加注'}<span class="key">R</span></button>`;
+    raiseBtn = `<button data-sfx="tap" class="raiseb" type="button" id="btnRaiseOpen">${legal.bet ? '下注' : '加注'}<span class="key">R</span></button>`;
   } else if (legal.allIn && !legal.call) {
-    raiseBtn = `<button class="raiseb" type="button" id="btnAllIn">全下<span class="key">R</span></button>`;
+    raiseBtn = `<button data-sfx="confirm" class="raiseb" type="button" id="btnAllIn">全下<span class="key">R</span></button>`;
   } else if (legal.allIn && legal.call && legal.callAmount === state.seats[viewerSeat].chips) {
-    raiseBtn = `<button class="raiseb" type="button" id="btnAllIn">全下</button>`;
+    raiseBtn = `<button data-sfx="confirm" class="raiseb" type="button" id="btnAllIn">全下</button>`;
   } else {
     raiseBtn = `<button class="raiseb" type="button" disabled>加注</button>`;
   }
@@ -2660,8 +2660,8 @@ function showSoloLobbyConfirm(onOk) {
   el.innerHTML = `
     <div class="mp-close-result-card">
       <h2 id="soloLobbyConfirmT">確定要離開這手牌、回到大廳？</h2>
-      <button type="button" class="mp-btn-primary" id="soloLobbyConfirmOk">確認離開</button>
-      <button type="button" class="mp-btn-ghost" id="soloLobbyConfirmCancel">取消</button>
+      <button data-sfx="confirm" type="button" class="mp-btn-primary" id="soloLobbyConfirmOk">確認離開</button>
+      <button data-sfx="tap" type="button" class="mp-btn-ghost" id="soloLobbyConfirmCancel">取消</button>
     </div>`;
   el.hidden = false;
   el.querySelector('#soloLobbyConfirmCancel').addEventListener('click', () => { el.hidden = true; });
