@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 128 128" width="128" height="128">
+<!-- IconOven shark, Stroke style (MIT, Appic Marketing LLC, iconoven.com/icons/shark) on a gradient circle; stroke thickened 1.5→2 -->
+<defs><linearGradient id="shark-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5AB0FF"/><stop offset="1" stop-color="#1F5FD6"/></linearGradient></defs>
+<circle cx="64" cy="64" r="64" fill="url(#shark-bg)"/>
+<svg x="5.34" y="9.05" width="118.70" height="118.70" viewBox="0 0 24 24" fill="none" stroke="#F3EAD2" stroke-linecap="round" stroke-linejoin="round"><g fill="none" stroke="#F3EAD2" stroke-linecap="round" stroke-linejoin="round"><path stroke-width="2" d="M2.75 13c2-3 7-4 11.25-3.5c2 .25 3.5 1 4.5 1.75L21 8.5L20 13l1 4.5l-2.5-2.75c-2 1.25-5 2-8.5 2S4 15.5 2.75 13"/><path stroke-width="2" d="M9.5 9.75L12.25 5c.2-.35.7-.3.8.1L14 9.5"/><path stroke-width="2" d="M5.75 12.75h.01"/><path stroke-width="2" d="M8.75 12v2.5"/></g></svg>
+</svg>

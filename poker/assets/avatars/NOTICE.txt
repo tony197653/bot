@@ -1,17 +1,33 @@
 Poker avatar images — source and license
 =========================================
 
-All 15 images in this folder are built from Google Noto Emoji SVGs
+Most images in this folder are built from Google Noto Emoji SVGs
 (https://github.com/googlefonts/noto-emoji, folder 2D/svg/), licensed under the
 Apache License 2.0 (full text: LICENSE-Apache-2.0.txt, copied from 2D/svg/LICENSE).
 The Noto font files (SIL OFL) are NOT used.
 
+shark.svg and fish-line.svg are simple line icons (not Noto), cream stroke #F3EAD2
+on the same 128x128 deep-blue circle (#5AB0FF→#1F5FD6), about 78% of the diameter.
+- fish-line.svg: Lucide "fish", lucide-static v1.77.0 (ISC, LICENSE-ISC-lucide.txt),
+  https://cdn.jsdelivr.net/npm/lucide-static@1.77.0/icons/fish.svg
+  (https://github.com/lucide-icons/lucide)
+- shark.svg: IconOven Stroke "shark" (MIT, Appic Marketing LLC, LICENSE-MIT-iconoven.txt),
+  https://iconoven.com/icons/shark  (stroke thickened 1.5→2 for the 60px picker).
+  Replaced an earlier Lucide Lab shark that was not recognizable at 390.
+The original Noto fish.svg is unchanged.
+
+
 Modifications made to every file (2026-11-20):
 - Adobe Illustrator metadata (i:aipgf, i:* attributes, DOCTYPE, comments) removed.
 - Element ids prefixed with the file key.
-- Placed on a 128x128 circle with one of three shared 2-colour vertical gradients: blue #5AB0FF→#1F5FD6, pink #FF9EC4→#E0457F, gray #D3D8DF→#8E97A4 (chosen per animal for contrast).
+- Placed on a 128x128 circle with one of two shared 2-colour vertical gradients: deep blue #5AB0FF→#1F5FD6, light blue #D8F0FF→#8EC4F8. (Red background #FF5A62→#C01828 was removed 2026-11-21 night; unused.)
 - Emoji scaled per file so its visible size is about 78% of the circle diameter
   (100/128 px), centred, and kept inside radius 61.
+2026-11-21: added spade, heart, diamond, club, and cat-calico in the same pipeline.
+2026-11-21 evening: picker drops monkey (file kept so existing photoURLs still display). Backgrounds are only deep blue, light blue, and red, grouped in that order (7 / 8 / 4). Heart and diamond glyphs recolored to cream/white so they stay visible on red.
+2026-11-21 23:15: drop frog and tiger from the picker (files kept in AVATAR_RETIRED). Replace Lucide Lab shark with IconOven Stroke shark (MIT) so the side view, triangular dorsal fin and tail read clearly at 390/60px. fish-line unchanged.
+2026-11-21 night: added shark and fish-line (Lucide / Lucide Lab, ISC) at the end of the deep-blue group after the original Noto fish: 魚→鯊魚→線條魚. Cream #F3EAD2 strokes. Contrast vs the light top stop #5AB0FF is 1.93:1 on paper, but mid/bottom and 180–512px previews read clearly, so the shared deep-blue and cream were not changed.
+2026-11-21 night: suit glyphs use poker colors (spade/club #1A1A1A / #2E2E2E; heart/diamond #B01C22 / #D7262E) on the light-blue background, listed at the end of the light-blue group. Red background retired.
 Additional colour changes are listed per file below.
 
 | file | Noto source | source URL | colour change |
@@ -31,5 +47,13 @@ Additional colour changes are listed per file below.
 | owl.svg | U+1F989 owl | .../emoji_u1f989.svg | none |
 | frog.svg | U+1F438 frog | .../emoji_u1f438.svg | none |
 | fish.svg | U+1F41F fish | .../emoji_u1f41f.svg | none |
+| shark.svg | IconOven Stroke shark | https://iconoven.com/icons/shark | line icon, cream #F3EAD2 stroke (thickened 1.5→2) on deep blue (not Noto). MIT, LICENSE-MIT-iconoven.txt |
+| fish-line.svg | Lucide fish | https://cdn.jsdelivr.net/npm/lucide-static@1.77.0/icons/fish.svg | line icon, cream #F3EAD2 stroke on deep blue (not Noto) |
+| spade.svg | U+2660 black spade suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2660.svg | RECOLORED: #464C4F→#1A1A1A, #606265→#2E2E2E (poker black on light blue) |
+| heart.svg | U+2665 black heart suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2665.svg | RECOLORED: Noto red then cream; now #B01C22 / #D7262E (poker red on light blue) |
+| diamond.svg | U+2666 black diamond suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2666.svg | RECOLORED: Noto red then cream; now #B01C22 / #D7262E (poker red on light blue) |
+| club.svg | U+2663 black club suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2663.svg | RECOLORED: #464C4F→#1A1A1A, #606265→#2E2E2E (poker black on light blue) |
+| cat-calico.svg | U+1F431 cat face | (same as cat.svg) | RECOLORED from cat face: head #FFC022→#FFFFFF; one ear kept #FFC022/#FF9B31, the other #3A3A3C/#1E1E20; orange and black patches clipped to the head (calico / 三花貓). Noto has no calico cat emoji. |
+
 
 (".../" = https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/)
