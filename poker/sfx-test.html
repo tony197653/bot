@@ -30,7 +30,7 @@
 </head>
 <body>
 <h1>音效測試</h1>
-<p class="hint">請把音量打開，並確認側邊靜音開關沒有關掉。<br>每按一顆會顯示 AudioContext 狀態與播放結果。</p>
+<p class="hint">請把音量打開，並確認側邊靜音開關沒有關掉。<br>每按一顆會顯示 AudioContext 狀態與播放結果。上方會持續顯示 ctx.state；切到別的 app 再回來時可核對是否變成 suspended 或 interrupted。</p>
 
 <h2>Web Audio（遊戲路徑 sound.js）</h2>
 <div class="grid">
@@ -48,6 +48,7 @@
   <button type="button" data-el="ui-tick">ui-tick.mp3</button>
 </div>
 
+<p id="live" class="hint">AudioContext.state: （尚未初始化）</p>
 <div id="status">尚未播放</div>
 
 <script type="module">
@@ -59,6 +60,17 @@ initSound();
 if (!isSoundOn()) setSoundOn(true);
 
 const status = document.getElementById('status');
+const live = document.getElementById('live');
+function paintLive() {
+  const d = getSoundDebug();
+  const hidden = document.hidden ? ' hidden' : ' visible';
+  live.textContent = `AudioContext.state: ${d.contextState} · sfx ${d.enabled ? 'on' : 'off'} · page${hidden}`;
+}
+paintLive();
+for (const type of ['visibilitychange', 'pageshow', 'focus', 'blur']) {
+  window.addEventListener(type, paintLive);
+}
+setInterval(paintLive, 500);
 const samples = {
   deal: new URL('./assets/sfx/deal.mp3', import.meta.url).href,
   bet: new URL('./assets/sfx/bet.mp3', import.meta.url).href,
