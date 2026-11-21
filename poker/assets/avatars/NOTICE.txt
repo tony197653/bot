@@ -13,6 +13,23 @@ The original Noto fish.svg is unchanged.
 The Lucide line-art fish (fish-line.svg) and LICENSE-ISC-lucide.txt were removed
 2026-11-22: that icon was only added on this PR and never shipped to the live site.
 
+robot.svg is OpenMoji color 🤖 U+1F916 (CC BY-SA 4.0, designed by OpenMoji – the
+open-source emoji and icon project), light-blue circle, paths and colours
+unchanged. Full license: LICENSE-CC-BY-SA-openmoji.txt.
+  https://openmoji.org  https://github.com/hfg-gmuend/openmoji
+  Source: https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/svg/1F916.svg
+  This file is a CC BY-SA 4.0 adaptation (original glyph on a circular background).
+  Redistribution of this file must also be under CC BY-SA 4.0.
+
+clown.svg is the red joker (joker_red) from Tek Eye SVG Playing Cards by
+Daniel S. Fowler, dedicated to the public domain. Light-blue circle, card
+artwork unchanged. The author asks that uses link to the introduction page
+when practical: https://tekeye.uk/playing_cards/svg-playing-cards
+  File: https://tekeye.uk/playing_cards/images/svg_playing_cards/fronts/joker_red.svg
+These two replaced the Noto 2D robot and clown that were added earlier on this
+PR and had never shipped to the live site. The Noto joker (joker.svg, A04 鬼牌)
+is unchanged.
+
 
 Modifications made to every file (2026-11-20):
 - Adobe Illustrator metadata (i:aipgf, i:* attributes, DOCTYPE, comments) removed.
@@ -27,6 +44,7 @@ Modifications made to every file (2026-11-20):
 2026-11-21 night: suit glyphs use poker colors (spade/club #1A1A1A / #2E2E2E; heart/diamond #B01C22 / #D7262E) on the light-blue background, listed at the end of the light-blue group. Red background retired.
 2026-11-22: 鯊魚改為 Noto Emoji 🦈 U+1F988（候選 S1，Apache 2.0，深藍底），移除 IconOven 線條鯊與 LICENSE-MIT-iconoven.txt。fish-line（Lucide，ISC）保留。依宗良挑選加入 26 張 Noto Emoji 2D 頭像，底色沿用候選頁各自的深藍或淺藍，接在各顏色組尾端。未加入 A05／A09／A10、其他 B，以及 D04／D05／D08／D10。AVATAR_RETIRED 不變。
 2026-11-22 morning: 宗良要求拿掉獅子與 Lucide 線條魚。lion 從選擇器移除並加入 AVATAR_RETIRED（檔案保留，舊玩家仍顯示）。fish-line.svg 與 LICENSE-ISC-lucide.txt 刪除（從未上正式站）。Noto 魚與 S1 鯊魚保留。清單改為 43 個（18 深藍、25 淺藍）。
+2026-11-22 07:05: 宗良定案，機器人改為候選 R1 OpenMoji（CC BY-SA 4.0，需標註），小丑改為候選 J4 Tek Eye 傳統紅鬼 joker_red（Public Domain，Daniel S. Fowler，介紹頁 https://tekeye.uk/playing_cards/svg-playing-cards）。淺藍底與在清單中的位置不變。Noto 版 robot.svg／clown.svg（僅本 PR 新增、未上正式站）已換成上述檔案。A04 鬼牌（joker.svg）保留。清單仍為 43 個（18 深藍、25 淺藍）。
 Additional colour changes are listed per file below.
 
 | file | Noto source | source URL | colour change |
@@ -68,7 +86,7 @@ Additional colour changes are listed per file below.
 | alien.svg | U+1F47D alien | .../emoji_u1f47d.svg | none (light blue) |
 | teddy.svg | U+1F9F8 teddy bear | .../emoji_u1f9f8.svg | none (light blue) |
 | rainbow.svg | U+1F308 rainbow | .../emoji_u1f308.svg | none (light blue) |
-| robot.svg | U+1F916 robot | .../emoji_u1f916.svg | none (light blue) |
+| robot.svg | OpenMoji color U+1F916 | https://raw.githubusercontent.com/hfg-gmuend/openmoji/master/color/svg/1F916.svg | none (light blue). CC BY-SA 4.0, LICENSE-CC-BY-SA-openmoji.txt; designed by OpenMoji – the open-source emoji and icon project. Replaced Noto 2D 2026-11-22. |
 | rocket.svg | U+1F680 rocket | .../emoji_u1f680.svg | none (light blue) |
 | christmas-tree.svg | U+1F384 Christmas tree | .../emoji_u1f384.svg | none (light blue) |
 | t-rex.svg | U+1F996 T-Rex | .../emoji_u1f996.svg | none (light blue) |
@@ -77,7 +95,7 @@ Additional colour changes are listed per file below.
 | soccer.svg | U+26BD soccer ball | .../emoji_u26bd.svg | none (light blue) |
 | fire.svg | U+1F525 fire | .../emoji_u1f525.svg | none (light blue) |
 | moai.svg | U+1F5FF moai | .../emoji_u1f5ff.svg | none (light blue) |
-| clown.svg | U+1F921 clown face | .../emoji_u1f921.svg | none (light blue) |
+| clown.svg | Tek Eye joker_red, Daniel S. Fowler | https://tekeye.uk/playing_cards/images/svg_playing_cards/fronts/joker_red.svg | none (light blue). Public domain; please link https://tekeye.uk/playing_cards/svg-playing-cards . Replaced Noto clown 2026-11-22. |
 | nail-polish.svg | U+1F485 nail polish | .../emoji_u1f485.svg | none (light blue) |
 
 
