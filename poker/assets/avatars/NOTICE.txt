@@ -6,15 +6,12 @@ Most images in this folder are built from Google Noto Emoji SVGs
 Apache License 2.0 (full text: LICENSE-Apache-2.0.txt, copied from 2D/svg/LICENSE).
 The Noto font files (SIL OFL) are NOT used.
 
-fish-line.svg is a simple line icon (not Noto), cream stroke #F3EAD2 on the same
-128x128 deep-blue circle (#5AB0FF→#1F5FD6), about 78% of the diameter:
-  Lucide "fish", lucide-static v1.77.0 (ISC, LICENSE-ISC-lucide.txt),
-  https://cdn.jsdelivr.net/npm/lucide-static@1.77.0/icons/fish.svg
-  (https://github.com/lucide-icons/lucide)
-shark.svg is now Google Noto Emoji 2D 🦈 U+1F988 (Apache 2.0), deep-blue circle,
-paths and colours unchanged. It replaces the IconOven Stroke line-art shark
+shark.svg is Google Noto Emoji 2D 🦈 U+1F988 (Apache 2.0), deep-blue circle,
+paths and colours unchanged. It replaced the IconOven Stroke line-art shark
 (LICENSE-MIT-iconoven.txt removed; that file is no longer used).
 The original Noto fish.svg is unchanged.
+The Lucide line-art fish (fish-line.svg) and LICENSE-ISC-lucide.txt were removed
+2026-11-22: that icon was only added on this PR and never shipped to the live site.
 
 
 Modifications made to every file (2026-11-20):
@@ -29,6 +26,7 @@ Modifications made to every file (2026-11-20):
 2026-11-21 night: added shark and fish-line (Lucide / Lucide Lab, ISC) at the end of the deep-blue group after the original Noto fish: 魚→鯊魚→線條魚. Cream #F3EAD2 strokes. Contrast vs the light top stop #5AB0FF is 1.93:1 on paper, but mid/bottom and 180–512px previews read clearly, so the shared deep-blue and cream were not changed.
 2026-11-21 night: suit glyphs use poker colors (spade/club #1A1A1A / #2E2E2E; heart/diamond #B01C22 / #D7262E) on the light-blue background, listed at the end of the light-blue group. Red background retired.
 2026-11-22: 鯊魚改為 Noto Emoji 🦈 U+1F988（候選 S1，Apache 2.0，深藍底），移除 IconOven 線條鯊與 LICENSE-MIT-iconoven.txt。fish-line（Lucide，ISC）保留。依宗良挑選加入 26 張 Noto Emoji 2D 頭像，底色沿用候選頁各自的深藍或淺藍，接在各顏色組尾端。未加入 A05／A09／A10、其他 B，以及 D04／D05／D08／D10。AVATAR_RETIRED 不變。
+2026-11-22 morning: 宗良要求拿掉獅子與 Lucide 線條魚。lion 從選擇器移除並加入 AVATAR_RETIRED（檔案保留，舊玩家仍顯示）。fish-line.svg 與 LICENSE-ISC-lucide.txt 刪除（從未上正式站）。Noto 魚與 S1 鯊魚保留。清單改為 43 個（18 深藍、25 淺藍）。
 Additional colour changes are listed per file below.
 
 | file | Noto source | source URL | colour change |
@@ -49,7 +47,6 @@ Additional colour changes are listed per file below.
 | frog.svg | U+1F438 frog | .../emoji_u1f438.svg | none |
 | fish.svg | U+1F41F fish | .../emoji_u1f41f.svg | none |
 | shark.svg | U+1F988 shark | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u1f988.svg | none (Noto 2D on deep blue; replaced IconOven line art 2026-11-22) |
-| fish-line.svg | Lucide fish | https://cdn.jsdelivr.net/npm/lucide-static@1.77.0/icons/fish.svg | line icon, cream #F3EAD2 stroke on deep blue (not Noto) |
 | spade.svg | U+2660 black spade suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2660.svg | RECOLORED: #464C4F→#1A1A1A, #606265→#2E2E2E (poker black on light blue) |
 | heart.svg | U+2665 black heart suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2665.svg | RECOLORED: Noto red then cream; now #B01C22 / #D7262E (poker red on light blue) |
 | diamond.svg | U+2666 black diamond suit | https://raw.githubusercontent.com/googlefonts/noto-emoji/main/2D/svg/emoji_u2666.svg | RECOLORED: Noto red then cream; now #B01C22 / #D7262E (poker red on light blue) |
