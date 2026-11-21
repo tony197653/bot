@@ -9,7 +9,7 @@ export const AVATAR_BG = {
 export const AVATAR_PRESETS = [
   // 深藍
   ['cat', '貓'], ['cat-siamese', '暹羅貓'], ['cat-white', '白貓'], ['cat-calico', '三花貓'],
-  ['dog', '狗'], ['rabbit', '兔子'], ['fish', '魚'],
+  ['dog', '狗'], ['rabbit', '兔子'], ['fish', '魚'], ['shark', '鯊魚'], ['fish-line', '線條魚'],
   // 淺藍（四花色排在此組最後）
   ['cat-gray', '灰貓'], ['bear', '熊'], ['panda', '貓熊'], ['fox', '狐狸'],
   ['lion', '獅子'], ['tiger', '老虎'], ['owl', '貓頭鷹'], ['frog', '青蛙'],
