@@ -110,21 +110,35 @@ function ensureContext() {
   return true;
 }
 
+// HTML / WebKit: only these are activation-triggering on touch:
+// keydown, mousedown, pointerdown (mouse only), pointerup (not mouse), touchend.
+// pointerdown/touchstart on iPhone do NOT grant activation, so resume() there is ignored.
+// https://html.spec.whatwg.org/multipage/interaction.html#tracking-user-activation
+// https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/User_activation
+// https://webkit.org/blog/13862/the-user-activation-api/
+export const SOUND_UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown'];
+
 function armGestures() {
   if (gesturesArmed || typeof window === 'undefined') return;
   gesturesArmed = true;
-  for (const type of ['pointerdown', 'keydown', 'touchstart']) {
-    window.addEventListener(type, unlock, { once: true, passive: true, capture: true });
+  for (const type of SOUND_UNLOCK_EVENTS) {
+    window.addEventListener(type, unlock, { passive: true, capture: true });
+  }
+}
+function disarmGestures() {
+  if (!gesturesArmed) return;
+  gesturesArmed = false;
+  if (typeof window === 'undefined') return;
+  for (const type of SOUND_UNLOCK_EVENTS) {
+    window.removeEventListener(type, unlock, true);
   }
 }
 
 function unlock() {
-  gesturesArmed = false;
-  for (const type of ['pointerdown', 'keydown', 'touchstart']) {
-    window.removeEventListener(type, unlock, true);
-  }
   try {
     // Create, resume, and tick a silent buffer in this user-gesture turn (iOS Safari).
+    // Do not drop listeners until the context is actually running — a touch
+    // pointerdown is not an activation event, and pointerup/click follow it.
     if (!ensureContext()) return;
     markGesture();
     if (context.state !== 'running') context.resume();
@@ -134,7 +148,8 @@ function unlock() {
     Promise.resolve(context.state === 'running' ? undefined : context.resume())
       .catch(() => {})
       .finally(() => {
-        if (context.state !== 'running') armGestures();
+        if (context.state === 'running') disarmGestures();
+        else armGestures();
       });
   } catch { armGestures(); }
 }
@@ -168,6 +183,22 @@ export function initSound() {
 }
 
 export function isSoundOn() { return enabled; }
+export function getSoundDebug() {
+  let audioSessionType = null;
+  try {
+    audioSessionType = (typeof navigator !== 'undefined' && navigator.audioSession?.type)
+      || (typeof window !== 'undefined' && window.navigator?.audioSession?.type)
+      || null;
+  } catch { /* ignore */ }
+  let activation = null;
+  try {
+    const ua = (typeof navigator !== 'undefined' && navigator.userActivation)
+      || (typeof window !== 'undefined' && window.navigator?.userActivation);
+    if (ua) activation = { isActive: !!ua.isActive, hasBeenActive: !!ua.hasBeenActive };
+  } catch { /* ignore */ }
+  return { contextState: context?.state ?? 'none', enabled, audioSessionType, activation };
+}
+
 export function setSoundOn(on) {
   enabled = !!on;
   if (!enabled) { stopSound(); stopUiSounds(); }
@@ -297,10 +328,19 @@ const wiredUiRoots = new WeakSet();
 export function wireUiSound(root) {
   if (!root?.addEventListener || wiredUiRoots.has(root)) return;
   wiredUiRoots.add(root);
-  // pointerdown shares the iOS unlock gesture; click covers keyboard activation.
+  // Play on activation-triggering events. On iOS, a touch pointerdown is not
+  // activation; pointerup/click/touchend are. Debounce the trailing click.
   let lastUiAt = 0;
+  const isActivationPlay = (event) => {
+    if (event.type === 'click' || event.type === 'touchend') return true;
+    if (event.type === 'pointerup' && event.pointerType !== 'mouse') return true;
+    // Mouse pointerdown is activation; unit tests omit pointerType.
+    if (event.type === 'pointerdown' && event.pointerType !== 'touch') return true;
+    return false;
+  };
   const onUi = (event) => {
-    if (event.type === 'pointerdown' && event.button != null && event.button !== 0) return;
+    if ((event.type === 'pointerdown' || event.type === 'pointerup') && event.button != null && event.button !== 0) return;
+    if (!isActivationPlay(event)) return;
     const control = event.target?.closest?.('[data-sfx], button, [data-act], [data-ps], .mp-seg-item, .mp-chip, .mp-lb-av, .mp-empty-seat, #seats .av, #heroAv, #raiseScrim');
     // Labels forward a second click to their radio: sound only that forwarded
     // click, also covering direct/keyboard radio clicks without doubling.
@@ -312,6 +352,7 @@ export function wireUiSound(root) {
     lastUiAt = now;
     playUiSound(kind);
   };
-  root.addEventListener('pointerdown', onUi, true);
-  root.addEventListener('click', onUi, true);
+  for (const type of ['pointerdown', 'pointerup', 'touchend', 'click']) {
+    root.addEventListener(type, onUi, true);
+  }
 }

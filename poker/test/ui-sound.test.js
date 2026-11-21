@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
-import { classifyUiSound, wireUiSound, UI_GAIN } from '../js/ui/sound.js';
+import { classifyUiSound, wireUiSound, UI_GAIN, SOUND_UNLOCK_EVENTS } from '../js/ui/sound.js';
 import { raisePresetsMarkup } from '../js/ui/cards-dom.js';
 
 // Minimal DOM control supporting the selectors used by the classifier.
@@ -81,8 +81,8 @@ test('委派只綁一次；子元素一個 click 只播一次，radio 的 label 
   const handlers = [];
   const root = {addEventListener(type, handler, capture) { handlers.push({type,handler,capture}); }};
   wireUiSound(root); wireUiSound(root);
-  assert.equal(handlers.length,2);
-  assert.deepEqual(handlers.map((h) => h.type).sort(), ['click', 'pointerdown']);
+  assert.equal(handlers.length,4);
+  assert.deepEqual(handlers.map((h) => h.type).sort(), ['click', 'pointerdown', 'pointerup', 'touchend']);
   assert.ok(handlers.every((h) => h.capture === true));
   // No running context means these delegated clicks are safely silent.
   handlers[0].handler({target:element({},element({id:'mpFold'}),'span')});
@@ -176,7 +176,13 @@ test('UI 目的地音量與牌桌音在合理比例：略小於下注，不小�
   }
 });
 
-test('大廳第一次 pointerdown：解鎖當下就能播（不必等之後的 click）', async () => {
+test('解鎖事件包含 iOS 有效的 pointerup／touchend／click', () => {
+  for (const type of ['pointerup', 'touchend', 'click', 'keydown']) {
+    assert.ok(SOUND_UNLOCK_EVENTS.includes(type), type);
+  }
+});
+
+test('大廳第一次：touch 的 pointerdown 不播，pointerup／click 才播', async () => {
   const oldWindow = globalThis.window;
   const storage = new Map();
   const gestures = new Map();
@@ -210,19 +216,22 @@ test('大廳第一次 pointerdown：解鎖當下就能播（不必等之後的 c
       removeEventListener: (type) => gestures.delete(type),
       fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
     };
-    const s = await import('../js/ui/sound.js?first-pointerdown');
+    const s = await import('../js/ui/sound.js?first-pointerup');
     s.initSound();
     assert.equal(s.isSoundOn(), true);
     await new Promise(setImmediate);
     const down = handlers.find((h) => h.type === 'pointerdown');
-    assert.ok(down, 'document pointerdown listener');
+    const up = handlers.find((h) => h.type === 'pointerup');
+    assert.ok(down && up, 'document pointerdown + pointerup listeners');
     const btn = element({ 'data-sfx': 'tap' });
-    // Same order as the browser: window unlock (capture) then document pointerdown.
+    // Touch pointerdown is not an activation event (HTML / WebKit).
     gestures.get('pointerdown')();
-    down.handler({ type: 'pointerdown', button: 0, target: btn });
-    assert.ok(sources.some((n) => n.started), 'unlock + first pointerdown must start a source');
-    assert.ok(sources.length >= 2, `silent unlock + tap sample, got ${sources.length}`);
-    assert.equal(s.UI_GAIN.tap, 0.32);
+    const afterUnlock = sources.length;
+    down.handler({ type: 'pointerdown', button: 0, pointerType: 'touch', target: btn });
+    assert.equal(sources.length, afterUnlock, 'touch pointerdown must not play the UI sample');
+    up.handler({ type: 'pointerup', button: 0, pointerType: 'touch', target: btn });
+    assert.ok(sources.length >= afterUnlock + 1, `touch pointerup must play, got ${sources.length} after ${afterUnlock}`);
+    assert.ok(gestures.has('click') && gestures.has('pointerup') && gestures.has('touchend'), 'unlock listeners include activation events');
   } finally {
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }

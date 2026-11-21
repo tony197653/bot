@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>音效測試</title>
+<style>
+  :root { --bg:#13231a; --ink:#f3ead2; --btn:#24372c; --line:rgba(214,180,90,.35); --ok:#8fd19e; --err:#ff8b7a; }
+  *{box-sizing:border-box;margin:0}
+  html,body{min-height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;}
+  body{padding:calc(12px + env(safe-area-inset-top)) 16px 24px;max-width:480px;margin:0 auto;}
+  h1{font-size:20px;margin:0 0 8px}
+  .hint{font-size:14px;line-height:1.45;margin:0 0 16px;color:#e4d9b6}
+  h2{font-size:14px;margin:18px 0 8px;color:#c9bf9f;font-weight:600}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  button{
+    min-height:56px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;
+    background:var(--btn);color:var(--ink);font:inherit;font-size:16px;font-weight:700;
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  }
+  button:active{filter:brightness(1.15)}
+  #status{
+    margin-top:16px;padding:12px;border-radius:12px;background:#0c1610;
+    border:1px solid var(--line);font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word;
+    min-height:4.5em;
+  }
+  #status.ok{color:var(--ok)} #status.err{color:var(--err)}
+</style>
+</head>
+<body>
+<h1>音效測試</h1>
+<p class="hint">請把音量打開，並確認側邊靜音開關沒有關掉。<br>每按一顆會顯示 AudioContext 狀態與播放結果。</p>
+
+<h2>Web Audio（遊戲路徑 sound.js）</h2>
+<div class="grid">
+  <button type="button" data-wa="deal">deal（發牌）</button>
+  <button type="button" data-wa="bet">bet（下注）</button>
+  <button type="button" data-ui="tap">A 點按 ui-tap</button>
+  <button type="button" data-ui="tick">C 微調 ui-tick</button>
+  <button type="button" data-ui="confirm">B 確認音</button>
+</div>
+
+<h2>HTMLAudioElement（對照）</h2>
+<div class="grid">
+  <button type="button" data-el="deal">deal.mp3</button>
+  <button type="button" data-el="bet">bet.mp3</button>
+  <button type="button" data-el="ui-tap">ui-tap.mp3</button>
+  <button type="button" data-el="ui-tick">ui-tick.mp3</button>
+</div>
+
+<div id="status">尚未播放</div>
+
+<script type="module">
+import {
+  initSound, playSound, playUiSound, isSoundOn, getSoundDebug, setSoundOn,
+} from './js/ui/sound.js';
+
+initSound();
+if (!isSoundOn()) setSoundOn(true);
+
+const status = document.getElementById('status');
+const samples = {
+  deal: new URL('./assets/sfx/deal.mp3', import.meta.url).href,
+  bet: new URL('./assets/sfx/bet.mp3', import.meta.url).href,
+  'ui-tap': new URL('./assets/sfx/ui-tap.mp3', import.meta.url).href,
+  'ui-tick': new URL('./assets/sfx/ui-tick.mp3', import.meta.url).href,
+};
+
+function show(ok, lines) {
+  status.className = ok ? 'ok' : 'err';
+  status.textContent = lines.join('\n');
+}
+
+function debugLines() {
+  const d = getSoundDebug();
+  const act = d.activation
+    ? `activation isActive=${d.activation.isActive} hasBeenActive=${d.activation.hasBeenActive}`
+    : 'activation (none)';
+  return [
+    `AudioContext: ${d.contextState}`,
+    `poker.sfx: ${d.enabled ? 'on' : 'off'}  audioSession: ${d.audioSessionType ?? '(none)'}`,
+    act,
+  ];
+}
+
+document.addEventListener('click', async (event) => {
+  const wa = event.target.closest?.('[data-wa]');
+  const ui = event.target.closest?.('[data-ui]');
+  const el = event.target.closest?.('[data-el]');
+  if (!wa && !ui && !el) return;
+  const label = (wa || ui || el).textContent.trim();
+  try {
+    if (wa) {
+      const kind = wa.getAttribute('data-wa');
+      playSound(kind);
+      show(true, [`${label}  ·  sound.js playSound('${kind}')`, ...debugLines(), 'play() 已呼叫（無 Promise；失敗見上行狀態）']);
+      return;
+    }
+    if (ui) {
+      const kind = ui.getAttribute('data-ui');
+      playUiSound(kind);
+      show(true, [`${label}  ·  sound.js playUiSound('${kind}')`, ...debugLines(), 'play() 已呼叫（無 Promise；失敗見上行狀態）']);
+      return;
+    }
+    const kind = el.getAttribute('data-el');
+    const audio = new Audio(samples[kind]);
+    audio.playsInline = true;
+    const played = audio.play();
+    await played;
+    show(true, [`${label}  ·  HTMLAudioElement`, ...debugLines(), 'play() resolved']);
+  } catch (err) {
+    show(false, [`${label} 失敗`, ...debugLines(), `error: ${err && (err.message || err.name) || err}`]);
+  }
+});
+</script>
+</body>
+</html>

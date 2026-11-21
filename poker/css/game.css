@@ -57,21 +57,21 @@ input:focus-visible,.mp-float input:focus-visible,.mp-digit:focus-visible,.mp-af
 .top{
   display:flex;align-items:center;justify-content:space-between;gap:4px;
   height:var(--top-h);padding:0 8px 0 4px;
-  background:rgba(0,0,0,.28);border-bottom:1px solid rgba(255,255,255,.06);
+  background:#101910;border-bottom:1px solid rgba(255,255,255,.08);
   position:relative;z-index:20;
 }
 /* M2: fixed 「‹ 大廳」— visual compact, hit ≥44×44 */
 .mp-table-back{
   position:relative;flex:none;min-width:44px;min-height:44px;margin:-6px 0;
   padding:0 8px;display:inline-flex;align-items:center;justify-content:center;
-  font-size:14px;font-weight:700;color:var(--ink);border-radius:var(--radius-sm);
-  background:transparent;border:0;white-space:nowrap;z-index:1;
+  font-size:16px;font-weight:700;line-height:1.2;color:var(--ink);border-radius:var(--radius-sm);
+  background:transparent;border:0;white-space:nowrap;z-index:1;letter-spacing:0;text-shadow:none;
 }
 .mp-table-back[hidden]{display:none!important}
 .mp-table-back::before{content:"";position:absolute;inset:0;min-width:44px;min-height:44px}
 @media (hover:hover) and (pointer:fine){.mp-table-back:hover{background:rgba(214,180,90,.1)}}
 .mp-table-back:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
-.room{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px}
+.room{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
 .mp-close-result{
   position:fixed;inset:0;z-index:90;display:grid;place-items:center;
   padding:16px;background:rgba(8,14,10,.72);
@@ -97,9 +97,9 @@ input:focus-visible,.mp-float input:focus-visible,.mp-digit:focus-visible,.mp-af
 }
 .mp-close-result-card h2{font-size:16px;font-weight:700;line-height:1.5;margin:0}
 .mp-close-result-d{font-size:16px;line-height:1.5;color:var(--mute);margin:0}
-.room h1{font-family:var(--uf);font-weight:700;font-size:14px;letter-spacing:.5px;white-space:nowrap}
-.room p{font-size:12px;color:var(--mute);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.room p b{font-weight:400;color:var(--mute)}
+.room h1{font-family:var(--uf);font-weight:700;font-size:16px;letter-spacing:0;line-height:1.2;white-space:nowrap;color:var(--ink);text-shadow:none}
+.room p{font-size:13px;line-height:1.2;color:#e4d9b6;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:none}
+.room p b{font-weight:600;color:#e4d9b6}
 .room p .meta-b{display:none}
 .menu-btn{
   width:30px;height:30px;display:flex;flex-direction:column;justify-content:center;gap:4px;align-items:center;
