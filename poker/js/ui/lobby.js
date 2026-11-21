@@ -726,7 +726,7 @@ export function renderCreateRoom(root, vm) {
   const chipsHintId = 'mpCreateChipsHint';
   let submitError = error;
   root.innerHTML = `
-    <div class="mp-shell mp-create">
+    <div class="mp-shell mp-create" tabindex="-1">
       <header class="mp-top">
         <h1>開新牌桌</h1>
         <button data-sfx="tap" type="button" class="mp-btn-ghost" data-act="cancel">取消</button>
@@ -784,8 +784,9 @@ export function renderCreateRoom(root, vm) {
     bankEl.dataset.bank = String(bank);
     bankEl.textContent = fmtChips(left);
   };
-  $('.mp-create', root)?.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } });
-  form?.querySelector('input[name="name"]')?.focus?.();
+  const shell = $('.mp-create', root);
+  shell?.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); onCancel(); } });
+  shell?.focus({ preventScroll: true });
   for (const [selector, direction] of [['[data-chips-minus]', -1], ['[data-chips-plus]', 1]]) {
     $(selector, root)?.addEventListener('click', () => {
       const minimum = 50 * Number(blinds.find(input => input.checked)?.value.split('/')[1] || 20);

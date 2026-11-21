@@ -320,17 +320,18 @@ test('大廳先結算、重讀再檢查；不足不進桌，已綁同桌可回�
 test('選額視窗同步建立，取消不送出、確認保留指定額並同步提示', async () => {
   for(const confirm of [false,true,'escape']) {
     const nodes=new Map(),events=[];
-    const node=key=>{if(!nodes.has(key))nodes.set(key,{value:'1,500',focus:()=>events.push('focus'),addEventListener:(type,fn)=>nodes.get(key)[type]=fn,reportValidity(){}});return nodes.get(key);};
-    const el={setAttribute(){},addEventListener(type, fn){this[type]=fn;},querySelector:node,remove:()=>events.push('remove')};
+    const node=key=>{if(!nodes.has(key))nodes.set(key,{value:'1,500',focus:()=>events.push('inputFocus'),addEventListener:(type,fn)=>nodes.get(key)[type]=fn,reportValidity(){}});return nodes.get(key);};
+    const el={setAttribute(){},focus(options) { assert.equal(options.preventScroll, true); events.push('dialogFocus'); },addEventListener(type, fn){this[type]=fn;},querySelector:node,remove:()=>events.push('remove')};
     const ctx=vm.createContext({fmtChips:n=>n.toLocaleString('en-US'),stepBuyinAmount,document:{activeElement:{focus:()=>events.push('returnFocus')},createElement:()=>el,body:{classList:{add(){},remove(){}},appendChild:()=>events.push('paint')}},toast:msg=>events.push(msg)});
     vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('),source.indexOf('async function sitDown(')),ctx);
     const started=performance.now(),pending=ctx.pickBuyinAmount({min:1000,max:8765,step:1,amount:2000});
-    assert.deepEqual(events,['paint','focus']);assert.ok(performance.now()-started<200);
+    assert.deepEqual(events,['paint','dialogFocus']);assert.ok(performance.now()-started<200);
+    assert.equal(el.tabIndex, -1);
     assert.match(el.innerHTML,/type="text".*value="2,000"/);
     assert.match(el.innerHTML,/type="range"/);
     if(confirm==='escape') el.keydown({key:'Escape',preventDefault(){}});
     else node(confirm?'[data-confirm]':'[data-cancel]').click();
-    if(confirm===true)assert.deepEqual(events,['paint','focus','入座中…','remove','returnFocus']);
+    if(confirm===true)assert.deepEqual(events,['paint','dialogFocus','入座中…','remove','returnFocus']);
     assert.equal(events.at(-1),'returnFocus');
     assert.equal(await pending,confirm===true?1500:null);
   }
@@ -449,19 +450,20 @@ test('R32b 選額面板 Esc 取消、焦點復原、尾數全加與中文錯誤'
       addEventListener(type, fn) { this[type] = fn; }, focus() { events.push(key); }});
     return nodes.get(key);
   };
-  const el = {setAttribute(){},querySelector:node,addEventListener:(type,fn)=>keys[type]=fn,remove:()=>events.push('remove')};
+  const el = {setAttribute(){},focus:()=>events.push('dialogFocus'),querySelector:node,addEventListener:(type,fn)=>keys[type]=fn,remove:()=>events.push('remove')};
   const ctx = vm.createContext({fmtChips:n=>n.toLocaleString('en-US'),stepBuyinAmount,remainingBank,toast:()=>events.push('toast'),
     document:{activeElement:{focus:()=>events.push('restore')},createElement:()=>el,
       body:{appendChild(){},classList:{add(){},remove(){}}}}});
   vm.runInContext(source.slice(source.indexOf('function pickBuyinAmount('),source.indexOf('async function sitDown(')),ctx);
   const pending=ctx.pickBuyinAmount({min:20,max:2237,step:1,amount:2000});
-  assert.equal(events[0],'input[type="text"]');
+  assert.deepEqual(events,['dialogFocus']);
   node('[data-plus]').click();
   assert.equal(node('input[type="text"]').value,'2,237');
   node('input[type="text"]').value='2,238';
   node('[data-confirm]').click();
   assert.equal(node('[data-error]').hidden,false);
   assert.match(node('[data-error]').textContent,/請輸入 20–2,237/);
+  assert.equal(events.at(-1),'input[type="text"]');
   assert.ok(!events.includes('toast'));
   keys.keydown({key:'Escape',preventDefault(){}});
   assert.equal(await pending,null);
