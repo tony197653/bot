@@ -49,16 +49,38 @@ test('已選猴子的玩家仍顯示猴子檔，不在選擇器裡', () => {
   assert.ok(html.includes('monkey.svg'));
 });
 
-test('頭像底色只有深藍、淺藍、紅，沒有粉紅或灰', () => {
+test('頭像底色只有深藍、淺藍，沒有紅底、粉紅或灰', () => {
+  assert.deepEqual(Object.keys(AVATAR_BG), ['deep', 'light']);
   const dir = join(dirname(fileURLToPath(import.meta.url)), '../assets/avatars');
-  const allowed = new Set([...AVATAR_BG.deep, ...AVATAR_BG.light, ...AVATAR_BG.red].map((c) => c.toUpperCase()));
-  const banned = ['#FF9EC4', '#E0457F', '#D3D8DF', '#8E97A4'];
+  const allowed = new Set([...AVATAR_BG.deep, ...AVATAR_BG.light].map((c) => c.toUpperCase()));
+  const banned = ['#FF9EC4', '#E0457F', '#D3D8DF', '#8E97A4', '#FF5A62', '#C01828'];
   for (const name of readdirSync(dir).filter((f) => f.endsWith('.svg'))) {
     const svg = readFileSync(join(dir, name), 'utf8');
     for (const color of banned) assert.doesNotMatch(svg, new RegExp(color, 'i'), name);
     const stops = [...svg.matchAll(/stop-color="(#[0-9A-Fa-f]+)"/gi)].map((m) => m[1].toUpperCase());
     assert.equal(stops.length, 2, name);
     for (const stop of stops) assert.ok(allowed.has(stop), `${name} unexpected ${stop}`);
+  }
+});
+
+test('四花色排在淺藍組最後，圖案為撲克牌黑與紅', () => {
+  const keys = AVATAR_PRESETS.map(({ key }) => key);
+  assert.deepEqual(keys.slice(-4), ['spade', 'heart', 'diamond', 'club']);
+  const dir = join(dirname(fileURLToPath(import.meta.url)), '../assets/avatars');
+  const light = AVATAR_BG.light.map((c) => c.toUpperCase());
+  for (const name of ['spade.svg', 'club.svg']) {
+    const svg = readFileSync(join(dir, name), 'utf8');
+    const stops = [...svg.matchAll(/stop-color="(#[0-9A-Fa-f]+)"/gi)].map((m) => m[1].toUpperCase());
+    assert.deepEqual(stops, light);
+    assert.match(svg, /#1A1A1A/i);
+    assert.doesNotMatch(svg, /#464C4F|#606265|#D7262E/i);
+  }
+  for (const name of ['heart.svg', 'diamond.svg']) {
+    const svg = readFileSync(join(dir, name), 'utf8');
+    const stops = [...svg.matchAll(/stop-color="(#[0-9A-Fa-f]+)"/gi)].map((m) => m[1].toUpperCase());
+    assert.deepEqual(stops, light);
+    assert.match(svg, /#D7262E/i);
+    assert.doesNotMatch(svg, /#E8D4A0|#FFF8EE|#1A1A1A/i);
   }
 });
 

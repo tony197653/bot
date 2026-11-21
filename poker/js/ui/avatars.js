@@ -1,20 +1,18 @@
 const PRESET_BASE = 'https://tony-poker.web.app/friday-poker/assets/avatars/';
 
-/** Picker backgrounds: 深藍, 淺藍, 紅. Same-colour keys stay together. */
+/** Picker backgrounds: 深藍, 淺藍. Same-colour keys stay together. Red bg retired (unused). */
 export const AVATAR_BG = {
   deep: ['#5AB0FF', '#1F5FD6'],
   light: ['#D8F0FF', '#8EC4F8'],
-  red: ['#FF5A62', '#C01828'],
 };
 
 export const AVATAR_PRESETS = [
   // 深藍
   ['cat', '貓'], ['cat-siamese', '暹羅貓'], ['cat-white', '白貓'], ['cat-calico', '三花貓'],
   ['dog', '狗'], ['rabbit', '兔子'], ['fish', '魚'],
-  // 淺藍
+  // 淺藍（四花色排在此組最後）
   ['cat-gray', '灰貓'], ['bear', '熊'], ['panda', '貓熊'], ['fox', '狐狸'],
   ['lion', '獅子'], ['tiger', '老虎'], ['owl', '貓頭鷹'], ['frog', '青蛙'],
-  // 紅
   ['spade', '黑桃'], ['heart', '紅心'], ['diamond', '方塊'], ['club', '梅花'],
 ].map(([key, label]) => ({ key, label }));
 
