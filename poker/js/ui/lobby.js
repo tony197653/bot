@@ -12,7 +12,7 @@ import { formatCode, shareUrl, ROOM_CONST } from '../net/room.js';
 const $ = (sel, el = document) => el.querySelector(sel);
 const CODE_DIGITS = ROOM_CONST.CODE_DIGITS;
 
-const EMPTY_SVG = `<img class="mp-empty-art" src="assets/lobby-royal-flush.svg" width="640" height="320" alt="" aria-hidden="true" decoding="async">`;
+const EMPTY_SVG = `<img class="mp-empty-art" src="assets/lobby-hero.webp" width="1206" height="678" alt="" aria-hidden="true" decoding="async">`;
 
 const PLUS_SVG = `<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 3.5v11M3.5 9h11"/></svg>`;
 const CHEV_SVG = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>`;
