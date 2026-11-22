@@ -556,7 +556,7 @@ function renderQuestion(mode) {
       const item = reviewing ? reviewAnswers.get(index) : attempt.answers[index];
       const number = index + 1;
       const chip = button(undefined, 'number', () => showQuestion(mode, index, true));
-      const name = item?.revealed ? `${number} 解，第 ${number} 題已揭露`
+      const name = item?.revealed ? `${number}解，第 ${number} 題已揭露`
         : item?.choice ? `${number}，第 ${number} 題已作答`
         : `${number}，第 ${number} 題`;
       chip.setAttribute('aria-label', name);
