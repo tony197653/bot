@@ -257,7 +257,7 @@
     "wrongReasons": {
       "A": "promised 表示承諾，通常用 promise 人＋物，題目的 with 結構不合。",
       "B": "produced 表示生產，但 them 指災民，無法作為被生產的東西。",
-      "C": "protected 表示保護，後面列出的物資是供應品，語意較符合提供。"
+      "C": "protect 常用 protect A from B，表示保護某人不受傷害，不用來表示供應物資。"
     },
     "examFocus": "辨認 provide＋人＋with＋物的受詞順序。",
     "commonMistake": "別把 with 後的物品看成受到幫助的人；them 才指需要物資的災民。",
@@ -1942,7 +1942,7 @@
     "why": "each class 指每一個班級，its own area 表示各班都有屬於自己的區域。",
     "wrongReasons": {
       "A": "it's 是 it is 或 it has 的縮寫，無法表達所有關係。",
-      "B": "their 在這裡無法和逐一指稱的單數班級對應。",
+      "B": "each class 是單數，會考標準用法以 its 指稱班級。",
       "C": "his 指男性擁有的事物，each class 並非男性個人。"
     },
     "examFocus": "each＋單數名詞逐一指稱成員，指班級這類群體單位可搭配 its。",
@@ -2346,7 +2346,7 @@
     "difficulty": "易",
     "group": "r7",
     "passage": "How Do Students at Green Hill Junior High Get to School?\n\nThe school asked all 400 students this question last month. Here are the results:\n\nWay to school          | Number of students\nWalk                   | 120\nTake the bus           | 100\nRide a bike            | 80\nParents drive them     | 60\nOther                  | 40\n\nThe school wants more students to walk or ride bikes to school. Starting next semester, students who walk or ride a bike to school every day for a whole month will get a free notebook.",
-    "stem": "How do most students at Green Hill Junior High get to school?",
+    "stem": "What is the most common way for students at Green Hill Junior High to get to school?",
     "options": [
       "They walk.",
       "They take the bus.",
@@ -2355,14 +2355,14 @@
     ],
     "answer": 0,
     "explain": "正解是選項一（They walk.）。走路的人數 120 人最多。選項二（They take the bus.）：搭公車 100 人，比走路少。選項三（They ride bikes.）：騎腳踏車 80 人，比走路少。選項四（Their parents drive them.）：家長接送 60 人，比走路少。",
-    "why": "表格顯示走路上學的有 120 人，是各種方式中人數最多的一組。",
+    "why": "表格顯示走路上學有 120 人，是各種方式中人數最多的，也就是 the most common way。",
     "wrongReasons": {
       "B": "搭公車有 100 人，少於走路的 120 人。",
       "C": "騎腳踏車有 80 人，少於走路的 120 人。",
       "D": "由家長接送有 60 人，少於走路的 120 人。"
     },
-    "examFocus": "單選表格題可比較每個類別的人數，找出最高的一列。",
-    "commonMistake": "人數最多只代表在各類中居首，仍要另外確認是否超過全體的一半。",
+    "examFocus": "可用 the most common way 詢問人數最多的一類，再比較表格各列人數。",
+    "commonMistake": "most students 是過半數的學生，問人數最多的方式要用 the most common way；本題走路只占 30%。",
     "extension": "看問卷圖表時，柱子最高只代表該類最多，還可用百分比標示實際占比。"
   },
   {
