@@ -1,6 +1,6 @@
 {
   "_說明": "功能庫資料檔。格式說明請看同資料夾的 README.md。改完存檔即可，不必動 index.html。",
-  "updated": "2026-11-18",
+  "updated": "2026-11-22",
   "source": "技能 feature-index（含 references/ 比較表）",
   "notes": [
     {
@@ -424,6 +424,23 @@
           "name": "固定頁",
           "url": "../features/touch/?mode=fixed",
           "note": "鎖在原始大小，不能雙指放大"
+        }
+      ]
+    },
+    {
+      "name": "按鍵音效",
+      "status": "已驗證",
+      "skill": "",
+      "primary": {
+        "name": "Web Audio（點擊才發聲）",
+        "url": "https://github.com/tony197653/bot/blob/main/poker/js/ui/sound.js",
+        "note": "已用於德撲。按一下才出聲，清單上下滑或拖曳不出聲；與牌桌事件音分開，共用音效開關。"
+      },
+      "alternatives": [
+        {
+          "name": "音效樣本 S004、S005",
+          "url": "../templates/#sounds",
+          "note": "S004-點按、S005-按鍵確認可在模板庫試聽。"
         }
       ]
     },
