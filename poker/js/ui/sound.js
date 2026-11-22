@@ -37,6 +37,7 @@ let active = null;
 let buffers = {};
 let loading = null;
 let gesturesArmed = false;
+let resumeFailed = false;
 
 /** When true, Safari 17+ audioSession is set to 'playback' while sfx is on.
  *  Sound can then play with the hardware silent switch on, which also means
@@ -61,12 +62,15 @@ function bufferPeak(buffer) {
 
 function preload() {
   if (!context || loading) return;
+  const decodingContext = context;
   const files = [...PRIORITY, ...Object.values(UI_SAMPLES)];
   loading = Promise.all(files.map(async (kind) => {
     try {
       const response = await window.fetch(new URL(`../../assets/sfx/${kind}.mp3`, import.meta.url));
       if (!response.ok) return;
-      buffers[kind] = await context.decodeAudioData(await response.arrayBuffer());
+      const buffer = await decodingContext.decodeAudioData(await response.arrayBuffer());
+      if (context !== decodingContext) return;
+      buffers[kind] = buffer;
       if (Object.values(UI_SAMPLES).includes(kind)) uiPeaks[kind] = bufferPeak(buffers[kind]);
     } catch { /* Audio failure never affects the table. */ }
   })).catch(() => {});
@@ -144,31 +148,49 @@ function disarmGestures() {
   }
 }
 
-function unlock() {
+function recoverContext(inGesture = false) {
   try {
-    // Create, resume, and tick a silent buffer in this user-gesture turn (iOS Safari).
-    // Do not drop listeners until the context is actually running — a touch
-    // pointerdown is not an activation event, and pointerup/click follow it.
-    //
-    // After the user leaves the page, iOS may set state to 'interrupted' or
-    // 'suspended'; resume() must run in a user-activation event
-    // (pointerup / touchend / click / keydown). If the context is closed, it
-    // is rebuilt in ensureContext().
-    // https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/state
-    // https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/resume
-    if (!ensureContext()) return;
-    markGesture();
-    if (context.state !== 'running') context.resume();
-    playSilentUnlock();
+    if (inGesture && context?.state !== 'running' &&
+        (context?.state === 'interrupted' || resumeFailed)) dropContext();
+    if (!ensureContext()) return false;
+    resumeFailed = false;
     syncAudioSession();
     preload();
-    Promise.resolve(context.state === 'running' ? undefined : context.resume())
-      .catch(() => {})
-      .finally(() => {
-        if (context?.state === 'running') disarmGestures();
-        else armGestures();
-      });
-  } catch { armGestures(); }
+    if (context.state !== 'running') armGestures();
+    const recovering = context;
+    const settled = (failed) => {
+      if (context !== recovering) return;
+      if (!failed && context.state === 'running') {
+        resumeFailed = false;
+        if (inGesture) disarmGestures();
+        return;
+      }
+      resumeFailed = true;
+      armGestures();
+      if (context.state === 'closed' || context.state === 'interrupted') {
+        dropContext();
+        if (ensureContext()) {
+          preload();
+          if (inGesture) recoverContext();
+        }
+      }
+    };
+    try {
+      Promise.resolve(recovering.resume()).then(() => settled(false), () => settled(true));
+    } catch { settled(true); }
+    return !!context;
+  } catch {
+    resumeFailed = true;
+    armGestures();
+    return false;
+  }
+}
+
+function unlock() {
+  // Resume and start in this gesture turn; iOS does not require awaiting resume().
+  if (!recoverContext(true)) return;
+  markGesture();
+  playSilentUnlock();
 }
 
 // Re-arm unlock when returning from the background, even if state still
@@ -186,17 +208,7 @@ function onPageShown() {
   if (window.document?.hidden) return;
   gestureUntil = 0;
   armGestures();
-  if (!context) return;
-  if (context.state === 'closed') {
-    dropContext();
-    return;
-  }
-  if (context.state === 'running') return;
-  try {
-    Promise.resolve(context.resume()).catch(() => {}).finally(() => {
-      if (context?.state !== 'running') armGestures();
-    });
-  } catch { armGestures(); }
+  recoverContext();
 }
 
 function onVisibilityChange() {
@@ -462,13 +474,7 @@ export function wireUiSound(root) {
     // Resume in this activation event even if window unlock listeners
     // were previously disarmed. Do not call unlock() here: that would
     // play an extra silent buffer and double-count sources.
-    if (ensureContext()) {
-      markGesture();
-      if (context.state !== 'running') {
-        try { context.resume(); } catch { /* ignore */ }
-      }
-      syncAudioSession();
-    }
+    if (recoverContext(true)) markGesture();
     playUiSound(kind);
   };
   for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'keydown', 'touchend', 'click']) {

@@ -474,8 +474,8 @@ test('取消按壓後鍵盤 Enter 仍播一聲（pointercancel／keydown 會重�
 });
 
 
-test('背景返回後按鍵會 resume suspended／interrupted 並播一聲', async () => {
-  for (const returnedState of ['suspended', 'interrupted']) {
+test('背景返回後按鍵會恢復 suspended／interrupted／closed 並播一聲', async () => {
+  for (const returnedState of ['suspended', 'interrupted', 'closed']) {
     const oldWindow = globalThis.window;
     const oldPerf = globalThis.performance;
     const storage = new Map();
@@ -485,6 +485,7 @@ test('背景返回後按鍵會 resume suspended／interrupted 並播一聲', asy
     let visibility;
     let audio;
     let created = 0;
+    let decoded = 0;
     let now = 0;
     globalThis.performance = { now: () => now };
     class AudioContext {
@@ -505,7 +506,7 @@ test('背景返回後按鍵會 resume suspended／interrupted 並播一聲', asy
         return Promise.resolve();
       }
       close() { this.state = 'closed'; }
-      decodeAudioData() { return Promise.resolve({ numberOfChannels: 0, length: 0 }); }
+      decodeAudioData() { decoded += 1; return Promise.resolve({ numberOfChannels: 0, length: 0 }); }
       createBuffer() { return {}; }
       createBufferSource() {
         return { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
@@ -536,7 +537,8 @@ test('背景返回後按鍵會 resume suspended／interrupted 並播一聲', asy
       gestures.get('pointerdown')();
       await new Promise(setImmediate);
       assert.equal(audio.state, 'running');
-      const firstResumes = audio.resumed;
+      const firstAudio = audio;
+      const firstDecoded = decoded;
       now = 5000;
       window.document.hidden = true;
       visibility();
@@ -546,7 +548,9 @@ test('背景返回後按鍵會 resume suspended／interrupted 並播一聲', asy
       window.document.hidden = false;
       visibility();
       await new Promise(setImmediate);
-      assert.equal(audio.state, returnedState, 'visibility 時沒有使用者啟動，state 維持中斷');
+      assert.equal(audio.state, returnedState === 'closed' ? 'running' : 'suspended', '前景恢復會保留受限的 suspended 或重建失效 context');
+      assert.equal(created, returnedState === 'suspended' ? 1 : 2);
+      if (returnedState !== 'suspended') assert.ok(decoded > firstDecoded, '重建後重新解碼');
       assert.equal(typeof gestures.get('pointerup'), 'function', `${returnedState} 返回後應重新掛解鎖手勢`);
       audio.blockResume = false;
       const byType = Object.fromEntries(handlers.map((h) => [h.type, h.handler]));
@@ -556,7 +560,8 @@ test('背景返回後按鍵會 resume suspended／interrupted 並播一聲', asy
       gestures.get('click')();
       byType.click({ type: 'click', button: 0, target: tap });
       assert.equal(audio.state, 'running', `${returnedState} 按鍵後應 resume`);
-      assert.ok(audio.resumed > firstResumes, `${returnedState} 應呼叫 resume`);
+      assert.ok(audio.resumed > 0, `${returnedState} 應呼叫 resume`);
+      assert.notEqual(audio, firstAudio, '失敗的 context 在手勢內重建');
       assert.equal(oscillators.length, before + 1, `${returnedState} 按鍵應播一聲`);
       s.setSoundOn(false);
       gestures.get('click')();
@@ -637,8 +642,17 @@ test('visibility 仍為 running 時 pageshow／focus 也會重掛解鎖；closed
     await new Promise(setImmediate);
     assert.equal(typeof gestures.get('pointerdown'), 'undefined', '解鎖成功後再次卸下');
     gestures.get('pageshow')();
+    const runningResumes = audio.resumed;
+    gestures.get('pageshow')({ persisted: true });
+    assert.ok(audio.resumed > runningResumes, 'persisted pageshow 即使 running 仍嘗試 resume');
+    assert.equal(created, 1, 'running 不重建');
     assert.equal(typeof gestures.get('pointerdown'), 'function', 'pageshow 同樣重掛');
 
+    audio.state = 'suspended';
+    const suspendedResumes = audio.resumed;
+    gestures.get('pageshow')({ persisted: true });
+    assert.ok(audio.resumed > suspendedResumes, 'persisted pageshow 恢復 suspended');
+    assert.equal(audio.state, 'running');
     const byType = Object.fromEntries(handlers.map((h) => [h.type, h.handler]));
     const tap = element({ 'data-sfx': 'tap' });
     audio.state = 'closed';
