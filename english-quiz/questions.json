@@ -2362,8 +2362,8 @@
       "D": "由家長接送有 60 人，少於走路的 120 人。"
     },
     "examFocus": "可用 the most common way 詢問人數最多的一類，再比較表格各列人數。",
-    "commonMistake": "most students 是過半數的學生，問人數最多的方式要用 the most common way；本題走路只占 30%。",
-    "extension": "看問卷圖表時，柱子最高只代表該類最多，還可用百分比標示實際占比。"
+    "commonMistake": "別把 the most common way（人數最多的方式）和 most students（過半數學生）混為一談；本題走路只占 30%，但仍是最多的一類。",
+    "extension": "讀表格時，人數最多的一類未必過半，可用百分比看出實際占比。"
   },
   {
     "id": "re20",
