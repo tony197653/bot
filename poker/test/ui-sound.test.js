@@ -658,3 +658,129 @@ test('visibility 仍為 running 時 pageshow／focus 也會重掛解鎖；closed
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });
+
+function pickerOption(scrollTop = 0) {
+  const pane = element({ class: 'ps-pick' });
+  pane.scrollTop = scrollTop;
+  const btn = element({ class: 'ps-pick-option', 'data-ps': 'pick-choice', 'data-sfx': 'tap' }, pane);
+  return { pane, btn };
+}
+
+async function bootDelegatedSound(suffix) {
+  const oldWindow = globalThis.window;
+  const oldPerf = globalThis.performance;
+  const storage = new Map();
+  const gestures = new Map();
+  const oscillators = [];
+  const sources = [];
+  const handlers = [];
+  let now = 0;
+  globalThis.performance = { now: () => now };
+  class AudioContext {
+    constructor() { this.state = 'suspended'; this.destination = {}; this.currentTime = 0; this.sampleRate = 22050; }
+    resume() { this.state = 'running'; return Promise.resolve(); }
+    decodeAudioData() {
+      const data = new Float32Array([0.9, -0.9, 0.5]);
+      return Promise.resolve({
+        numberOfChannels: 1, length: data.length, duration: 0.001, getChannelData: () => data,
+      });
+    }
+    createBuffer() { return { length: 1, duration: 0.05, getChannelData: () => new Float32Array([0.5]) }; }
+    createBufferSource() {
+      const node = { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
+      sources.push(node);
+      return node;
+    }
+    createGain() { return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
+    createOscillator() { const node={frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){this.started=true;},stop(){}}; oscillators.push(node); return node; }
+  }
+  const root = { addEventListener(type, handler, capture) { handlers.push({ type, handler, capture }); } };
+  globalThis.window = {
+    AudioContext,
+    localStorage: { getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v) },
+    document: { hidden: false, addEventListener() {}, ...root },
+    addEventListener: (type, fn) => gestures.set(type, fn),
+    removeEventListener: (type) => gestures.delete(type),
+    fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
+  };
+  const s = await import(`../js/ui/sound.js?${suffix}`);
+  s.initSound();
+  await new Promise(setImmediate);
+  gestures.get('pointerdown')?.();
+  return {
+    oscillators,
+    sources,
+    byType: Object.fromEntries(handlers.map((h) => [h.type, h.handler])),
+    setNow: (n) => { now = n; },
+    restore() {
+      if (oldPerf === undefined) delete globalThis.performance; else globalThis.performance = oldPerf;
+      if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
+    },
+  };
+}
+
+test('頭像選擇清單：觸控滑動不發聲、單純點擊發聲一次', async () => {
+  const ctx = await bootDelegatedSound('picker-swipe');
+  try {
+    const { pane, btn } = pickerOption(0);
+    const { byType, oscillators, setNow } = ctx;
+
+    setNow(0);
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'touch', clientX: 100, clientY: 80, target: btn });
+    pane.scrollTop = 48;
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'touch', clientX: 100, clientY: 160, target: btn });
+    byType.touchend({ type: 'touchend', target: btn });
+    byType.click({ type: 'click', button: 0, target: btn });
+    assert.equal(oscillators.length, 0, 'scroll in .ps-pick must stay silent');
+
+    setNow(1000);
+    const { pane: pane2, btn: btn2 } = pickerOption(0);
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'touch', clientX: 100, clientY: 80, target: btn2 });
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'touch', clientX: 100, clientY: 120, target: btn2 });
+    byType.touchend({ type: 'touchend', target: btn2 });
+    byType.click({ type: 'click', button: 0, target: btn2 });
+    assert.equal(oscillators.length, 0, 'drag ≥10px in .ps-pick must stay silent');
+
+    setNow(2000);
+    const { btn: tap } = pickerOption(0);
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'touch', clientX: 100, clientY: 80, target: tap });
+    assert.equal(oscillators.length, 0, 'picker pointerdown must not play');
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'touch', clientX: 102, clientY: 84, target: tap });
+    byType.touchend({ type: 'touchend', target: tap });
+    byType.click({ type: 'click', button: 0, target: tap });
+    assert.equal(oscillators.length, 1, 'a real picker tap plays once');
+  } finally {
+    ctx.restore();
+  }
+});
+
+test('開桌、入座、下注仍依原邏輯發聲（滑鼠 pointerdown／觸控 pointerup）', async () => {
+  const ctx = await bootDelegatedSound('main-buttons-unchanged');
+  try {
+    const { byType, oscillators, setNow } = ctx;
+    const create = element({ id: 'mpBtnCreate' });
+    const seat = element({ class: 'mp-empty-seat' });
+    const call = element({ id: 'mpCall' });
+
+    setNow(0);
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'mouse', target: create });
+    assert.equal(oscillators.length, 1, '開桌 still plays on mouse pointerdown');
+    byType.click({ type: 'click', button: 0, target: create });
+    assert.equal(oscillators.length, 1, '開桌 trailing click must not double');
+
+    setNow(1000);
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'touch', target: seat });
+    assert.equal(oscillators.length, 1, '入座 touch pointerdown stays silent');
+    byType.pointerup({ type: 'pointerup', button: 0, pointerType: 'touch', target: seat });
+    byType.click({ type: 'click', button: 0, target: seat });
+    assert.equal(oscillators.length, 2, '入座 still plays on touch pointerup');
+
+    setNow(2000);
+    byType.pointerdown({ type: 'pointerdown', button: 0, pointerType: 'mouse', target: call });
+    assert.equal(oscillators.length, 3, '下注 still plays on mouse pointerdown');
+    byType.click({ type: 'click', button: 0, target: call });
+    assert.equal(oscillators.length, 3, '下注 trailing click must not double');
+  } finally {
+    ctx.restore();
+  }
+});

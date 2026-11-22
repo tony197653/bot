@@ -396,6 +396,10 @@ export function wireUiSound(root) {
   // If the pointer slides off (no click) or is cancelled, clear the flag so
   // the next keyboard Enter/Space click is not swallowed.
   let pressPlayed = false;
+  // Avatar picker (.ps-pick) only: iPhone scroll over a preset was firing
+  // pointerup/touchend and playing a tap. Other buttons keep the original
+  // pointerdown (mouse) / pointerup (touch) timing.
+  let pickerPress = null;
   const isActivationPlay = (event) => {
     if (event.type === 'click' || event.type === 'touchend') return true;
     if (event.type === 'pointerup' && event.pointerType !== 'mouse') return true;
@@ -403,14 +407,46 @@ export function wireUiSound(root) {
     if (event.type === 'pointerdown' && event.pointerType !== 'touch') return true;
     return false;
   };
+  const pickerSwipe = (event) => {
+    if (!pickerPress) return false;
+    const pane = pickerPress.pane;
+    if ((pane?.scrollTop ?? 0) !== pickerPress.scrollTop) return true;
+    if (event.clientX == null && event.clientY == null) return false;
+    const dx = (event.clientX ?? pickerPress.x) - pickerPress.x;
+    const dy = (event.clientY ?? pickerPress.y) - pickerPress.y;
+    return Math.hypot(dx, dy) >= 10;
+  };
   const onUi = (event) => {
     if ((event.type === 'pointerdown' || event.type === 'pointerup') && event.button != null && event.button !== 0) return;
-    if (event.type === 'pointerdown') pressPlayed = false;
+    if (event.type === 'pointerdown') {
+      pressPlayed = false;
+      const pane = event.target?.closest?.('.ps-pick');
+      pickerPress = pane
+        ? { x: event.clientX ?? 0, y: event.clientY ?? 0, scrollTop: pane.scrollTop ?? 0, pane, suppress: false }
+        : null;
+    }
     if (event.type === 'pointercancel' || event.type === 'keydown') {
       pressPlayed = false;
+      pickerPress = null;
       return;
     }
-    if (!isActivationPlay(event)) return;
+    const eventInPicker = event.target?.closest?.('.ps-pick');
+    if (event.type === 'pointerdown' && eventInPicker) return;
+    if (pickerPress && (eventInPicker || event.type === 'pointerup' || event.type === 'touchend')) {
+      if (event.type === 'pointerup' || event.type === 'touchend') {
+        if (pickerPress.suppress || pickerSwipe(event)) {
+          pickerPress.suppress = true;
+          return;
+        }
+      }
+    }
+    if (event.type === 'click' && eventInPicker && pickerPress?.suppress) {
+      pickerPress = null;
+      return;
+    }
+    // Picker mouse taps play on pointerup (with <10px / no scroll) or click,
+    // not pointerdown, so a drag-scroll does not sound.
+    if (!isActivationPlay(event) && !(eventInPicker && event.type === 'pointerup' && pickerPress && !pickerPress.suppress)) return;
     const control = event.target?.closest?.('[data-sfx], button, [data-act], [data-ps], .mp-seg-item, .mp-chip, .mp-lb-av, .mp-empty-seat, #seats .av, #heroAv, #raiseScrim');
     // Labels forward a second click to their radio: sound only that forwarded
     // click, also covering direct/keyboard radio clicks without doubling.
