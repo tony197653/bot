@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>國文模擬題</title>
 <meta name="description" content="10 題國文會考模擬題。選完再看解析，不立刻顯示對錯。">
-<meta name="theme-color" content="#1F3A8A">
+<meta name="theme-color" content="#1A73E8">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="zh_TW">
 <meta property="og:title" content="國文模擬題">
@@ -83,6 +83,7 @@ body {
 .scroller {
   height: 100%;
   height: 100dvh;
+  overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
@@ -156,16 +157,30 @@ button.danger.pressed:not(:disabled) { background: var(--danger-press); }
 .button:disabled, .button[aria-disabled="true"] { opacity: .45; }
 .number-nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-wrap: nowrap;
+  gap: 8px;
   margin-bottom: 12px;
+  padding: 5px;
+  scroll-padding-inline: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.number-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .number {
   display: grid;
   place-items: center;
-  flex: 0 1 40px;
-  min-width: 0;
+  flex: 0 0 44px;
+  width: 44px;
   height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -189,10 +204,6 @@ button.danger.pressed:not(:disabled) { background: var(--danger-press); }
 .number small { font-size: .6875rem; line-height: 1; }
 .number[data-state="revealed"] span { align-content: center; line-height: 1.15; }
 .number[aria-current="step"] span { outline: 2px solid var(--accent); }
-@media (min-width: 340px) and (max-width: 799px) {
-  .number-nav { gap: 0; }
-  .number { flex: 0 1 10%; }
-}
 .card {
   border: 1px solid var(--line-soft);
   border-radius: var(--r);
@@ -237,6 +248,7 @@ button.step.pressed:not(:disabled) { transform: none; }
 .step:not(.primary).pressed:not(:disabled) { background: var(--line-soft); }
 @media (max-width: 399px) { .step { flex: 1 1 0; } }
 .analysis { margin-top: 16px; }
+.analysis h2 { font-size: 1rem; font-weight: 700; margin: 0; }
 .analysis-toggle {
   display: flex;
   align-items: center;
@@ -252,6 +264,7 @@ button.step.pressed:not(:disabled) { transform: none; }
   background: transparent;
 }
 .analysis-toggle span { color: var(--muted); font-size: .875rem; }
+.analysis-toggle .analysis-title { color: inherit; font-size: inherit; font-weight: 700; }
 .analysis-panel {
   display: grid;
   grid-template-rows: 0fr;
@@ -312,6 +325,7 @@ dialog button { font-weight: 600; padding-inline: 4px; }
 @keyframes expand { from { grid-template-rows: 0fr; } }
 @media (prefers-reduced-motion: reduce) {
   button.pressed:not(:disabled) { transform: none; }
+  .option, .option * { transition: none; transition-duration: 0s; }
   .analysis-panel { transition: none; }
   .analysis-panel.open { animation: fade-in 200ms; }
   dialog[open] { animation: fade-in 200ms ease-out both; }
@@ -324,7 +338,6 @@ dialog button { font-weight: 600; padding-inline: 4px; }
   .home h1 { font-size: 2.5rem; }
   .actions { display: flex; flex-wrap: wrap; gap: 16px; }
   .actions .button, .reveal { width: 200px; }
-  .number { flex-basis: 44px; }
   .number span { width: 40px; min-height: 40px; }
   .steps { gap: 16px; }
   dialog { width: 400px; }
@@ -419,6 +432,18 @@ function scrollToTop() {
 
 function focus(node) {
   node?.focus({ preventScroll: true });
+}
+
+function revealCurrentNumber(chip) {
+  const nav = chip?.closest('.number-nav');
+  if (!nav || !chip) return;
+  const navBounds = nav.getBoundingClientRect();
+  const chipBounds = chip.getBoundingClientRect();
+  const inset = parseFloat(getComputedStyle(nav).scrollPaddingLeft) || 0;
+  const left = navBounds.left + inset;
+  const right = navBounds.right - inset;
+  if (chipBounds.left < left) nav.scrollLeft += Math.floor(chipBounds.left - left);
+  else if (chipBounds.right > right) nav.scrollLeft += Math.ceil(chipBounds.right - right);
 }
 
 function save() {
@@ -522,6 +547,11 @@ function renderQuestion(mode) {
   if (!readOnly) {
     const nav = element('nav', undefined, 'number-nav');
     nav.setAttribute('aria-label', '題號導覽');
+    nav.addEventListener('focusin', event => {
+      const chip = event.target.closest('.number');
+      if (chip) revealCurrentNumber(chip);
+      window.scrollTo(0, 0);
+    });
     for (const index of indices) {
       const item = reviewing ? reviewAnswers.get(index) : attempt.answers[index];
       const status = item?.revealed ? '已揭露' : item?.choice ? '已作答' : '未作答';
@@ -622,6 +652,7 @@ function renderQuestion(mode) {
   }
   if (locked) screen.append(analysisSection(question, response, saved, mode));
   keyboard = { options: optionButtons, reveal, next, back, navCurrent, choose, locked };
+  if (navCurrent) revealCurrentNumber(navCurrent);
 }
 
 function analysisSection(question, response, saved, mode) {
@@ -643,7 +674,9 @@ function analysisSection(question, response, saved, mode) {
     updateDisclosure();
   });
   toggle.setAttribute('aria-controls', panel.id);
-  toggle.append(element('strong', '解析'), toggleLabel);
+  toggle.append(element('span', '解析', 'analysis-title'), toggleLabel);
+  const heading = element('h2');
+  heading.append(toggle);
 
   function updateDisclosure() {
     toggleLabel.textContent = openAnalysis ? '收合解析' : '展開解析';
@@ -674,7 +707,7 @@ function analysisSection(question, response, saved, mode) {
   }
 
   panel.append(clip);
-  section.append(toggle, panel);
+  section.append(heading, panel);
   updateDisclosure();
   return section;
 }
@@ -772,6 +805,13 @@ function closeDialog(action) {
 
 cancelButton.addEventListener('click', () => closeDialog(cancelAction));
 confirmButton.addEventListener('click', () => closeDialog(confirmAction));
+dialog.addEventListener('keydown', event => {
+  if (event.key !== 'Tab') return;
+  const boundary = event.shiftKey ? cancelButton : confirmButton;
+  if (document.activeElement !== boundary) return;
+  event.preventDefault();
+  focus(event.shiftKey ? confirmButton : cancelButton);
+});
 dialog.addEventListener('cancel', event => {
   event.preventDefault();
   closeDialog(cancelAction);
