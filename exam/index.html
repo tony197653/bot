@@ -79,7 +79,7 @@ h2 a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r)
 @media (min-width:800px) {
   main { padding: 96px 32px 64px; }
   h1 { font-size: 2.5rem; }
-  .subjects { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 16px; margin-top: 48px; }
+  .subjects { grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; margin-top: 48px; }
   .card { height: 200px; padding: 16px; flex-direction: column; align-items: flex-start; }
   h2 { font-size: 2rem; }
 }
@@ -105,6 +105,10 @@ h2 a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r)
     <li class="card c1" style="--c:#64745b;--frame:#64745b">
       <h2><a href="../chinese-quiz/" aria-label="國文，100 題">國文</a></h2>
       <span class="count">100 題</span>
+    </li>
+    <li class="card c1" style="--c:#1F3A8A;--frame:#1F3A8A">
+      <h2><a href="../guowen-quiz/" aria-label="國文模擬題，10 題">國文模擬題</a></h2>
+      <span class="count">10 題</span>
     </li>
     <li class="card c1" style="--c:#4e7197;--frame:#768597">
       <h2><a href="../english-quiz/" aria-label="英文，100 題">英文</a></h2>
