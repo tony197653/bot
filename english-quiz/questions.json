@@ -12,7 +12,16 @@
       "ruler"
     ],
     "answer": 0,
-    "explain": "正解是選項一（umbrella）。雨傘。外面雨下很大，提醒對方帶雨傘最合理。選項二（comb）：梳子，和下雨無關。選項三（pencil）：鉛筆，和下雨無關。選項四（ruler）：尺，和下雨無關。"
+    "explain": "正解是選項一（umbrella）。雨傘。外面雨下很大，提醒對方帶雨傘最合理。選項二（comb）：梳子，和下雨無關。選項三（pencil）：鉛筆，和下雨無關。選項四（ruler）：尺，和下雨無關。",
+    "why": "外面雨下得很大，umbrella 是雨傘，符合出門前的提醒。",
+    "wrongReasons": {
+      "B": "comb 是梳子，無法用來遮雨。",
+      "C": "pencil 是鉛筆，與防雨無關。",
+      "D": "ruler 是尺，與雨天出門的需求無關。"
+    },
+    "examFocus": "從天氣線索判斷日常用品的用途。",
+    "commonMistake": "看到 take 就只想著能帶出門的物品，容易漏看下雨的線索。",
+    "extension": "看英文天氣預報時，看到 showers 就知道可能有陣雨，可以先把傘放進包包。"
   },
   {
     "id": "vo02",
@@ -27,7 +36,16 @@
       "drive"
     ],
     "answer": 2,
-    "explain": "正解是選項三（read）。閱讀。五歲小孩還看不懂報紙上的字，read the words 搭配最合理。選項一（eat）：吃，不能「吃」報紙上的字。選項二（wear）：穿戴，不能接 words。選項四（drive）：開車，和報紙上的字無關。"
+    "explain": "正解是選項三（read）。閱讀。五歲小孩還看不懂報紙上的字，read the words 搭配最合理。選項一（eat）：吃，不能「吃」報紙上的字。選項二（wear）：穿戴，不能接 words。選項四（drive）：開車，和報紙上的字無關。",
+    "why": "read the words 是「閱讀這些字」，符合弟弟年紀小、還讀不了報紙的情境。",
+    "wrongReasons": {
+      "A": "eat 是吃，題目問的是辨讀文字。",
+      "B": "wear 是穿戴，報紙上的字並非衣物。",
+      "D": "drive 是開車，無法表達閱讀。"
+    },
+    "examFocus": "根據受詞與情境判斷動詞，例如 read a newspaper。",
+    "commonMistake": "別把 can't 當成不願意；這裡的 yet 表示目前還做不到。",
+    "extension": "大人在念圖畫書給孩子聽時，可以用 read aloud 表示「出聲朗讀」。"
   },
   {
     "id": "vo03",
@@ -42,7 +60,16 @@
       "busy"
     ],
     "answer": 0,
-    "explain": "正解是選項一（closed）。關門的。書店今天沒開，所以買不到東西、要明天再去，前後因果吻合。選項二（open）：營業中，若有營業就買得到，和 can't buy 矛盾。選項三（full）：客滿的，人多不代表買不到東西，也不用改天去。選項四（busy）：忙碌的，店很忙仍然可以買東西，因果不成立。"
+    "explain": "正解是選項一（closed）。關門的。書店今天沒開，所以買不到東西、要明天再去，前後因果吻合。選項二（open）：營業中，若有營業就買得到，和 can't buy 矛盾。選項三（full）：客滿的，人多不代表買不到東西，也不用改天去。選項四（busy）：忙碌的，店很忙仍然可以買東西，因果不成立。",
+    "why": "closed 表示書店今天沒營業，所以現在買不到東西，只好明天再去。",
+    "wrongReasons": {
+      "B": "open 表示營業中，與改天再去的理由不符。",
+      "C": "full 表示客滿，單憑客滿無法推知今天買不到。",
+      "D": "busy 表示忙碌，店家忙碌時仍可能照常營業。"
+    },
+    "examFocus": "用 so 前後的因果關係判斷店家的營業狀態。",
+    "commonMistake": "別只憑 Sunday 猜商店有沒有開，要看後文提供的理由。",
+    "extension": "店門口寫 Closed on Mondays，表示每週一公休，查營業時間時也要留意例外公告。"
   },
   {
     "id": "vo04",
@@ -57,7 +84,16 @@
       "singer"
     ],
     "answer": 2,
-    "explain": "正解是選項三（doctor）。醫生。發燒又咳嗽，應該去看醫生。選項一（farmer）：農夫，和生病無關。選項二（waiter）：服務生，和生病無關。選項四（singer）：歌手，和生病無關。"
+    "explain": "正解是選項三（doctor）。醫生。發燒又咳嗽，應該去看醫生。選項一（farmer）：農夫，和生病無關。選項二（waiter）：服務生，和生病無關。選項四（singer）：歌手，和生病無關。",
+    "why": "艾咪發燒又咳嗽，媽媽帶她去看醫生，因此填 doctor。",
+    "wrongReasons": {
+      "A": "farmer 是農夫，與就醫情境無關。",
+      "B": "waiter 是餐廳服務生，與看病無關。",
+      "D": "singer 是歌手，與處理身體不適無關。"
+    },
+    "examFocus": "看到症狀與 see a 搭配時，可聯想到 see a doctor。",
+    "commonMistake": "see a doctor 要依情境理解為「看醫生」，別只譯成「看到醫生」。",
+    "extension": "看英文診所指示時，walk-in clinic 通常指可直接前往、無須先預約的診所。"
   },
   {
     "id": "vo05",
@@ -72,7 +108,16 @@
       "excited"
     ],
     "answer": 3,
-    "explain": "正解是選項四（excited）。興奮的。be excited about 表示對某事感到興奮，興奮到前一晚睡不著，語意合理。選項一（tired）：疲累的，累了應該更好睡，和 couldn't sleep 矛盾；而且 tired 不和 about 搭配表達期待。選項二（bored）：感到無聊的，對要去日本旅行感到無聊卻睡不著，語意不通。選項三（careful）：小心的，be careful about 是「對…小心」，不會造成睡不著。"
+    "explain": "正解是選項四（excited）。興奮的。be excited about 表示對某事感到興奮，興奮到前一晚睡不著，語意合理。選項一（tired）：疲累的，累了應該更好睡，和 couldn't sleep 矛盾；而且 tired 不和 about 搭配表達期待。選項二（bored）：感到無聊的，對要去日本旅行感到無聊卻睡不著，語意不通。選項三（careful）：小心的，be careful about 是「對…小心」，不會造成睡不著。",
+    "why": "be excited about 表示對某事感到興奮，符合肯因期待旅程而睡不著的情境。",
+    "wrongReasons": {
+      "A": "tired 表示疲累，沒有表達對旅程的期待。",
+      "B": "bored 表示感到厭倦，與期待旅程的情境不符。",
+      "C": "careful 表示謹慎，無法表達題目暗示的興奮心情。"
+    },
+    "examFocus": "so＋形容詞＋that 子句表示「如此……以至於……」。",
+    "commonMistake": "別只看到睡不著就選 tired，要判斷哪一種情緒導致這個結果。",
+    "extension": "寫旅遊日記時，可用 thrilling 形容刺激的體驗，例如一趟令人心跳加快的泛舟行程。"
   },
   {
     "id": "vo06",
@@ -87,7 +132,16 @@
       "take off"
     ],
     "answer": 2,
-    "explain": "正解是選項三（turn off）。關掉（電器）。離開房間時關燈才能節省能源。選項一（turn on）：打開，開燈會浪費能源，和 save energy 矛盾。選項二（put on）：穿上、戴上，用於衣物，不能用於燈。選項四（take off）：脫下（衣物）或（飛機）起飛，不能用於燈。"
+    "explain": "正解是選項三（turn off）。關掉（電器）。離開房間時關燈才能節省能源。選項一（turn on）：打開，開燈會浪費能源，和 save energy 矛盾。選項二（put on）：穿上、戴上，用於衣物，不能用於燈。選項四（take off）：脫下（衣物）或（飛機）起飛，不能用於燈。",
+    "why": "turn off the light 是「關燈」，符合離開房間時節省能源的要求。",
+    "wrongReasons": {
+      "A": "turn on 是打開，離開時開燈與節能的目的不符。",
+      "B": "put on 常用於穿戴衣物，無法表達關燈。",
+      "D": "take off 可指脫下衣物或飛機起飛，無法表達關燈。"
+    },
+    "examFocus": "用受詞和目的判斷片語動詞，注意 turn on 與 turn off 的方向相反。",
+    "commonMistake": "別因為 on 和 off 都能搭配電燈就忽略後一句的節能線索。",
+    "extension": "調暗燈光可說 dim the lights，例如看電影前把客廳燈光調暗。"
   },
   {
     "id": "vo07",
@@ -102,7 +156,16 @@
       "miss"
     ],
     "answer": 1,
-    "explain": "正解是選項二（build）。建造。舊橋不安全，所以市政府要蓋一座新的，a new one 指 a new bridge。選項一（break）：打破，不會去打破一座「新」橋。選項三（borrow）：借入，橋不能用借的。選項四（miss）：錯過、想念，和蓋新橋的語意無關。"
+    "explain": "正解是選項二（build）。建造。舊橋不安全，所以市政府要蓋一座新的，a new one 指 a new bridge。選項一（break）：打破，不會去打破一座「新」橋。選項三（borrow）：借入，橋不能用借的。選項四（miss）：錯過、想念，和蓋新橋的語意無關。",
+    "why": "舊橋已不安全，市政府打算建造新橋，因此用 build。",
+    "wrongReasons": {
+      "A": "break 表示弄壞，與市政府準備新橋的目的不符。",
+      "C": "borrow 表示借用，無法表達興建新橋。",
+      "D": "miss 表示錯過或想念，與新橋工程的語意不符。"
+    },
+    "examFocus": "a new one 的 one 代替前面已出現的單數可數名詞 bridge。",
+    "commonMistake": "看到 a new one 時要回頭找它所指的事物，別單憑 new 猜動詞。",
+    "extension": "工程告示上的 under construction 表示施工中，行人可能需要改走其他路線。"
   },
   {
     "id": "vo08",
@@ -117,7 +180,16 @@
       "breaks"
     ],
     "answer": 1,
-    "explain": "正解是選項二（finishes）。完成。先寫完功課再看電視，符合「好學生」的描述。選項一（loses）：遺失，總是弄丟功課不符合好學生。選項三（hates）：討厭，討厭功課和看電視前的時間順序搭不起來，也不符合好學生。選項四（breaks）：打破，不能用在 homework。"
+    "explain": "正解是選項二（finishes）。完成。先寫完功課再看電視，符合「好學生」的描述。選項一（loses）：遺失，總是弄丟功課不符合好學生。選項三（hates）：討厭，討厭功課和看電視前的時間順序搭不起來，也不符合好學生。選項四（breaks）：打破，不能用在 homework。",
+    "why": "finishes her homework 表示寫完功課，符合先完成作業再看電視的順序。",
+    "wrongReasons": {
+      "A": "loses 表示弄丟，無法說明她會先完成作業。",
+      "C": "hates 表示討厭，並未交代看電視前做完了什麼。",
+      "D": "breaks 表示弄壞或打破，與完成作業的語意不合。"
+    },
+    "examFocus": "before 可連接兩個動作，交代發生的先後順序。",
+    "commonMistake": "看到 homework 要確認動詞搭配；finish 表示完成，與單純做功課有所不同。",
+    "extension": "讀書清單上可寫 hand in homework 來提醒自己交作業，完成和繳交是兩道步驟。"
   },
   {
     "id": "vo09",
@@ -132,7 +204,16 @@
       "heat"
     ],
     "answer": 0,
-    "explain": "正解是選項一（cool）。cool down 是「冷卻、變涼」。湯太燙，先讓它變涼再喝。選項二（warm）：warm 是「變暖」，湯已經太燙，不需要再變熱；而且一般說 warm up。選項三（burn）：燃燒、燙傷，burn down 是「燒毀」，不合語意。選項四（heat）：加熱，湯已太燙不需加熱；也沒有 heat down 的說法。"
+    "explain": "正解是選項一（cool）。cool down 是「冷卻、變涼」。湯太燙，先讓它變涼再喝。選項二（warm）：warm 是「變暖」，湯已經太燙，不需要再變熱；而且一般說 warm up。選項三（burn）：燃燒、燙傷，burn down 是「燒毀」，不合語意。選項四（heat）：加熱，湯已太燙不需加熱；也沒有 heat down 的說法。",
+    "why": "cool down 表示變涼，湯太燙，先放涼再喝才符合情境。",
+    "wrongReasons": {
+      "B": "warm 表示變暖，而且常搭配 up，方向與題意相反。",
+      "C": "burn down 表示燒毀，無法描述湯變涼。",
+      "D": "heat 表示加熱，與讓熱湯降溫的目的相反。"
+    },
+    "examFocus": "根據溫度變化判斷片語，並注意 let＋受詞＋原形動詞。",
+    "commonMistake": "別把 cool 只當成「涼爽的」；在 let it 後面要讀成動作。",
+    "extension": "運動結束後的緩和活動也可稱為 cool-down，例如跑步後改成慢走。"
   },
   {
     "id": "vo10",
@@ -147,7 +228,16 @@
       "look for"
     ],
     "answer": 2,
-    "explain": "正解是選項三（put off）。延期。經理今天生病，所以會議延到下週五，until next Friday 是關鍵。選項一（put on）：穿上、上演，不能用於延後會議。選項二（give up）：放棄，放棄會議就不會有 until next Friday。選項四（look for）：尋找，找會議不合語意。"
+    "explain": "正解是選項三（put off）。延期。經理今天生病，所以會議延到下週五，until next Friday 是關鍵。選項一（put on）：穿上、上演，不能用於延後會議。選項二（give up）：放棄，放棄會議就不會有 until next Friday。選項四（look for）：尋找，找會議不合語意。",
+    "why": "put off 表示延期，因為經理今天生病，會議改到下週五。",
+    "wrongReasons": {
+      "A": "put on 可指穿上或上演，並無延期的意思。",
+      "B": "give up 表示放棄，與已訂出新日期的情境不符。",
+      "D": "look for 表示尋找，無法說明會議時間的變更。"
+    },
+    "examFocus": "利用 until 後的時間辨認會議延到何時，並依情境選擇片語。",
+    "commonMistake": "延期仍會舉行，別把 put off 誤解為取消。",
+    "extension": "收到改期通知時，可留意 rescheduled，並確認行事曆是否換成新的日期和時間。"
   },
   {
     "id": "vo11",
@@ -162,7 +252,16 @@
       "provided"
     ],
     "answer": 3,
-    "explain": "正解是選項四（provided）。provide A with B 是「提供 B 給 A」，政府提供災民食物、水和住處，語意與句型都正確。選項一（promised）：承諾，用法是 promise sb. sth. 或 promise to V，不和 with 搭配；而且災後需要的是實際「提供」，不是只有承諾。選項二（produced）：生產、製造，不能說「生產災民」。選項三（protected）：保護，常用 protect A from B（保護 A 免於 B），protect them with food 語意不通。"
+    "explain": "正解是選項四（provided）。provide A with B 是「提供 B 給 A」，政府提供災民食物、水和住處，語意與句型都正確。選項一（promised）：承諾，用法是 promise sb. sth. 或 promise to V，不和 with 搭配；而且災後需要的是實際「提供」，不是只有承諾。選項二（produced）：生產、製造，不能說「生產災民」。選項三（protected）：保護，常用 protect A from B（保護 A 免於 B），protect them with food 語意不通。",
+    "why": "provide 人 with 物表示提供物資給某人，符合政府供應災民食物、水和住處的情境。",
+    "wrongReasons": {
+      "A": "promised 表示承諾，通常用 promise 人＋物，題目的 with 結構不合。",
+      "B": "produced 表示生產，但 them 指災民，無法作為被生產的東西。",
+      "C": "protect 常用 protect A from B，表示保護某人不受傷害，不用來表示供應物資。"
+    },
+    "examFocus": "辨認 provide＋人＋with＋物的受詞順序。",
+    "commonMistake": "別把 with 後的物品看成受到幫助的人；them 才指需要物資的災民。",
+    "extension": "閱讀物資清單時，blankets 指毯子，bottled water 指瓶裝水。"
   },
   {
     "id": "vo12",
@@ -177,7 +276,16 @@
       "count"
     ],
     "answer": 0,
-    "explain": "正解是選項一（judge）。評斷。judge others by their looks 是「以貌取人」，後句「先去認識他們」正好相呼應。選項二（guess）：猜測，guess others 不是正確搭配。選項三（treat）：對待，treat 後通常接 well、badly 或 like…，不和 by their looks 搭配成評價的意思。選項四（count）：計算、數，與以貌取人無關。"
+    "explain": "正解是選項一（judge）。評斷。judge others by their looks 是「以貌取人」，後句「先去認識他們」正好相呼應。選項二（guess）：猜測，guess others 不是正確搭配。選項三（treat）：對待，treat 後通常接 well、badly 或 like…，不和 by their looks 搭配成評價的意思。選項四（count）：計算、數，與以貌取人無關。",
+    "why": "judge others by their looks 是「以外表評斷他人」，呼應下一句要先認識對方。",
+    "wrongReasons": {
+      "B": "guess 表示猜測，無法表達對人的評斷。",
+      "C": "treat 表示對待，重點在對待方式，與後句提醒的評斷情境不合。",
+      "D": "count 表示數數，與如何看待他人無關。"
+    },
+    "examFocus": "在 judge＋受詞＋by 中，by 後面交代評斷的依據。",
+    "commonMistake": "looks 在 their looks 中是名詞「外表」，別當成動詞「看」。",
+    "extension": "社群照片只呈現生活片段，要了解一個人，可以先聽對方怎麼描述自己的經歷。"
   },
   {
     "id": "vo13",
@@ -192,7 +300,16 @@
       "Usually"
     ],
     "answer": 1,
-    "explain": "正解是選項二（Luckily）。幸運地。交通很糟，但幸好我很早出門沒遲到，是由壞轉好的語氣。選項一（Finally）：終於，強調經過一段時間後才發生，和「沒有遲到」的轉折語氣不合。選項三（Suddenly）：突然，沒遲到不是突然發生的事。選項四（Usually）：通常，只說今天早上的事，不是習慣。"
+    "explain": "正解是選項二（Luckily）。幸運地。交通很糟，但幸好我很早出門沒遲到，是由壞轉好的語氣。選項一（Finally）：終於，強調經過一段時間後才發生，和「沒有遲到」的轉折語氣不合。選項三（Suddenly）：突然，沒遲到不是突然發生的事。選項四（Usually）：通常，只說今天早上的事，不是習慣。",
+    "why": "Luckily 表示「幸好」，說話者雖遇到塞車，仍因提早出門而沒遲到。",
+    "wrongReasons": {
+      "A": "Finally 強調事情終於發生，無法表達避開壞結果的慶幸。",
+      "C": "Suddenly 強調突發變化，和沒遲到的情境不合。",
+      "D": "Usually 表示平常的習慣，題目只在描述今天早上的經過。"
+    },
+    "examFocus": "句首副詞可標示說話者對整件事的看法，須對照前後文。",
+    "commonMistake": "別因為事件有先後就選 Finally，要留意「原本可能遲到」的語氣。",
+    "extension": "在活動通知裡，Unfortunately 可用來引出壞消息，例如戶外市集因雨取消。"
   },
   {
     "id": "gr01",
@@ -207,7 +324,16 @@
       "have played"
     ],
     "answer": 2,
-    "explain": "正解是選項三（are playing）。Look! 和 now 表示正在發生，用現在進行式 be + V-ing，主詞複數用 are。選項一（play）：現在簡單式表示習慣，不能搭配 Look! 和 now。選項二（played）：過去式，和 now 矛盾。選項四（have played）：現在完成式，不能表示「此刻正在」。"
+    "explain": "正解是選項三（are playing）。Look! 和 now 表示正在發生，用現在進行式 be + V-ing，主詞複數用 are。選項一（play）：現在簡單式表示習慣，不能搭配 Look! 和 now。選項二（played）：過去式，和 now 矛盾。選項四（have played）：現在完成式，不能表示「此刻正在」。",
+    "why": "Look! 和 now 提示動作正發生，複數主詞 the children 搭配 are playing。",
+    "wrongReasons": {
+      "A": "play 是現在簡單式，在此無法凸顯動作正在進行。",
+      "B": "played 描述過去的動作，和此刻的情境不合。",
+      "D": "have played 表示截至現在曾踢過，無法直接表達此刻正在踢。"
+    },
+    "examFocus": "現在進行式是 be＋V-ing，be 動詞要配合主詞。",
+    "commonMistake": "別只加 -ing 而漏掉 be 動詞，也別把 children 當成單數。",
+    "extension": "說近期的暫時狀況也能用進行式，例如這週暫時改搭公車上學。"
   },
   {
     "id": "gr02",
@@ -222,7 +348,16 @@
       "more heavy"
     ],
     "answer": 2,
-    "explain": "正解是選項三（heavier）。有 than 要用比較級；heavy 字尾子音加 y，去 y 加 ier；even 用來加強比較級。選項一（heavy）：原級不能接 than。選項二（heaviest）：最高級，不能接 than。選項四（more heavy）：heavy 是 -y 結尾的兩音節形容詞，比較級直接變 heavier，不加 more。"
+    "explain": "正解是選項三（heavier）。有 than 要用比較級；heavy 字尾子音加 y，去 y 加 ier；even 用來加強比較級。選項一（heavy）：原級不能接 than。選項二（heaviest）：最高級，不能接 than。選項四（more heavy）：heavy 是 -y 結尾的兩音節形容詞，比較級直接變 heavier，不加 more。",
+    "why": "than mine 比較兩個包包的重量，所以用 heavy 的比較級 heavier，even 表示程度更高。",
+    "wrongReasons": {
+      "A": "heavy 是原級，無法構成題目的比較句。",
+      "B": "heaviest 是最高級，題目只比較兩個包包。",
+      "D": "more heavy 不符合 heavy 在本題中的標準比較級變化。"
+    },
+    "examFocus": "形容詞以子音加 y 結尾時，比較級通常把 y 改為 i 再加 er。",
+    "commonMistake": "even 可以修飾比較級，別把它當成要再加 more 的訊號。",
+    "extension": "比較背包規格時，可用 much lighter 強調明顯較輕，例如兩款包相差一公斤。"
   },
   {
     "id": "gr03",
@@ -237,7 +372,16 @@
       "will go"
     ],
     "answer": 0,
-    "explain": "正解是選項一（went）。last weekend 是過去時間，用過去式；go 的過去式是不規則的 went。選項二（go）：現在式，和 last weekend 不合。選項三（goes）：第三人稱單數現在式，主詞是 We 也不合。選項四（will go）：未來式，和 last weekend 矛盾。"
+    "explain": "正解是選項一（went）。last weekend 是過去時間，用過去式；go 的過去式是不規則的 went。選項二（go）：現在式，和 last weekend 不合。選項三（goes）：第三人稱單數現在式，主詞是 We 也不合。選項四（will go）：未來式，和 last weekend 矛盾。",
+    "why": "last weekend 指上週末，句子敘述已發生的事，因此用 go 的過去式 went。",
+    "wrongReasons": {
+      "B": "go 是現在式，與上週末的時間不合。",
+      "C": "goes 是第三人稱單數現在式，與 we 和過去時間都不合。",
+      "D": "will go 表示未來，與上週末的時間相反。"
+    },
+    "examFocus": "過去時間提示搭配過去簡單式，常見不規則變化如 go 變 went。",
+    "commonMistake": "別只依主詞 we 選 go，仍須先判斷時間。",
+    "extension": "寫旅行日記可用 the next day 承接前一天的故事，讓讀者跟上行程的順序。"
   },
   {
     "id": "gr04",
@@ -252,7 +396,16 @@
       "How"
     ],
     "answer": 3,
-    "explain": "正解是選項四（How）。回答 By bus（搭公車）是交通方式，問「如何」用 How。選項一（What）：問「什麼」，回答會是事物。選項二（Where）：問地點，回答會是地方。選項三（Who）：問人，回答會是人名。"
+    "explain": "正解是選項四（How）。回答 By bus（搭公車）是交通方式，問「如何」用 How。選項一（What）：問「什麼」，回答會是事物。選項二（Where）：問地點，回答會是地方。選項三（Who）：問人，回答會是人名。",
+    "why": "回答 By bus 說明上學的交通方式，因此要用 How 提問。",
+    "wrongReasons": {
+      "A": "What 問事物，無法對應搭公車這種方式。",
+      "B": "Where 問地點，By bus 沒有回答去哪裡。",
+      "C": "Who 問人物，By bus 沒有交代任何人。"
+    },
+    "examFocus": "疑問詞要配合回答的資訊類型，How 可以詢問方式。",
+    "commonMistake": "句中有 school 不代表要問地點，判斷時應先看回答。",
+    "extension": "問大家通勤要多久時，可用 How long；回覆可以是二十分鐘。"
   },
   {
     "id": "gr05",
@@ -267,7 +420,16 @@
       "will live"
     ],
     "answer": 1,
-    "explain": "正解是選項二（have lived）。since + 過去時間點表示「從那時一直到現在」，要用現在完成式 have + p.p.。選項一（lived）：過去式只說過去的事，不能接 since 表示持續到現在。選項三（am living）：現在進行式不搭配 since 表示持續期間。選項四（will live）：未來式和 since 矛盾。"
+    "explain": "正解是選項二（have lived）。since + 過去時間點表示「從那時一直到現在」，要用現在完成式 have + p.p.。選項一（lived）：過去式只說過去的事，不能接 since 表示持續到現在。選項三（am living）：現在進行式不搭配 since 表示持續期間。選項四（will live）：未來式和 since 矛盾。",
+    "why": "since I was six years old 指從六歲持續到現在，因此用現在完成式 have lived。",
+    "wrongReasons": {
+      "A": "lived 在此只交代過去，無法表達從六歲延續至今。",
+      "C": "am living 可以描述目前住處，卻無法搭配這個起點表示一路持續至今。",
+      "D": "will live 指未來，與從過去開始的居住狀況不合。"
+    },
+    "examFocus": "since 引出起點，主句可用現在完成式描述延續至今的狀態。",
+    "commonMistake": "別用 six years old 當成六年的期間，這裡是說從六歲起。",
+    "extension": "寫個人簡介也可用 for 加時長，例如用 for three years 表示已住了三年。"
   },
   {
     "id": "gr06",
@@ -282,7 +444,16 @@
       "who"
     ],
     "answer": 3,
-    "explain": "正解是選項四（who）。先行詞 the girl 是人，且在子句中當主詞，用關係代名詞 who。選項一（which）：which 用於事物或動物，不用於人。選項二（what）：what 本身含先行詞，前面不能再有 the girl。選項三（whose）：whose 表示所有格，後面要接名詞，例如 whose bag。"
+    "explain": "正解是選項四（who）。先行詞 the girl 是人，且在子句中當主詞，用關係代名詞 who。選項一（which）：which 用於事物或動物，不用於人。選項二（what）：what 本身含先行詞，前面不能再有 the girl。選項三（whose）：whose 表示所有格，後面要接名詞，例如 whose bag。",
+    "why": "先行詞 the girl 指人，空格在關係子句裡當主詞，因此用 who。",
+    "wrongReasons": {
+      "A": "which 通常修飾物或動物，這裡的先行詞是人。",
+      "B": "what 本身含有先行詞的意思，不能接在 the girl 後面修飾她。",
+      "C": "whose 表示所屬，後面需要接被擁有的名詞。"
+    },
+    "examFocus": "選關係代名詞時，要同時確認先行詞及空格在子句中的角色。",
+    "commonMistake": "別看到人就選 whose；要先確認有沒有表達「誰的」。",
+    "extension": "向同學指出合照中的人時，可用 who is holding a trophy 描述手拿獎盃的人。"
   },
   {
     "id": "gr07",
@@ -297,7 +468,16 @@
       "has built"
     ],
     "answer": 1,
-    "explain": "正解是選項二（was built）。寺廟是「被建造」，用被動語態 be + p.p.；ago 表示過去，用 was built。選項一（built）：主動語態表示寺廟自己蓋東西，不合理。選項三（is building）：現在進行式主動，意思是寺廟正在蓋東西，也和 ago 不合。選項四（has built）：現在完成式主動，不合語意，也不能搭配 ago。"
+    "explain": "正解是選項二（was built）。寺廟是「被建造」，用被動語態 be + p.p.；ago 表示過去，用 was built。選項一（built）：主動語態表示寺廟自己蓋東西，不合理。選項三（is building）：現在進行式主動，意思是寺廟正在蓋東西，也和 ago 不合。選項四（has built）：現在完成式主動，不合語意，也不能搭配 ago。",
+    "why": "寺廟是被建造的，more than two hundred years ago 又指出過去時間，所以用 was built。",
+    "wrongReasons": {
+      "A": "built 單獨使用是主動過去式，會變成寺廟自己建造某物。",
+      "C": "is building 表示現在正在建造，語態和時間都不合。",
+      "D": "has built 為主動的現在完成式，既不合語意，也不配合 ago。"
+    },
+    "examFocus": "被動語態用 be＋過去分詞，時間線索決定 be 的時態。",
+    "commonMistake": "別因為 built 也能當過去分詞就直接填入，被動句還需要 be 動詞。",
+    "extension": "博物館標牌上的 was donated 表示展品由人捐贈，後面有時會列出捐贈者。"
   },
   {
     "id": "gr08",
@@ -312,7 +492,16 @@
       "walking"
     ],
     "answer": 3,
-    "explain": "正解是選項四（walking）。enjoy 後面接動名詞 V-ing。選項一（walk）：enjoy 後面不能接原形動詞。選項二（to walk）：enjoy 後面不接不定詞 to V。選項三（walked）：enjoy 後面不能接過去式。"
+    "explain": "正解是選項四（walking）。enjoy 後面接動名詞 V-ing。選項一（walk）：enjoy 後面不能接原形動詞。選項二（to walk）：enjoy 後面不接不定詞 to V。選項三（walked）：enjoy 後面不能接過去式。",
+    "why": "enjoy 後接表示活動的動名詞，所以用 walking 描述爺爺喜歡散步。",
+    "wrongReasons": {
+      "A": "walk 是原形動詞，不能直接當 enjoy 的動詞受詞。",
+      "B": "to walk 是不定詞，enjoy 後的活動需用動名詞。",
+      "C": "walked 是過去式或過去分詞，不符合 enjoy 所需的形式。"
+    },
+    "examFocus": "enjoy＋V-ing 表示喜歡做某件事。",
+    "commonMistake": "別把 enjoy 和 want 的接法混在一起；want 可接 to V。",
+    "extension": "讀書心得也能用 enjoy 加名詞，例如說自己喜歡故事的結局。"
   },
   {
     "id": "gr09",
@@ -327,7 +516,16 @@
       "Although"
     ],
     "answer": 3,
-    "explain": "正解是選項四（Although）。雖然在下雨，學生仍跑完比賽，前後是讓步關係；still 也提示「儘管如此」。選項一（Because）：因為下雨所以跑完比賽，因果不合理。選項二（Before）：「下雨之前」和 still 的語氣不合。選項三（So）：so 表示結果，不能放在句首帶出前面的原因子句，再接另一個主要子句。"
+    "explain": "正解是選項四（Although）。雖然在下雨，學生仍跑完比賽，前後是讓步關係；still 也提示「儘管如此」。選項一（Because）：因為下雨所以跑完比賽，因果不合理。選項二（Before）：「下雨之前」和 still 的語氣不合。選項三（So）：so 表示結果，不能放在句首帶出前面的原因子句，再接另一個主要子句。",
+    "why": "雖然下雨，學生仍跑完比賽，although 能表達這種與預期相反的結果。",
+    "wrongReasons": {
+      "A": "because 會把下雨當成跑完比賽的原因，與 still 的語氣不符。",
+      "B": "before 表示下雨前，但題目談的是下雨時仍然跑完。",
+      "C": "so 通常引出結果，空格後的下雨在這裡是阻礙。"
+    },
+    "examFocus": "still 常提示「儘管如此仍然……」，可搭配 although 表達讓步。",
+    "commonMistake": "別一看到兩個事件就選因果連接詞，先檢查後面的結果是否出乎預期。",
+    "extension": "寫短評時，可先承認餐點價格偏高，再說明自己仍願意回訪的原因。"
   },
   {
     "id": "gr10",
@@ -342,7 +540,16 @@
       "the post office does"
     ],
     "answer": 0,
-    "explain": "正解是選項一（the post office is）。間接問句要用直述句語序：疑問詞 + 主詞 + 動詞，所以是 where the post office is。選項二（is the post office）：這是直接問句的倒裝語序，放在 tell me 後面要改成直述句語序。選項三（does the post office）：多了助動詞 does，且缺少主要動詞，句子不完整。選項四（the post office does）：does 在這裡沒有可代替的動詞，語意不完整；表示位置要用 be 動詞。"
+    "explain": "正解是選項一（the post office is）。間接問句要用直述句語序：疑問詞 + 主詞 + 動詞，所以是 where the post office is。選項二（is the post office）：這是直接問句的倒裝語序，放在 tell me 後面要改成直述句語序。選項三（does the post office）：多了助動詞 does，且缺少主要動詞，句子不完整。選項四（the post office does）：does 在這裡沒有可代替的動詞，語意不完整；表示位置要用 be 動詞。",
+    "why": "where 引導間接問句，後面採主詞加動詞的語序，因此用 the post office is。",
+    "wrongReasons": {
+      "B": "is the post office 是直接問句的倒裝語序。",
+      "C": "does the post office 保留了直接問句的倒裝，而且缺少主要動詞。",
+      "D": "the post office does 裡的 does 無法表達郵局的位置。"
+    },
+    "examFocus": "間接問句通常採「疑問詞＋主詞＋動詞」的順序。",
+    "commonMistake": "句尾有問號也不代表內層子句要倒裝；問號對應整個請求。",
+    "extension": "問路前也能用 Do you know 開頭，再接地點問題，適合向陌生人開口。"
   },
   {
     "id": "gr11",
@@ -357,7 +564,16 @@
       "have been"
     ],
     "answer": 2,
-    "explain": "正解是選項三（were）。「如果我是你」不可能成真，用與現在事實相反的假設語氣：If + 主詞 + were…, 主詞 + would + V；所有人稱都可用 were。選項一（am）：是可能發生的條件句用法，但「我是你」不可能成真，且後句用 would。選項二（will be）：if 子句不用 will 表示未來。選項四（have been）：現在完成式不能用在這種假設句。"
+    "explain": "正解是選項三（were）。「如果我是你」不可能成真，用與現在事實相反的假設語氣：If + 主詞 + were…, 主詞 + would + V；所有人稱都可用 were。選項一（am）：是可能發生的條件句用法，但「我是你」不可能成真，且後句用 would。選項二（will be）：if 子句不用 will 表示未來。選項四（have been）：現在完成式不能用在這種假設句。",
+    "why": "「如果我是你」是與現在事實相反的假設，if 子句用 were，後句用 would 給建議。",
+    "wrongReasons": {
+      "A": "am 是現在式，與假設對方身分的語氣不合。",
+      "B": "will be 把情況當成未來，無法表達這裡的假設。",
+      "D": "have been 是現在完成式，無法表達當下的換位假設。"
+    },
+    "examFocus": "與現在事實相反時，if 子句常用過去式，be 動詞可用 were，主要子句用 would＋原形動詞。",
+    "commonMistake": "別看到主詞 I 就立刻填 am，要一併看 would 和整句語意。",
+    "extension": "討論理想情況也能用這種句型，例如想像自己有更多空閒時間時會做什麼。"
   },
   {
     "id": "gr12",
@@ -372,7 +588,16 @@
       "calls"
     ],
     "answer": 1,
-    "explain": "正解是選項二（call）。感官動詞 hear + 受詞 + 原形動詞，表示聽到某人做某事（hear sb. V-ing 也可，但不是選項）。選項一（to call）：感官動詞後面不接 to V（主動）。選項三（called）：hear sb. called 是被動概念，但「某人叫我的名字」是主動。選項四（calls）：受詞後面不能接有人稱變化的動詞。"
+    "explain": "正解是選項二（call）。感官動詞 hear + 受詞 + 原形動詞，表示聽到某人做某事（hear sb. V-ing 也可，但不是選項）。選項一（to call）：感官動詞後面不接 to V（主動）。選項三（called）：hear sb. called 是被動概念，但「某人叫我的名字」是主動。選項四（calls）：受詞後面不能接有人稱變化的動詞。",
+    "why": "someone 是發出呼喊的人，heard someone call 表示聽見某人喊自己的名字。",
+    "wrongReasons": {
+      "A": "to call 帶有 to，不符合 heard 後主動感官補語的用法。",
+      "C": "called 無法表達 someone 主動喊出 my name。",
+      "D": "calls 有第三人稱單數變化，但這裡需要原形補語。"
+    },
+    "examFocus": "hear＋受詞＋原形動詞可描述聽見有人做某事，接 V-ing 則可著重過程。",
+    "commonMistake": "someone 雖是單數，這裡仍不能替後面的補語加 s。",
+    "extension": "描述親眼所見也有相近用法，例如 saw a bird fly 表示看到鳥飛過。"
   },
   {
     "id": "gr13",
@@ -387,7 +612,16 @@
       "loves"
     ],
     "answer": 0,
-    "explain": "正解是選項一（loved）。句子已有主要動詞 is，空格修飾 the book；書是「被」喜愛，用過去分詞 loved（= which is loved）。選項二（loving）：現在分詞表示主動，書不會主動去愛別人。選項三（was loved）：句子已有動詞 is，再放 was loved 會出現兩個主要動詞。選項四（loves）：同樣會造成兩個主要動詞，句子不成立。"
+    "explain": "正解是選項一（loved）。句子已有主要動詞 is，空格修飾 the book；書是「被」喜愛，用過去分詞 loved（= which is loved）。選項二（loving）：現在分詞表示主動，書不會主動去愛別人。選項三（was loved）：句子已有動詞 is，再放 was loved 會出現兩個主要動詞。選項四（loves）：同樣會造成兩個主要動詞，句子不成立。",
+    "why": "主要動詞已是 is，loved by many students 用過去分詞片語修飾書，表示「受到許多學生喜愛」。",
+    "wrongReasons": {
+      "B": "loving 表示主動，無法表示書受到喜愛。",
+      "C": "was loved 是有時態的動詞，直接放在名詞後會和主要動詞 is 衝突。",
+      "D": "loves 會把書當成主動喜愛的一方，也會多出一個主要動詞。"
+    },
+    "examFocus": "名詞後的過去分詞片語可表被動修飾，相當於省略關係代名詞和 be 動詞。",
+    "commonMistake": "別看到 by 就一律補上 be 動詞，先找出全句的主要動詞。",
+    "extension": "公告上可用 items left on the bus 指留在公車上的物品。"
   },
   {
     "id": "cl01",
@@ -404,7 +638,16 @@
       "get"
     ],
     "answer": 2,
-    "explain": "正解是選項三（to get）。want 後面接不定詞 to V，want to get a dog 表示想要養一隻狗。選項一（getting）：want 後面不接動名詞。選項二（got）：want 後面不能直接接過去式。選項四（get）：want 後面不能直接接原形動詞。"
+    "explain": "正解是選項三（to get）。want 後面接不定詞 to V，want to get a dog 表示想要養一隻狗。選項一（getting）：want 後面不接動名詞。選項二（got）：want 後面不能直接接過去式。選項四（get）：want 後面不能直接接原形動詞。",
+    "why": "wanted to get a dog 表達一家人當時想養狗的意願，want 後接不定詞。",
+    "wrongReasons": {
+      "A": "getting 是動名詞，不符合這裡表達意願的接法。",
+      "B": "got 是過去式，前面的 wanted 已標示時態。",
+      "D": "get 是原形動詞，這裡需要 to 才能接在 wanted 後面。"
+    },
+    "examFocus": "want＋to V 表示主詞想做某事。",
+    "commonMistake": "wanted 已是過去式，後面的不定詞仍用 to 加原形。",
+    "extension": "和家人商量領養時，可用 adopt a dog 明確表示「領養一隻狗」。"
   },
   {
     "id": "cl02",
@@ -421,7 +664,16 @@
       "will come"
     ],
     "answer": 0,
-    "explain": "正解是選項一（came）。three months ago 是過去時間，要用過去式 came。選項二（comes）：現在式和 ago 不合。選項三（has come）：現在完成式不能和 ago 連用。選項四（will come）：未來式和 ago 矛盾。"
+    "explain": "正解是選項一（came）。three months ago 是過去時間，要用過去式 came。選項二（comes）：現在式和 ago 不合。選項三（has come）：現在完成式不能和 ago 連用。選項四（will come）：未來式和 ago 矛盾。",
+    "why": "three months ago 指三個月前，敘述狗何時來到收容所，因此用 came。",
+    "wrongReasons": {
+      "B": "comes 是現在式，與三個月前的時間不合。",
+      "C": "has come 是現在完成式，不適合與此處明確的過去時間搭配。",
+      "D": "will come 是未來式，但文章在交代已發生的事。"
+    },
+    "examFocus": "時間長度加 ago 指向某個過去時間，常搭配過去簡單式。",
+    "commonMistake": "看見 months 要連同 ago 一起讀，別把過去時間點看成延續至今的期間。",
+    "extension": "故事若已站在某個過去日期回顧，更早三個月可說 three months earlier。"
   },
   {
     "id": "cl03",
@@ -438,7 +690,16 @@
       "so"
     ],
     "answer": 0,
-    "explain": "正解是選項一（before）。每天早上「上學前」先帶狗散步，時間順序合理。選項二（after）：「上學後」人已在學校，不可能在早上帶狗散步。選項三（because）：「因為我去上學所以遛狗」因果不合理。選項四（so）：so 表示結果，「遛狗，所以去上學」因果不合理。"
+    "explain": "正解是選項一（before）。每天早上「上學前」先帶狗散步，時間順序合理。選項二（after）：「上學後」人已在學校，不可能在早上帶狗散步。選項三（because）：「因為我去上學所以遛狗」因果不合理。選項四（so）：so 表示結果，「遛狗，所以去上學」因果不合理。",
+    "why": "before 表示「在……之前」，符合每天早上先遛狗、再去上學的順序。",
+    "wrongReasons": {
+      "B": "after 會把遛狗放在去上學之後，與文中的早晨安排不合。",
+      "C": "because 會把上學當成遛狗的原因，文中在交代的是作息順序。",
+      "D": "so 會把上學當成遛狗的結果，兩件事在文中沒有這種因果關係。"
+    },
+    "examFocus": "before 與 after 都能引導時間子句，須辨認哪個動作先發生。",
+    "commonMistake": "不要把子句的書寫順序當成動作順序，要看連接詞的意思。",
+    "extension": "排早晨行程時，可用 before breakfast 標記早餐前要做的事，例如先餵狗。"
   },
   {
     "id": "cl04",
@@ -455,7 +716,16 @@
       "because"
     ],
     "answer": 1,
-    "explain": "正解是選項二（but）。牠不年輕「但」是我最好的朋友，前後語氣轉折，用 but。選項一（so）：so 表示結果，「不年輕所以是最好的朋友」因果不合理。選項三（or）：or 表示選擇，不合語意。選項四（because）：「不年輕，因為牠是最好的朋友」因果顛倒且不合理。"
+    "explain": "正解是選項二（but）。牠不年輕「但」是我最好的朋友，前後語氣轉折，用 but。選項一（so）：so 表示結果，「不年輕所以是最好的朋友」因果不合理。選項三（or）：or 表示選擇，不合語意。選項四（because）：「不年輕，因為牠是最好的朋友」因果顛倒且不合理。",
+    "why": "but 連接「牠不年輕」和「牠是我最好的朋友」，表達年紀沒有妨礙彼此的感情。",
+    "wrongReasons": {
+      "A": "so 會把年紀大當成交到好朋友的原因，文意並未建立這個因果。",
+      "C": "or 表示二選一，但兩個描述可以同時成立。",
+      "D": "because 會把牠是好朋友當成牠不年輕的理由，文意不通。"
+    },
+    "examFocus": "用 but 連接兩個形成轉折的敘述。",
+    "commonMistake": "看到兩個完整句子時，別只確認能否用連接詞串起，還要判斷語意關係。",
+    "extension": "介紹領養犬時，可以先提牠年紀較大，再描述牠與人相處時溫和的一面。"
   },
   {
     "id": "cl05",
@@ -472,7 +742,16 @@
       "couldn't"
     ],
     "answer": 3,
-    "explain": "正解是選項四（couldn't）。活動名稱是「無手機日」，所以學生「不能」使用手機；last Friday 是過去，用 couldn't。選項一（could）：「可以」使用手機和無手機日矛盾。選項二（had to）：「必須」使用手機和活動目的相反。選項三（must）：「必須」使用手機和活動目的相反，且全文敘述的是過去的事。"
+    "explain": "正解是選項四（couldn't）。活動名稱是「無手機日」，所以學生「不能」使用手機；last Friday 是過去，用 couldn't。選項一（could）：「可以」使用手機和無手機日矛盾。選項二（had to）：「必須」使用手機和活動目的相反。選項三（must）：「必須」使用手機和活動目的相反，且全文敘述的是過去的事。",
+    "why": "無手機日規定學生當天指定時段不能用手機，活動已在上週五舉行，因此用 couldn't。",
+    "wrongReasons": {
+      "A": "could 表示當時可以使用手機，與活動規定相反。",
+      "B": "had to 表示當時必須用手機，與活動目的相反。",
+      "C": "must 表示必須使用，與限制使用的規定相反。"
+    },
+    "examFocus": "couldn't 可描述過去的限制，須用上下文判斷是規定還是能力。",
+    "commonMistake": "別看到學校規定就選「必須」，要先判斷題目限制的動作是什麼。",
+    "extension": "活動告示也可用 phones must be turned off 提醒參加者把手機關機。"
   },
   {
     "id": "cl06",
@@ -489,7 +768,16 @@
       "for"
     ],
     "answer": 2,
-    "explain": "正解是選項三（without）。沒有手機的午休要做什麼？學生擔心的是「沒有」手機，用 without。選項一（with）：「有手機」就不必擔心，和 were worried 矛盾。選項二（about）：about my phone（關於手機）放在這裡語意不通。選項四（for）：for my phone（為了手機）語意不通。"
+    "explain": "正解是選項三（without）。沒有手機的午休要做什麼？學生擔心的是「沒有」手機，用 without。選項一（with）：「有手機」就不必擔心，和 were worried 矛盾。選項二（about）：about my phone（關於手機）放在這裡語意不通。選項四（for）：for my phone（為了手機）語意不通。",
+    "why": "無手機日不能用手機，學生擔心午休時沒有手機能做什麼，所以用 without。",
+    "wrongReasons": {
+      "A": "with 表示有手機在身邊，與學生擔心的狀況相反。",
+      "B": "about 表示「關於」，接 my phone 無法表達手機不在手邊。",
+      "D": "for 表示「為了」，與午休時缺少手機的情境不合。"
+    },
+    "examFocus": "without＋名詞表示缺少某個人或物。",
+    "commonMistake": "介系詞不能只靠中文單字逐一代換，要看整個問句缺少哪一層意思。",
+    "extension": "外出想暫時離線時，可把地圖先下載，這樣即使沒有網路也能查路線。"
   },
   {
     "id": "cl07",
@@ -506,7 +794,16 @@
       "other"
     ],
     "answer": 2,
-    "explain": "正解是選項三（others）。Some…, and others… 是「有些人…，其他人…」，others 是複數代名詞，可單獨當主詞。選項一（another）：another 指「另一個」單數，後面動詞 read 和多人的語意不合。選項二（the other）：the other 單獨使用指兩者中的另一個，不能指一群學生。選項四（other）：other 是形容詞，後面要接名詞，例如 other students。"
+    "explain": "正解是選項三（others）。Some…, and others… 是「有些人…，其他人…」，others 是複數代名詞，可單獨當主詞。選項一（another）：another 指「另一個」單數，後面動詞 read 和多人的語意不合。選項二（the other）：the other 單獨使用指兩者中的另一個，不能指一群學生。選項四（other）：other 是形容詞，後面要接名詞，例如 other students。",
+    "why": "others 代指其他學生，可單獨作複數主詞，和前文的 some students 呼應。",
+    "wrongReasons": {
+      "A": "another 指另一個人或物，無法對應此處另一群學生。",
+      "B": "the other 單獨使用時可指兩者中的另一個，不符合文中的複數群體。",
+      "D": "other 在這裡若要修飾學生，後面還需接 students 等名詞。"
+    },
+    "examFocus": "some … others … 可用來列舉同一群人中不同成員的活動。",
+    "commonMistake": "別漏掉 others 的 s，也別在已代替名詞的 others 後再接 students。",
+    "extension": "若要明確說「其餘全部的人」，可用 the others，例如已分完組後指剩下的全體。"
   },
   {
     "id": "cl08",
@@ -523,7 +820,16 @@
       "As a result"
     ],
     "answer": 3,
-    "explain": "正解是選項四（As a result）。前句說大部分學生喜歡這個活動，後句說學校打算每月舉辦一次，是「因此、結果」的關係。選項一（However）：「然而」表示轉折，但前後語意是順承，不是相反。選項二（For example）：「例如」要接前句的例子，後句不是例子。選項三（On the other hand）：「另一方面」用來帶出相對或不同的一面，但前後語意是順承，不是對比。"
+    "explain": "正解是選項四（As a result）。前句說大部分學生喜歡這個活動，後句說學校打算每月舉辦一次，是「因此、結果」的關係。選項一（However）：「然而」表示轉折，但前後語意是順承，不是相反。選項二（For example）：「例如」要接前句的例子，後句不是例子。選項三（On the other hand）：「另一方面」用來帶出相對或不同的一面，但前後語意是順承，不是對比。",
+    "why": "多數學生喜歡無手機日，因此學校打算每月舉辦一次，As a result 能引出這個結果。",
+    "wrongReasons": {
+      "A": "However 需要前後形成轉折，學校的計畫和學生的肯定並不衝突。",
+      "B": "For example 要舉出前一句的實例，每月舉辦是活動受到歡迎後的安排。",
+      "C": "On the other hand 用於帶出相對的觀點，這裡是在說後續結果。"
+    },
+    "examFocus": "段落銜接要比對相鄰兩句，辨認結果、轉折或舉例。",
+    "commonMistake": "別只看空格後有逗號就猜連接語，幾個選項的標點格式都可能相同。",
+    "extension": "寫活動回饋時，可先列出多數人支持的意見，再交代下個月會採取的行動。"
   },
   {
     "id": "cl09",
@@ -540,7 +846,16 @@
       "grow up"
     ],
     "answer": 1,
-    "explain": "正解是選項二（end up）。end up 是「最後落得、最終到了」，沒被回收的吸管最後跑到海裡。選項一（give up）：放棄，吸管不會「放棄」在海裡。選項三（wake up）：醒來，不能用在吸管。選項四（grow up）：長大，不能用在吸管。"
+    "explain": "正解是選項二（end up）。end up 是「最後落得、最終到了」，沒被回收的吸管最後跑到海裡。選項一（give up）：放棄，吸管不會「放棄」在海裡。選項三（wake up）：醒來，不能用在吸管。選項四（grow up）：長大，不能用在吸管。",
+    "why": "end up in the ocean 表示吸管遭丟棄後最後流入海裡，交代了最終去向。",
+    "wrongReasons": {
+      "A": "give up 表示放棄，和吸管最後流向哪裡無關。",
+      "C": "wake up 表示醒來，不能描述吸管的去向。",
+      "D": "grow up 表示長大，無法描述廢棄吸管。"
+    },
+    "examFocus": "end up 後可接地點，表示經過一連串事件後到了哪裡。",
+    "commonMistake": "別因選項都有 up 就忽略前面的動詞，同一個副詞能組成意思差異很大的片語。",
+    "extension": "end up 也可接 V-ing，例如原本只想逛書店，最後卻買了兩本書。"
   },
   {
     "id": "cl10",
@@ -557,7 +872,16 @@
       "given"
     ],
     "answer": 0,
-    "explain": "正解是選項一（giving）。stop + V-ing 是「停止做某事」，政府要學校、速食店等場所停止提供塑膠吸管給內用客人。選項二（to give）：stop + to V 是「停下來（去）做另一件事」，意思變成停下來去提供吸管，和減塑相反。選項三（give）：stop 後面不能直接接原形動詞。選項四（given）：stop 後面不能接過去分詞。"
+    "explain": "正解是選項一（giving）。stop + V-ing 是「停止做某事」，政府要學校、速食店等場所停止提供塑膠吸管給內用客人。選項二（to give）：stop + to V 是「停下來（去）做另一件事」，意思變成停下來去提供吸管，和減塑相反。選項三（give）：stop 後面不能直接接原形動詞。選項四（given）：stop 後面不能接過去分詞。",
+    "why": "stop giving 表示停止提供，符合文中減少內用塑膠吸管的做法。",
+    "wrongReasons": {
+      "B": "to give 會變成停下手邊的事去提供吸管，與減塑目的相反。",
+      "C": "give 是原形動詞，不能在此直接接在 stop 後面。",
+      "D": "given 是過去分詞，無法表示業者要停止的動作。"
+    },
+    "examFocus": "stop＋V-ing 表示停止原本的動作，stop＋to V 表示停下來去做另一件事。",
+    "commonMistake": "別把兩種接法都翻成「停止做某事」，要辨認哪個動作停了。",
+    "extension": "騎車途中停下來喝水可用 stop to drink water，停下的是騎車。"
   },
   {
     "id": "cl11",
@@ -574,7 +898,16 @@
       "to make"
     ],
     "answer": 0,
-    "explain": "正解是選項一（made）。straws made of paper 是「用紙做成的吸管」，吸管是被製作的，用過去分詞修飾 straws（= which are made of）。選項二（making）：現在分詞表示主動，吸管不會自己去做東西。選項三（make）：句子已有動詞 see，原形動詞不能修飾 straws。選項四（to make）：「要去製作」的意思不合，吸管是已經做好的。"
+    "explain": "正解是選項一（made）。straws made of paper 是「用紙做成的吸管」，吸管是被製作的，用過去分詞修飾 straws（= which are made of）。選項二（making）：現在分詞表示主動，吸管不會自己去做東西。選項三（make）：句子已有動詞 see，原形動詞不能修飾 straws。選項四（to make）：「要去製作」的意思不合，吸管是已經做好的。",
+    "why": "吸管是被做成的，made of paper 等材料片語以過去分詞修飾 straws。",
+    "wrongReasons": {
+      "B": "making 表示吸管主動做東西，無法說明吸管的材質。",
+      "C": "make 單獨放在這裡無法表達吸管由某種材料製成。",
+      "D": "to make 可能讓人理解成製作的用途或計畫，題目描述的是吸管本身的材質。"
+    },
+    "examFocus": "過去分詞片語可放在名詞後，補充被製造、使用等資訊。",
+    "commonMistake": "別因為 see 後可能接原形動詞就選 make，須先判斷吸管是不是動作執行者。",
+    "extension": "逛文具店時，made from recycled paper 表示商品以回收紙為原料製成。"
   },
   {
     "id": "cl12",
@@ -591,7 +924,16 @@
       "difference"
     ],
     "answer": 3,
-    "explain": "正解是選項四（difference）。make a difference 是「產生影響、帶來改變」，每個人小小改變，合起來就能帶來大改變。選項一（mistake）：make a mistake 是「犯錯」，和呼籲減塑的語意相反。選項二（noise）：make noise 是「製造噪音」，和全文無關。選項三（promise）：make a promise 是「做出承諾」，但前句說的是實際行動帶來的結果，語意不合。"
+    "explain": "正解是選項四（difference）。make a difference 是「產生影響、帶來改變」，每個人小小改變，合起來就能帶來大改變。選項一（mistake）：make a mistake 是「犯錯」，和呼籲減塑的語意相反。選項二（noise）：make noise 是「製造噪音」，和全文無關。選項三（promise）：make a promise 是「做出承諾」，但前句說的是實際行動帶來的結果，語意不合。",
+    "why": "make a big difference 表示帶來很大的改變，呼應每個人的小行動能累積出影響。",
+    "wrongReasons": {
+      "A": "make a mistake 指犯錯，無法表達共同減塑帶來的影響。",
+      "B": "make a big noise 指發出很大的聲響，與文章結論無關。",
+      "C": "make a promise 指做出承諾，文中談的是實際改變造成的結果。"
+    },
+    "examFocus": "make a difference 是固定搭配，表示造成影響。",
+    "commonMistake": "difference 在這個片語中指行動的影響，別只理解成兩件事的差別。",
+    "extension": "帶水壺參加校外教學是小改變，全班一起做就能少用許多一次性飲料杯。"
   },
   {
     "id": "re01",
@@ -608,7 +950,16 @@
       "A 17-year-old high school student"
     ],
     "answer": 2,
-    "explain": "正解是選項三（A 14-year-old student who likes reading）。海報寫 For: Students aged 12–15，14 歲的學生符合資格。選項一（A 10-year-old boy who loves comic books）：10 歲不在 12–15 歲的範圍內。選項二（A parent who wants to learn to write）：活動對象是學生，不是家長；家長只在週五來聽故事。選項四（A 17-year-old high school student）：17 歲超過 15 歲的上限。"
+    "explain": "正解是選項三（A 14-year-old student who likes reading）。海報寫 For: Students aged 12–15，14 歲的學生符合資格。選項一（A 10-year-old boy who loves comic books）：10 歲不在 12–15 歲的範圍內。選項二（A parent who wants to learn to write）：活動對象是學生，不是家長；家長只在週五來聽故事。選項四（A 17-year-old high school student）：17 歲超過 15 歲的上限。",
+    "why": "海報的對象是 12 至 15 歲的學生，14 歲的學生符合年齡和身分條件。",
+    "wrongReasons": {
+      "A": "10 歲低於最低年齡 12 歲。",
+      "B": "家長可以參與週五的分享活動，但營隊招收的是學生。",
+      "D": "17 歲超過最高年齡 15 歲。"
+    },
+    "examFocus": "活動海報可用 For 或 Eligibility 找到參加資格。",
+    "commonMistake": "喜歡漫畫或寫作都與活動有關，但不能取代年齡與身分條件。",
+    "extension": "報名頁若寫 ages 12 and up，表示滿 12 歲即可，還可查看有沒有另列上限。"
   },
   {
     "id": "re02",
@@ -625,7 +976,16 @@
       "Friday"
     ],
     "answer": 1,
-    "explain": "正解是選項二（Thursday）。週四要參觀印刷廠（Visit a printing factory），需要離開圖書館，還要自備午餐。選項一（Monday）：週一是和作家的讀書座談，沒有提到外出。選項三（Wednesday）：週三是自己做漫畫書，沒有提到外出。選項四（Friday）：週五是讀自己的故事給家人聽，沒有提到外出。"
+    "explain": "正解是選項二（Thursday）。週四要參觀印刷廠（Visit a printing factory），需要離開圖書館，還要自備午餐。選項一（Monday）：週一是和作家的讀書座談，沒有提到外出。選項三（Wednesday）：週三是自己做漫畫書，沒有提到外出。選項四（Friday）：週五是讀自己的故事給家人聽，沒有提到外出。",
+    "why": "週四安排參觀印刷廠，因此學生那天需要離開圖書館。",
+    "wrongReasons": {
+      "A": "週一安排和作家的讀書座談，海報未列出外出行程。",
+      "C": "週三安排自製漫畫書，海報未列出外出地點。",
+      "D": "週五要在圖書館把自己寫的故事讀給家人聽。"
+    },
+    "examFocus": "在活動表中先找到外出行程，再對應到正確的星期。",
+    "commonMistake": "別把家人到館參加活動誤讀成學生外出，留意是誰移動以及活動在哪裡。",
+    "extension": "在校外活動通知上看到 meeting point，可找集合地點，例如圖書館正門。"
   },
   {
     "id": "re03",
@@ -642,7 +1002,16 @@
       "She does not have to pay for the camp."
     ],
     "answer": 3,
-    "explain": "正解是選項四（She does not have to pay for the camp.）。海報寫 FREE for students with a library card，Mia 有借書證所以免費。選項一（She can sign up on July 12.）：報名要在 July 10 之前，7 月 12 日已經太晚。選項二（She needs to bring her lunch every day.）：只有週四參觀印刷廠要自備午餐，其他天中午 12 點就結束。選項三（She will meet famous writers on Friday.）：和作家座談是週一和週二，週五是分享故事。"
+    "explain": "正解是選項四（She does not have to pay for the camp.）。海報寫 FREE for students with a library card，Mia 有借書證所以免費。選項一（She can sign up on July 12.）：報名要在 July 10 之前，7 月 12 日已經太晚。選項二（She needs to bring her lunch every day.）：只有週四參觀印刷廠要自備午餐，其他天中午 12 點就結束。選項三（She will meet famous writers on Friday.）：和作家座談是週一和週二，週五是分享故事。",
+    "why": "海報寫持有借書證的學生免費，13 歲且有借書證的米雅不用繳營隊費用。",
+    "wrongReasons": {
+      "A": "海報要求在 7 月 10 日前報名，7 月 12 日已太晚。",
+      "B": "只有週四參觀印刷廠的行程要求自備午餐。",
+      "C": "和作家座談安排在週一和週二，週五是故事分享。"
+    },
+    "examFocus": "同時比對活動費用、優惠對象、報名期限與每日行程。",
+    "commonMistake": "別只看標示的 500 元，括號中的免費條件也會改變應付金額。",
+    "extension": "購票頁若寫 free with student ID，入場時可能需要出示學生證。"
   },
   {
     "id": "re04",
@@ -659,7 +1028,16 @@
       "To thank her host family for the dinners"
     ],
     "answer": 1,
-    "explain": "正解是選項二（To tell her friend about her new life in Taiwan）。整封信都在分享到台灣第一週的生活：寄宿家庭、學校、語言，所以目的是向朋友介紹新生活。選項一（To invite Ivy to go to Sun Moon Lake）：去日月潭是寄宿家庭要帶 Emma 去，沒有邀請 Ivy。選項三（To ask Ivy to teach her Chinese）：教她中文的是 Leo，不是 Ivy。選項四（To thank her host family for the dinners）：收信人是 Ivy 不是寄宿家庭，晚餐只是信中一個細節。"
+    "explain": "正解是選項二（To tell her friend about her new life in Taiwan）。整封信都在分享到台灣第一週的生活：寄宿家庭、學校、語言，所以目的是向朋友介紹新生活。選項一（To invite Ivy to go to Sun Moon Lake）：去日月潭是寄宿家庭要帶 Emma 去，沒有邀請 Ivy。選項三（To ask Ivy to teach her Chinese）：教她中文的是 Leo，不是 Ivy。選項四（To thank her host family for the dinners）：收信人是 Ivy 不是寄宿家庭，晚餐只是信中一個細節。",
+    "why": "艾瑪向艾薇分享來臺第一週的寄宿、上學及語言經驗，寫信是為了介紹自己的新生活。",
+    "wrongReasons": {
+      "A": "日月潭是寄宿家庭安排的行程，艾瑪並未邀艾薇同行。",
+      "C": "信中說要教艾瑪中文的是里歐，沒有請艾薇教她。",
+      "D": "晚餐只是生活細節，收信人也並非寄宿家庭。"
+    },
+    "examFocus": "判斷信件目的時，應整合主旨和各段內容。",
+    "commonMistake": "別用信末的單一活動推斷整封信的目的。",
+    "extension": "寫近況信時，可用 My first week abroad 當主旨，讓收信人先掌握主題。"
   },
   {
     "id": "re05",
@@ -676,7 +1054,16 @@
       "She will stop learning Chinese for a while."
     ],
     "answer": 0,
-    "explain": "正解是選項一（She wants to do something for Leo because he will help her.）。In return 是「作為回報」。Leo 每天教她十個中文字，她就幫 Leo 學英文來回報。選項二（She will go back to Canada to study English.）：return 在這裡不是「回去」，而且 Emma 是要幫 Leo 學英文，不是自己去學。選項三（She thinks Leo's English is better than hers.）：Emma 是要幫 Leo 學英文，表示她的英文比較好，選項說法相反。選項四（She will stop learning Chinese for a while.）：信中說 Leo 每天教她中文，沒有要停止學中文。"
+    "explain": "正解是選項一（She wants to do something for Leo because he will help her.）。In return 是「作為回報」。Leo 每天教她十個中文字，她就幫 Leo 學英文來回報。選項二（She will go back to Canada to study English.）：return 在這裡不是「回去」，而且 Emma 是要幫 Leo 學英文，不是自己去學。選項三（She thinks Leo's English is better than hers.）：Emma 是要幫 Leo 學英文，表示她的英文比較好，選項說法相反。選項四（She will stop learning Chinese for a while.）：信中說 Leo 每天教她中文，沒有要停止學中文。",
+    "why": "In return 意指「作為回報」，里歐會教艾瑪中文，她便幫里歐學英文。",
+    "wrongReasons": {
+      "B": "return 在這個片語中表示回報，信裡沒有安排她回加拿大讀英文。",
+      "C": "互相協助只說明彼此能幫忙，信中沒有比較兩人的英語程度。",
+      "D": "里歐會每天教她新詞，信中沒有說她要暫停學中文。"
+    },
+    "examFocus": "用前後文辨認片語的整體意思，並追蹤誰幫誰。",
+    "commonMistake": "別把 return 一律理解成「返回」，要看它是否出現在固定片語裡。",
+    "extension": "語言交換可把時間平分，例如先練十五分鐘中文，再練十五分鐘英文。"
   },
   {
     "id": "re06",
@@ -693,7 +1080,16 @@
       "Emma's school in Canada starts at 8:30 a.m."
     ],
     "answer": 3,
-    "explain": "正解是選項四（Emma's school in Canada starts at 8:30 a.m.）。台灣學校 7:30 上課，比加拿大早一小時，所以加拿大的學校 8:30 上課。選項一（Emma cleans her classroom because her teacher punishes her.）：打掃是台灣學生的日常，Emma 認為這能教大家愛惜環境，沒有提到處罰。選項二（Emma can understand her classmates when they talk fast.）：信中說同學講話快時她聽不懂，和選項相反。選項三（Emma has already visited Sun Moon Lake.）：去日月潭是 Next weekend（下週末），還沒去。"
+    "explain": "正解是選項四（Emma's school in Canada starts at 8:30 a.m.）。台灣學校 7:30 上課，比加拿大早一小時，所以加拿大的學校 8:30 上課。選項一（Emma cleans her classroom because her teacher punishes her.）：打掃是台灣學生的日常，Emma 認為這能教大家愛惜環境，沒有提到處罰。選項二（Emma can understand her classmates when they talk fast.）：信中說同學講話快時她聽不懂，和選項相反。選項三（Emma has already visited Sun Moon Lake.）：去日月潭是 Next weekend（下週末），還沒去。",
+    "why": "艾瑪說臺灣的學校 7:30 上課，比她在加拿大的學校早一小時，因此加拿大的學校 8:30 上課。",
+    "wrongReasons": {
+      "A": "打掃教室是文中描述的日常安排，沒有提到她被處罰。",
+      "B": "她說同學講得快時她聽不懂。",
+      "C": "日月潭行程排在下個週末，目前還沒成行。"
+    },
+    "examFocus": "閱讀時間比較時，先確認已知時間和 earlier 或 later 的比較方向。",
+    "commonMistake": "已知時間是比較早的一方，回推另一方時應加上時間差。",
+    "extension": "安排跨國通話時，可把兩地的日期和時間都寫下來，免得把隔天誤當成同一天。"
   },
   {
     "id": "re07",
@@ -710,7 +1106,16 @@
       "2 hours"
     ],
     "answer": 1,
-    "explain": "正解是選項二（1 hour and 5 minutes）。Express 106 於 09:40 從新竹出發，10:45 到台北，共 1 小時 5 分鐘。選項一（45 minutes）：把 10:45 的「45 分」誤當成車程，實際是 1 小時 5 分。選項三（1 hour and 40 minutes）：這是 Local 2135 或 Local 2141 的車程。選項四（2 hours）：沒有任何一班車要開 2 小時。"
+    "explain": "正解是選項二（1 hour and 5 minutes）。Express 106 於 09:40 從新竹出發，10:45 到台北，共 1 小時 5 分鐘。選項一（45 minutes）：把 10:45 的「45 分」誤當成車程，實際是 1 小時 5 分。選項三（1 hour and 40 minutes）：這是 Local 2135 或 Local 2141 的車程。選項四（2 hours）：沒有任何一班車要開 2 小時。",
+    "why": "Express 106 於 09:40 發車，10:45 抵達，相減得到 1 小時 5 分鐘。",
+    "wrongReasons": {
+      "A": "45 分鐘只取了抵達時間的分鐘數，沒有扣掉發車時間。",
+      "C": "1 小時 40 分鐘是表中兩班區間車的車程。",
+      "D": "這班車跨過一個整點，但總車程只有 65 分鐘。"
+    },
+    "examFocus": "How long 問時間長度，從同一列取抵達和出發時間相減。",
+    "commonMistake": "別只看整點數字或只算分鐘欄，跨整點時可以把車程分段算。",
+    "extension": "查轉乘行程時，也可用下一班發車時間減掉前一班抵達時間，算出候車空檔。"
   },
   {
     "id": "re08",
@@ -727,7 +1132,16 @@
       "Local 2141"
     ],
     "answer": 2,
-    "explain": "正解是選項三（Local 2135）。要在 11:00 前到台北，可選 Express 102、Local 2135、Express 106；其中最便宜的是 Local 2135（NT$120，10:05 到）。選項一（Express 102）：可以準時到，但票價 NT$180 比 Local 2135 貴，不符合「盡量省錢」。選項二（Express 106）：可以準時到，但票價 NT$180 比較貴。選項四（Local 2141）：11:40 才到台北，超過 11:00。"
+    "explain": "正解是選項三（Local 2135）。要在 11:00 前到台北，可選 Express 102、Local 2135、Express 106；其中最便宜的是 Local 2135（NT$120，10:05 到）。選項一（Express 102）：可以準時到，但票價 NT$180 比 Local 2135 貴，不符合「盡量省錢」。選項二（Express 106）：可以準時到，但票價 NT$180 比較貴。選項四（Local 2141）：11:40 才到台北，超過 11:00。",
+    "why": "Local 2135 於 10:05 抵達，符合 11:00 前到站的條件，且票價是準時班次中最低的。",
+    "wrongReasons": {
+      "A": "Express 102 雖能準時抵達，成人票比符合時限的區間車貴。",
+      "B": "Express 106 雖能準時抵達，但成人票 180 元，高於最低票價。",
+      "D": "Local 2141 於 11:40 抵達，已超過時限。"
+    },
+    "examFocus": "多條件表格題可先排除不符抵達時間的班次，再比較票價。",
+    "commonMistake": "別一看到低票價就選車次，還要核對抵達時間。",
+    "extension": "若下一站還要走路，可在挑班次時連步行時間一起算進去。"
   },
   {
     "id": "re09",
@@ -744,7 +1158,16 @@
       "NT$180"
     ],
     "answer": 3,
-    "explain": "正解是選項四（NT$180）。兩人搭 Local 2135。Sara 15 歲付全票 NT$120；奶奶 70 歲超過 65 歲付半價 NT$60，合計 NT$180。選項一（NT$120）：只算了一個人的全票，或誤以為兩人都半價（60+60）。選項二（NT$240）：兩人都付全票，忘了奶奶超過 65 歲可以半價。選項三（NT$270）：這是搭快車（180+90）的金額，但應搭比較便宜的 Local 2135。"
+    "explain": "正解是選項四（NT$180）。兩人搭 Local 2135。Sara 15 歲付全票 NT$120；奶奶 70 歲超過 65 歲付半價 NT$60，合計 NT$180。選項一（NT$120）：只算了一個人的全票，或誤以為兩人都半價（60+60）。選項二（NT$240）：兩人都付全票，忘了奶奶超過 65 歲可以半價。選項三（NT$270）：這是搭快車（180+90）的金額，但應搭比較便宜的 Local 2135。",
+    "why": "Local 2135 的全票是 120 元，15 歲的莎拉付全票，70 歲的奶奶付半價 60 元，共 180 元。",
+    "wrongReasons": {
+      "A": "120 元只等於一張全票，未正確加總兩人的票價。",
+      "B": "240 元相當於買兩張全票，漏算奶奶的半價。",
+      "C": "270 元是快車的一張全票加一張半票，與選定的區間車不符。"
+    },
+    "examFocus": "先依表格選班次，再依附註判斷每位乘客的票價，最後加總。",
+    "commonMistake": "別把所有學生都當成兒童半價，本文的兒童優惠限未滿 12 歲。",
+    "extension": "閱讀收費表時要留意 under 是否含指定歲數，例如 under 12 不含 12 歲。"
   },
   {
     "id": "re10",
@@ -761,7 +1184,16 @@
       "How the brain works like a computer"
     ],
     "answer": 0,
-    "explain": "正解是選項一（Some possible reasons why people yawn）。文章從標題 Why Do We Yawn? 開始，依序介紹「需要更多空氣」「讓大腦降溫」等說法，以及打哈欠會傳染，主旨是打哈欠的可能原因。選項二（How to stop yawning in class）：最後一段只是幽默提醒，全文沒有教人如何停止打哈欠。選項三（Why babies yawn more than adults）：只提到嬰兒在出生前就會打哈欠，沒有比較嬰兒和大人誰比較常打哈欠。選項四（How the brain works like a computer）：電腦只是用來比喻大腦怕熱，不是全文重點。"
+    "explain": "正解是選項一（Some possible reasons why people yawn）。文章從標題 Why Do We Yawn? 開始，依序介紹「需要更多空氣」「讓大腦降溫」等說法，以及打哈欠會傳染，主旨是打哈欠的可能原因。選項二（How to stop yawning in class）：最後一段只是幽默提醒，全文沒有教人如何停止打哈欠。選項三（Why babies yawn more than adults）：只提到嬰兒在出生前就會打哈欠，沒有比較嬰兒和大人誰比較常打哈欠。選項四（How the brain works like a computer）：電腦只是用來比喻大腦怕熱，不是全文重點。",
+    "why": "文章比較打哈欠的幾種可能解釋，也談到哈欠會在人與人之間傳染，主旨是探討人為什麼打哈欠。",
+    "wrongReasons": {
+      "B": "結尾提到課堂，但全文沒有提供停止打哈欠的方法。",
+      "C": "文章只提到胎兒也會打哈欠，沒有比較嬰兒和成人的頻率。",
+      "D": "電腦是說明降溫假說的比喻，並非文章討論的主題。"
+    },
+    "examFocus": "找主旨時，選能涵蓋多段內容的敘述。",
+    "commonMistake": "別把首段的有趣例子或中段的比喻當成全文主旨。",
+    "extension": "閱讀科普文章時，可先把各段寫成一句摘要，再比較它們圍繞的是哪個問題。"
   },
   {
     "id": "re11",
@@ -778,7 +1210,16 @@
       "People catch yawns more easily from close friends."
     ],
     "answer": 2,
-    "explain": "正解是選項三（People yawned less when they held something cold on their foreheads.）。額頭冰敷讓大腦比較涼，打哈欠就變少，正好支持「打哈欠是為了替大腦降溫」。選項一（People still yawned after breathing extra fresh air.）：這個結果是用來推翻「需要更多空氣」的說法，不是支持大腦降溫說。選項二（Babies yawn even before they are born.）：只說明人人都會打哈欠，和大腦降溫無關。選項四（People catch yawns more easily from close friends.）：這是在說打哈欠會傳染、和在乎他人感受有關，不是大腦降溫的證據。"
+    "explain": "正解是選項三（People yawned less when they held something cold on their foreheads.）。額頭冰敷讓大腦比較涼，打哈欠就變少，正好支持「打哈欠是為了替大腦降溫」。選項一（People still yawned after breathing extra fresh air.）：這個結果是用來推翻「需要更多空氣」的說法，不是支持大腦降溫說。選項二（Babies yawn even before they are born.）：只說明人人都會打哈欠，和大腦降溫無關。選項四（People catch yawns more easily from close friends.）：這是在說打哈欠會傳染、和在乎他人感受有關，不是大腦降溫的證據。",
+    "why": "文中的研究發現，額頭接觸冷的東西時，人們較少打哈欠，這個觀察結果支持降溫假說。",
+    "wrongReasons": {
+      "A": "呼吸額外新鮮空氣後仍打哈欠，是用來質疑缺少空氣的解釋。",
+      "B": "出生前就會打哈欠只交代出現時間，沒有檢查溫度的影響。",
+      "D": "容易被好友的哈欠傳染說明人際關係的差異，未涉及溫度。"
+    },
+    "examFocus": "找證據時要把研究操作和觀察結果對應到指定的假說。",
+    "commonMistake": "支持假說的觀察仍不能證明額頭降溫時大腦溫度一定下降。",
+    "extension": "做小實驗時可安排比較組，例如一組用冷毛巾，另一組用室溫毛巾。"
   },
   {
     "id": "re12",
@@ -795,7 +1236,16 @@
       "Tom yawns more after he holds something cold on his forehead."
     ],
     "answer": 1,
-    "explain": "正解是選項二（Tom yawns soon after he sees his best friend yawn.）。文中說看到別人打哈欠自己也容易打哈欠，而且家人、好朋友打哈欠時更容易被傳染，所以這最可能發生。選項一（Tom stops yawning after he breathes extra fresh air.）：實驗顯示呼吸更多新鮮空氣後，人們打哈欠的次數並沒有變少。選項三（Tom catches yawns more easily from strangers than from his family.）：文中說的正好相反，從家人和好友身上比從陌生人身上更容易被傳染。選項四（Tom yawns more after he holds something cold on his forehead.）：文中說額頭拿著冰的東西時，打哈欠會變少，不是變多。"
+    "explain": "正解是選項二（Tom yawns soon after he sees his best friend yawn.）。文中說看到別人打哈欠自己也容易打哈欠，而且家人、好朋友打哈欠時更容易被傳染，所以這最可能發生。選項一（Tom stops yawning after he breathes extra fresh air.）：實驗顯示呼吸更多新鮮空氣後，人們打哈欠的次數並沒有變少。選項三（Tom catches yawns more easily from strangers than from his family.）：文中說的正好相反，從家人和好友身上比從陌生人身上更容易被傳染。選項四（Tom yawns more after he holds something cold on his forehead.）：文中說額頭拿著冰的東西時，打哈欠會變少，不是變多。",
+    "why": "文中指出看到他人打哈欠可能跟著打，而且親近的人更容易互相傳染，所以湯姆可能跟著好友打哈欠。",
+    "wrongReasons": {
+      "A": "依文中實驗，額外吸入新鮮空氣後，打哈欠的次數並未下降。",
+      "C": "文章說親友比陌生人更容易傳染哈欠，這個敘述把方向弄反了。",
+      "D": "依文中的觀察，額頭接觸冷物時哈欠較少。"
+    },
+    "examFocus": "推論題要把文章中的一般趨勢套到新的情境。",
+    "commonMistake": "most likely 問最有根據的可能情況，別把文中的趨勢讀成每次都必然發生。",
+    "extension": "描述觀察到的傾向時，可用 tend to，例如說人們通常在疲倦時較想休息。"
   },
   {
     "id": "vo14",
@@ -810,7 +1260,16 @@
       "thirsty"
     ],
     "answer": 3,
-    "explain": "正解是選項四（thirsty）。口渴的。打完兩小時籃球想要一杯水，最合理的是口渴。選項一（hungry）：肚子餓，餓了應該要食物，不是一杯水。選項二（sleepy）：想睡的，和要一杯水沒有關係。選項三（short）：矮的、短的，和要水無關。"
+    "explain": "正解是選項四（thirsty）。口渴的。打完兩小時籃球想要一杯水，最合理的是口渴。選項一（hungry）：肚子餓，餓了應該要食物，不是一杯水。選項二（sleepy）：想睡的，和要一杯水沒有關係。選項三（short）：矮的、短的，和要水無關。",
+    "why": "打了兩小時籃球後想喝水，thirsty 表示口渴。",
+    "wrongReasons": {
+      "A": "hungry 表示肚子餓，後句要的是水。",
+      "B": "sleepy 表示想睡，無法解釋為何開口要水。",
+      "C": "short 表示矮或短，與運動後要水無關。"
+    },
+    "examFocus": "根據對話中的請求判斷人物的身體感受。",
+    "commonMistake": "運動後可能又餓又累，要依人物明講的需求判斷。",
+    "extension": "運動場若設有 refill station，可以帶水壺補充飲用水。"
   },
   {
     "id": "vo15",
@@ -825,7 +1284,16 @@
       "December"
     ],
     "answer": 1,
-    "explain": "正解是選項二（summer）。夏天。台灣夏天很熱，很多人喜歡去游泳。選項一（winter）：冬天，台灣冬天不會很熱。選項三（January）：一月是冬天，不會很熱。選項四（December）：十二月是冬天，不會很熱。"
+    "explain": "正解是選項二（summer）。夏天。台灣夏天很熱，很多人喜歡去游泳。選項一（winter）：冬天，台灣冬天不會很熱。選項三（January）：一月是冬天，不會很熱。選項四（December）：十二月是冬天，不會很熱。",
+    "why": "summer 是夏天，符合臺灣通常炎熱、許多人去游泳的情境。",
+    "wrongReasons": {
+      "A": "winter 是冬天，通常比夏天涼。",
+      "C": "January 是一月，在臺灣通常屬於較涼的季節。",
+      "D": "December 是十二月，與題幹的炎熱線索不合。"
+    },
+    "examFocus": "結合地點、氣溫與活動判斷季節。",
+    "commonMistake": "月份和季節都能接在 in 後面，單靠介系詞選不出答案。",
+    "extension": "同樣是十二月，位於南半球的澳洲正值夏季，規劃旅行可先看當地氣候。"
   },
   {
     "id": "vo16",
@@ -840,7 +1308,16 @@
       "post office"
     ],
     "answer": 3,
-    "explain": "正解是選項四（post office）。郵局。要寄信到加拿大，應該找最近的郵局。選項一（bakery）：麵包店，不能寄信。選項二（hospital）：醫院，不能寄信。選項三（zoo）：動物園，不能寄信。"
+    "explain": "正解是選項四（post office）。郵局。要寄信到加拿大，應該找最近的郵局。選項一（bakery）：麵包店，不能寄信。選項二（hospital）：醫院，不能寄信。選項三（zoo）：動物園，不能寄信。",
+    "why": "post office 是郵局，符合寄信到加拿大的需求。",
+    "wrongReasons": {
+      "A": "bakery 是麵包店，主要販售烘焙食品。",
+      "B": "hospital 是醫院，主要提供醫療服務。",
+      "C": "zoo 是動物園，與寄送信件無關。"
+    },
+    "examFocus": "用 send this letter 判斷需要哪種公共服務。",
+    "commonMistake": "nearest 問地點遠近，仍須確認該地點有題目需要的服務。",
+    "extension": "寄國際信件時，可用 postage 詢問郵資，並依目的地核對地址格式。"
   },
   {
     "id": "vo17",
@@ -855,7 +1332,16 @@
       "nephew"
     ],
     "answer": 1,
-    "explain": "正解是選項二（uncle）。舅舅（叔叔、伯伯）。媽媽的兄弟是 uncle，代名詞 He 也吻合。選項一（cousin）：表（堂）兄弟姊妹，是 uncle 或 aunt 的孩子，不是媽媽的兄弟。選項三（aunt）：阿姨、姑姑，是女性，和 brother、He 不符。選項四（nephew）：姪子、外甥，是兄弟姊妹的兒子，輩分相反。"
+    "explain": "正解是選項二（uncle）。舅舅（叔叔、伯伯）。媽媽的兄弟是 uncle，代名詞 He 也吻合。選項一（cousin）：表（堂）兄弟姊妹，是 uncle 或 aunt 的孩子，不是媽媽的兄弟。選項三（aunt）：阿姨、姑姑，是女性，和 brother、He 不符。選項四（nephew）：姪子、外甥，是兄弟姊妹的兒子，輩分相反。",
+    "why": "媽媽的兄弟是舅舅，英文用 uncle。",
+    "wrongReasons": {
+      "A": "cousin 指堂表兄弟姊妹，和說話者同輩。",
+      "C": "aunt 指阿姨、姑姑等女性長輩，與 brother 和 He 不符。",
+      "D": "nephew 指兄弟姊妹的兒子，比說話者晚一輩。"
+    },
+    "examFocus": "從所有格片語逐層追蹤親屬關係，並以代名詞核對。",
+    "commonMistake": "uncle 可指爸媽的兄弟，別只記成爸爸的弟弟。",
+    "extension": "畫英文家譜時，可用 maternal uncle 特別標明這位親戚是媽媽的兄弟。"
   },
   {
     "id": "vo18",
@@ -870,7 +1356,16 @@
       "forget"
     ],
     "answer": 2,
-    "explain": "正解是選項三（lend）。lend 是「借出」，lend sb. sth. 是把東西借給某人；說話者忘了帶，請對方借他。選項一（borrow）：borrow 是「借入」，用法是 borrow sth. from sb.，不能說 borrow me your eraser。選項二（keep）：keep me your eraser 不合文法，語意也不通。選項四（forget）：forget me your eraser 不合文法，語意也不通。"
+    "explain": "正解是選項三（lend）。lend 是「借出」，lend sb. sth. 是把東西借給某人；說話者忘了帶，請對方借他。選項一（borrow）：borrow 是「借入」，用法是 borrow sth. from sb.，不能說 borrow me your eraser。選項二（keep）：keep me your eraser 不合文法，語意也不通。選項四（forget）：forget me your eraser 不合文法，語意也不通。",
+    "why": "說話者忘了帶橡皮擦，請對方借給自己，所以用 lend me your eraser。",
+    "wrongReasons": {
+      "A": "borrow 表示借入，會把借用的方向弄反。",
+      "B": "keep 表示保留，無法表達要對方借出橡皮擦。",
+      "D": "forget 表示忘記，無法表達借用的請求。"
+    },
+    "examFocus": "lend＋人＋物表示把某物借給某人，borrow＋物＋from＋人表示向某人借入。",
+    "commonMistake": "中文的「借」能指兩個方向，要先看主詞是借出還是借入的一方。",
+    "extension": "向同學借用文具時，可以用 give it back 說明何時會還給對方。"
   },
   {
     "id": "vo19",
@@ -885,7 +1380,16 @@
       "reason"
     ],
     "answer": 1,
-    "explain": "正解是選項二（habit）。習慣。每天晚上都做的事，是一個好習慣。選項一（hobby）：嗜好，是休閒時喜歡做的事，刷牙不是嗜好。選項三（dream）：夢想，刷牙不是夢想。選項四（reason）：理由，句子沒有在說明原因。"
+    "explain": "正解是選項二（habit）。習慣。每天晚上都做的事，是一個好習慣。選項一（hobby）：嗜好，是休閒時喜歡做的事，刷牙不是嗜好。選項三（dream）：夢想，刷牙不是夢想。選項四（reason）：理由，句子沒有在說明原因。",
+    "why": "每晚睡前刷牙是固定重複的行為，因此用 habit。",
+    "wrongReasons": {
+      "A": "hobby 指休閒嗜好，題目談的是日常照護。",
+      "C": "dream 指夢境或夢想，與例行刷牙不合。",
+      "D": "reason 指理由，句子沒有用刷牙解釋其他事情的原因。"
+    },
+    "examFocus": "every night 等頻率線索有助於辨認規律行為。",
+    "commonMistake": "常做的事未必是嗜好，要看它是否出於個人的休閒興趣。",
+    "extension": "用 habit tracker 記錄行動時，可以在每天刷完牙後打勾。"
   },
   {
     "id": "vo20",
@@ -900,7 +1404,16 @@
       "boring"
     ],
     "answer": 0,
-    "explain": "正解是選項一（convenient）。方便的。住在公車站和超市旁邊，生活很方便。選項二（dangerous）：危險的，住在公車站和超市旁不代表危險。選項三（lonely）：寂寞的，和附近有公車站、超市沒有關係。選項四（boring）：無聊的，前句說的是生活機能，不是有不有趣。"
+    "explain": "正解是選項一（convenient）。方便的。住在公車站和超市旁邊，生活很方便。選項二（dangerous）：危險的，住在公車站和超市旁不代表危險。選項三（lonely）：寂寞的，和附近有公車站、超市沒有關係。選項四（boring）：無聊的，前句說的是生活機能，不是有不有趣。",
+    "why": "住處就在公車站和超市旁邊，搭車和採買都方便，因此用 convenient。",
+    "wrongReasons": {
+      "B": "dangerous 表示危險，文中沒有提供安全方面的線索。",
+      "C": "lonely 表示寂寞，文中沒有提到住戶的人際互動。",
+      "D": "boring 表示無聊，前文只在描述生活機能。"
+    },
+    "examFocus": "由附近設施推知生活情況，right next to 強調位置緊鄰。",
+    "commonMistake": "選形容詞時要想前文的設施能帶來什麼，別只挑語法上可填的詞。",
+    "extension": "租屋廣告上的 within walking distance 表示步行可到達。"
   },
   {
     "id": "vo21",
@@ -915,7 +1428,16 @@
       "laugh at"
     ],
     "answer": 2,
-    "explain": "正解是選項三（take care of）。照顧。爸媽出差，所以要照顧妹妹。選項一（take off）：脫下、起飛，不能接妹妹。選項二（look like）：看起來像，和爸媽出差的因果無關。選項四（laugh at）：嘲笑，不合理。"
+    "explain": "正解是選項三（take care of）。照顧。爸媽出差，所以要照顧妹妹。選項一（take off）：脫下、起飛，不能接妹妹。選項二（look like）：看起來像，和爸媽出差的因果無關。選項四（laugh at）：嘲笑，不合理。",
+    "why": "爸媽週末要出差，說話者得照顧妹妹，所以用 take care of。",
+    "wrongReasons": {
+      "A": "take off 可指脫下或起飛，無法表達照顧妹妹。",
+      "B": "look like 指看起來相像，與出差後的安排無關。",
+      "D": "laugh at 指嘲笑，與妹妹需要照顧的情境無關。"
+    },
+    "examFocus": "用 so 前後的因果關係，判斷說話者需要負責什麼。",
+    "commonMistake": "片語要整組理解，不能只把 take 翻成「拿」。",
+    "extension": "babysit 特指代為照看小孩，例如父母外出時幫忙照看一晚。"
   },
   {
     "id": "vo22",
@@ -930,7 +1452,16 @@
       "hardly"
     ],
     "answer": 3,
-    "explain": "正解是選項四（hardly）。幾乎不。音樂太大聲，所以幾乎聽不到朋友說話。選項一（clearly）：清楚地，音樂很吵卻聽得很清楚，和 so…that 的因果矛盾。選項二（easily）：輕易地，同樣和音樂太吵的因果矛盾。選項三（loudly）：大聲地，用來形容發出聲音的方式，不能修飾「聽」。"
+    "explain": "正解是選項四（hardly）。幾乎不。音樂太大聲，所以幾乎聽不到朋友說話。選項一（clearly）：清楚地，音樂很吵卻聽得很清楚，和 so…that 的因果矛盾。選項二（easily）：輕易地，同樣和音樂太吵的因果矛盾。選項三（loudly）：大聲地，用來形容發出聲音的方式，不能修飾「聽」。",
+    "why": "音樂太大聲，說話者幾乎聽不到朋友說話，因此用 hardly。",
+    "wrongReasons": {
+      "A": "clearly 表示清楚地，和音量干擾的結果相反。",
+      "B": "easily 表示容易地，和聽清楚有困難的情境不符。",
+      "C": "loudly 描述發出聲音的方式，無法說明聽得到多少。"
+    },
+    "examFocus": "so … that … 可帶出結果，hardly 表示幾乎不。",
+    "commonMistake": "hardly 自帶否定意思，別把它當成 hard 的「努力地」。",
+    "extension": "在吵雜場所聽不清楚時，可說 Could you repeat that? 請對方重說。"
   },
   {
     "id": "vo23",
@@ -945,7 +1476,16 @@
       "shape"
     ],
     "answer": 2,
-    "explain": "正解是選項三（price）。價格。特價、只要 NT$199，談的是價錢。選項一（size）：尺寸，不會用 NT$ 表示。選項二（color）：顏色，不會用 NT$ 表示。選項四（shape）：形狀，不會用 NT$ 表示。"
+    "explain": "正解是選項三（price）。價格。特價、只要 NT$199，談的是價錢。選項一（size）：尺寸，不會用 NT$ 表示。選項二（color）：顏色，不會用 NT$ 表示。選項四（shape）：形狀，不會用 NT$ 表示。",
+    "why": "price 指價格，符合 NT$199 這個特價金額。",
+    "wrongReasons": {
+      "A": "size 指尺寸，通常用尺寸代號或長度表示。",
+      "B": "color 指顏色，無法用金額表示。",
+      "D": "shape 指形狀，與題目提供的金額無關。"
+    },
+    "examFocus": "on sale 加上貨幣符號和 only，顯示句子在談售價。",
+    "commonMistake": "別看到衣服就猜尺寸或顏色，先確認數字的單位。",
+    "extension": "商品標示 20% off 表示打八折，例如原價 500 元折後是 400 元。"
   },
   {
     "id": "vo24",
@@ -960,7 +1500,16 @@
       "finished"
     ],
     "answer": 1,
-    "explain": "正解是選項二（failed）。考試不及格。but he still 表示「雖然很努力，結果還是…」，加上很難過，最合理的是沒考過。選項一（passed）：通過，努力讀書後通過不需要用 but still，也不會難過。選項三（missed）：錯過，句子沒提到他沒去考；而且他有努力準備。選項四（finished）：完成，寫完考試不會讓人因此難過，也和 but still 的轉折不合。"
+    "explain": "正解是選項二（failed）。考試不及格。but he still 表示「雖然很努力，結果還是…」，加上很難過，最合理的是沒考過。選項一（passed）：通過，努力讀書後通過不需要用 but still，也不會難過。選項三（missed）：錯過，句子沒提到他沒去考；而且他有努力準備。選項四（finished）：完成，寫完考試不會讓人因此難過，也和 but still 的轉折不合。",
+    "why": "but he still 表示結果出乎預期，後文又說他很難過，所以用 failed 表示考試不及格。",
+    "wrongReasons": {
+      "A": "passed 表示通過，與轉折語氣和失落的心情不符。",
+      "C": "missed 表示錯過，文中沒有缺席考試的線索。",
+      "D": "finished 表示完成，未交代令他難過的考試結果。"
+    },
+    "examFocus": "but 和 still 常一起提示結果與預期相反。",
+    "commonMistake": "fail a test 是考試沒過，別和 miss a test 的錯過考試混用。",
+    "extension": "若學校提供補考，通知可能寫 retake the test，意思是再考一次。"
   },
   {
     "id": "vo25",
@@ -975,7 +1524,16 @@
       "experience"
     ],
     "answer": 3,
-    "explain": "正解是選項四（experience）。經驗。在農場工作、學到很多，是一次很棒的經驗。選項一（exercise）：運動、練習，學到動植物知識不是運動的重點。選項二（example）：例子，句子沒有在舉例。選項三（excuse）：藉口，和學到很多無關。"
+    "explain": "正解是選項四（experience）。經驗。在農場工作、學到很多，是一次很棒的經驗。選項一（exercise）：運動、練習，學到動植物知識不是運動的重點。選項二（example）：例子，句子沒有在舉例。選項三（excuse）：藉口，和學到很多無關。",
+    "why": "在農場工作又學到動植物知識，是一段親身經歷，因此用 experience。",
+    "wrongReasons": {
+      "A": "exercise 表示運動或練習，未能概括這次農場經歷。",
+      "B": "example 表示例子，題目是在回顧個人的經歷。",
+      "C": "excuse 表示藉口，與農場工作的收穫無關。"
+    },
+    "examFocus": "experience 表示一段具體經歷時可數，可以加 a。",
+    "commonMistake": "experience 也能泛指累積的經驗，別把兩種用法混在一起。",
+    "extension": "履歷的 work experience 欄可列實際做過的工作，例如在農場負責餵食。"
   },
   {
     "id": "vo26",
@@ -990,7 +1548,16 @@
       "nervous"
     ],
     "answer": 2,
-    "explain": "正解是選項三（patient）。有耐心的。學生一直問同樣的問題，他也不生氣，表示很有耐心。選項一（proud）：驕傲的，和不生氣、願意一再回答無關。選項二（honest）：誠實的，句子描述的是脾氣，不是說不說實話。選項四（nervous）：緊張的，和不生氣無關。"
+    "explain": "正解是選項三（patient）。有耐心的。學生一直問同樣的問題，他也不生氣，表示很有耐心。選項一（proud）：驕傲的，和不生氣、願意一再回答無關。選項二（honest）：誠實的，句子描述的是脾氣，不是說不說實話。選項四（nervous）：緊張的，和不生氣無關。",
+    "why": "學生反覆問同一個問題，陳老師也不生氣，表示他很有耐心，因此用 patient。",
+    "wrongReasons": {
+      "A": "proud 表示驕傲或自豪，文中沒有相關線索。",
+      "B": "honest 表示誠實，文中沒有談到是否說實話。",
+      "D": "nervous 表示緊張，不符合面對反覆提問仍沉著的描述。"
+    },
+    "examFocus": "描寫個性的字彙題，常透過人物的行為提供線索。",
+    "commonMistake": "patient 在 be very patient 中是形容詞，別誤讀成「病人」。",
+    "extension": "教家人操作手機時，可先示範一次，再讓對方按自己的速度操作。"
   },
   {
     "id": "gr14",
@@ -1005,7 +1572,16 @@
       "drinks"
     ],
     "answer": 3,
-    "explain": "正解是選項四（drinks）。usually 表示習慣，用現在簡單式；主詞 My father 是第三人稱單數，動詞加 s。選項一（drink）：主詞是第三人稱單數，動詞要加 s。選項二（drinking）：句子缺少 be 動詞，V-ing 不能單獨當動詞。選項三（to drink）：不定詞不能當句子的主要動詞。"
+    "explain": "正解是選項四（drinks）。usually 表示習慣，用現在簡單式；主詞 My father 是第三人稱單數，動詞加 s。選項一（drink）：主詞是第三人稱單數，動詞要加 s。選項二（drinking）：句子缺少 be 動詞，V-ing 不能單獨當動詞。選項三（to drink）：不定詞不能當句子的主要動詞。",
+    "why": "usually 表示習慣，My father 是第三人稱單數，因此用 drinks。",
+    "wrongReasons": {
+      "A": "drink 少了第三人稱單數現在式的 s。",
+      "B": "drinking 單獨使用缺少 be 動詞，無法作這句的主要動詞。",
+      "C": "to drink 是不定詞，不能單獨作這句的主要動詞。"
+    },
+    "examFocus": "現在簡單式可表示習慣，第三人稱單數的肯定句要變化動詞。",
+    "commonMistake": "usually 夾在主詞和動詞之間，別因此漏加動詞字尾。",
+    "extension": "描述作息的例外時，可用 on weekends 交代週末是否改喝茶。"
   },
   {
     "id": "gr15",
@@ -1020,7 +1596,16 @@
       "I"
     ],
     "answer": 0,
-    "explain": "正解是選項一（Mine）。空格當主詞，指「我的（鉛筆）」，用所有格代名詞 mine = my pencil。選項二（My）：所有格後面要接名詞，例如 My pencil。選項三（Me）：受格不能當主詞。選項四（I）：主格 I 意思是「我」，「我是藍色的」不合語意。"
+    "explain": "正解是選項一（Mine）。空格當主詞，指「我的（鉛筆）」，用所有格代名詞 mine = my pencil。選項二（My）：所有格後面要接名詞，例如 My pencil。選項三（Me）：受格不能當主詞。選項四（I）：主格 I 意思是「我」，「我是藍色的」不合語意。",
+    "why": "Mine 可以獨立當主詞，代替 my pencil，表示自己的鉛筆是藍色的。",
+    "wrongReasons": {
+      "B": "My 後面還需要接名詞，例如 my pencil。",
+      "C": "Me 是受格，不能在這裡當主詞。",
+      "D": "I 意思是「我」，會變成描述人的顏色。"
+    },
+    "examFocus": "mine、yours 等所有代名詞可獨立使用，代替所有格加名詞。",
+    "commonMistake": "mine 已包含「我的鉛筆」的意思，別在後面再加 pencil。",
+    "extension": "教室裡撿到筆時，可問 Is this yours? 確認是不是對方的。"
   },
   {
     "id": "gr16",
@@ -1035,7 +1620,16 @@
       "rains"
     ],
     "answer": 1,
-    "explain": "正解是選項二（is going to）。看見烏雲，推測「快要下雨了」，用 be going to + 原形動詞表示即將發生。選項一（rained）：過去式和 soon 不合。選項三（has rained）：現在完成式表示已經發生，和 soon 不合。選項四（rains）：現在簡單式後面不能再接原形動詞 rain，句子有兩個動詞。"
+    "explain": "正解是選項二（is going to）。看見烏雲，推測「快要下雨了」，用 be going to + 原形動詞表示即將發生。選項一（rained）：過去式和 soon 不合。選項三（has rained）：現在完成式表示已經發生，和 soon 不合。選項四（rains）：現在簡單式後面不能再接原形動詞 rain，句子有兩個動詞。",
+    "why": "眼前有烏雲，因此用 is going to rain 表示預測很快會下雨。",
+    "wrongReasons": {
+      "A": "rained 是過去式，放在 rain 前也不能組成動詞結構。",
+      "C": "has rained 表示截至現在已下過雨，而且後面不能直接接 rain。",
+      "D": "rains 已是變化過的動詞，後面不能直接接 rain。"
+    },
+    "examFocus": "be going to＋原形動詞可表示根據眼前線索作出的預測。",
+    "commonMistake": "空格後已有 rain，應選能接原形動詞的結構。",
+    "extension": "看到公車開進站，也能根據眼前跡象預測車子即將停下來。"
   },
   {
     "id": "gr17",
@@ -1050,7 +1644,16 @@
       "Don't"
     ],
     "answer": 0,
-    "explain": "正解是選項一（Don't be）。否定祈使句是 Don't + 原形動詞；late 是形容詞，前面要有 be 動詞。選項二（Not be）：祈使句的否定要用 Don't，不能只用 Not。選項三（Doesn't be）：祈使句不用 doesn't，而且 doesn't 不和 be 連用。選項四（Don't）：Don't 後面要接原形動詞，late 是形容詞，缺少 be。"
+    "explain": "正解是選項一（Don't be）。否定祈使句是 Don't + 原形動詞；late 是形容詞，前面要有 be 動詞。選項二（Not be）：祈使句的否定要用 Don't，不能只用 Not。選項三（Doesn't be）：祈使句不用 doesn't，而且 doesn't 不和 be 連用。選項四（Don't）：Don't 後面要接原形動詞，late 是形容詞，缺少 be。",
+    "why": "句子在提醒湯姆別再遲到，因此用否定祈使句 Don't be late。",
+    "wrongReasons": {
+      "B": "Not be 少了否定祈使句所需的 Don't。",
+      "C": "Doesn't be 不符合否定祈使句的形式。",
+      "D": "Don't 後面需要原形動詞，形容詞 late 前還缺 be。"
+    },
+    "examFocus": "否定祈使句用 Don't＋原形動詞，描述狀態可用 be＋形容詞。",
+    "commonMistake": "叫了對方的名字仍是直接提醒，別把句子看成第三人稱陳述句。",
+    "extension": "安全提醒可用 Don't touch the glass，請參觀者別碰玻璃。"
   },
   {
     "id": "gr18",
@@ -1065,7 +1668,16 @@
       "have taken"
     ],
     "answer": 1,
-    "explain": "正解是選項二（was taking）。電話響的那一刻「正在」洗澡，用過去進行式 was/were + V-ing；last night 是過去。選項一（am taking）：現在進行式和 last night、rang 的時間不合。選項三（take）：現在式和過去時間不合。選項四（have taken）：現在完成式不能和 last night 連用。"
+    "explain": "正解是選項二（was taking）。電話響的那一刻「正在」洗澡，用過去進行式 was/were + V-ing；last night 是過去。選項一（am taking）：現在進行式和 last night、rang 的時間不合。選項三（take）：現在式和過去時間不合。選項四（have taken）：現在完成式不能和 last night 連用。",
+    "why": "昨晚電話響時正在洗澡，所以用過去進行式 was taking。",
+    "wrongReasons": {
+      "A": "am taking 表示現在正在做，與昨晚的場景不合。",
+      "C": "take 是現在簡單式，無法描述昨晚正在做的事。",
+      "D": "have taken 是現在完成式，不適合和明確的過去時間 last night 搭配。"
+    },
+    "examFocus": "過去短暫事件發生時，背景動作若正在進行，可用過去進行式。",
+    "commonMistake": "句中有兩個過去動作時，要分辨哪一個仍在進行。",
+    "extension": "寫故事可先描述大家正在吃飯，再引出突然停電的情節。"
   },
   {
     "id": "gr19",
@@ -1080,7 +1692,16 @@
       "where"
     ],
     "answer": 0,
-    "explain": "正解是選項一（that）。先行詞 the cake 是物，在子句中當 made 的受詞，用 that（也可用 which）。選項二（who）：who 用於人，不用於蛋糕。選項三（what）：what 本身含先行詞，前面不能再有 the cake。選項四（where）：where 指地點，後面要接完整句子；made 缺少受詞，需要關係代名詞。"
+    "explain": "正解是選項一（that）。先行詞 the cake 是物，在子句中當 made 的受詞，用 that（也可用 which）。選項二（who）：who 用於人，不用於蛋糕。選項三（what）：what 本身含先行詞，前面不能再有 the cake。選項四（where）：where 指地點，後面要接完整句子；made 缺少受詞，需要關係代名詞。",
+    "why": "that 指前面的蛋糕，在修飾蛋糕的關係子句裡當 made 的受詞。",
+    "wrongReasons": {
+      "B": "who 用來指人，the cake 指物。",
+      "C": "what 本身含有先行詞的意思，不能再接在 the cake 後面。",
+      "D": "where 用來指地點，無法補足 made 所缺的受詞。"
+    },
+    "examFocus": "選關係代名詞時，要辨認先行詞和子句裡缺少的成分。",
+    "commonMistake": "yesterday 只交代時間，made 真正缺的是被做出來的東西。",
+    "extension": "口語可省略當受詞的關係代名詞，例如 the cake Mom made。"
   },
   {
     "id": "gr20",
@@ -1095,7 +1716,16 @@
       "for"
     ],
     "answer": 3,
-    "explain": "正解是選項四（for）。It is + 形容詞 + for + 人 + to V，表示「對某人來說做某事…」，easy 描述事情的難易，用 for。選項一（of）：It is + 形容詞 + of + 人 只用在形容人的個性（例如 kind、nice），easy 不是。選項二（with）：沒有 It is easy with sb. to V 的句型。選項三（to）：to young children to sit 出現兩個 to，句型錯誤。"
+    "explain": "正解是選項四（for）。It is + 形容詞 + for + 人 + to V，表示「對某人來說做某事…」，easy 描述事情的難易，用 for。選項一（of）：It is + 形容詞 + of + 人 只用在形容人的個性（例如 kind、nice），easy 不是。選項二（with）：沒有 It is easy with sb. to V 的句型。選項三（to）：to young children to sit 出現兩個 to，句型錯誤。",
+    "why": "easy 描述「坐著不動一小時」的難度，因此用 for young children 交代是對誰而言。",
+    "wrongReasons": {
+      "A": "of 常用於評價某人的行為，這裡評估的是事情的難度。",
+      "B": "with 不符合本句指出動作執行者的句型。",
+      "C": "to 在這個句型中不能引出執行動作的人，後面的 to sit 已是不定詞。"
+    },
+    "examFocus": "It is＋形容詞＋for＋人＋to V，可說明做某事對某人的難易。",
+    "commonMistake": "別把中文的「對」一律譯成 to，要看完整句型。",
+    "extension": "稱讚他人出手相助時，可用 kind of you 把重點放在對方的善意。"
   },
   {
     "id": "gr21",
@@ -1110,7 +1740,16 @@
       "go"
     ],
     "answer": 2,
-    "explain": "正解是選項三（to go）。too + 形容詞 + to V 表示「太…而不能…」，too 後接不定詞 to go。選項一（going）：too…to 的句型要接 to V，不接 V-ing。選項二（goes）：too…to 的句型要接 to V，不接有人稱變化的動詞。選項四（go）：前面已有 young，後面要用 to go，少了 to。"
+    "explain": "正解是選項三（to go）。too + 形容詞 + to V 表示「太…而不能…」，too 後接不定詞 to go。選項一（going）：too…to 的句型要接 to V，不接 V-ing。選項二（goes）：too…to 的句型要接 to V，不接有人稱變化的動詞。選項四（go）：前面已有 young，後面要用 to go，少了 to。",
+    "why": "too young to go 表示年紀太小，無法獨自上學，因此填 to go。",
+    "wrongReasons": {
+      "A": "going 是 V-ing 形式，不符合此處的不定詞用法。",
+      "B": "goes 有人稱變化，不能放在 too young 後補充結果。",
+      "D": "go 缺少構成不定詞的 to。"
+    },
+    "examFocus": "too＋形容詞＋to V 表示程度過高，因而無法做到某事。",
+    "commonMistake": "too 在這裡表示「過於」，別誤解成句尾常見的「也」。",
+    "extension": "若要表達年紀已達到某個條件，可用 old enough to，例如已能自己搭車。"
   },
   {
     "id": "gr22",
@@ -1125,7 +1764,16 @@
       "doesn't he"
     ],
     "answer": 1,
-    "explain": "正解是選項二（can he）。附加問句「前否後肯」：前句用 can't，附加問句用肯定的 can；主詞 your brother 用代名詞 he。選項一（can't he）：前句已是否定，附加問句要用肯定。選項三（does he）：前句的助動詞是 can，附加問句也要用 can。選項四（doesn't he）：助動詞錯誤，而且前句否定時附加問句要肯定。"
+    "explain": "正解是選項二（can he）。附加問句「前否後肯」：前句用 can't，附加問句用肯定的 can；主詞 your brother 用代名詞 he。選項一（can't he）：前句已是否定，附加問句要用肯定。選項三（does he）：前句的助動詞是 can，附加問句也要用 can。選項四（doesn't he）：助動詞錯誤，而且前句否定時附加問句要肯定。",
+    "why": "前句用否定的 can't，附加問句用肯定的 can，your brother 則用 he 代替。",
+    "wrongReasons": {
+      "A": "can't he 和前句同為否定，不符合此處的確認語氣。",
+      "C": "does he 用錯助動詞，前句使用的是 can。",
+      "D": "doesn't he 用錯助動詞，也沒有改成肯定。"
+    },
+    "examFocus": "一般確認用的附加問句沿用前句的助動詞，並把肯定和否定互換。",
+    "commonMistake": "別看到 swim 就套用 do，句中已有 can。",
+    "extension": "聊天時可用附加問句確認記憶，例如問對方是不是搬去臺南了。"
   },
   {
     "id": "gr23",
@@ -1140,7 +1788,16 @@
       "cleaned"
     ],
     "answer": 2,
-    "explain": "正解是選項三（clean）。使役動詞 make + 受詞 + 原形動詞，表示「叫某人做某事」。選項一（to clean）：make 的主動用法後面不接 to V。選項二（cleaning）：make 後面不接 V-ing。選項四（cleaned）：make sb. cleaned 是被動概念，但這裡是我自己去打掃，是主動。"
+    "explain": "正解是選項三（clean）。使役動詞 make + 受詞 + 原形動詞，表示「叫某人做某事」。選項一（to clean）：make 的主動用法後面不接 to V。選項二（cleaning）：make 後面不接 V-ing。選項四（cleaned）：make sb. cleaned 是被動概念，但這裡是我自己去打掃，是主動。",
+    "why": "媽媽要求我去打掃房間，me 是執行打掃的人，因此後面接原形動詞 clean。",
+    "wrongReasons": {
+      "A": "to clean 多了 to，不符合主動使役句的用法。",
+      "B": "cleaning 不符合這裡 make＋受詞後接原形動詞的結構。",
+      "D": "cleaned 無法表達 me 主動打掃房間。"
+    },
+    "examFocus": "主動的使役句採 make＋受詞＋原形動詞。",
+    "commonMistake": "made 已標示過去時間，受詞後的動詞仍用原形。",
+    "extension": "使役句改成被動時會補回 to，例如 I was made to wait."
   },
   {
     "id": "gr24",
@@ -1155,7 +1812,16 @@
       "paid"
     ],
     "answer": 1,
-    "explain": "正解是選項二（spent）。人 + spend + 時間或金錢 + on + 事物，表示「花時間在某事上」。選項一（took）：take 的句型是 It takes + 人 + 時間 + to V，主詞通常是 It 或事情，不說 I took two hours on…。選項三（cost）：cost 的主詞是物品，表示「花費金錢」，不能用人當主詞說花時間。選項四（paid）：pay 是付錢，不能付「兩小時」。"
+    "explain": "正解是選項二（spent）。人 + spend + 時間或金錢 + on + 事物，表示「花時間在某事上」。選項一（took）：take 的句型是 It takes + 人 + 時間 + to V，主詞通常是 It 或事情，不說 I took two hours on…。選項三（cost）：cost 的主詞是物品，表示「花費金錢」，不能用人當主詞說花時間。選項四（paid）：pay 是付錢，不能付「兩小時」。",
+    "why": "spent two hours on my science homework 表示花兩小時做自然科作業。",
+    "wrongReasons": {
+      "A": "took 可描述耗時，但不符合本題接 on my homework 的結構。",
+      "C": "cost 通常以造成花費的人事物為主詞，這裡的 I 是投入時間的人。",
+      "D": "paid 表示付費，two hours 在這裡是投入的時間。"
+    },
+    "examFocus": "人＋spend＋時間或金錢＋on＋事物，可表達時間或費用的投入。",
+    "commonMistake": "別把中文的「花」一律譯成同一個字，要同時看主詞和後面的接法。",
+    "extension": "記錄讀書時間也能用 spend 加 V-ing，例如花二十分鐘複習單字。"
   },
   {
     "id": "gr25",
@@ -1170,7 +1836,16 @@
       "Listens to"
     ],
     "answer": 1,
-    "explain": "正解是選項二（Listening to）。句子的主要動詞是 is，空格要當主詞；動詞要當主詞時改成動名詞 Listening to。選項一（Listen to）：原形動詞不能當主詞。選項三（Listened to）：過去式不能當主詞，句子也會有兩個動詞。選項四（Listens to）：有人稱變化的動詞不能當主詞，句子會有兩個動詞。"
+    "explain": "正解是選項二（Listening to）。句子的主要動詞是 is，空格要當主詞；動詞要當主詞時改成動名詞 Listening to。選項一（Listen to）：原形動詞不能當主詞。選項三（Listened to）：過去式不能當主詞，句子也會有兩個動詞。選項四（Listens to）：有人稱變化的動詞不能當主詞，句子會有兩個動詞。",
+    "why": "主要動詞是 is，Listening to English songs 是動名詞片語，整組當作主詞。",
+    "wrongReasons": {
+      "A": "Listen to 是原形動詞片語，放在句首會像祈使句。",
+      "C": "Listened to 帶過去式形式，無法作本句的主詞。",
+      "D": "Listens to 是第三人稱單數現在式，無法把聽歌這項活動當主詞。"
+    },
+    "examFocus": "V-ing 片語可作主詞，表示一項活動。",
+    "commonMistake": "別受 songs 的複數影響，is 的主詞是整個聽歌活動。",
+    "extension": "練聽力時，可聽完一句歌詞先暫停，寫下聽到的字，再和原詞比對。"
   },
   {
     "id": "gr26",
@@ -1185,7 +1860,16 @@
       "also"
     ],
     "answer": 0,
-    "explain": "正解是選項一（either）。否定句表示「也不」，句尾用 either（I don't, either. = Neither do I.）。選項二（too）：too 用在肯定句表示「也」，前面是否定句 I don't，不能用 too。選項三（neither）：neither 要放句首倒裝：and neither do I，不能放在句尾。選項四（also）：also 不放在否定句句尾表示「也不」。"
+    "explain": "正解是選項一（either）。否定句表示「也不」，句尾用 either（I don't, either. = Neither do I.）。選項二（too）：too 用在肯定句表示「也」，前面是否定句 I don't，不能用 too。選項三（neither）：neither 要放句首倒裝：and neither do I，不能放在句尾。選項四（also）：also 不放在否定句句尾表示「也不」。",
+    "why": "前面 I don't 是否定句，句尾用 either 表示自己也不喜歡魚。",
+    "wrongReasons": {
+      "B": "too 通常接在肯定句句尾表達「也」，和這句的否定用法不合。",
+      "C": "neither 可放在倒裝結構開頭，如 neither do I，不適合填在 I don't 後。",
+      "D": "also 通常放在句中，無法在這個句尾位置表達「也不」。"
+    },
+    "examFocus": "附和否定句時，可用否定句加 either，或用 neither 開頭倒裝。",
+    "commonMistake": "don't 已經帶否定意思，在這種句尾結構應接 either。",
+    "extension": "either 也可以用在提供兩種選擇時，例如約時間時說兩天都可以。"
   },
   {
     "id": "cl13",
@@ -1202,7 +1886,16 @@
       "are"
     ],
     "answer": 1,
-    "explain": "正解是選項二（will）。通知講的是運動會當天（未來）的規定，遲到的學生「將」不能參加第一場比賽，用 will not be able to。選項一（did）：did not be 不合文法，did 後面不接 be；時間也不是過去。選項三（have）：have not be 不合文法。選項四（are）：are not be 不合文法，be 動詞後面不能再接原形 be。"
+    "explain": "正解是選項二（will）。通知講的是運動會當天（未來）的規定，遲到的學生「將」不能參加第一場比賽，用 will not be able to。選項一（did）：did not be 不合文法，did 後面不接 be；時間也不是過去。選項三（have）：have not be 不合文法。選項四（are）：are not be 不合文法，be 動詞後面不能再接原形 be。",
+    "why": "運動會預定下週五舉行，遲到的後果還未發生，因此用 will not be able to。",
+    "wrongReasons": {
+      "A": "did 是過去式，無法表示下週五的後果，且 did not be 不合此句用法。",
+      "C": "have not be 不成句，完成式的 have 後須接過去分詞。",
+      "D": "are not be 把 are 和原形 be 疊在一起，句型不成立。"
+    },
+    "examFocus": "will 後接原形動詞，will not be able to 表示屆時無法做某事。",
+    "commonMistake": "別只因看到 not 就選任何助動詞，還要看時間與後面是原形 be。",
+    "extension": "通知上寫 by 7:30 表示最晚七點半到，規劃通勤時可預留等車時間。"
   },
   {
     "id": "cl14",
@@ -1219,7 +1912,16 @@
       "by"
     ],
     "answer": 2,
-    "explain": "正解是選項三（on）。特定的某一天前面用 on，on that day 指「運動會那天」。選項一（in）：in 用於月份、年份或一段較長時間，不用於特定某天。選項二（at）：at 用於時刻，例如 at 7:30。選項四（by）：by that day 是「在那天之前」，和「那天福利社不開」語意不合。"
+    "explain": "正解是選項三（on）。特定的某一天前面用 on，on that day 指「運動會那天」。選項一（in）：in 用於月份、年份或一段較長時間，不用於特定某天。選項二（at）：at 用於時刻，例如 at 7:30。選項四（by）：by that day 是「在那天之前」，和「那天福利社不開」語意不合。",
+    "why": "on that day 指運動會當天，表示福利社那一天不營業。",
+    "wrongReasons": {
+      "A": "in 通常接月份、年份或較長期間，不能搭配這裡特定的一天。",
+      "B": "at 常用來標示幾點幾分，that day 指整個特定日子。",
+      "D": "by that day 表示最遲到那天，無法確切說明福利社當天不營業。"
+    },
+    "examFocus": "星期、日期和特定日子通常搭配 on。",
+    "commonMistake": "by 說的是期限，別把它當作標示事情發生在哪一天的 on。",
+    "extension": "若校園公告寫 until Friday，還可查附註確認週五當天是否已恢復開放。"
   },
   {
     "id": "cl15",
@@ -1236,7 +1938,16 @@
       "its"
     ],
     "answer": 3,
-    "explain": "正解是選項四（its）。主詞 each class 是單數，「每一班都有自己的區域」用單數所有格 its own。選項一（it's）：it's 是 it is 的縮寫，不是所有格。選項二（their）：their 指複數名詞，each class 是單數。選項三（his）：his 指男性的人，不能指班級。"
+    "explain": "正解是選項四（its）。主詞 each class 是單數，「每一班都有自己的區域」用單數所有格 its own。選項一（it's）：it's 是 it is 的縮寫，不是所有格。選項二（their）：their 指複數名詞，each class 是單數。選項三（his）：his 指男性的人，不能指班級。",
+    "why": "each class 指每一個班級，its own area 表示各班都有屬於自己的區域。",
+    "wrongReasons": {
+      "A": "it's 是 it is 或 it has 的縮寫，無法表達所有關係。",
+      "B": "each class 是單數，會考標準用法以 its 指稱班級。",
+      "C": "his 指男性擁有的事物，each class 並非男性個人。"
+    },
+    "examFocus": "each＋單數名詞逐一指稱成員，指班級這類群體單位可搭配 its。",
+    "commonMistake": "不要在表示「它的」的 its 中加撇號，加了便成為縮寫。",
+    "extension": "分組簡報可用 our own slide 表示每組有自己負責的投影片。"
   },
   {
     "id": "cl16",
@@ -1253,7 +1964,16 @@
       "when"
     ],
     "answer": 0,
-    "explain": "正解是選項一（where）。先行詞 the area 是地點，後面 they sat 是完整句子，用關係副詞 where（= in which）。選項二（which）：which 要在子句中當主詞或受詞，但 they sat 已完整；要寫成 in which 才對。選項三（who）：who 用於人，先行詞是地點。選項四（when）：when 用於時間，先行詞是地點。"
+    "explain": "正解是選項一（where）。先行詞 the area 是地點，後面 they sat 是完整句子，用關係副詞 where（= in which）。選項二（which）：which 要在子句中當主詞或受詞，但 they sat 已完整；要寫成 in which 才對。選項三（who）：who 用於人，先行詞是地點。選項四（when）：when 用於時間，先行詞是地點。",
+    "why": "the area 指地點，they sat 已有主詞和動詞，因此用 where 補出「他們坐過的地方」。",
+    "wrongReasons": {
+      "B": "which 單獨使用需要在子句中有位置，此處要加 in 才能表達坐在該區域。",
+      "C": "who 指人，無法指比賽時坐的區域。",
+      "D": "when 說明時間，the area 指地點。"
+    },
+    "examFocus": "where 可引導修飾地點的關係子句，語意相當於適當的介系詞加 which。",
+    "commonMistake": "別只因先行詞是物就選 which，還要檢查子句缺的是受詞還是地點。",
+    "extension": "寫校園導覽時，可用 where students eat 描述學生平常用餐的地方。"
   },
   {
     "id": "cl17",
@@ -1270,7 +1990,16 @@
       "told"
     ],
     "answer": 0,
-    "explain": "正解是選項一（answered）。answer the phone 是「接電話」，Ben 打電話過去，是老太太接起電話。選項二（asked）：ask the phone 不是正確搭配。選項三（called）：call 是「打電話」，是 Ben 打給她，不是她打電話。選項四（told）：tell the phone 不是正確搭配。"
+    "explain": "正解是選項一（answered）。answer the phone 是「接電話」，Ben 打電話過去，是老太太接起電話。選項二（asked）：ask the phone 不是正確搭配。選項三（called）：call 是「打電話」，是 Ben 打給她，不是她打電話。選項四（told）：tell the phone 不是正確搭配。",
+    "why": "班恩打電話給失主，老太太接了電話，因此用 answered the phone。",
+    "wrongReasons": {
+      "B": "asked 表示問問題，不能用 asked the phone 表達接聽。",
+      "C": "called 表示撥打電話，文中先撥電話的人是班恩。",
+      "D": "told 表示告訴，無法用 told the phone 表達接電話。"
+    },
+    "examFocus": "answer the phone 是「接電話」的固定搭配，要用上下文辨認誰接聽。",
+    "commonMistake": "answer 不只用於回答問題，受詞是 the phone 時指接聽。",
+    "extension": "電話暫時無人接時，可以留一段 voicemail，簡短說明來電原因。"
   },
   {
     "id": "cl18",
@@ -1287,7 +2016,16 @@
       "How an"
     ],
     "answer": 1,
-    "explain": "正解是選項二（What an）。感嘆句 What + a/an + 形容詞 + 單數名詞 + 主詞 + 動詞；honest 的 h 不發音，開頭是母音，用 an。選項一（How）：How + 形容詞 + 主詞 + 動詞，例如 How honest you are!，後面不能再接名詞 boy。選項三（What）：單數可數名詞 boy 前面要有 a 或 an。選項四（How an）：How 後面直接接形容詞，不接 an。"
+    "explain": "正解是選項二（What an）。感嘆句 What + a/an + 形容詞 + 單數名詞 + 主詞 + 動詞；honest 的 h 不發音，開頭是母音，用 an。選項一（How）：How + 形容詞 + 主詞 + 動詞，例如 How honest you are!，後面不能再接名詞 boy。選項三（What）：單數可數名詞 boy 前面要有 a 或 an。選項四（How an）：How 後面直接接形容詞，不接 an。",
+    "why": "boy 是單數可數名詞，感嘆句用 What 加冠詞。honest 的 h 不發音，起首是母音音素，所以用 an。",
+    "wrongReasons": {
+      "A": "How 在本題句型中可直接修飾 honest，但後面會接 you are，不能保留 boy。",
+      "C": "What 單獨放在這裡會漏掉單數名詞片語所需的冠詞。",
+      "D": "How an 不符合此處的感嘆句結構，形容詞加單數名詞的片語應由 What an 引出。"
+    },
+    "examFocus": "What＋a/an＋形容詞＋單數可數名詞可構成感嘆句。",
+    "commonMistake": "冠詞要聽字首的音，別只看 honest 的第一個字母。",
+    "extension": "看課表上的 an hour 時也適用同一個原則，hour 的 h 不發音。"
   },
   {
     "id": "cl19",
@@ -1304,7 +2042,16 @@
       "has read"
     ],
     "answer": 2,
-    "explain": "正解是選項三（read）。前面是 was surprised，事情發生在過去，要用過去式；read 的過去式拼法相同，也寫 read。選項一（reads）：現在式和全文過去的時間不合。選項二（will read）：未來式和 was surprised、the next morning 的過去敘述不合。選項四（has read）：現在完成式不能描述過去某個特定時間（the next morning）發生的事。"
+    "explain": "正解是選項三（read）。前面是 was surprised，事情發生在過去，要用過去式；read 的過去式拼法相同，也寫 read。選項一（reads）：現在式和全文過去的時間不合。選項二（will read）：未來式和 was surprised、the next morning 的過去敘述不合。選項四（has read）：現在完成式不能描述過去某個特定時間（the next morning）發生的事。",
+    "why": "校長隔天早上讀出那封信，事件發生在過去，read 的過去式仍寫作 read。",
+    "wrongReasons": {
+      "A": "reads 是第三人稱單數現在式，和故事的過去時間不符。",
+      "B": "will read 指未來，與班恩當時感到驚訝的敘述不合。",
+      "D": "has read 是現在完成式，無法配合故事中指定的過去事件。"
+    },
+    "examFocus": "敘事時要以整段的時間為依據，留意過去式可能和原形同拼法。",
+    "commonMistake": "別把 the next morning 自動當作從現在算起的明天，這裡是故事中的隔天。",
+    "extension": "朗讀故事時，過去式 read 唸起來和 red 一樣，可以藉此練習辨音。"
   },
   {
     "id": "cl20",
@@ -1321,7 +2068,16 @@
       "proud"
     ],
     "answer": 3,
-    "explain": "正解是選項四（proud）。feel proud of 是「以…為榮」。Ben 拾金不昧被公開表揚，雖然臉紅，但為自己做的事感到驕傲。選項一（afraid）：afraid of 是「害怕」，做了好事被稱讚不會害怕。選項二（tired）：tired of 是「厭倦」，不合語意。選項三（full）：full of 是「充滿」，felt full of what he had done 語意不通。"
+    "explain": "正解是選項四（proud）。feel proud of 是「以…為榮」。Ben 拾金不昧被公開表揚，雖然臉紅，但為自己做的事感到驕傲。選項一（afraid）：afraid of 是「害怕」，做了好事被稱讚不會害怕。選項二（tired）：tired of 是「厭倦」，不合語意。選項三（full）：full of 是「充滿」，felt full of what he had done 語意不通。",
+    "why": "班恩雖然因受到注意而臉紅，仍對自己歸還皮夾的行為感到自豪，所以用 proud of。",
+    "wrongReasons": {
+      "A": "afraid of 表示害怕，和文中肯定自己行為的語氣不合。",
+      "B": "tired of 表示對某事厭倦，文中沒有這樣的線索。",
+      "C": "full of 表示充滿某物或某種情緒，無法描述他對自身行為的肯定。"
+    },
+    "examFocus": "feel proud of 可表示為某個人或某件事感到自豪。",
+    "commonMistake": "臉紅可能只是不好意思，不能單靠這個反應判斷人物的整體心情。",
+    "extension": "鼓勵朋友時，可用 proud of you 肯定他付出的努力，例如持續練習一個月。"
   },
   {
     "id": "cl21",
@@ -1338,7 +2094,16 @@
       "at"
     ],
     "answer": 2,
-    "explain": "正解是選項三（for）。for dinner 表示「晚餐要用的」，說明做五十顆水餃的用途。選項一（of）：fifty of them 已用過 of，of dinner 語意不通。選項二（with）：with dinner 是「和晚餐一起」，不是做水餃的目的。選項四（at）：at dinner 是「在吃晚餐時」，但水餃要先做好，不是晚餐時才需要。"
+    "explain": "正解是選項三（for）。for dinner 表示「晚餐要用的」，說明做五十顆水餃的用途。選項一（of）：fifty of them 已用過 of，of dinner 語意不通。選項二（with）：with dinner 是「和晚餐一起」，不是做水餃的目的。選項四（at）：at dinner 是「在吃晚餐時」，但水餃要先做好，不是晚餐時才需要。",
+    "why": "for dinner 說明這五十顆水餃是為今晚的晚餐準備的。",
+    "wrongReasons": {
+      "A": "of dinner 無法在這裡表示準備水餃的用途。",
+      "B": "with dinner 偏向表示隨晚餐一起吃，這裡交代的是做水餃供哪一餐使用。",
+      "D": "at dinner 說的是用餐時點，對話重點是準備哪一餐的食物。"
+    },
+    "examFocus": "for 加一餐可表示準備給哪一餐吃。",
+    "commonMistake": "別把 fifty of them 的 of 延伸到 dinner，of them 只交代從哪些東西中計數。",
+    "extension": "帶食物去聚餐時，可用 for the potluck 說明這道菜是要帶去分享的。"
   },
   {
     "id": "cl22",
@@ -1355,7 +2120,16 @@
       "has"
     ],
     "answer": 1,
-    "explain": "正解是選項二（will）。if 子句用現在式表示條件，主要子句用 will + 原形動詞表示可能的結果。選項一（did）：主要子句說的是未來可能的結果，不能用過去式；did break 也和 when we cook it 的時間不合。選項三（was）：was break 不合文法。選項四（has）：has break 不合文法，has 後面要接過去分詞。"
+    "explain": "正解是選項二（will）。if 子句用現在式表示條件，主要子句用 will + 原形動詞表示可能的結果。選項一（did）：主要子句說的是未來可能的結果，不能用過去式；did break 也和 when we cook it 的時間不合。選項三（was）：was break 不合文法。選項四（has）：has break 不合文法，has 後面要接過去分詞。",
+    "why": "如果餡放太多，水餃在烹煮時可能破掉，用 will break 說明符合條件時的結果。",
+    "wrongReasons": {
+      "A": "did 把破掉當成已發生的事，和這裡預測的結果不合。",
+      "C": "was 後不能直接接原形 break。",
+      "D": "has 若用於完成式，後面須接過去分詞 broken。"
+    },
+    "examFocus": "表示未來可能結果時，if 子句可用現在式，主要子句可用 will＋原形動詞。",
+    "commonMistake": "別因為結果在未來，就把條件子句也一律改用 will。",
+    "extension": "寫做菜提醒時，可先說明可能發生的狀況，再交代後果，例如火太大可能使表面焦掉。"
   },
   {
     "id": "cl23",
@@ -1372,7 +2146,16 @@
       "same"
     ],
     "answer": 2,
-    "explain": "正解是選項三（like）。look like + 名詞 是「看起來像…」。選項一（alike）：alike 是「相像的」，用法如 They look alike，後面不接名詞。選項二（as）：look as 後面不能直接接名詞表示「像」。選項四（same）：same 前面要有 the，而且要說 the same as，不能直接接 a small boat。"
+    "explain": "正解是選項三（like）。look like + 名詞 是「看起來像…」。選項一（alike）：alike 是「相像的」，用法如 They look alike，後面不接名詞。選項二（as）：look as 後面不能直接接名詞表示「像」。選項四（same）：same 前面要有 the，而且要說 the same as，不能直接接 a small boat。",
+    "why": "凱文覺得水餃外形像小船，所以用 looks like a small boat。",
+    "wrongReasons": {
+      "A": "alike 可說兩者看起來相像，後面不能直接接 a small boat。",
+      "B": "as 不能在 looks 後直接接這個名詞片語來表示外形相似。",
+      "D": "same 若用於比較，可用 the same as，不能直接接 a small boat。"
+    },
+    "examFocus": "look like＋名詞表示外觀像某人或某物。",
+    "commonMistake": "like 在 look like 裡表示「像」，別按「喜歡」翻譯。",
+    "extension": "描述雙胞胎外形相似時，可以說 They look alike，句尾無須再列比較對象。"
   },
   {
     "id": "cl24",
@@ -1389,7 +2172,16 @@
       "to teach"
     ],
     "answer": 3,
-    "explain": "正解是選項四（to teach）。It's one's turn to V 是「輪到某人做某事」。以前媽媽教奶奶，現在輪到奶奶教 Kevin。選項一（teaching）：turn 後面不接 V-ing 表示輪到做某事。選項二（teach）：turn 後面要用 to V，不能直接接原形動詞。選項三（taught）：turn 後面不能接過去式。"
+    "explain": "正解是選項四（to teach）。It's one's turn to V 是「輪到某人做某事」。以前媽媽教奶奶，現在輪到奶奶教 Kevin。選項一（teaching）：turn 後面不接 V-ing 表示輪到做某事。選項二（teach）：turn 後面要用 to V，不能直接接原形動詞。選項三（taught）：turn 後面不能接過去式。",
+    "why": "奶奶以前向母親學包水餃，現在輪到她教凱文，因此用 it's my turn to teach you。",
+    "wrongReasons": {
+      "A": "teaching 是 V-ing，無法構成此處「輪到我做」的句型。",
+      "B": "teach 少了 turn 後所需的不定詞標記 to。",
+      "C": "taught 是過去式或過去分詞，與此處輪到奶奶做的事不合。"
+    },
+    "examFocus": "It's＋所有格＋turn＋to V 表示輪到某人做某事。",
+    "commonMistake": "看到前句提到過去教過的事，也別把 turn 後的動詞改成過去式。",
+    "extension": "玩桌遊時，可用 take turns 說明玩家輪流行動，例如每人依序抽一張牌。"
   },
   {
     "id": "re13",
@@ -1406,7 +2198,16 @@
       "Dumplings"
     ],
     "answer": 0,
-    "explain": "正解是選項一（Vegetable Noodles）。三種麵中，Vegetable Noodles 只要 NT$100，最便宜。選項二（Beef Noodles）：牛肉麵 NT$150，是最貴的麵。選項三（Chicken Noodles）：雞肉麵 NT$120，比蔬菜麵貴。選項四（Dumplings）：水餃是小菜（SIDE DISHES），不是麵。"
+    "explain": "正解是選項一（Vegetable Noodles）。三種麵中，Vegetable Noodles 只要 NT$100，最便宜。選項二（Beef Noodles）：牛肉麵 NT$150，是最貴的麵。選項三（Chicken Noodles）：雞肉麵 NT$120，比蔬菜麵貴。選項四（Dumplings）：水餃是小菜（SIDE DISHES），不是麵。",
+    "why": "麵類欄中，蔬菜麵 100 元，低於雞肉麵和牛肉麵的價格，因此最便宜。",
+    "wrongReasons": {
+      "B": "牛肉麵 150 元，比蔬菜麵貴。",
+      "C": "雞肉麵 120 元，比蔬菜麵貴。",
+      "D": "水餃列在小菜欄，雖然更便宜，卻不屬於題目指定的麵類。"
+    },
+    "examFocus": "比較圖表價格前，先按欄位找出題目指定的品項範圍。",
+    "commonMistake": "不要只選整張菜單的最低數字，題目問的是麵類。",
+    "extension": "比較兩份水餃時，可把價格除以顆數，換算成每顆多少錢。"
   },
   {
     "id": "re14",
@@ -1423,7 +2224,16 @@
       "At 8:00 p.m. on Sunday"
     ],
     "answer": 0,
-    "explain": "正解是選項一（At 12:00 noon on Monday）。菜單寫 Closed on Mondays，星期一公休，中午也不能去吃。選項二（At 7:00 p.m. on Tuesday）：星期二有營業，晚上七點在 11:00 a.m.–8:30 p.m. 之間。選項三（At 11:30 a.m. on Saturday）：星期六有營業，11:30 已開門。選項四（At 8:00 p.m. on Sunday）：星期日有營業，八點還沒打烊。"
+    "explain": "正解是選項一（At 12:00 noon on Monday）。菜單寫 Closed on Mondays，星期一公休，中午也不能去吃。選項二（At 7:00 p.m. on Tuesday）：星期二有營業，晚上七點在 11:00 a.m.–8:30 p.m. 之間。選項三（At 11:30 a.m. on Saturday）：星期六有營業，11:30 已開門。選項四（At 8:00 p.m. on Sunday）：星期日有營業，八點還沒打烊。",
+    "why": "菜單寫 Closed on Mondays，表示週一整天公休，因此中午也無法用餐。",
+    "wrongReasons": {
+      "B": "週二有營業，晚上七點在營業時段內。",
+      "C": "週六未列為公休日，上午 11:30 已開門。",
+      "D": "週日晚上八點還在營業時段內，餐廳 8:30 才打烊。"
+    },
+    "examFocus": "閱讀店家公告時，要同時核對每天的營業時段和公休日。",
+    "commonMistake": "中午落在平常的營業時段內，仍要看題目指定的是不是公休日。",
+    "extension": "打算接近打烊時用餐，可先查 last order，確認最後點餐時間。"
   },
   {
     "id": "re15",
@@ -1440,7 +2250,16 @@
       "NT$160"
     ],
     "answer": 3,
-    "explain": "正解是選項四（NT$160）。星期三在特價日（週二到週五）內，麵加紅茶折 NT$20：150＋30－20＝160。選項一（NT$180）：150＋30＝180，忘了扣掉特價的 NT$20。選項二（NT$150）：只算了牛肉麵的錢，沒加紅茶也沒扣折扣。選項三（NT$130）：這是雞肉麵加紅茶再折 NT$20（120＋30－20）的價錢，但 Joe 點的是牛肉麵。"
+    "explain": "正解是選項四（NT$160）。星期三在特價日（週二到週五）內，麵加紅茶折 NT$20：150＋30－20＝160。選項一（NT$180）：150＋30＝180，忘了扣掉特價的 NT$20。選項二（NT$150）：只算了牛肉麵的錢，沒加紅茶也沒扣折扣。選項三（NT$130）：這是雞肉麵加紅茶再折 NT$20（120＋30－20）的價錢，但 Joe 點的是牛肉麵。",
+    "why": "週三符合優惠日，牛肉麵 150 元加紅茶 30 元，再折 20 元，共付 160 元。",
+    "wrongReasons": {
+      "A": "180 元是單點原價加總，尚未扣除優惠。",
+      "B": "150 元只計入牛肉麵，漏掉紅茶和折扣。",
+      "C": "130 元是用雞肉麵搭紅茶計算的折後價，和喬點的麵不同。"
+    },
+    "examFocus": "先核對促銷適用的日期和搭配品項，再從原價總額扣掉折扣。",
+    "commonMistake": "看到 20 元優惠，要確認是整組折 20 元，不能每樣各扣一次。",
+    "extension": "限時優惠常附時段，例如午餐組合只在下午兩點前供應。"
   },
   {
     "id": "re16",
@@ -1457,7 +2276,16 @@
       "She stopped joining races at school."
     ],
     "answer": 0,
-    "explain": "正解是選項一（She ran in the park every morning.）。文中說她每天早上六點起床，到家附近的公園跑步。選項二（She asked her classmates to stop laughing.）：文中沒有提到她要求同學不要笑。選項三（She took running classes after school.）：她是自己早上去公園跑，沒有提到上課。選項四（She stopped joining races at school.）：她三個月後還參加了學校的比賽。"
+    "explain": "正解是選項一（She ran in the park every morning.）。文中說她每天早上六點起床，到家附近的公園跑步。選項二（She asked her classmates to stop laughing.）：文中沒有提到她要求同學不要笑。選項三（She took running classes after school.）：她是自己早上去公園跑，沒有提到上課。選項四（She stopped joining races at school.）：她三個月後還參加了學校的比賽。",
+    "why": "莉莉決定進步後，每天早上起床到住家附近的公園練跑。",
+    "wrongReasons": {
+      "B": "文章提到被同學嘲笑，沒有提到她要求同學停止。",
+      "C": "她每天早上自己到公園練跑，文章沒有說她放學後去上課。",
+      "D": "她三個月後又參加了學校的比賽。"
+    },
+    "examFocus": "找人物採取的行動時，讀決定改變之後的具體敘述。",
+    "commonMistake": "別把故事開頭遇到的困難當成她的解決方式。",
+    "extension": "寫運動日誌可記錄每次跑了多久，例如從五分鐘增加到八分鐘。"
   },
   {
     "id": "re17",
@@ -1474,7 +2302,16 @@
       "Tired, so she wanted to give up running"
     ],
     "answer": 0,
-    "explain": "正解是選項一（Happy, even though she didn't win）。她沒有得名，但老師說她進步最多，她也笑了，覺得這比贏還好。選項二（Sad, because she didn't win the race）：她笑了，還覺得比贏還好，並不難過。選項三（Angry, because her classmates laughed at her）：同學嘲笑是故事開頭的事，結尾她是開心的。選項四（Tired, so she wanted to give up running）：想放棄是剛開始練跑時的心情，結尾沒有提到。"
+    "explain": "正解是選項一（Happy, even though she didn't win）。她沒有得名，但老師說她進步最多，她也笑了，覺得這比贏還好。選項二（Sad, because she didn't win the race）：她笑了，還覺得比贏還好，並不難過。選項三（Angry, because her classmates laughed at her）：同學嘲笑是故事開頭的事，結尾她是開心的。選項四（Tired, so she wanted to give up running）：想放棄是剛開始練跑時的心情，結尾沒有提到。",
+    "why": "莉莉雖然沒贏，卻因老師肯定她的進步而笑了，並覺得這比獲勝更好。",
+    "wrongReasons": {
+      "B": "她在結尾笑了，還肯定這次的收穫。",
+      "C": "同學嘲笑她是開頭的遭遇，結尾著重她得到肯定的喜悅。",
+      "D": "想放棄是在剛開始練跑時，並非比賽後的心情。"
+    },
+    "examFocus": "判斷人物結尾的情緒時，找出最後一幕的表情、話語和想法。",
+    "commonMistake": "題目問故事結尾，要留意選項是不是搬用了故事前段的情緒。",
+    "extension": "寫故事時可用微笑或放鬆肩膀呈現情緒，讓讀者從動作推知人物感受。"
   },
   {
     "id": "re18",
@@ -1491,7 +2328,16 @@
       "Only people who run fast can enjoy sports."
     ],
     "answer": 1,
-    "explain": "正解是選項二（Working hard can help us become better than before.）。Lily 每天練跑，雖然沒得名，卻進步最多，故事強調努力能讓自己進步。選項一（Winning a race is the most important thing.）：結尾說進步比贏還好，和選項相反。選項三（We should laugh at people who are slow.）：同學嘲笑 Lily 不是故事要傳達的價值。選項四（Only people who run fast can enjoy sports.）：故事中跑得慢的 Lily 也從跑步中得到成就感，選項說法錯誤。"
+    "explain": "正解是選項二（Working hard can help us become better than before.）。Lily 每天練跑，雖然沒得名，卻進步最多，故事強調努力能讓自己進步。選項一（Winning a race is the most important thing.）：結尾說進步比贏還好，和選項相反。選項三（We should laugh at people who are slow.）：同學嘲笑 Lily 不是故事要傳達的價值。選項四（Only people who run fast can enjoy sports.）：故事中跑得慢的 Lily 也從跑步中得到成就感，選項說法錯誤。",
+    "why": "莉莉持續練跑，雖然沒贏，卻從總是最後一名進步到不再墊底，說明努力能讓自己變得更好。",
+    "wrongReasons": {
+      "A": "結尾說她覺得進步比獲勝更好，重點並非名次。",
+      "C": "同學的嘲笑是莉莉遇到的挫折，故事沒有鼓勵這種行為。",
+      "D": "莉莉的成就感來自自己的進步，她並不是跑得最快的人。"
+    },
+    "examFocus": "寓意題要串起人物的困境、行動和最後的收穫。",
+    "commonMistake": "不要把比賽這個情節直接當成主旨，結尾對進步的評價才點出故事重點。",
+    "extension": "練樂器時也可拿自己的前後錄音比較，聽出節奏是否比上次更穩。"
   },
   {
     "id": "re19",
@@ -1500,7 +2346,7 @@
     "difficulty": "易",
     "group": "r7",
     "passage": "How Do Students at Green Hill Junior High Get to School?\n\nThe school asked all 400 students this question last month. Here are the results:\n\nWay to school          | Number of students\nWalk                   | 120\nTake the bus           | 100\nRide a bike            | 80\nParents drive them     | 60\nOther                  | 40\n\nThe school wants more students to walk or ride bikes to school. Starting next semester, students who walk or ride a bike to school every day for a whole month will get a free notebook.",
-    "stem": "How do most students at Green Hill Junior High get to school?",
+    "stem": "What is the most common way for students at Green Hill Junior High to get to school?",
     "options": [
       "They walk.",
       "They take the bus.",
@@ -1508,7 +2354,16 @@
       "Their parents drive them."
     ],
     "answer": 0,
-    "explain": "正解是選項一（They walk.）。走路的人數 120 人最多。選項二（They take the bus.）：搭公車 100 人，比走路少。選項三（They ride bikes.）：騎腳踏車 80 人，比走路少。選項四（Their parents drive them.）：家長接送 60 人，比走路少。"
+    "explain": "正解是選項一（They walk.）。走路的人數 120 人最多。選項二（They take the bus.）：搭公車 100 人，比走路少。選項三（They ride bikes.）：騎腳踏車 80 人，比走路少。選項四（Their parents drive them.）：家長接送 60 人，比走路少。",
+    "why": "表格顯示走路上學有 120 人，是各種方式中人數最多的，也就是 the most common way。",
+    "wrongReasons": {
+      "B": "搭公車有 100 人，少於走路的 120 人。",
+      "C": "騎腳踏車有 80 人，少於走路的 120 人。",
+      "D": "由家長接送有 60 人，少於走路的 120 人。"
+    },
+    "examFocus": "可用 the most common way 詢問人數最多的一類，再比較表格各列人數。",
+    "commonMistake": "別把 the most common way（人數最多的方式）和 most students（過半數學生）混為一談；本題走路只占 30%，但仍是最多的一類。",
+    "extension": "讀表格時，人數最多的一類未必過半，可用百分比看出實際占比。"
   },
   {
     "id": "re20",
@@ -1525,7 +2380,16 @@
       "They are one out of every four students."
     ],
     "answer": 3,
-    "explain": "正解是選項四（They are one out of every four students.）。搭公車 100 人，全校 400 人，100÷400＝1/4，也就是每四人中有一人。選項一（They are half of all the students.）：一半是 200 人，搭公車只有 100 人。選項二（They are fewer than the students who ride bikes.）：搭公車 100 人，比騎腳踏車的 80 人多。選項三（They will get a free notebook next semester.）：送筆記本的對象是走路或騎腳踏車上學滿一個月的學生，不是搭公車的。"
+    "explain": "正解是選項四（They are one out of every four students.）。搭公車 100 人，全校 400 人，100÷400＝1/4，也就是每四人中有一人。選項一（They are half of all the students.）：一半是 200 人，搭公車只有 100 人。選項二（They are fewer than the students who ride bikes.）：搭公車 100 人，比騎腳踏車的 80 人多。選項三（They will get a free notebook next semester.）：送筆記本的對象是走路或騎腳踏車上學滿一個月的學生，不是搭公車的。",
+    "why": "全校 400 人中有 100 人搭公車，100 除以 400 是四分之一，也就是每四人有一人。",
+    "wrongReasons": {
+      "A": "全校的一半是 200 人，搭公車的人數只有 100。",
+      "B": "搭公車的 100 人比騎車的 80 人多。",
+      "C": "免費筆記本給每天步行或騎車上學滿一個月的人，搭公車不符合這項條件。"
+    },
+    "examFocus": "算整體中的比例時，以該類人數除以調查總人數。",
+    "commonMistake": "別把 100 當成百分比，也別只把選項提到的兩類相加當成總人數。",
+    "extension": "看到 one in four 也可換算成 25%，方便和圖表上的百分比對照。"
   },
   {
     "id": "re21",
@@ -1542,7 +2406,16 @@
       "A student who walks to school for one week will get a free notebook."
     ],
     "answer": 2,
-    "explain": "正解是選項三（More students walk or ride bikes than take the bus or get a ride from their parents.）。走路＋騎車＝120＋80＝200 人；搭公車＋家長接送＝100＋60＝160 人，200 大於 160。選項一（The school wants more parents to drive their children to school.）：學校希望更多學生走路或騎車，不是讓家長開車接送。選項二（Fewer students ride bikes than get a ride from their parents.）：騎車 80 人，比家長接送的 60 人多。選項四（A student who walks to school for one week will get a free notebook.）：要連續一整個月（a whole month）每天走路或騎車才有，一週不夠。"
+    "explain": "正解是選項三（More students walk or ride bikes than take the bus or get a ride from their parents.）。走路＋騎車＝120＋80＝200 人；搭公車＋家長接送＝100＋60＝160 人，200 大於 160。選項一（The school wants more parents to drive their children to school.）：學校希望更多學生走路或騎車，不是讓家長開車接送。選項二（Fewer students ride bikes than get a ride from their parents.）：騎車 80 人，比家長接送的 60 人多。選項四（A student who walks to school for one week will get a free notebook.）：要連續一整個月（a whole month）每天走路或騎車才有，一週不夠。",
+    "why": "走路和騎車共 200 人，搭公車和家長接送共 160 人，因此前兩種方式的合計人數較多。",
+    "wrongReasons": {
+      "A": "學校希望增加走路或騎車上學的人數，沒有鼓勵家長開車接送。",
+      "B": "騎腳踏車有 80 人，高於家長接送的 60 人。",
+      "D": "資格要求每天走路或騎車上學達一整個月，只有一週不夠。"
+    },
+    "examFocus": "比較選項中的兩組方式時，要把題目指定的各類人數先加總。",
+    "commonMistake": "別只挑各組的最高值比較，也不要把 Other 加進題目沒指定的組別。",
+    "extension": "規劃校門口動線時，可按步行和單車的人數估算入口空間。"
   },
   {
     "id": "re22",
@@ -1559,7 +2432,16 @@
       "Her best friend spends less time with her now."
     ],
     "answer": 3,
-    "explain": "正解是選項四（Her best friend spends less time with her now.）。來信說好友 Jill 分到不同班、交了新朋友，常和別人吃午餐、放學也忘了等她。選項一（She doesn't like her new class.）：信中沒有說她不喜歡新班級。選項二（Jill said something bad about her.）：信中沒有提到 Jill 說她壞話。選項三（She has too many friends to take care of.）：她的問題是覺得寂寞，不是朋友太多。"
+    "explain": "正解是選項四（Her best friend spends less time with her now.）。來信說好友 Jill 分到不同班、交了新朋友，常和別人吃午餐、放學也忘了等她。選項一（She doesn't like her new class.）：信中沒有說她不喜歡新班級。選項二（Jill said something bad about her.）：信中沒有提到 Jill 說她壞話。選項三（She has too many friends to take care of.）：她的問題是覺得寂寞，不是朋友太多。",
+    "why": "好友吉兒分到不同班後常和新朋友吃午餐，放學也常忘了等來信者，兩人相處的時間變少了。",
+    "wrongReasons": {
+      "A": "來信者提到兩人分班，沒有說自己不喜歡現在的班級。",
+      "B": "來信只描述吉兒與新朋友相處，沒有說吉兒講她的壞話。",
+      "C": "來信者是因為和好友相處變少而寂寞，沒有提到自己朋友太多。"
+    },
+    "examFocus": "判斷求助信的核心問題時，可結合具體事件與寫信人的感受。",
+    "commonMistake": "分班是背景，別直接推定她討厭自己的班級或新同學。",
+    "extension": "若想維持跨班友誼，可以先約一個雙方都有空的午餐時間。"
   },
   {
     "id": "re23",
@@ -1576,7 +2458,16 @@
       "\"I really miss eating lunch with you.\""
     ],
     "answer": 3,
-    "explain": "正解是選項四（\"I really miss eating lunch with you.\"）。Aunt Sue 建議誠實說出感受但不要責怪對方，例如 I miss spending time with you，這句最符合。選項一（\"You never wait for me. You're a bad friend.\"）：這是在責怪 Jill，Aunt Sue 說 don't blame her。選項二（\"Please don't talk to your new friends.\"）：Aunt Sue 說好的友誼容得下其他人，不會要 Jill 不跟新朋友說話。選項三（\"I don't need you. I have new friends now.\"）：這是賭氣的話，既不誠實表達想念，也會傷害友誼。"
+    "explain": "正解是選項四（\"I really miss eating lunch with you.\"）。Aunt Sue 建議誠實說出感受但不要責怪對方，例如 I miss spending time with you，這句最符合。選項一（\"You never wait for me. You're a bad friend.\"）：這是在責怪 Jill，Aunt Sue 說 don't blame her。選項二（\"Please don't talk to your new friends.\"）：Aunt Sue 說好的友誼容得下其他人，不會要 Jill 不跟新朋友說話。選項三（\"I don't need you. I have new friends now.\"）：這是賭氣的話，既不誠實表達想念，也會傷害友誼。",
+    "why": "蘇阿姨建議誠實說出感受，避免責怪吉兒。「我很想念和你一起吃午餐」符合這個建議。",
+    "wrongReasons": {
+      "A": "指責吉兒從來不等人、是壞朋友，違反回信避免責怪的建議。",
+      "B": "要求吉兒別和新朋友說話，違反回信給彼此交友空間的建議。",
+      "C": "宣稱自己不需要吉兒，無法誠實表達想和她相處的感受。"
+    },
+    "examFocus": "推論人物可能說什麼時，要比對原文提出的做法和語氣。",
+    "commonMistake": "別把從 I 開始的句子都當成表達感受，還要看內容是否坦誠。",
+    "extension": "想改善相處時，也可提出具體邀約，例如問對方週五要不要一起午餐。"
   },
   {
     "id": "re24",
@@ -1593,6 +2484,15 @@
       "You need a big house to make many friends."
     ],
     "answer": 2,
-    "explain": "正解是選項三（Good friends can still be close when they have other friends.）。room 在這裡是「空間、餘地」，意思是好的友誼不怕彼此有其他朋友，感情依然可以很好。選項一（Good friends should share the same room.）：room 不是指房間，這裡是比喻「容納的空間」。選項二（People should have only one best friend.）：Aunt Sue 鼓勵交新朋友，和選項相反。選項四（You need a big house to make many friends.）：把 room 誤解成實際的空間，和交朋友無關。"
+    "explain": "正解是選項三（Good friends can still be close when they have other friends.）。room 在這裡是「空間、餘地」，意思是好的友誼不怕彼此有其他朋友，感情依然可以很好。選項一（Good friends should share the same room.）：room 不是指房間，這裡是比喻「容納的空間」。選項二（People should have only one best friend.）：Aunt Sue 鼓勵交新朋友，和選項相反。選項四（You need a big house to make many friends.）：把 room 誤解成實際的空間，和交朋友無關。",
+    "why": "has room for other people 比喻一段友誼能容納彼此的新朋友，原本的兩人仍可很親近。",
+    "wrongReasons": {
+      "A": "same room 把 room 當成實際的房間，和文中的比喻不合。",
+      "B": "回信鼓勵認識新朋友，並未要求只能有一位摯友。",
+      "D": "房屋大小和回信討論的友誼相處方式無關。"
+    },
+    "examFocus": "推測字義時應參考整句和前文，room 可指抽象的空間或餘地。",
+    "commonMistake": "看到 room 別直接翻成房間，尤其當主詞是友誼之類的抽象概念。",
+    "extension": "團隊說 room for improvement 時，意思是仍有改進空間，例如把分工說得更清楚。"
   }
 ]
