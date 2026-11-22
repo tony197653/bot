@@ -12,7 +12,7 @@
 <meta property="og:description" content="10 題國文會考模擬題。選完再看解析，不立刻顯示對錯。">
 <meta property="og:url" content="https://tony197653.github.io/bot/guowen-quiz/">
 <meta property="og:image" content="https://tony197653.github.io/bot/exam/apple-touch-icon.png">
-<meta property="og:image:alt" content="國中會考複習">
+<meta property="og:image:alt" content="國文模擬題">
 <meta name="twitter:card" content="summary">
 <link rel="icon" type="image/png" sizes="32x32" href="../exam/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="../exam/favicon-16.png">
@@ -554,9 +554,12 @@ function renderQuestion(mode) {
     });
     for (const index of indices) {
       const item = reviewing ? reviewAnswers.get(index) : attempt.answers[index];
-      const status = item?.revealed ? '已揭露' : item?.choice ? '已作答' : '未作答';
+      const number = index + 1;
       const chip = button(undefined, 'number', () => showQuestion(mode, index, true));
-      chip.setAttribute('aria-label', `第 ${index + 1} 題，${status}`);
+      const name = item?.revealed ? `${number} 解，第 ${number} 題已揭露`
+        : item?.choice ? `${number}，第 ${number} 題已作答`
+        : `${number}，第 ${number} 題`;
+      chip.setAttribute('aria-label', name);
       chip.dataset.state = item?.revealed ? 'revealed' : item?.choice ? 'answered' : 'unanswered';
       const label = element('span', index + 1);
       if (item?.revealed) label.append(element('small', '解'));
