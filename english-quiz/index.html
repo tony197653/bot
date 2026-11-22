@@ -48,6 +48,8 @@
 .explanation .exp-block{margin-top:16px}
 .explanation .exp-block h3{margin-bottom:6px;font-size:1rem;font-weight:700}
 .explanation .exp-block p + p{margin-top:4px}
+.explanation .wrong-line{display:grid;grid-template-columns:1.25em 1fr;column-gap:.5em;align-items:start}
+.explanation .wrong-line .ltr{font-weight:600}
 </style>
 </head>
 <body>
@@ -210,14 +212,14 @@ function hasCompleteExplanation(q){
     letters.every(letter=>Object.hasOwn(reasons,letter)&&hasText(reasons[letter]));
 }
 function explanationHTML(q,choice){
-  const verdict=choice===q.answer?'答對了':`答錯，正確答案是 ${LETTERS[q.answer]}`;
+  const verdict=`${choice===q.answer?'答對':'答錯'}，正確答案是 ${LETTERS[q.answer]}`;
   const firstLine=`<p class="verdict">${verdict}</p>`;
   if(!hasCompleteExplanation(q))return firstLine+`<p>${rich(q.explain)}</p>`;
   const block=(title,body)=>`<section class="exp-block"><h3>${title}</h3>${body}</section>`;
   const paragraph=value=>`<p>${rich(value)}</p>`;
-  const reasons=wrongLetters(q).map(letter=>`<p>${letter}　${rich(q.wrongReasons[letter])}</p>`).join('');
+  const reasons=wrongLetters(q).map(letter=>`<p class="wrong-line"><span class="ltr">${letter}</span><span class="txt">${rich(q.wrongReasons[letter])}</span></p>`).join('');
   return firstLine+
-    block('直接解答',paragraph(q.why))+
+    paragraph(q.why)+
     block('其他選項錯在哪',reasons)+
     block('常考重點',paragraph(q.examFocus))+
     block('易錯觀念',paragraph(q.commonMistake))+
