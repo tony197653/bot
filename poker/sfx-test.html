@@ -64,7 +64,7 @@ const live = document.getElementById('live');
 function paintLive() {
   const d = getSoundDebug();
   const hidden = document.hidden ? ' hidden' : ' visible';
-  live.textContent = `AudioContext.state: ${d.contextState} · sfx ${d.enabled ? 'on' : 'off'} · page${hidden}`;
+  live.textContent = `AudioContext.state: ${d.contextState} · sfx ${d.enabled ? 'on' : 'off'} · page${hidden} · rebuildCount ${d.rebuildCount} · forceRebuild ${d.forceRebuild}`;
 }
 paintLive();
 for (const type of ['visibilitychange', 'pageshow', 'focus', 'blur']) {

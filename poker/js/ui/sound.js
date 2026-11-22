@@ -38,11 +38,15 @@ let buffers = {};
 let loading = null;
 let gesturesArmed = false;
 let resumeFailed = false;
+let hiddenAt = null;
+let forceRebuild = false;
+let contextCreated = false;
+let rebuildCount = 0;
 
 /** When true, Safari 17+ audioSession is set to 'playback' while sfx is on.
  *  Sound can then play with the hardware silent switch on, which also means
  *  the silent switch will not mute poker sfx. PM may set this to false. */
-export const SOUND_OPTIONS = { usePlaybackAudioSession: true };
+export const SOUND_OPTIONS = { usePlaybackAudioSession: true, backgroundRebuildMs: 30_000 };
 
 const UI_SAMPLES = { tick: 'ui-tick' };
 /** Destination peaks. Table sfx play at gain 1 (deal ≈ 0.27, bet ≈ 0.76).
@@ -113,6 +117,8 @@ function ensureContext() {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtx) return false;
   context = new AudioCtx();
+  if (contextCreated) rebuildCount++;
+  contextCreated = true;
   context.onstatechange = () => {
     if (!context || context.state === 'running') return;
     gestureUntil = 0;
@@ -150,16 +156,23 @@ function disarmGestures() {
 
 function recoverContext(inGesture = false) {
   try {
+    const forced = inGesture && forceRebuild;
+    if (forceRebuild && !inGesture) return false;
+    if (forced) {
+      stopSound();
+      stopUiSounds();
+      dropContext();
+      forceRebuild = false;
+    }
     if (inGesture && context?.state !== 'running' &&
         (context?.state === 'interrupted' || resumeFailed)) dropContext();
     if (!ensureContext()) return false;
     resumeFailed = false;
-    syncAudioSession();
-    preload();
+    if (!forced) { syncAudioSession(); preload(); }
     if (context.state !== 'running') armGestures();
     const recovering = context;
     const settled = (failed) => {
-      if (context !== recovering) return;
+      if (context !== recovering || forceRebuild) return;
       if (!failed && context.state === 'running') {
         resumeFailed = false;
         if (inGesture) disarmGestures();
@@ -178,6 +191,11 @@ function recoverContext(inGesture = false) {
     try {
       Promise.resolve(recovering.resume()).then(() => settled(false), () => settled(true));
     } catch { settled(true); }
+    if (forced) {
+      playSilentUnlock();
+      syncAudioSession();
+      preload();
+    }
     return !!context;
   } catch {
     resumeFailed = true;
@@ -186,11 +204,15 @@ function recoverContext(inGesture = false) {
   }
 }
 
-function unlock() {
+function unlock(event) {
+  if (forceRebuild && (event?.type === 'touchstart' ||
+      (event?.type === 'pointerdown' && event.pointerType === 'touch') ||
+      (event?.type === 'pointerup' && event.pointerType === 'mouse'))) return;
+  const forced = forceRebuild;
   // Resume and start in this gesture turn; iOS does not require awaiting resume().
   if (!recoverContext(true)) return;
   markGesture();
-  playSilentUnlock();
+  if (!forced) playSilentUnlock();
 }
 
 // Re-arm unlock when returning from the background, even if state still
@@ -198,14 +220,18 @@ function unlock() {
 // focus (bugs.webkit.org 276016, 276687); visibilitychange alone is not
 // always fired on an iOS app switch, so also listen for pageshow and focus.
 function onPageHidden() {
+  if (hiddenAt === null) hiddenAt = performance.now();
   stopSound();
   stopUiSounds();
   gestureUntil = 0;
   armGestures();
 }
 
-function onPageShown() {
+function onPageShown(event) {
   if (window.document?.hidden) return;
+  if (event?.persisted || (hiddenAt !== null &&
+      performance.now() - hiddenAt >= SOUND_OPTIONS.backgroundRebuildMs)) forceRebuild = true;
+  hiddenAt = null;
   gestureUntil = 0;
   armGestures();
   recoverContext();
@@ -246,7 +272,7 @@ export function getSoundDebug() {
       || (typeof window !== 'undefined' && window.navigator?.userActivation);
     if (ua) activation = { isActive: !!ua.isActive, hasBeenActive: !!ua.hasBeenActive };
   } catch { /* ignore */ }
-  return { contextState: context?.state ?? 'none', enabled, audioSessionType, activation };
+  return { contextState: context?.state ?? 'none', enabled, audioSessionType, activation, rebuildCount, forceRebuild };
 }
 
 export function setSoundOn(on) {
