@@ -314,7 +314,7 @@ test('前景恢復：resume 失敗才再掛手勢', async () => {
     window.document.hidden = false;
     visibility();
     await new Promise(setImmediate);
-    assert.equal(audio.state, 'interrupted');
+    assert.equal(audio.state, 'suspended', '失敗的 interrupted context 已重建');
     assert.equal(typeof gestures.get('pointerdown'), 'function', '失敗後重新掛手勢');
     audio.allow = true;
     gestures.get('pointerdown')();
