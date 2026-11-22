@@ -575,12 +575,15 @@ test('背景返回後按鍵會恢復 suspended／interrupted／closed 並播一�
   }
 });
 
-test('visibility 仍為 running 時 pageshow／focus 也會重掛解鎖；closed 會重建', async () => {
+for (const scenario of ['short', 'long', 'persisted', 'ui-only']) {
+test(`running 背景返回：${scenario}，首次操作同步播一次；closed 仍重建`, async () => {
   const oldWindow = globalThis.window;
   const oldPerf = globalThis.performance;
   const storage = new Map();
   const gestures = new Map();
   const oscillators = [];
+  const sources = [];
+  let decoded = 0;
   const handlers = [];
   let visibility;
   let audio;
@@ -604,10 +607,12 @@ test('visibility 仍為 running 時 pageshow／focus 也會重掛解鎖；closed
       return Promise.resolve();
     }
     close() { this.state = 'closed'; }
-    decodeAudioData() { return Promise.resolve({ numberOfChannels: 0, length: 0 }); }
+    decodeAudioData() { decoded++; return Promise.resolve({ numberOfChannels: 0, length: 0 }); }
     createBuffer() { return {}; }
     createBufferSource() {
-      return { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
+      const node = { connect() {}, disconnect() {}, start() { this.started = true; }, stop() { this.stopped = true; } };
+      sources.push(node);
+      return node;
     }
     createGain() { return { gain: { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {}, disconnect() {} }; }
     createOscillator() { const node={frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(){this.started=true;},stop(){}}; oscillators.push(node); return node; }
@@ -627,7 +632,7 @@ test('visibility 仍為 running 時 pageshow／focus 也會重掛解鎖；closed
       removeEventListener: (type) => gestures.delete(type),
       fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }),
     };
-    const s = await import('../js/ui/sound.js?resume-closed-and-focus');
+    const s = await import(`../js/ui/sound.js?resume-running-${scenario}`);
     s.initSound();
     await new Promise(setImmediate);
     gestures.get('pointerdown')();
@@ -642,19 +647,39 @@ test('visibility 仍為 running 時 pageshow／focus 也會重掛解鎖；closed
     await new Promise(setImmediate);
     assert.equal(typeof gestures.get('pointerdown'), 'undefined', '解鎖成功後再次卸下');
     gestures.get('pageshow')();
-    const runningResumes = audio.resumed;
-    gestures.get('pageshow')({ persisted: true });
-    assert.ok(audio.resumed > runningResumes, 'persisted pageshow 即使 running 仍嘗試 resume');
-    assert.equal(created, 1, 'running 不重建');
-    assert.equal(typeof gestures.get('pointerdown'), 'function', 'pageshow 同樣重掛');
-
-    audio.state = 'suspended';
-    const suspendedResumes = audio.resumed;
-    gestures.get('pageshow')({ persisted: true });
-    assert.ok(audio.resumed > suspendedResumes, 'persisted pageshow 恢復 suspended');
-    assert.equal(audio.state, 'running');
+    const firstAudio = audio;
+    const firstDecoded = decoded;
+    window.document.hidden = true;
+    visibility();
+    now += scenario === 'long' || scenario === 'ui-only' ? 30_000 : 29_999;
+    window.document.hidden = false;
+    visibility();
+    if (scenario === 'persisted') gestures.get('pageshow')({ persisted: true });
+    gestures.get('focus')();
+    assert.equal(created, 1, '返回前景不重建');
+    if (scenario !== 'short') {
+      gestures.get('touchstart')({ type: 'touchstart' });
+      gestures.get('pointerdown')({ type: 'pointerdown', pointerType: 'touch' });
+      assert.equal(created, 1, '觸控開始尚未 activation，不重建');
+    }
     const byType = Object.fromEntries(handlers.map((h) => [h.type, h.handler]));
     const tap = element({ 'data-sfx': 'tap' });
+    const silentBefore = sources.length;
+    const tonesBefore = oscillators.length;
+    if (scenario !== 'ui-only') gestures.get('click')({ type: 'click' });
+    byType.click({ type: 'click', button: 0, target: tap });
+    const expected = scenario === 'short' ? 1 : 2;
+    assert.equal(created, expected, '同一操作只重建一次');
+    assert.equal(s.getSoundDebug().rebuildCount, expected - 1);
+    assert.equal(s.getSoundDebug().forceRebuild, false);
+    assert.equal(audio.state, 'running');
+    assert.equal(sources.length, silentBefore + 1, '同一操作播放靜音解鎖');
+    assert.equal(sources.at(-1).started, true);
+    assert.equal(oscillators.length, tonesBefore + 1, '不等待解碼，首次操作同步播一聲');
+    assert.equal(oscillators.at(-1).started, true);
+    if (expected === 2) assert.equal(firstAudio.state, 'closed');
+    await new Promise(setImmediate);
+    assert.equal(decoded, firstDecoded + (expected === 2 ? 6 : 0), '重建後重新解碼');
     audio.state = 'closed';
     window.document.hidden = true;
     visibility();
@@ -664,7 +689,8 @@ test('visibility 仍為 running 時 pageshow／focus 也會重掛解鎖；closed
     const before = oscillators.length;
     gestures.get('click')();
     byType.click({ type: 'click', button: 0, target: tap });
-    assert.equal(created, 2, 'closed 的 context 應重建');
+    assert.equal(created, expected + 1, 'closed 的 context 應重建');
+    assert.equal(s.getSoundDebug().rebuildCount, expected);
     assert.equal(audio.state, 'running');
     assert.equal(oscillators.length, before + 1, '重建後按鍵應播一聲');
   } finally {
@@ -672,6 +698,7 @@ test('visibility 仍為 running 時 pageshow／focus 也會重掛解鎖；closed
     if (oldWindow === undefined) delete globalThis.window; else globalThis.window = oldWindow;
   }
 });
+}
 
 function pickerOption(scrollTop = 0) {
   const pane = element({ class: 'ps-pick' });
