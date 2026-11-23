@@ -48,6 +48,30 @@
 .explanation .exp-block{margin-top:16px}
 .explanation .exp-block h3{margin-bottom:6px;font-size:1rem;font-weight:700}
 .explanation .exp-block p + p{margin-top:4px}
+.life-knowledge-section + .life-knowledge-section{margin-top:12px}
+.life-knowledge-section h4{margin:0 0 4px;font-size:.9375rem;font-weight:700;color:var(--ink)}
+.life-knowledge-toggle{
+  min-height:44px;
+  max-width:100%;
+  margin-top:8px;
+  padding:6px 12px;
+  border:1px solid var(--line);
+  border-radius:var(--r-sm);
+  background:var(--paper);
+  color:var(--ink);
+  font-size:.9375rem;
+  font-weight:600;
+  cursor:pointer;
+  transition:none!important;
+}
+.life-knowledge-toggle:active:not(:disabled){transform:none}
+.life-knowledge-hint{
+  margin-top:8px;
+  padding:8px 12px;
+  border-inline-start:3px solid var(--accent);
+  background:var(--paper);
+  color:var(--ink);
+}
 .explanation .wrong-line{display:grid;grid-template-columns:1.25em 1fr;column-gap:.5em;align-items:start}
 .explanation .wrong-line .ltr{font-weight:600}
 </style>
@@ -203,14 +227,26 @@ function start(list,isRedo){if(!loaded||!list.length)return;round=[...list];resp
 const explanationTextFields=['why','examFocus','commonMistake','extension'];
 const explanationFields=[...explanationTextFields,'wrongReasons'];
 function wrongLetters(q){return [...LETTERS].filter((letter,n)=>n!==q.answer);}
+function hasText(value){return typeof value==='string'&&value.trim()!=='';}
 function hasCompleteExplanation(q){
-  const hasText=value=>typeof value==='string'&&value.trim()!=='';
   const reasons=q.wrongReasons;
   const letters=wrongLetters(q);
   return explanationTextFields.every(field=>hasText(q[field])) &&
     reasons!==null && typeof reasons==='object' && !Array.isArray(reasons) &&
     Object.keys(reasons).length===letters.length &&
     letters.every(letter=>Object.hasOwn(reasons,letter)&&hasText(reasons[letter]));
+}
+function lifeKnowledgeHTML(knowledge){
+  if(!knowledge||typeof knowledge!=='object'||Array.isArray(knowledge))return '';
+  const {life,world,think,hint}=knowledge;
+  const subsection=(title,body)=>`<div class="life-knowledge-section"><h4>${title}</h4>${body}</div>`;
+  const sections=[];
+  if(hasText(life))sections.push(subsection('生活應用',`<p>${rich(life)}</p>`));
+  if(hasText(world))sections.push(subsection('真實世界',`<p>${rich(world)}</p>`));
+  const prompt=hasText(think)?`<p>${rich(think)}</p>`:'';
+  const hintControl=hasText(hint)?`<button class="life-knowledge-toggle" type="button" aria-expanded="false">查看思考方向</button><p class="life-knowledge-hint" hidden>${rich(hint)}</p>`:'';
+  if(prompt||hintControl)sections.push(subsection('想一想',prompt+hintControl));
+  return sections.join('');
 }
 function explanationHTML(q,choice){
   const verdict=`${choice===q.answer?'答對':'答錯'}，正確答案是 ${LETTERS[q.answer]}`;
@@ -219,12 +255,13 @@ function explanationHTML(q,choice){
   const block=(title,body)=>`<section class="exp-block"><h3>${title}</h3>${body}</section>`;
   const paragraph=value=>`<p>${rich(value)}</p>`;
   const reasons=wrongLetters(q).map(letter=>`<p class="wrong-line"><span class="ltr">${letter}</span><span class="txt">${rich(q.wrongReasons[letter])}</span></p>`).join('');
+  const lifeKnowledge=lifeKnowledgeHTML(q.lifeKnowledge);
   return firstLine+
     paragraph(q.why)+
     block('其他選項錯在哪',reasons)+
     block('常考重點',paragraph(q.examFocus))+
     block('易錯觀念',paragraph(q.commonMistake))+
-    block('知識延伸',paragraph(q.extension));
+    (lifeKnowledge?block('生活中的會考知識',lifeKnowledge):block('知識延伸',paragraph(q.extension)));
 }
 function show(){mode='quiz';const q=round[index];progress();const passage=document.getElementById('passage');const sameGroup=!!q.groupId&&passage.dataset.groupId===q.groupId;main.className=q.groupId?'reading-main':'';passage.hidden=!q.groupId;if(q.groupId&&!sameGroup){passage.innerHTML=`<h2>${passageTitle(q)}</h2>${passageHTML(q.passage)}`;passage.dataset.groupId=q.groupId;passage.scrollTop=0;}else if(!q.groupId){delete passage.dataset.groupId;}
 updateBlanks(passage,q);
@@ -232,7 +269,20 @@ const column=document.getElementById('question');column.innerHTML=`<div class="c
 function pick(choice){if(mode!=='quiz'||responses[index]!==undefined)return;const q=round[index];responses[index]=choice;if(choice===q.answer)playSfx('ok');else playSfx('bad');updateBlanks(document.getElementById('passage'),q);document.querySelectorAll('.opt').forEach((b,n)=>{b.disabled=true;if(n===q.answer){b.classList.add('correct');b.querySelector('.marks').textContent=choice===n?'正確 · 你的選擇':'正確';}else if(n===choice){b.classList.add('wrong');b.querySelector('.marks').textContent='你的選擇';}});const note=document.getElementById('explanation');note.innerHTML=explanationHTML(q,choice);note.classList.remove('pending');note.removeAttribute('aria-hidden');note.setAttribute('role','status');document.getElementById('next-action').innerHTML=action(index===round.length-1?'看成績':'下一題','next');document.getElementById('next').onclick=next;progress();document.getElementById('next').focus({preventScroll:true});}
 function next(){if(mode!=='quiz'||responses[index]===undefined)return;if(index+1<round.length){index++;show();}else result();}
 function result(){mode='result';progress();const wrong=round.filter((q,n)=>responses[n]!==q.answer);const score=round.length-wrong.length;const percentage=Math.round(score/round.length*100);const ratio=score/round.length;const comment=ratio===1?'全部答對。':ratio>=.8?'觀念很清楚，錯的幾題看一下解說就好。':ratio>=.6?'及格了，把錯題再練一次會更穩。':'先看下面的解說，再練一次錯題。';main.className='';main.innerHTML=`<section class="summary"><h1 class="score" tabindex="-1" aria-label="答對 ${score} 題，共 ${round.length} 題">${score} <small>／ ${round.length}</small></h1><p>正確率 ${percentage}%。${comment}</p></section><div class="actions result-actions">${wrong.length?action(`再練錯的 ${wrong.length} 題`,'redo'):''}${action('從頭再做一次','restart',true)}</div>${wrong.length?`<section class="review"><h2>答錯的題目</h2>${round.map((q,n)=>responses[n]===q.answer?'':`<article class="card c1">${q.groupId?`<div class="excerpt">${passageTitle(q)}${passageHTML(q.passage)}</div>`:''}<h3>${rich(q.stem)}</h3><p>你選：${LETTERS[responses[n]]} · ${rich(q.options[responses[n]])}</p><p>正確：${LETTERS[q.answer]} · ${rich(q.options[q.answer])}</p><div class="explanation">${explanationHTML(q,responses[n])}</div></article>`).join('')}</section>`:''}`;if(wrong.length)document.getElementById('redo').onclick=()=>start(wrong,true);document.getElementById('restart').onclick=()=>{prepared=drawRound();home();focusHeading();};scrollToTop();focusHeading();playSfx('score');}
-document.addEventListener('keydown',event=>{if(event.repeat||event.altKey||event.ctrlKey||event.metaKey||!matchMedia('(hover:hover) and (pointer:fine)').matches)return;const key=event.key;if(mode==='home'&&key==='Enter'){if(event.target.closest('.chip'))return;event.preventDefault();if(loaded&&!failed)start(prepared,false);return;}if(mode!=='quiz')return;const answered=responses[index]!==undefined;if(/^[1-4]$/.test(key)&&!answered){event.preventDefault();pick(Number(key)-1);return;}if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(key)&&!answered){event.preventDefault();const buttons=[...document.querySelectorAll('.opt')];const current=buttons.indexOf(document.activeElement);const direction=['ArrowUp','ArrowLeft'].includes(key)?-1:1;buttons[current<0?0:(current+direction+4)%4].focus();return;}if(key==='Enter'||key===' '){event.preventDefault();if(answered)next();else pick(Number(document.activeElement.dataset.choice??0));}});
+main.addEventListener('click',event=>{
+  const button=event.target.closest('.life-knowledge-toggle');
+  if(!button)return;
+  const panel=button.nextElementSibling;
+  const expanded=panel.hidden;
+  panel.hidden=!expanded;
+  button.setAttribute('aria-expanded',String(expanded));
+  button.textContent=expanded?'收合思考方向':'查看思考方向';
+});
+document.addEventListener('keydown',event=>{if(event.repeat||event.altKey||event.ctrlKey||event.metaKey||!matchMedia('(hover:hover) and (pointer:fine)').matches)return;const key=event.key;if(mode==='home'&&key==='Enter'){if(event.target.closest('.chip'))return;event.preventDefault();if(loaded&&!failed)start(prepared,false);return;}if(mode!=='quiz')return;const answered=responses[index]!==undefined;if(/^[1-4]$/.test(key)&&!answered){event.preventDefault();pick(Number(key)-1);return;}if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(key)&&!answered){event.preventDefault();const buttons=[...document.querySelectorAll('.opt')];const current=buttons.indexOf(document.activeElement);const direction=['ArrowUp','ArrowLeft'].includes(key)?-1:1;buttons[current<0?0:(current+direction+4)%4].focus();return;}if(key==='Enter'||key===' '){
+  if(answered&&event.target.closest('.life-knowledge-toggle,.life-knowledge-hint'))return;
+  event.preventDefault();
+  if(answered)next();else pick(Number(document.activeElement.dataset.choice??0));
+}});
 function validate(data){
  if(!Array.isArray(data)||!data.length)throw Error('empty');
  const ids=new Set(),groups=new Map();
