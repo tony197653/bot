@@ -31,11 +31,14 @@ summary.pressed{background:var(--hover-strong)}
 /* 本頁無半透明材質，減少透明度設定不需要另行降級。 */
 .detail-layout{background:var(--layer-3)}details[open]>.item-button{background:var(--layer-2);color:var(--accent-text)}.use{background:transparent;padding:0}@media(min-width:800px){.detail-layout{flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:20px}.use{flex:none;padding:0;width:auto}}.nowrap{white-space:nowrap}
 [hidden]{display:none!important}
-.formula-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:24px}
-.formula-tabs button{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 12px;border:2px solid transparent;border-radius:var(--r);background:#f4f4f4;color:var(--title);font:inherit;font-weight:700;cursor:pointer}
+.formula-tabs{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));box-shadow:inset 0 -1px 0 var(--line-soft);margin-bottom:24px}
+.formula-tabs button{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;appearance:none;border:0;background:none;padding:0;font:inherit;font-size:1rem;font-weight:500;color:var(--muted);height:48px;min-height:44px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;line-height:1}
 .formula-tabs button svg{flex:0 0 auto;color:var(--ink)}
-.formula-tabs button[aria-pressed="true"]{border-color:#8064A2}
+.formula-tabs button[aria-pressed="true"]{font-weight:600;color:var(--title)}
 .formula-tabs button[aria-pressed="true"] svg{color:#8064A2}
+.formula-tabs .formula-tab-label{display:inline-block;pointer-events:none}
+.formula-tabs .formula-tab-label::after{content:attr(data-label);font-weight:600;visibility:hidden;height:0;display:block}
+.formula-tab-indicator{position:absolute;left:0;bottom:0;height:2px;background:#8064A2;border-radius:999px;pointer-events:none;z-index:-1}
 .item-button{padding-block:8px}
 .bookmark-button{flex:0 0 44px;width:44px;height:44px;display:grid;place-items:center;padding:0;border:0;border-radius:var(--r-sm);background:none;color:var(--ink);cursor:pointer}
 .bookmark-button[aria-pressed="true"]{color:#8064A2}
@@ -51,8 +54,9 @@ summary.pressed{background:var(--hover-strong)}
 </svg>
 <main><h1>國中數學必背重點</h1><p class="description">點標題看公式，最後有附錄。</p>
 <div class="formula-tabs" id="formula-tabs" hidden>
- <button type="button" id="all-formulas-tab" aria-pressed="true"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><use href="#icon-list-bullets"/></svg>全部公式</button>
- <button type="button" id="favorites-tab" aria-pressed="false"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><use href="#icon-bookmark"/></svg>我的收藏</button>
+ <span class="formula-tab-indicator" aria-hidden="true"></span>
+ <button type="button" id="all-formulas-tab" aria-pressed="true"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><use href="#icon-list-bullets"/></svg><span class="formula-tab-label" data-label="全部公式">全部公式</span></button>
+ <button type="button" id="favorites-tab" aria-pressed="false"><svg width="24" height="24" fill="currentColor" aria-hidden="true"><use href="#icon-bookmark"/></svg><span class="formula-tab-label" data-label="我的收藏">我的收藏</span></button>
 </div>
 <p class="favorites-empty" id="favorites-empty" role="status" hidden>還沒有收藏，點公式旁的書籤就會出現在<span class="nowrap">這裡。</span></p>
 <div class="panel"><details class="item" name="math-notes"><summary class="item-button" id="title-1"><span class="item-title">絕對值與數線距離</span><svg class="chevron" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></summary><div class="detail-layout" id="detail-1"><div class="formulas"><p class="formula-line"><span class="expression">數線上兩點 <span class="formula" data-tex="a\text{、}b">a、b</span> 的距離 = <span class="formula" data-tex="|a-b|">|a−b|</span></span></p></div><p class="use"><strong>用途</strong>　求兩數在數線上的距離。</p></div></details>
@@ -107,6 +111,26 @@ summary.pressed{background:var(--hover-strong)}
   if(Array.isArray(saved))saved.forEach(id=>{if(knownIds.has(id))favorites.add(id);});
  }catch{}
 
+ const tabTrack=document.getElementById('formula-tabs');
+ const tabIndicator=tabTrack.querySelector('.formula-tab-indicator');
+ function measureTabIndicator(){
+  const track=document.getElementById('formula-tabs');
+  const indicator=track&&track.querySelector('.formula-tab-indicator');
+  const tab=track&&track.querySelector('button[aria-pressed="true"]');
+  if(!track||!indicator||!tab||track.hidden)return;
+  const label=tab.querySelector('.formula-tab-label');
+  const icon=tab.querySelector('svg');
+  const labelW=label?label.getBoundingClientRect().width:0;
+  const iconW=icon?icon.getBoundingClientRect().width:0;
+  const width=Math.round((iconW?iconW+8:0)+labelW+16);
+  if(width<=16)return;
+  indicator.style.width=width+'px';
+  indicator.style.transform='translateX('+(tab.offsetLeft+(tab.offsetWidth-width)/2)+'px)';
+ }
+ function scheduleTabIndicator(){
+  measureTabIndicator();
+  requestAnimationFrame(()=>{measureTabIndicator();requestAnimationFrame(measureTabIndicator);});
+ }
  function showFormulas(favoritesOnly){
   allTab.setAttribute('aria-pressed',String(!favoritesOnly));
   favoritesTab.setAttribute('aria-pressed',String(favoritesOnly));
@@ -119,14 +143,16 @@ summary.pressed{background:var(--hover-strong)}
    if(heading.matches('.appendix-heading'))heading.hidden=panel.hidden;
   });
   empty.hidden=!favoritesOnly||favorites.size>0;
+  measureTabIndicator();
  }
 
  allTab.addEventListener('click',()=>{
   showFormulas(false);
   layoutFormulas();
   fitPiWhenOpen();
+  scheduleTabIndicator();
  });
- favoritesTab.addEventListener('click',()=>{showFormulas(true);layoutFormulas();fitPiWhenOpen();});
+ favoritesTab.addEventListener('click',()=>{showFormulas(true);layoutFormulas();fitPiWhenOpen();scheduleTabIndicator();});
  summaries.forEach(summary=>{
   const title=summary.querySelector('.item-title').textContent.trim();
   const button=bookmark.cloneNode(true);
@@ -154,7 +180,9 @@ summary.pressed{background:var(--hover-strong)}
    }
   });
  });
- document.getElementById('formula-tabs').hidden=false;
+ tabTrack.hidden=false;
+ scheduleTabIndicator();
+ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(scheduleTabIndicator);
 
  function navigate(event){
   const list=[...document.querySelectorAll('.panel:not([hidden]) > .item:not([hidden]) > summary.item-button')];
@@ -235,7 +263,7 @@ summary.pressed{background:var(--hover-strong)}
  }
  piDetails?.addEventListener('toggle',fitPiWhenOpen);
  let fitPiTimer=0;
- window.addEventListener('resize',()=>{clearTimeout(fitPiTimer);fitPiTimer=setTimeout(()=>{layoutFormulas();fitPiWhenOpen();},50);});
- document.addEventListener('DOMContentLoaded',renderMath,{once:true});
+ window.addEventListener('resize',()=>{clearTimeout(fitPiTimer);fitPiTimer=setTimeout(()=>{layoutFormulas();fitPiWhenOpen();measureTabIndicator();},50);});
+ document.addEventListener('DOMContentLoaded',()=>{renderMath();scheduleTabIndicator();},{once:true});
 })();
 </script></body></html>
