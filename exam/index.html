@@ -21,16 +21,16 @@
 <style>
 :root {
   color-scheme: light;
-  --bg: #e8e7e3;
-  --paper: #fffefa;
-  --ink: #343d32;
-  --muted: #62675c;
-  --line: #878d7f;
-  --line-soft: #dfe1d7;
-  --dot-off: #a9aca3;
+  --bg: #eef4fb;
+  --paper: #f5faff;
+  --ink: #2b3c4d;
+  --muted: #586776;
+  --line: #768597;
+  --line-soft: #d5e1ef;
+  --dot-off: #7c91a9;
   --r: 12px;
-  --shadow: 0 1px 2px rgba(52,61,50,.05), 0 4px 16px rgba(52,61,50,.05);
-  --shadow-up: 0 2px 4px rgba(52,61,50,.06), 0 14px 32px rgba(52,61,50,.10);
+  --shadow: 0 1px 2px rgba(43,60,77,.05), 0 4px 16px rgba(43,60,77,.05);
+  --shadow-up: 0 2px 4px rgba(43,60,77,.06), 0 14px 32px rgba(43,60,77,.10);
   --ease: cubic-bezier(.2,.7,.2,1);
   -webkit-text-size-adjust: 100%;
 }
@@ -70,7 +70,7 @@ h2 a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r)
 .disabled { background: transparent; border-color: var(--frame); box-shadow: none; cursor: default; }
 .disabled h2 { opacity: .45; }
 .tag { display: inline-flex; align-items: center; gap: 6px; font-size: .875rem; font-weight: 500; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
-.l2 { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); }
+.l2 { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #f5faff; color: var(--ink); }
 .l2 i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dot-off); }
 @media (hover:hover) and (pointer:fine) {
   .c1:hover { transform: translateY(-4px); border-color: var(--c); box-shadow: var(--shadow-up); }
@@ -102,7 +102,7 @@ h2 a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r)
   <h1>國中會考複習</h1>
   <p class="subtitle">選一科開始練習。</p>
   <ul class="subjects" aria-label="科目">
-    <li class="card c1" style="--c:#64745b;--frame:#64745b">
+    <li class="card c1" style="--c:#234d77;--frame:#4e7197">
       <h2><a href="../chinese-quiz/" aria-label="國文，100 題">國文</a></h2>
       <span class="count">100 題</span>
     </li>
@@ -110,15 +110,15 @@ h2 a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r)
       <h2><a href="../english-quiz/" aria-label="英文，100 題">英文</a></h2>
       <span class="count">100 題</span>
     </li>
-    <li class="card c1" style="--c:#7b6e3b;--frame:#88846e">
+    <li class="card c1" style="--c:#1e5c97;--frame:#4e7197">
       <h2><a href="../social-quiz/" aria-label="社會，100 題">社會</a></h2>
       <span class="count">100 題</span>
     </li>
-    <li class="card c1" style="--c:#667077;--frame:#808487">
+    <li class="card c1" style="--c:#34495f;--frame:#768597">
       <h2><a href="../science-quiz/" aria-label="自然，100 題">自然</a></h2>
       <span class="count">100 題</span>
     </li>
-    <li class="card c1" style="--c:#7e6a93;--frame:#8e8598">
+    <li class="card c1" style="--c:#11304f;--frame:#4e7197">
       <h2><a href="../math-notes/" aria-label="數學，必背重點">數學</a></h2>
       <span class="count">必背重點</span>
     </li>
