@@ -32,8 +32,10 @@ summary.pressed{background:var(--hover-strong)}
 .detail-layout{background:var(--layer-3)}details[open]>.item-button{background:var(--layer-2);color:var(--accent-text)}.use{background:transparent;padding:0}@media(min-width:800px){.detail-layout{flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:20px}.use{flex:none;padding:0;width:auto}}.nowrap{white-space:nowrap}
 [hidden]{display:none!important}
 .formula-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:24px}
-.formula-tabs button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border:2px solid transparent;border-radius:var(--r);background:#f4f4f4;color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
-.formula-tabs button[aria-pressed="true"]{border-color:#8064A2;color:#8064A2}
+.formula-tabs button{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 12px;border:2px solid transparent;border-radius:var(--r);background:#f4f4f4;color:var(--title);font:inherit;font-weight:700;cursor:pointer}
+.formula-tabs button svg{flex:0 0 auto;color:var(--ink)}
+.formula-tabs button[aria-pressed="true"]{border-color:#8064A2}
+.formula-tabs button[aria-pressed="true"] svg{color:#8064A2}
 .item-button{padding-block:8px}
 .bookmark-button{flex:0 0 44px;width:44px;height:44px;display:grid;place-items:center;padding:0;border:0;border-radius:var(--r-sm);background:none;color:var(--ink);cursor:pointer}
 .bookmark-button[aria-pressed="true"]{color:#8064A2}
