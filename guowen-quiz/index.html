@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>國文模擬題</title>
+<meta name="description" content="10 題國文會考模擬題。選完再看解析，不立刻顯示對錯。">
+<meta name="theme-color" content="#1A73E8">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:title" content="國文模擬題">
+<meta property="og:description" content="10 題國文會考模擬題。選完再看解析，不立刻顯示對錯。">
+<meta property="og:url" content="https://tony197653.github.io/bot/guowen-quiz/">
+<meta property="og:image" content="https://tony197653.github.io/bot/exam/apple-touch-icon.png">
+<meta property="og:image:alt" content="國文模擬題">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/png" sizes="32x32" href="../exam/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="../exam/favicon-16.png">
+<link rel="apple-touch-icon" href="../exam/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #F3F4F6;
+  --paper: #FFFFFF;
+  --ink: #1A2332;
+  --muted: #5C6573;
+  --line: #8A93A0;
+  --line-soft: #D5D8DE;
+  --accent: #1F3A8A;
+  --accent-hover: #243E8C;
+  --accent-press: #1A3378;
+  --button-text: #FFFFFF;
+  --ok: #2E6B4F;
+  --ok-bg: #E8F2EC;
+  --bad: #A33D38;
+  --bad-bg: #F8EAEA;
+  --danger: #C8372D;
+  --danger-press: #B53128;
+  --mask: rgba(0,0,0,.4);
+  --r: 12px;
+  --r-lg: 20px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151C;
+    --paper: #1B1F28;
+    --ink: #E8EAEE;
+    --muted: #9AA1AD;
+    --line: rgba(255,255,255,.34);
+    --line-soft: rgba(255,255,255,.16);
+    --accent: #7A93E0;
+    --accent-hover: #8BA2EA;
+    --accent-press: #718AD7;
+    --button-text: #12151C;
+    --ok: #7BC49A;
+    --ok-bg: #23352F;
+    --bad: #E5675C;
+    --bad-bg: #322525;
+    --danger: #E5675C;
+    --danger-press: #DC655A;
+  }
+}
+@media (prefers-contrast: more) { :root { --line: var(--ink); --line-soft: var(--ink); } }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+html, body {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 1.0625rem/1.6 "Noto Sans TC", system-ui, sans-serif;
+  letter-spacing: .02em;
+  overflow-wrap: anywhere;
+}
+.scroller {
+  height: 100%;
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { font-weight: 600; }
+button, a { touch-action: manipulation; }
+button {
+  font: 500 1rem/1.4 "Noto Sans TC", system-ui, sans-serif;
+  color: inherit;
+  cursor: pointer;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button:disabled, button[aria-disabled="true"] { cursor: not-allowed; }
+.shell {
+  max-width: 752px;
+  margin-inline: auto;
+  padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 56px;
+  padding-top: max(16px, env(safe-area-inset-top));
+  font-size: .875rem;
+  font-variant-numeric: tabular-nums;
+}
+.entry {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-right: auto;
+  color: var(--muted);
+  text-decoration: none;
+}
+main { padding-top: 16px; padding-bottom: calc(96px + max(16px, env(safe-area-inset-bottom))); }
+.home { padding-top: 64px; }
+.home h1 { font-size: 2rem; line-height: 1.2; }
+.intro { margin-top: 8px; color: var(--muted); font-size: .875rem; }
+.tag {
+  display: inline-block;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--paper);
+  font-size: .8125rem;
+  color: var(--muted);
+}
+.home .tag { margin-top: 16px; }
+.home .actions { margin-top: 24px; }
+.actions { display: grid; gap: 12px; }
+.button {
+  min-width: 44px;
+  min-height: 48px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+}
+.primary, .danger { border-color: transparent; font-weight: 600; }
+.primary { background: var(--accent); color: var(--button-text); }
+.danger { background: var(--danger); color: var(--button-text); }
+@media (hover: hover) and (pointer: fine) {
+  .primary:not(:disabled, [aria-disabled="true"]):hover { background: var(--accent-hover); }
+}
+button.pressed:not(:disabled, [aria-disabled="true"]) { transform: scale(.97); }
+button.primary.pressed:not(:disabled, [aria-disabled="true"]) { background: var(--accent-press); }
+button.danger.pressed:not(:disabled) { background: var(--danger-press); }
+.button:disabled, .button[aria-disabled="true"] { opacity: .45; }
+.number-nav {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 5px;
+  scroll-padding-inline: 5px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.number-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: .875rem;
+  font-variant-numeric: tabular-nums;
+}
+.number span {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  min-height: 32px;
+  width: calc(100% - 4px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.number[data-state="answered"] span, .number[data-state="revealed"] span {
+  background: var(--line-soft);
+  border-style: solid;
+}
+.number small { font-size: .6875rem; line-height: 1; }
+.number[data-state="revealed"] span { align-content: center; line-height: 1.15; }
+.number[aria-current="step"] span { outline: 2px solid var(--accent); }
+.card {
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+  background: var(--paper);
+  padding: 16px;
+}
+.stem { font-size: inherit; font-weight: 500; white-space: pre-wrap; }
+.stem.multiline { font-family: "Noto Serif TC", serif; font-weight: 400; line-height: 1.8; }
+.options { display: grid; gap: 8px; margin-top: 16px; }
+.option {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr);
+  align-items: start;
+  gap: 4px 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  text-align: left;
+  line-height: inherit;
+  font-size: inherit;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--paper);
+}
+.option[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+@media (prefers-contrast: more) {
+  .option[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+}
+.option:disabled { cursor: default; opacity: 1; }
+.option.correct { background: var(--ok-bg); }
+.option.incorrect { background: var(--bad-bg); }
+.option .choice-mark { grid-column: 2; font-size: .8125rem; }
+.option-text { white-space: pre-wrap; }
+.correct, .seen { color: var(--ok); }
+.incorrect { color: var(--bad); }
+.seen { font-size: .8125rem; }
+.reveal { margin-top: 16px; width: 100%; }
+.hint { margin-top: 8px; color: var(--muted); font-size: .875rem; }
+.hint:empty { margin-top: 0; }
+.steps { display: flex; gap: 8px; margin-top: 16px; }
+.step { width: 112px; height: 44px; min-height: 44px; padding: 4px; border-radius: 8px; }
+button.step.pressed:not(:disabled) { transform: none; }
+.step:not(.primary).pressed:not(:disabled) { background: var(--line-soft); }
+@media (max-width: 399px) { .step { flex: 1 1 0; } }
+.analysis { margin-top: 16px; }
+.analysis h2 { font-size: 1rem; font-weight: 700; margin: 0; }
+.analysis-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  background: transparent;
+}
+.analysis-toggle span { color: var(--muted); font-size: .875rem; }
+.analysis-toggle .analysis-title { color: inherit; font-size: inherit; font-weight: 700; }
+.analysis-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 220ms cubic-bezier(.2,.7,.2,1);
+}
+.analysis-panel.open { grid-template-rows: 1fr; }
+.analysis-panel.opening { animation: expand 220ms cubic-bezier(.2,.7,.2,1); }
+.analysis-clip { overflow: hidden; min-height: 0; }
+.analysis-body { display: grid; gap: 12px; padding-top: 16px; }
+.analysis-body h3 { font-size: 1rem; }
+.analysis-body p { white-space: pre-wrap; }
+.analysis-body ul { margin: 4px 0 0; padding-left: 24px; }
+.results h1, .score { font-size: 2rem; line-height: 1.2; }
+.results .card { margin-top: 16px; text-align: center; font-variant-numeric: tabular-nums; }
+.rate { margin-top: 8px; color: var(--muted); }
+.totals { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin-top: 16px; }
+.totals p { border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.results .actions, .result-list { margin-top: 24px; }
+.result-list h2 { font-size: 1.125rem; margin-bottom: 8px; }
+.result-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  width: 100%;
+  min-height: 44px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  text-align: left;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+.result-row .seen { margin-inline-start: auto; }
+dialog {
+  width: min(calc(100% - 32px), 360px);
+  max-height: calc(100% - 32px);
+  border: 0;
+  border-radius: var(--r-lg);
+  padding: 24px;
+  background: var(--paper);
+  color: var(--ink);
+  overscroll-behavior: contain;
+}
+body:has(dialog[open]) { overflow: hidden; overscroll-behavior: contain; }
+body:has(dialog[open]) .scroller { overflow: hidden; }
+dialog::backdrop { background: var(--mask); }
+dialog[open] { animation: dialog-in 200ms ease-out both; }
+dialog[open].closing { animation: dialog-out 150ms ease-out both; }
+dialog h2 { font-size: 1.125rem; line-height: 1.4; }
+dialog p { margin-top: 8px; color: var(--muted); }
+dialog .actions { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; margin-top: 24px; }
+dialog button { font-weight: 600; padding-inline: 4px; }
+@keyframes dialog-in { from { opacity: 0; transform: scale(.95); } }
+@keyframes dialog-out { to { opacity: 0; transform: scale(.95); } }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes expand { from { grid-template-rows: 0fr; } }
+@media (prefers-reduced-motion: reduce) {
+  button.pressed:not(:disabled) { transform: none; }
+  .option, .option * { transition: none; transition-duration: 0s; }
+  .analysis-panel { transition: none; }
+  .analysis-panel.open { animation: fade-in 200ms; }
+  dialog[open] { animation: fade-in 200ms ease-out both; }
+  dialog[open].closing { animation: fade-out 200ms ease-out both; }
+}
+@media (min-width: 800px) {
+  body { font-size: 1rem; }
+  main { padding-top: 24px; }
+  .home { padding-top: 64px; }
+  .home h1 { font-size: 2.5rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: 16px; }
+  .actions .button, .reveal { width: 200px; }
+  .number span { width: 40px; min-height: 40px; }
+  .steps { gap: 16px; }
+  dialog { width: 400px; }
+  dialog .actions { display: grid; }
+  dialog .actions .button { width: auto; }
+}
+</style>
+</head>
+<body>
+<div class="scroller" id="scroller">
+<div class="shell">
+  <header>
+    <a class="entry" href="../exam/">會考入口</a>
+    <span id="progress"></span>
+    <span class="tag" id="quiz-tag" hidden>模擬題</span>
+    <span class="seen" id="seen" hidden>已看解析</span>
+  </header>
+  <main id="main">
+    <section class="home">
+      <h1>國文模擬題</h1>
+      <p class="intro">10 題國文會考模擬題。選完再看解析，不立刻顯示對錯。</p>
+      <span class="tag">模擬題</span>
+      <div class="actions" aria-live="polite">題目載入中</div>
+    </section>
+  </main>
+</div>
+</div>
+<dialog aria-labelledby="dialog-title" aria-describedby="dialog-copy">
+  <h2 id="dialog-title"></h2>
+  <p id="dialog-copy"></p>
+  <div class="actions">
+    <button class="button" id="dialog-cancel" autofocus></button>
+    <button class="button" id="dialog-confirm"></button>
+  </div>
+</dialog>
+<script>
+'use strict';
+
+const letters = ['A', 'B', 'C', 'D'];
+const storageKey = 'guowen-quiz-v1';
+const main = document.querySelector('#main');
+const scroller = document.querySelector('#scroller');
+const home = main.firstElementChild;
+const homeActions = home.querySelector('.actions');
+const progress = document.querySelector('#progress');
+const quizTag = document.querySelector('#quiz-tag');
+const seen = document.querySelector('#seen');
+const dialog = document.querySelector('dialog');
+const cancelButton = document.querySelector('#dialog-cancel');
+const confirmButton = document.querySelector('#dialog-confirm');
+const desktop = matchMedia('(hover:hover) and (pointer:fine)');
+
+let questions = [];
+let fingerprint;
+let attempt;
+let view = 'home';
+let startButton;
+let current = 0;
+let reviewAnswers = new Map();
+let openAnalysis = true;
+let resultTrigger;
+let keyboard;
+
+function element(tag, text, className) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
+function button(text, className, action) {
+  const node = element('button', text, className);
+  node.type = 'button';
+  node.addEventListener('click', action);
+  return node;
+}
+
+function setView(nextView, content) {
+  view = nextView;
+  keyboard = null;
+  progress.textContent = '';
+  quizTag.hidden = true;
+  seen.hidden = true;
+  main.replaceChildren(content);
+  scrollToTop();
+}
+
+function scrollToTop() {
+  scroller.scrollTo(0, 0);
+  window.scrollTo(0, 0);
+}
+
+function focus(node) {
+  node?.focus({ preventScroll: true });
+}
+
+function revealCurrentNumber(chip) {
+  const nav = chip?.closest('.number-nav');
+  if (!nav || !chip) return;
+  const navBounds = nav.getBoundingClientRect();
+  const chipBounds = chip.getBoundingClientRect();
+  const inset = parseFloat(getComputedStyle(nav).scrollPaddingLeft) || 0;
+  const left = navBounds.left + inset;
+  const right = navBounds.right - inset;
+  if (chipBounds.left < left) nav.scrollLeft += Math.floor(chipBounds.left - left);
+  else if (chipBounds.right > right) nav.scrollLeft += Math.ceil(chipBounds.right - right);
+}
+
+function save() {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(attempt));
+  } catch {
+    // The current attempt can still be used when storage is unavailable.
+  }
+}
+
+function clearSaved() {
+  try {
+    localStorage.removeItem(storageKey);
+  } catch {
+    // Storage may be blocked by browser settings.
+  }
+}
+
+function restore() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    if (!saved || saved.fingerprint !== fingerprint ||
+        !Array.isArray(saved.answers) || saved.answers.length !== questions.length ||
+        !saved.answers.every(item => item &&
+          (item.choice === null || letters.includes(item.choice)) &&
+          typeof item.revealed === 'boolean' && (!item.revealed || item.choice || saved.submitted)) ||
+        !Number.isInteger(saved.current) || !questions[saved.current] ||
+        typeof saved.submitted !== 'boolean' || typeof saved.reviewing !== 'boolean') {
+      clearSaved();
+      return null;
+    }
+    return saved;
+  } catch {
+    return null;
+  }
+}
+
+function showHome() {
+  setView('home', home);
+  homeActions.replaceChildren();
+  startButton = button(attempt ? '繼續作答' : '開始作答', 'button primary', start);
+  homeActions.append(startButton);
+  if (attempt) {
+    homeActions.append(button('重新開始', 'button', () => restartConfirmation('重新開始')));
+  }
+}
+
+function start() {
+  attempt ??= {
+    fingerprint,
+    answers: questions.map(() => ({ choice: null, revealed: false })),
+    current: 0,
+    submitted: false,
+    reviewing: false
+  };
+  showQuestion('quiz', attempt.current);
+  focus(keyboard.navCurrent);
+}
+
+function resultOf(index) {
+  const { choice } = attempt.answers[index];
+  if (!choice) return '未作答';
+  return choice === questions[index].answer ? '正確' : '錯誤';
+}
+
+function wrongIndices() {
+  return questions.map((_, index) => index).filter(index => resultOf(index) === '錯誤');
+}
+
+function showQuestion(mode, index, navFocus = false) {
+  current = index;
+  if (mode === 'quiz' || mode === 'review') {
+    attempt.current = index;
+    save();
+  }
+  openAnalysis = true;
+  if (mode === 'read') openAnalysis = attempt.answers[index].revealed;
+  renderQuestion(mode);
+  if (navFocus) focus(keyboard.navCurrent || keyboard.back);
+}
+
+function renderQuestion(mode) {
+  const question = questions[current];
+  const saved = attempt.answers[current];
+  const reviewing = mode === 'review';
+  const readOnly = mode === 'read';
+  const response = reviewing ? (reviewAnswers.get(current) || { choice: null, revealed: false }) : saved;
+  const locked = readOnly || response.revealed;
+  const showFeedback = response.revealed && (!readOnly || saved.revealed);
+  const indices = reviewing ? wrongIndices() : questions.map((_, index) => index);
+  const position = indices.indexOf(current);
+  const isLast = position === indices.length - 1;
+
+  const screen = element('section');
+  setView(mode, screen);
+  progress.textContent = `第 ${current + 1}／${questions.length} 題`;
+  quizTag.hidden = false;
+  seen.hidden = !response.revealed;
+
+  let navCurrent;
+  if (!readOnly) {
+    const nav = element('nav', undefined, 'number-nav');
+    nav.setAttribute('aria-label', '題號導覽');
+    nav.addEventListener('focusin', event => {
+      const chip = event.target.closest('.number');
+      if (chip) revealCurrentNumber(chip);
+      window.scrollTo(0, 0);
+    });
+    for (const index of indices) {
+      const item = reviewing ? reviewAnswers.get(index) : attempt.answers[index];
+      const number = index + 1;
+      const chip = button(undefined, 'number', () => showQuestion(mode, index, true));
+      const name = item?.revealed ? `${number}解，第 ${number} 題已揭露`
+        : item?.choice ? `${number}，第 ${number} 題已作答`
+        : `${number}，第 ${number} 題`;
+      chip.setAttribute('aria-label', name);
+      chip.dataset.state = item?.revealed ? 'revealed' : item?.choice ? 'answered' : 'unanswered';
+      const label = element('span', index + 1);
+      if (item?.revealed) label.append(element('small', '解'));
+      chip.append(label);
+      if (index === current) {
+        chip.setAttribute('aria-current', 'step');
+        navCurrent = chip;
+      }
+      nav.append(chip);
+    }
+    screen.append(nav);
+  }
+
+  const card = element('div', undefined, 'card');
+  const stem = element('h1', question.stem, question.stem.includes('\n') ? 'stem multiline' : 'stem');
+  const options = element('div', undefined, 'options');
+  card.append(stem, options);
+  screen.append(card);
+
+  const choose = letter => {
+    if (locked) return;
+    response.choice = letter;
+    if (reviewing) reviewAnswers.set(current, response);
+    else save();
+    renderQuestion(mode);
+    focus(keyboard.options[letters.indexOf(letter)]);
+  };
+  const optionButtons = letters.map(letter => {
+    const selected = response.choice === letter;
+    const option = button(undefined, 'option', () => choose(letter));
+    option.setAttribute('aria-pressed', String(selected));
+    option.disabled = locked;
+    option.append(element('span', letter), element('span', question.options[letter], 'option-text'));
+    if (showFeedback && letter === question.answer) {
+      option.classList.add('correct');
+      option.append(element('span', selected ? '你的選擇・正確' : '正確', 'choice-mark'));
+    } else if (showFeedback && selected) {
+      option.classList.add('incorrect');
+      option.append(element('span', '你的選擇・錯誤', 'choice-mark'));
+    }
+    options.append(option);
+    return option;
+  });
+
+  const steps = element('div', undefined, 'steps');
+  const next = button(
+    isLast ? (reviewing ? '回成績' : '交卷') : '下一題',
+    locked || (isLast && !reviewing) ? 'button step primary' : 'button step',
+    () => {
+      if (!isLast) showQuestion(mode, indices[position + 1], true);
+      else if (reviewing) finishReview();
+      else submitConfirmation();
+    }
+  );
+
+  let reveal;
+  if (!locked) {
+    const hint = element('p', undefined, 'hint');
+    hint.id = 'reveal-hint';
+    hint.setAttribute('role', 'status');
+    reveal = button('揭露解答', 'button primary reveal', () => {
+      if (!response.choice) {
+        hint.textContent = '請先選一個答案，再看解析。';
+        reveal.setAttribute('aria-describedby', hint.id);
+        return;
+      }
+      response.revealed = true;
+      saved.revealed = true;
+      if (reviewing) reviewAnswers.set(current, response);
+      save();
+      renderQuestion(mode);
+      animateAnalysis();
+      focus(keyboard.next);
+    });
+    reveal.setAttribute('aria-disabled', String(!response.choice));
+    screen.append(reveal, hint);
+  }
+
+  const back = button('回成績', 'button step', () => showResults(current));
+  if (readOnly) {
+    steps.append(back);
+  } else {
+    const previous = button('上一題', 'button step', () => showQuestion(mode, indices[position - 1], true));
+    previous.disabled = position === 0;
+    steps.append(previous, next);
+  }
+  screen.append(steps);
+  if (!readOnly && position === 0) {
+    const first = element('p', '這是第一題', 'hint');
+    first.id = 'first-question';
+    steps.firstElementChild.setAttribute('aria-describedby', first.id);
+    screen.append(first);
+  }
+  if (locked) screen.append(analysisSection(question, response, saved, mode));
+  keyboard = { options: optionButtons, reveal, next, back, navCurrent, choose, locked };
+  if (navCurrent) revealCurrentNumber(navCurrent);
+}
+
+function analysisSection(question, response, saved, mode) {
+  const section = element('section', undefined, 'analysis card');
+  const panel = element('div', undefined, 'analysis-panel');
+  panel.id = 'analysis-panel';
+  const clip = element('div', undefined, 'analysis-clip');
+  const toggleLabel = element('span');
+  const toggle = button(undefined, 'analysis-toggle', () => {
+    openAnalysis = !openAnalysis;
+    if (openAnalysis && !saved.revealed) {
+      saved.revealed = true;
+      save();
+      renderQuestion(mode);
+      animateAnalysis();
+      focus(main.querySelector('.analysis-toggle'));
+      return;
+    }
+    updateDisclosure();
+  });
+  toggle.setAttribute('aria-controls', panel.id);
+  toggle.append(element('span', '解析', 'analysis-title'), toggleLabel);
+  const heading = element('h2');
+  heading.append(toggle);
+
+  function updateDisclosure() {
+    toggleLabel.textContent = openAnalysis ? '收合解析' : '展開解析';
+    toggle.setAttribute('aria-expanded', String(openAnalysis));
+    panel.classList.toggle('open', openAnalysis);
+    panel.setAttribute('aria-hidden', String(!openAnalysis));
+  }
+
+  if (saved.revealed) {
+    const body = element('div', undefined, 'analysis-body');
+    const result = response.choice === question.answer ? '正確' : response.choice ? '錯誤' : '未作答';
+    const answer = element('div');
+    answer.append(
+      element('p', `正確答案：${question.answer}`),
+      element('p', `你的答案：${response.choice || '未作答'}`),
+      element('p', result, result === '正確' ? 'correct' : response.choice ? 'incorrect' : '')
+    );
+    const reasons = element('div');
+    const list = element('ul');
+    for (const letter of letters) {
+      if (letter !== question.answer) list.append(element('li', `${letter}　${question.wrong_reasons[letter]}`));
+    }
+    reasons.append(element('h3', '其他選項為什麼錯'), list);
+    body.append(answer, analysisBlock('詳解', question.explanation), reasons,
+      analysisBlock('考點', question.key_point), analysisBlock('易錯觀念', question.common_mistake));
+    if (question.source_status === '已核對') body.append(analysisBlock('出處', question.source));
+    clip.append(body);
+  }
+
+  panel.append(clip);
+  section.append(heading, panel);
+  updateDisclosure();
+  return section;
+}
+
+function analysisBlock(title, text) {
+  const block = element('div');
+  block.append(element('h3', title), element('p', text));
+  return block;
+}
+
+function animateAnalysis() {
+  const panel = main.querySelector('.analysis-panel');
+  panel.classList.add('opening');
+  panel.addEventListener('animationend', () => panel.classList.remove('opening'), { once: true });
+}
+
+function showResults(focusIndex) {
+  const screen = element('section', undefined, 'results');
+  const title = element('h1', '成績');
+  title.tabIndex = -1;
+  setView('results', screen);
+  const results = questions.map((_, index) => resultOf(index));
+  const correct = results.filter(result => result === '正確').length;
+  const incorrect = results.filter(result => result === '錯誤').length;
+  const unanswered = questions.length - correct - incorrect;
+  const score = element('div', undefined, 'card');
+  const totals = element('div', undefined, 'totals');
+  totals.append(element('p', `答對 ${correct}`, 'correct'),
+    element('p', `答錯 ${incorrect}`, 'incorrect'), element('p', `未作答 ${unanswered}`));
+  score.append(element('h2', `${correct}／${questions.length}`, 'score'),
+    element('p', `正確率 ${Math.round(correct / questions.length * 100)}%`, 'rate'), totals);
+
+  const actions = element('div', undefined, 'actions');
+  if (incorrect) {
+    resultTrigger = button('錯題複習', 'button primary', startReview);
+    actions.append(resultTrigger);
+  }
+  actions.append(button('重新測驗', incorrect ? 'button' : 'button primary', () => restartConfirmation('重新測驗')));
+
+  const list = element('div', undefined, 'result-list');
+  list.append(element('h2', '各題結果'));
+  const rows = results.map((result, index) => {
+    const row = button(undefined, 'result-row', () => showQuestion('read', index, true));
+    const color = result === '正確' ? 'correct' : result === '錯誤' ? 'incorrect' : '';
+    row.append(element('span', `第 ${index + 1} 題`), element('span', result, color));
+    if (attempt.answers[index].revealed) row.append(element('span', '已看解析', 'seen'));
+    list.append(row);
+    return row;
+  });
+  screen.append(title, score, actions, list);
+  if (focusIndex !== undefined) focus(rows[focusIndex] || resultTrigger);
+  else focus(title);
+}
+
+function startReview() {
+  reviewAnswers = new Map();
+  attempt.reviewing = true;
+  showQuestion('review', wrongIndices()[0], true);
+}
+
+function finishReview() {
+  attempt.reviewing = false;
+  save();
+  showResults(-1);
+}
+
+let cancelAction;
+let confirmAction;
+let dialogTrigger;
+
+function openDialog(title, copy, cancelText, confirmText, danger, onCancel, onConfirm) {
+  document.querySelector('#dialog-title').textContent = title;
+  document.querySelector('#dialog-copy').textContent = copy;
+  cancelButton.textContent = cancelText;
+  confirmButton.textContent = confirmText;
+  confirmButton.className = danger ? 'button danger' : 'button primary';
+  cancelAction = onCancel;
+  confirmAction = onConfirm;
+  dialogTrigger = document.activeElement;
+  dialog.showModal();
+}
+
+function closeDialog(action) {
+  if (dialog.classList.contains('closing')) return;
+  dialog.classList.add('closing');
+  const finish = () => {
+    dialog.close();
+    dialog.classList.remove('closing');
+    focus(dialogTrigger);
+    action?.();
+  };
+  const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 200 : 150;
+  setTimeout(finish, duration);
+}
+
+cancelButton.addEventListener('click', () => closeDialog(cancelAction));
+confirmButton.addEventListener('click', () => closeDialog(confirmAction));
+dialog.addEventListener('keydown', event => {
+  if (event.key !== 'Tab') return;
+  const boundary = event.shiftKey ? cancelButton : confirmButton;
+  if (document.activeElement !== boundary) return;
+  event.preventDefault();
+  focus(event.shiftKey ? confirmButton : cancelButton);
+});
+dialog.addEventListener('cancel', event => {
+  event.preventDefault();
+  closeDialog(cancelAction);
+});
+dialog.addEventListener('click', event => {
+  if (event.target !== dialog) return;
+  const bounds = dialog.getBoundingClientRect();
+  if (event.clientX < bounds.left || event.clientX > bounds.right ||
+      event.clientY < bounds.top || event.clientY > bounds.bottom) closeDialog(cancelAction);
+});
+
+function restartConfirmation(label) {
+  openDialog('要重新開始嗎？', '目前的作答會清掉。', '取消', label, true, null, () => {
+    clearSaved();
+    attempt = null;
+    showHome();
+    focus(startButton);
+  });
+}
+
+function submitConfirmation() {
+  const unanswered = attempt.answers.filter(item => !item.choice);
+  const copy = unanswered.length
+    ? `還有 ${unanswered.length} 題沒作答，交卷後就不能改了。`
+    : '交卷後就不能改答案了。';
+  openDialog('要交卷嗎？', copy, '繼續作答', '交卷', false, () => {
+    if (unanswered.length) showQuestion('quiz', attempt.answers.indexOf(unanswered[0]), true);
+  }, () => {
+    attempt.submitted = true;
+    save();
+    showResults();
+  });
+}
+
+let pressedButton;
+document.addEventListener('pointerdown', event => {
+  if (event.button !== 0) return;
+  pressedButton?.classList.remove('pressed');
+  pressedButton = event.target.closest('button');
+  pressedButton?.classList.add('pressed');
+});
+for (const eventName of ['pointerup', 'pointercancel']) {
+  window.addEventListener(eventName, () => {
+    pressedButton?.classList.remove('pressed');
+    pressedButton = null;
+  });
+}
+
+document.addEventListener('keydown', event => {
+  if (!desktop.matches || event.repeat || event.altKey || event.ctrlKey || event.metaKey || dialog.open) return;
+  const activate = event.key === 'Enter' || event.key === ' ';
+  if (view === 'home' && startButton && event.key === 'Enter' &&
+      (!event.target.closest('a, button') || event.target === startButton)) {
+    event.preventDefault();
+    startButton.click();
+    return;
+  }
+  if (view !== 'quiz' && view !== 'review') return;
+  if (event.target.closest('a')) return;
+
+  const { options, reveal, next, choose, locked } = keyboard;
+  const optionIndex = options.indexOf(document.activeElement);
+  if (!locked) {
+    const direction = { ArrowUp: -1, ArrowLeft: -1, ArrowDown: 1, ArrowRight: 1 }[event.key];
+    if (direction) {
+      event.preventDefault();
+      const index = optionIndex < 0 ? (direction > 0 ? 0 : 3) : (optionIndex + direction + 4) % 4;
+      focus(options[index]);
+      return;
+    }
+    if (/^[1-4]$/.test(event.key)) {
+      event.preventDefault();
+      choose(letters[Number(event.key) - 1]);
+      return;
+    }
+  }
+  if (!activate) return;
+  const target = event.target.closest('button');
+  const nativeAction = target && optionIndex < 0 && target !== keyboard.navCurrent && target !== reveal;
+  if (nativeAction) return;
+  event.preventDefault();
+  if (locked) next.click();
+  else if (reveal.getAttribute('aria-disabled') === 'false' || target === reveal) reveal.click();
+  else if (optionIndex >= 0) choose(letters[optionIndex]);
+});
+
+function validateBank(bank) {
+  if (!Array.isArray(bank?.questions) || bank.meta?.count !== bank.questions.length) return false;
+  const ids = new Set();
+  return bank.questions.every(question => {
+    if (!question || !['number', 'string'].includes(typeof question.id) ||
+        ids.has(String(question.id)) || question.label !== '模擬題' ||
+        !letters.includes(question.answer)) return false;
+    ids.add(String(question.id));
+    const fields = ['stem', 'type', 'difficulty', 'explanation', 'key_point', 'common_mistake',
+      'source', 'source_status', 'note'];
+    return fields.every(field => typeof question[field] === 'string') &&
+      Object.keys(question.options || {}).length === letters.length &&
+      letters.every(letter => typeof question.options[letter] === 'string') &&
+      Object.keys(question.wrong_reasons || {}).length === letters.length - 1 &&
+      letters.filter(letter => letter !== question.answer)
+        .every(letter => typeof question.wrong_reasons[letter] === 'string');
+  });
+}
+
+async function load() {
+  try {
+    const response = await fetch('questions.json', { cache: 'no-cache' });
+    if (!response.ok) throw new Error();
+    const text = await response.text();
+    const bank = JSON.parse(text);
+    if (!validateBank(bank)) throw new Error();
+    questions = bank.questions;
+    if (!questions.length) {
+      homeActions.textContent = '這份題庫沒有題目。';
+      return;
+    }
+    // Keep fingerprinting available on static previews served over HTTP.
+    let hash = 0xcbf29ce484222325n;
+    for (let index = 0; index < text.length; index++) {
+      hash = BigInt.asUintN(64, (hash ^ BigInt(text.charCodeAt(index))) * 0x100000001b3n);
+    }
+    fingerprint = hash.toString(16);
+    attempt = restore();
+    if (attempt?.submitted) {
+      if (attempt.reviewing) {
+        attempt.reviewing = false;
+        save();
+      }
+      showResults();
+    } else if (attempt && performance.getEntriesByType('navigation')[0]?.type === 'reload') {
+      showQuestion('quiz', attempt.current);
+    } else {
+      showHome();
+    }
+  } catch {
+    homeActions.replaceChildren(element('p', '題庫載不進來，請稍後再試。'),
+      button('重新整理', 'button primary', () => location.reload()));
+  }
+}
+
+load();
+</script>
+</body>
+</html>
