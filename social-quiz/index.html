@@ -48,8 +48,6 @@
 .explanation .exp-block{margin-top:16px}
 .explanation .exp-block h3{margin-bottom:6px;font-size:1rem;font-weight:700}
 .explanation .exp-block p + p{margin-top:4px}
-.life-knowledge-section + .life-knowledge-section{margin-top:12px}
-.life-knowledge-section h4{margin:0 0 4px;font-size:.9375rem;font-weight:700;color:var(--ink)}
 .life-knowledge-toggle{
   min-height:44px;
   max-width:100%;
@@ -236,17 +234,17 @@ function hasCompleteExplanation(q){
     Object.keys(reasons).length===letters.length &&
     letters.every(letter=>Object.hasOwn(reasons,letter)&&hasText(reasons[letter]));
 }
+const lifeKnowledgeTitles={
+  life:'知識延伸－生活應用',
+  world:'知識延伸－真實世界',
+  think:'知識延伸－想一想'
+};
 function lifeKnowledgeHTML(knowledge){
   if(!knowledge||typeof knowledge!=='object'||Array.isArray(knowledge))return '';
-  const {life,world,think,hint}=knowledge;
-  const subsection=(title,body)=>`<div class="life-knowledge-section"><h4>${title}</h4>${body}</div>`;
-  const sections=[];
-  if(hasText(life))sections.push(subsection('生活應用',`<p>${rich(life)}</p>`));
-  if(hasText(world))sections.push(subsection('真實世界',`<p>${rich(world)}</p>`));
-  const prompt=hasText(think)?`<p>${rich(think)}</p>`:'';
-  const hintControl=hasText(hint)?`<button class="life-knowledge-toggle" type="button" aria-expanded="false">查看思考方向</button><p class="life-knowledge-hint" hidden>${rich(hint)}</p>`:'';
-  if(prompt||hintControl)sections.push(subsection('想一想',prompt+hintControl));
-  return sections.join('');
+  const {type,text,hint}=knowledge;
+  if(typeof type!=='string'||!Object.hasOwn(lifeKnowledgeTitles,type)||!hasText(text))return '';
+  const hintControl=type==='think'&&hasText(hint)?`<button class="life-knowledge-toggle" type="button" aria-expanded="false">查看思考方向</button><p class="life-knowledge-hint" hidden>${rich(hint)}</p>`:'';
+  return `<p>${rich(text)}</p>`+hintControl;
 }
 function explanationHTML(q,choice){
   const verdict=`${choice===q.answer?'答對':'答錯'}，正確答案是 ${LETTERS[q.answer]}`;
@@ -255,13 +253,14 @@ function explanationHTML(q,choice){
   const block=(title,body)=>`<section class="exp-block"><h3>${title}</h3>${body}</section>`;
   const paragraph=value=>`<p>${rich(value)}</p>`;
   const reasons=wrongLetters(q).map(letter=>`<p class="wrong-line"><span class="ltr">${letter}</span><span class="txt">${rich(q.wrongReasons[letter])}</span></p>`).join('');
-  const lifeKnowledge=lifeKnowledgeHTML(q.lifeKnowledge);
+  const knowledge=q.lifeKnowledge;
+  const knowledgeBody=lifeKnowledgeHTML(knowledge);
   return firstLine+
     paragraph(q.why)+
     block('其他選項錯在哪',reasons)+
     block('常考重點',paragraph(q.examFocus))+
     block('易錯觀念',paragraph(q.commonMistake))+
-    (lifeKnowledge?block('生活中的會考知識',lifeKnowledge):block('知識延伸',paragraph(q.extension)));
+    (knowledgeBody?block(lifeKnowledgeTitles[knowledge.type],knowledgeBody):block('知識延伸',paragraph(q.extension)));
 }
 function show(){mode='quiz';const q=round[index];progress();const passage=document.getElementById('passage');const sameGroup=!!q.groupId&&passage.dataset.groupId===q.groupId;main.className=q.groupId?'reading-main':'';passage.hidden=!q.groupId;if(q.groupId&&!sameGroup){passage.innerHTML=`<h2>${passageTitle(q)}</h2>${passageHTML(q.passage)}`;passage.dataset.groupId=q.groupId;passage.scrollTop=0;}else if(!q.groupId){delete passage.dataset.groupId;}
 updateBlanks(passage,q);
