@@ -21,7 +21,12 @@
     },
     "examFocus": "從天氣線索判斷日常用品的用途。",
     "commonMistake": "看到 take 就只想著能帶出門的物品，容易漏看下雨的線索。",
-    "extension": "看英文天氣預報時，看到 showers 就知道可能有陣雨，可以先把傘放進包包。"
+    "extension": "看英文天氣預報時，看到 showers 就知道可能有陣雨，可以先把傘放進包包。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "到戶外活動前，英文借用櫃上有 umbrella 和 raincoat 兩格。外面在下雨，你要空出雙手搬器材，哪一格的雨具比較適合？",
+      "hint": "先比較兩種雨具怎麼用。雨傘通常要用一隻手拿著，雨衣穿在身上，搬器材時兩隻手就都能用。"
+    }
   },
   {
     "id": "vo02",
@@ -45,7 +50,11 @@
     },
     "examFocus": "根據受詞與情境判斷動詞，例如 read a newspaper。",
     "commonMistake": "別把 can't 當成不願意；這裡的 yet 表示目前還做不到。",
-    "extension": "大人在念圖畫書給孩子聽時，可以用 read aloud 表示「出聲朗讀」。"
+    "extension": "大人在念圖畫書給孩子聽時，可以用 read aloud 表示「出聲朗讀」。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "在國外的車站找出口時，同行的人說 Read the signs，意思是先看看站內的指示。可以找 Exit 旁的箭頭，或確認自己要走幾號出口。"
+    }
   },
   {
     "id": "vo03",
@@ -69,7 +78,11 @@
     },
     "examFocus": "用 so 前後的因果關係判斷店家的營業狀態。",
     "commonMistake": "別只憑 Sunday 猜商店有沒有開，要看後文提供的理由。",
-    "extension": "店門口寫 Closed on Mondays，表示每週一公休，查營業時間時也要留意例外公告。"
+    "extension": "店門口寫 Closed on Mondays，表示每週一公休，查營業時間時也要留意例外公告。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "旅館泳池入口若掛著 Pool closed for cleaning，可以先問櫃檯何時會重新開放，回房間放好東西再過去。"
+    }
   },
   {
     "id": "vo04",
@@ -93,7 +106,12 @@
     },
     "examFocus": "看到症狀與 see a 搭配時，可聯想到 see a doctor。",
     "commonMistake": "see a doctor 要依情境理解為「看醫生」，別只譯成「看到醫生」。",
-    "extension": "看英文診所指示時，walk-in clinic 通常指可直接前往、無須先預約的診所。"
+    "extension": "看英文診所指示時，walk-in clinic 通常指可直接前往、無須先預約的診所。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "牙齒不舒服時，寄宿家庭建議你 see a dentist。另一個人說要 see a doctor。你能從這兩個職業名稱判斷，哪一個建議更直接對應到牙齒嗎？",
+      "hint": "兩句裡的 see 都可以理解成「去找專業人員看診」。比較兩種職業負責的範圍，就知道哪個建議和牙齒更直接相關。"
+    }
   },
   {
     "id": "vo05",
@@ -117,7 +135,12 @@
     },
     "examFocus": "so＋形容詞＋that 子句表示「如此……以至於……」。",
     "commonMistake": "別只看到睡不著就選 tired，要判斷哪一種情緒導致這個結果。",
-    "extension": "寫旅遊日記時，可用 thrilling 形容刺激的體驗，例如一趟令人心跳加快的泛舟行程。"
+    "extension": "寫旅遊日記時，可用 thrilling 形容刺激的體驗，例如一趟令人心跳加快的泛舟行程。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "表演前，朋友傳來訊息說他 so nervous that his hands are shaking。光看這句話，你能分出哪一段在說心情，哪一段在說身體的反應嗎？",
+      "hint": "先找出形容心情的 nervous，再看後面描寫雙手的動作。把心情和身體反應各圈起來，就能看出朋友緊張到了什麼程度。"
+    }
   },
   {
     "id": "vo06",
@@ -141,7 +164,11 @@
     },
     "examFocus": "用受詞和目的判斷片語動詞，注意 turn on 與 turn off 的方向相反。",
     "commonMistake": "別因為 on 和 off 都能搭配電燈就忽略後一句的節能線索。",
-    "extension": "調暗燈光可說 dim the lights，例如看電影前把客廳燈光調暗。"
+    "extension": "調暗燈光可說 dim the lights，例如看電影前把客廳燈光調暗。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "在戲院看到 Please turn off your phone，是提醒你把手機關機。如果同行的人想說要把手機靜音，可以用 mute。"
+    }
   },
   {
     "id": "vo07",
@@ -165,7 +192,11 @@
     },
     "examFocus": "a new one 的 one 代替前面已出現的單數可數名詞 bridge。",
     "commonMistake": "看到 a new one 時要回頭找它所指的事物，別單憑 new 猜動詞。",
-    "extension": "工程告示上的 under construction 表示施工中，行人可能需要改走其他路線。"
+    "extension": "工程告示上的 under construction 表示施工中，行人可能需要改走其他路線。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "試穿鞋子時，店員指著不同的款式問 Which one do you like? 如果你喜歡藍色那款，可以指給他看並說 The blue one。"
+    }
   },
   {
     "id": "vo08",
@@ -189,7 +220,12 @@
     },
     "examFocus": "before 可連接兩個動作，交代發生的先後順序。",
     "commonMistake": "看到 homework 要確認動詞搭配；finish 表示完成，與單純做功課有所不同。",
-    "extension": "讀書清單上可寫 hand in homework 來提醒自己交作業，完成和繳交是兩道步驟。"
+    "extension": "讀書清單上可寫 hand in homework 來提醒自己交作業，完成和繳交是兩道步驟。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "朋友轉傳集合指示寫著 Check your name before you get on the bus。到了集合地點，要先找名單還是先上車？",
+      "hint": "把核對姓名和上車畫成兩個步驟。before 後面提到的是較晚做的事，所以要先在名單上確認自己的名字，再上車。"
+    }
   },
   {
     "id": "vo09",
@@ -213,7 +249,11 @@
     },
     "examFocus": "根據溫度變化判斷片語，並注意 let＋受詞＋原形動詞。",
     "commonMistake": "別把 cool 只當成「涼爽的」；在 let it 後面要讀成動作。",
-    "extension": "運動結束後的緩和活動也可稱為 cool-down，例如跑步後改成慢走。"
+    "extension": "運動結束後的緩和活動也可稱為 cool-down，例如跑步後改成慢走。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "烤餅乾的食譜常會交代何時裝盒。看到 Let the cookies cool down，可以先把餅乾留在架上，等放涼了再裝進盒子。"
+    }
   },
   {
     "id": "vo10",
@@ -237,7 +277,12 @@
     },
     "examFocus": "利用 until 後的時間辨認會議延到何時，並依情境選擇片語。",
     "commonMistake": "延期仍會舉行，別把 put off 誤解為取消。",
-    "extension": "收到改期通知時，可留意 rescheduled，並確認行事曆是否換成新的日期和時間。"
+    "extension": "收到改期通知時，可留意 rescheduled，並確認行事曆是否換成新的日期和時間。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "兩封通知都提到原本的掃街活動。一封寫 put it off until May，另一封寫 cancel it。哪一封表示五月還有機會參加？",
+      "hint": "第一封另外給了一個時間，表示活動往後移。第二封的 cancel 是取消，讀到它時可以先把原定行程從日曆上移除。"
+    }
   },
   {
     "id": "vo11",
@@ -261,7 +306,11 @@
     },
     "examFocus": "辨認 provide＋人＋with＋物的受詞順序。",
     "commonMistake": "別把 with 後的物品看成受到幫助的人；them 才指需要物資的災民。",
-    "extension": "閱讀物資清單時，blankets 指毯子，bottled water 指瓶裝水。"
+    "extension": "閱讀物資清單時，blankets 指毯子，bottled water 指瓶裝水。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "校方寄來的英文行前信寫 We provide students with tablets。這句話交代了平板由學校提供，打包時可先查看信裡還有哪些物品要自己帶。"
+    }
   },
   {
     "id": "vo12",
@@ -285,7 +334,12 @@
     },
     "examFocus": "在 judge＋受詞＋by 中，by 後面交代評斷的依據。",
     "commonMistake": "looks 在 their looks 中是名詞「外表」，別當成動詞「看」。",
-    "extension": "社群照片只呈現生活片段，要了解一個人，可以先聽對方怎麼描述自己的經歷。"
+    "extension": "社群照片只呈現生活片段，要了解一個人，可以先聽對方怎麼描述自己的經歷。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "班上要評選海報，一位同學看字好不好讀，另一位只看顏色夠不夠亮。兩人都說 I judge it by…，為什麼最後可能選到不同作品？",
+      "hint": "想像同一張海報有很亮的配色，字卻擠在一起。兩人各自重視的地方不同，即使看的作品一樣，也可能有不同結果。"
+    }
   },
   {
     "id": "vo13",
@@ -309,7 +363,11 @@
     },
     "examFocus": "句首副詞可標示說話者對整件事的看法，須對照前後文。",
     "commonMistake": "別因為事件有先後就選 Finally，要留意「原本可能遲到」的語氣。",
-    "extension": "在活動通知裡，Unfortunately 可用來引出壞消息，例如戶外市集因雨取消。"
+    "extension": "在活動通知裡，Unfortunately 可用來引出壞消息，例如戶外市集因雨取消。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "登機口換了，有人傳訊說 Luckily, the new gate is nearby。Luckily 透露他慶幸新登機口離得近，臨時換位置也不用再走很遠。"
+    }
   },
   {
     "id": "gr01",
@@ -333,7 +391,11 @@
     },
     "examFocus": "現在進行式是 be＋V-ing，be 動詞要配合主詞。",
     "commonMistake": "別只加 -ing 而漏掉 be 動詞，也別把 children 當成單數。",
-    "extension": "說近期的暫時狀況也能用進行式，例如這週暫時改搭公車上學。"
+    "extension": "說近期的暫時狀況也能用進行式，例如這週暫時改搭公車上學。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "社團的即時影片可以配上 We're painting the stage，告訴還在教室的同學你們正在漆舞台，他們看到訊息就知道現場正在忙什麼。"
+    }
   },
   {
     "id": "gr02",
@@ -357,7 +419,12 @@
     },
     "examFocus": "形容詞以子音加 y 結尾時，比較級通常把 y 改為 i 再加 er。",
     "commonMistake": "even 可以修飾比較級，別把它當成要再加 more 的訊號。",
-    "extension": "比較背包規格時，可用 much lighter 強調明顯較輕，例如兩款包相差一公斤。"
+    "extension": "比較背包規格時，可用 much lighter 強調明顯較輕，例如兩款包相差一公斤。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "兩條路都通往車站，地圖說第二條路 even busier than the first。假如你想避開擁擠的路線，這句提示會讓你選哪一條？",
+      "hint": "busier 形容走第二條路會遇到更繁忙的情況，even 又把程度加強了一點。想避開比較擁擠的路線，就會選第一條。"
+    }
   },
   {
     "id": "gr03",
@@ -381,7 +448,11 @@
     },
     "examFocus": "過去時間提示搭配過去簡單式，常見不規則變化如 go 變 went。",
     "commonMistake": "別只依主詞 we 選 go，仍須先判斷時間。",
-    "extension": "寫旅行日記可用 the next day 承接前一天的故事，讓讀者跟上行程的順序。"
+    "extension": "寫旅行日記可用 the next day 承接前一天的故事，讓讀者跟上行程的順序。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "跟交換生回顧校慶時，可以從 We saw a dance show last Friday 說起。先交代是哪一天，再接著聊表演最讓你印象深刻的地方。"
+    }
   },
   {
     "id": "gr04",
@@ -405,7 +476,12 @@
     },
     "examFocus": "疑問詞要配合回答的資訊類型，How 可以詢問方式。",
     "commonMistake": "句中有 school 不代表要問地點，判斷時應先看回答。",
-    "extension": "問大家通勤要多久時，可用 How long；回覆可以是二十分鐘。"
+    "extension": "問大家通勤要多久時，可用 How long；回覆可以是二十分鐘。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "收到朋友傳來的 How did you get the tickets? 你手上剛好有一張票和一張咖啡店的收據。對方更想知道買票的方式，還是票上寫的座位？",
+      "hint": "這裡的 get 指的是弄到票，How 把問題放在你怎麼取得票。可以回答是在售票網站買的，或是有人把多的票送給你。"
+    }
   },
   {
     "id": "gr05",
@@ -429,7 +505,11 @@
     },
     "examFocus": "since 引出起點，主句可用現在完成式描述延續至今的狀態。",
     "commonMistake": "別用 six years old 當成六年的期間，這裡是說從六歲起。",
-    "extension": "寫個人簡介也可用 for 加時長，例如用 for three years 表示已住了三年。"
+    "extension": "寫個人簡介也可用 for 加時長，例如用 for three years 表示已住了三年。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "自我介紹時可以說 I've played the drums since April，讓來訪的學生知道你從四月就開始打鼓，現在還在練習。"
+    }
   },
   {
     "id": "gr06",
@@ -453,7 +533,12 @@
     },
     "examFocus": "選關係代名詞時，要同時確認先行詞及空格在子句中的角色。",
     "commonMistake": "別看到人就選 whose；要先確認有沒有表達「誰的」。",
-    "extension": "向同學指出合照中的人時，可用 who is holding a trophy 描述手拿獎盃的人。"
+    "extension": "向同學指出合照中的人時，可用 who is holding a trophy 描述手拿獎盃的人。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "在車站等接待的人，對方傳訊說 Look for the person who has a yellow backpack。你會用什麼線索從人群中找到他？",
+      "hint": "who 後面接著描寫這個人的特徵。找人時先看有誰背著黃色背包，如果剛好有好幾位，再請對方提供衣服顏色等線索。"
+    }
   },
   {
     "id": "gr07",
@@ -477,7 +562,11 @@
     },
     "examFocus": "被動語態用 be＋過去分詞，時間線索決定 be 的時態。",
     "commonMistake": "別因為 built 也能當過去分詞就直接填入，被動句還需要 be 動詞。",
-    "extension": "博物館標牌上的 was donated 表示展品由人捐贈，後面有時會列出捐贈者。"
+    "extension": "博物館標牌上的 was donated 表示展品由人捐贈，後面有時會列出捐贈者。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "讀二手市集的標籤時，This bag was made by hand 表示這個包包是手工做的。標籤把焦點放在製作方式，還想知道是誰做的，可以再問攤主。"
+    }
   },
   {
     "id": "gr08",
@@ -501,7 +590,11 @@
     },
     "examFocus": "enjoy＋V-ing 表示喜歡做某件事。",
     "commonMistake": "別把 enjoy 和 want 的接法混在一起；want 可接 to V。",
-    "extension": "讀書心得也能用 enjoy 加名詞，例如說自己喜歡故事的結局。"
+    "extension": "讀書心得也能用 enjoy 加名詞，例如說自己喜歡故事的結局。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "接待學生要選一項週末活動，可以問 Do you enjoy cooking? 如果對方喜歡做菜，就可以一起逛市場，挑幾樣材料做午餐。"
+    }
   },
   {
     "id": "gr09",
@@ -525,7 +618,12 @@
     },
     "examFocus": "still 常提示「儘管如此仍然……」，可搭配 although 表達讓步。",
     "commonMistake": "別一看到兩個事件就選因果連接詞，先檢查後面的結果是否出乎預期。",
-    "extension": "寫短評時，可先承認餐點價格偏高，再說明自己仍願意回訪的原因。"
+    "extension": "寫短評時，可先承認餐點價格偏高，再說明自己仍願意回訪的原因。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "活動回饋寫著 Although the room was small, we could all see the show。讀到這句，你會知道場地有什麼限制？大家實際看得到表演嗎？",
+      "hint": "前段描述房間的大小，後段說大家看表演的情況。把兩段接起來，就會發現房間雖小，觀看表演這件事仍然順利。"
+    }
   },
   {
     "id": "gr10",
@@ -549,7 +647,11 @@
     },
     "examFocus": "間接問句通常採「疑問詞＋主詞＋動詞」的順序。",
     "commonMistake": "句尾有問號也不代表內層子句要倒裝；問號對應整個請求。",
-    "extension": "問路前也能用 Do you know 開頭，再接地點問題，適合向陌生人開口。"
+    "extension": "問路前也能用 Do you know 開頭，再接地點問題，適合向陌生人開口。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "在旅館想問早餐幾點開始，可以說 Could you tell me when breakfast starts? 對方回答後，你就能安排早上的出門時間。"
+    }
   },
   {
     "id": "gr11",
@@ -573,7 +675,12 @@
     },
     "examFocus": "與現在事實相反時，if 子句常用過去式，be 動詞可用 were，主要子句用 would＋原形動詞。",
     "commonMistake": "別看到主詞 I 就立刻填 am，要一併看 would 和整句語意。",
-    "extension": "討論理想情況也能用這種句型，例如想像自己有更多空閒時間時會做什麼。"
+    "extension": "討論理想情況也能用這種句型，例如想像自己有更多空閒時間時會做什麼。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "朋友在群組問要不要把有同學入鏡的影片公開，你回 If I were you, I'd ask them first。對方會把這句理解成你已經問過了，還是一句建議？",
+      "hint": "開頭請對方想像你站在他的立場，後面才說你會怎麼做。整句是在建議他先去問有入鏡的同學，再決定分享方式。"
+    }
   },
   {
     "id": "gr12",
@@ -597,7 +704,11 @@
     },
     "examFocus": "hear＋受詞＋原形動詞可描述聽見有人做某事，接 V-ing 則可著重過程。",
     "commonMistake": "someone 雖是單數，這裡仍不能替後面的補語加 s。",
-    "extension": "描述親眼所見也有相近用法，例如 saw a bird fly 表示看到鳥飛過。"
+    "extension": "描述親眼所見也有相近用法，例如 saw a bird fly 表示看到鳥飛過。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "在家聽到門鈴響了一聲，可以說 I heard the doorbell ring。若聽見時它已經在響，可以說 I heard it ringing，把重點放在當時聽到的聲音。"
+    }
   },
   {
     "id": "gr13",
@@ -621,7 +732,12 @@
     },
     "examFocus": "名詞後的過去分詞片語可表被動修飾，相當於省略關係代名詞和 be 動詞。",
     "commonMistake": "別看到 by 就一律補上 be 動詞，先找出全句的主要動詞。",
-    "extension": "公告上可用 items left on the bus 指留在公車上的物品。"
+    "extension": "公告上可用 items left on the bus 指留在公車上的物品。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "旅展立牌寫著 Photos taken by local students，旁邊另有下週的攝影活動。光看這行字，你能知道眼前展出的照片是由誰拍攝的嗎？",
+      "hint": "先抓住 Photos，再往後找拍攝者。by local students 告訴你這些照片的作者是當地學生，和下週誰來參加活動是兩件事。"
+    }
   },
   {
     "id": "cl01",
@@ -647,7 +763,11 @@
     },
     "examFocus": "want＋to V 表示主詞想做某事。",
     "commonMistake": "wanted 已是過去式，後面的不定詞仍用 to 加原形。",
-    "extension": "和家人商量領養時，可用 adopt a dog 明確表示「領養一隻狗」。"
+    "extension": "和家人商量領養時，可用 adopt a dog 明確表示「領養一隻狗」。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "和接待家庭聊晚餐時，可以說 I want to try some night market food，讓對方知道你想試試夜市小吃，再一起想要去哪裡。"
+    }
   },
   {
     "id": "cl02",
@@ -673,7 +793,12 @@
     },
     "examFocus": "時間長度加 ago 指向某個過去時間，常搭配過去簡單式。",
     "commonMistake": "看見 months 要連同 ago 一起讀，別把過去時間點看成延續至今的期間。",
-    "extension": "故事若已站在某個過去日期回顧，更早三個月可說 three months earlier。"
+    "extension": "故事若已站在某個過去日期回顧，更早三個月可說 three months earlier。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "班級相簿上週五貼了一張照片，圖說寫 Took this two days ago。假設今天是週一，只看這句圖說，照片最可能是哪天拍的？",
+      "hint": "先找「兩天前」是從哪一天往回算。圖說是上週五貼的，從週五往前數兩天，就能推到週三；今天打開相簿的日期不會改變答案。"
+    }
   },
   {
     "id": "cl03",
@@ -699,7 +824,12 @@
     },
     "examFocus": "before 與 after 都能引導時間子句，須辨認哪個動作先發生。",
     "commonMistake": "不要把子句的書寫順序當成動作順序，要看連接詞的意思。",
-    "extension": "排早晨行程時，可用 before breakfast 標記早餐前要做的事，例如先餵狗。"
+    "extension": "排早晨行程時，可用 before breakfast 標記早餐前要做的事，例如先餵狗。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "接待家庭的便條寫著 Text me after you get off the bus。你還在公車上，下一站就到了。這時該先傳訊息，還是等下車？",
+      "hint": "把下車和傳訊息分開看。after 後面提到的是先完成的事，所以可以等下了車、站穩後再傳訊息給對方。"
+    }
   },
   {
     "id": "cl04",
@@ -725,7 +855,11 @@
     },
     "examFocus": "用 but 連接兩個形成轉折的敘述。",
     "commonMistake": "看到兩個完整句子時，別只確認能否用連接詞串起，還要判斷語意關係。",
-    "extension": "介紹領養犬時，可以先提牠年紀較大，再描述牠與人相處時溫和的一面。"
+    "extension": "介紹領養犬時，可以先提牠年紀較大，再描述牠與人相處時溫和的一面。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "同學擔心短片講得不夠多，可以回 The video is short, but it explains a lot，表示影片雖短，講到的內容卻不少。"
+    }
   },
   {
     "id": "cl05",
@@ -751,7 +885,12 @@
     },
     "examFocus": "couldn't 可描述過去的限制，須用上下文判斷是規定還是能力。",
     "commonMistake": "別看到學校規定就選「必須」，要先判斷題目限制的動作是什麼。",
-    "extension": "活動告示也可用 phones must be turned off 提醒參加者把手機關機。"
+    "extension": "活動告示也可用 phones must be turned off 提醒參加者把手機關機。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "展覽心得寫 We couldn't take photos inside，卻附上大家在入口合照。這兩件事能同時成立嗎？要找什麼資料才知道當時的拍照規定？",
+      "hint": "inside 讓你知道這句話說的是展場裡面，入口可能算展場外。想確認當時的規定，可以找展場的須知，看它列的拍照範圍。"
+    }
   },
   {
     "id": "cl06",
@@ -777,7 +916,11 @@
     },
     "examFocus": "without＋名詞表示缺少某個人或物。",
     "commonMistake": "介系詞不能只靠中文單字逐一代換，要看整個問句缺少哪一層意思。",
-    "extension": "外出想暫時離線時，可把地圖先下載，這樣即使沒有網路也能查路線。"
+    "extension": "外出想暫時離線時，可把地圖先下載，這樣即使沒有網路也能查路線。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "出門買早餐時遇到英文菜單，可以用 a sandwich without cheese 點一份不加起司的三明治，再看店員有沒有確認你要省掉哪項配料。"
+    }
   },
   {
     "id": "cl07",
@@ -803,7 +946,12 @@
     },
     "examFocus": "some … others … 可用來列舉同一群人中不同成員的活動。",
     "commonMistake": "別漏掉 others 的 s，也別在已代替名詞的 others 後再接 students。",
-    "extension": "若要明確說「其餘全部的人」，可用 the others，例如已分完組後指剩下的全體。"
+    "extension": "若要明確說「其餘全部的人」，可用 the others，例如已分完組後指剩下的全體。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "班上辦二手市集，簡報寫 Some students sold books, and others ran games。讀到這句，你會把 others 理解成哪一群人？",
+      "hint": "先看句首描寫的是哪些人，再接著讀另一項工作。others 仍在講班上的學生，指的是當中另外一些負責帶遊戲的同學。"
+    }
   },
   {
     "id": "cl08",
@@ -829,7 +977,11 @@
     },
     "examFocus": "段落銜接要比對相鄰兩句，辨認結果、轉折或舉例。",
     "commonMistake": "別只看空格後有逗號就猜連接語，幾個選項的標點格式都可能相同。",
-    "extension": "寫活動回饋時，可先列出多數人支持的意見，再交代下個月會採取的行動。"
+    "extension": "寫活動回饋時，可先列出多數人支持的意見，再交代下個月會採取的行動。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "一則交通通知提到車站入口暫停開放，再用 As a result 說明乘客要改從另一側進站。這三個字把改走的路線和前面提到的原因連了起來。"
+    }
   },
   {
     "id": "cl09",
@@ -855,7 +1007,12 @@
     },
     "examFocus": "end up 後可接地點，表示經過一連串事件後到了哪裡。",
     "commonMistake": "別因選項都有 up 就忽略前面的動詞，同一個副詞能組成意思差異很大的片語。",
-    "extension": "end up 也可接 V-ing，例如原本只想逛書店，最後卻買了兩本書。"
+    "extension": "end up 也可接 V-ing，例如原本只想逛書店，最後卻買了兩本書。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "到陌生城市搭車，朋友說 We ended up at the airport，前一句卻說本來要去港口。要和他會合時，你會先問哪個地方的集合點？",
+      "hint": "前一句交代原本打算去哪裡，ended up 則說他們最後到了哪裡。要會合，可以先問他在機場的哪個出口等你。"
+    }
   },
   {
     "id": "cl10",
@@ -881,7 +1038,12 @@
     },
     "examFocus": "stop＋V-ing 表示停止原本的動作，stop＋to V 表示停下來去做另一件事。",
     "commonMistake": "別把兩種接法都翻成「停止做某事」，要辨認哪個動作停了。",
-    "extension": "騎車途中停下來喝水可用 stop to drink water，停下的是騎車。"
+    "extension": "騎車途中停下來喝水可用 stop to drink water，停下的是騎車。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "排練紀錄寫 They stopped singing，另一段寫 They stopped to sing。想剪出大家停下原本的事、接著開口唱的片段，你會選哪一段？",
+      "hint": "想像第一個畫面裡，原本聽得到的歌聲停了。第二個畫面裡，大家停下手邊的事，接著要唱歌。要剪的是第二段。"
+    }
   },
   {
     "id": "cl11",
@@ -907,7 +1069,11 @@
     },
     "examFocus": "過去分詞片語可放在名詞後，補充被製造、使用等資訊。",
     "commonMistake": "別因為 see 後可能接原形動詞就選 make，須先判斷吸管是不是動作執行者。",
-    "extension": "逛文具店時，made from recycled paper 表示商品以回收紙為原料製成。"
+    "extension": "逛文具店時，made from recycled paper 表示商品以回收紙為原料製成。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "英文商品標籤寫 A box made of wood with a glass lid，表示盒身是木頭做的，另外附有玻璃蓋。看材料時，可分別確認是在描述盒身還是蓋子。"
+    }
   },
   {
     "id": "cl12",
@@ -933,7 +1099,12 @@
     },
     "examFocus": "make a difference 是固定搭配，表示造成影響。",
     "commonMistake": "difference 在這個片語中指行動的影響，別只理解成兩件事的差別。",
-    "extension": "帶水壺參加校外教學是小改變，全班一起做就能少用許多一次性飲料杯。"
+    "extension": "帶水壺參加校外教學是小改變，全班一起做就能少用許多一次性飲料杯。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "要把英文導覽貼在教室外，同學提議把樓層號碼和箭頭放大，說這樣會 make a difference。你會怎麼試試這個改動有沒有幫助？",
+      "hint": "如果目標是讓訪客比較快找到教室，可以請沒看過設計稿的人照指示走，再記下他在哪裡停住或走錯，比一比改前和改後。"
+    }
   },
   {
     "id": "re01",
@@ -959,7 +1130,11 @@
     },
     "examFocus": "活動海報可用 For 或 Eligibility 找到參加資格。",
     "commonMistake": "喜歡漫畫或寫作都與活動有關，但不能取代年齡與身分條件。",
-    "extension": "報名頁若寫 ages 12 and up，表示滿 12 歲即可，還可查看有沒有另列上限。"
+    "extension": "報名頁若寫 ages 12 and up，表示滿 12 歲即可，還可查看有沒有另列上限。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "報名英文工作坊時，看到 For beginners，表示這場活動是為初學者設計的。接著可以看看材料清單，確認需要自備工具，還是現場就有。"
+    }
   },
   {
     "id": "re02",
@@ -985,7 +1160,11 @@
     },
     "examFocus": "在活動表中先找到外出行程，再對應到正確的星期。",
     "commonMistake": "別把家人到館參加活動誤讀成學生外出，留意是誰移動以及活動在哪裡。",
-    "extension": "在校外活動通知上看到 meeting point，可找集合地點，例如圖書館正門。"
+    "extension": "在校外活動通知上看到 meeting point，可找集合地點，例如圖書館正門。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "英文議程如果同時列出線上和實體場次，可以先看地點欄。寫 Online 的場次要上網參加，列出教室編號的場次可以查地圖找位置。"
+    }
   },
   {
     "id": "re03",
@@ -1011,7 +1190,11 @@
     },
     "examFocus": "同時比對活動費用、優惠對象、報名期限與每日行程。",
     "commonMistake": "別只看標示的 500 元，括號中的免費條件也會改變應付金額。",
-    "extension": "購票頁若寫 free with student ID，入場時可能需要出示學生證。"
+    "extension": "購票頁若寫 free with student ID，入場時可能需要出示學生證。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "看到英文活動頁寫 Free admission, but registration is required，表示不用付入場費，還是得先報名。可以再找頁面上的報名方式。"
+    }
   },
   {
     "id": "re04",
@@ -1037,7 +1220,12 @@
     },
     "examFocus": "判斷信件目的時，應整合主旨和各段內容。",
     "commonMistake": "別用信末的單一活動推斷整封信的目的。",
-    "extension": "寫近況信時，可用 My first week abroad 當主旨，讓收信人先掌握主題。"
+    "extension": "寫近況信時，可用 My first week abroad 當主旨，讓收信人先掌握主題。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "接待班級收到一封信，前半段介紹園遊會有哪些攤位，最後問 Would you like to join us? 要轉寄這封信時，可以用哪一句話說明來意？",
+      "hint": "前面的攤位資訊讓收件人知道活動有什麼，最後的問句則請大家決定要不要參加。轉述時可以把邀請參加園遊會放在句首。"
+    }
   },
   {
     "id": "re05",
@@ -1063,7 +1251,11 @@
     },
     "examFocus": "用前後文辨認片語的整體意思，並追蹤誰幫誰。",
     "commonMistake": "別把 return 一律理解成「返回」，要看它是否出現在固定片語裡。",
-    "extension": "語言交換可把時間平分，例如先練十五分鐘中文，再練十五分鐘英文。"
+    "extension": "語言交換可把時間平分，例如先練十五分鐘中文，再練十五分鐘英文。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "和外校同學合辦展覽時，若對方幫忙拍作品照，你可以說 In return, I'll help set up the display，用一句話說清楚自己願意幫什麼忙。"
+    }
   },
   {
     "id": "re06",
@@ -1089,7 +1281,12 @@
     },
     "examFocus": "閱讀時間比較時，先確認已知時間和 earlier 或 later 的比較方向。",
     "commonMistake": "已知時間是比較早的一方，回推另一方時應加上時間差。",
-    "extension": "安排跨國通話時，可把兩地的日期和時間都寫下來，免得把隔天誤當成同一天。"
+    "extension": "安排跨國通話時，可把兩地的日期和時間都寫下來，免得把隔天誤當成同一天。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "表演下午兩點開始，行程表接著寫 The tour starts 30 minutes later。要把導覽時間填進行事曆，應該填幾點？",
+      "hint": "下午兩點是表演開始的時間。later 表示從兩點往後算，加上半小時就到下午兩點半，這才是導覽開始的時間。"
+    }
   },
   {
     "id": "re07",
@@ -1115,7 +1312,11 @@
     },
     "examFocus": "How long 問時間長度，從同一列取抵達和出發時間相減。",
     "commonMistake": "別只看整點數字或只算分鐘欄，跨整點時可以把車程分段算。",
-    "extension": "查轉乘行程時，也可用下一班發車時間減掉前一班抵達時間，算出候車空檔。"
+    "extension": "查轉乘行程時，也可用下一班發車時間減掉前一班抵達時間，算出候車空檔。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "查跨夜巴士的英文時刻表時，如果抵達時間旁寫著 next day，記得把抵達日往後挪一天，再看這趟車從出發到抵達要坐多久。"
+    }
   },
   {
     "id": "re08",
@@ -1141,7 +1342,12 @@
     },
     "examFocus": "多條件表格題可先排除不符抵達時間的班次，再比較票價。",
     "commonMistake": "別一看到低票價就選車次，還要核對抵達時間。",
-    "extension": "若下一站還要走路，可在挑班次時連步行時間一起算進去。"
+    "extension": "若下一站還要走路，可在挑班次時連步行時間一起算進去。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "想報名英文導覽，你只有週六早上有空，其中一場免費但要滿十六歲。假設你是十五歲，要在能參加的場次裡省錢，你會怎麼找？",
+      "hint": "先看每場的日期和時間，再檢查年齡資格。把時間衝突或年齡不符的場次去掉，剩下的場次才能拿來比較費用。"
+    }
   },
   {
     "id": "re09",
@@ -1167,7 +1373,12 @@
     },
     "examFocus": "先依表格選班次，再依附註判斷每位乘客的票價，最後加總。",
     "commonMistake": "別把所有學生都當成兒童半價，本文的兒童優惠限未滿 12 歲。",
-    "extension": "閱讀收費表時要留意 under 是否含指定歲數，例如 under 12 不含 12 歲。"
+    "extension": "閱讀收費表時要留意 under 是否含指定歲數，例如 under 12 不含 12 歲。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "親友去租溜冰鞋，價目表把租鞋和護具分開列價，只有一個人需要護具。想算出大家要付的總額，你會怎麼用這兩個價目欄？",
+      "hint": "先數有幾個人要租鞋，算出所有人的租鞋費，再加上那一份護具的費用。結帳前也能確認護具是不是有另外的收費條件。"
+    }
   },
   {
     "id": "re10",
@@ -1193,7 +1404,12 @@
     },
     "examFocus": "找主旨時，選能涵蓋多段內容的敘述。",
     "commonMistake": "別把首段的有趣例子或中段的比喻當成全文主旨。",
-    "extension": "閱讀科普文章時，可先把各段寫成一句摘要，再比較它們圍繞的是哪個問題。"
+    "extension": "閱讀科普文章時，可先把各段寫成一句摘要，再比較它們圍繞的是哪個問題。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "想像英文校刊有一篇報導，依序介紹雨天進教室前怎麼收雨傘、擦鞋底，以及避開走廊的積水。你會選什麼標題把三段都包進去？",
+      "hint": "試著找出三段的共通點。它們都在說雨天從校門進到教室時會遇到的事，可以用「雨天到校的小提醒」來涵蓋這三段。"
+    }
   },
   {
     "id": "re11",
@@ -1219,7 +1435,12 @@
     },
     "examFocus": "找證據時要把研究操作和觀察結果對應到指定的假說。",
     "commonMistake": "支持假說的觀察仍不能證明額頭降溫時大腦溫度一定下降。",
-    "extension": "做小實驗時可安排比較組，例如一組用冷毛巾，另一組用室溫毛巾。"
+    "extension": "做小實驗時可安排比較組，例如一組用冷毛巾，另一組用室溫毛巾。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "社團志工猜想，導覽音檔說得太快，訪客才沒聽懂集合指示。如果用同一段介紹錄成一快一慢的版本，可以比較聽眾的哪種回答？",
+      "hint": "讓兩組聽眾各聽一個版本，再問他們集合地點在哪裡。如果聽慢版的人較常答對，就支持語速可能會影響理解。"
+    }
   },
   {
     "id": "re12",
@@ -1245,7 +1466,12 @@
     },
     "examFocus": "推論題要把文章中的一般趨勢套到新的情境。",
     "commonMistake": "most likely 問最有根據的可能情況，別把文中的趨勢讀成每次都必然發生。",
-    "extension": "描述觀察到的傾向時，可用 tend to，例如說人們通常在疲倦時較想休息。"
+    "extension": "描述觀察到的傾向時，可用 tend to，例如說人們通常在疲倦時較想休息。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "假設車站志工說，有大件行李的旅客通常會搭電梯過天橋。朋友今天拉著大行李箱，你會提議在哪一處會合，比較順路？",
+      "hint": "先把朋友帶著大件行李這個線索套進志工說的情況。他可能會走電梯那一側，可以提議在電梯附近會合，再請他確認。"
+    }
   },
   {
     "id": "vo14",
@@ -1269,7 +1495,11 @@
     },
     "examFocus": "根據對話中的請求判斷人物的身體感受。",
     "commonMistake": "運動後可能又餓又累，要依人物明講的需求判斷。",
-    "extension": "運動場若設有 refill station，可以帶水壺補充飲用水。"
+    "extension": "運動場若設有 refill station，可以帶水壺補充飲用水。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "出國用餐時，說 I'm thirsty 能讓同行的人知道你口渴。想問店員能不能加水，可以指著杯子問 Could I have some more water?"
+    }
   },
   {
     "id": "vo15",
@@ -1293,7 +1523,12 @@
     },
     "examFocus": "結合地點、氣溫與活動判斷季節。",
     "commonMistake": "月份和季節都能接在 in 後面，單靠介系詞選不出答案。",
-    "extension": "同樣是十二月，位於南半球的澳洲正值夏季，規劃旅行可先看當地氣候。"
+    "extension": "同樣是十二月，位於南半球的澳洲正值夏季，規劃旅行可先看當地氣候。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "示意的英文行李清單列了厚外套、手套和雪靴，但標題只剩「某地旅行清單」。這些衣物較像是為哪個季節準備的？還缺哪項資訊才能確定？",
+      "hint": "衣物讓人猜到當地可能很冷，冬天是合理的推測。再查目的地和出發日期，才能分辨這是冬季旅行，還是其他季節去寒冷的地方。"
+    }
   },
   {
     "id": "vo16",
@@ -1317,7 +1552,11 @@
     },
     "examFocus": "用 send this letter 判斷需要哪種公共服務。",
     "commonMistake": "nearest 問地點遠近，仍須確認該地點有題目需要的服務。",
-    "extension": "寄國際信件時，可用 postage 詢問郵資，並依目的地核對地址格式。"
+    "extension": "寄國際信件時，可用 postage 詢問郵資，並依目的地核對地址格式。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "出國想寄明信片，可以在地圖上找 post office。到了郵局，寄到當地其他城市可以看 Domestic 的標示，寄回臺灣則找 International。"
+    }
   },
   {
     "id": "vo17",
@@ -1341,7 +1580,12 @@
     },
     "examFocus": "從所有格片語逐層追蹤親屬關係，並以代名詞核對。",
     "commonMistake": "uncle 可指爸媽的兄弟，別只記成爸爸的弟弟。",
-    "extension": "畫英文家譜時，可用 maternal uncle 特別標明這位親戚是媽媽的兄弟。"
+    "extension": "畫英文家譜時，可用 maternal uncle 特別標明這位親戚是媽媽的兄弟。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "交換生說 my cousin's dad，接著補充他是自己媽媽的姊姊的先生。你會在中文家譜上寫哪個稱呼？如果改用英文，可以怎麼叫他？",
+      "hint": "從媽媽那一代往旁邊找，先找到媽媽的姊姊，再找到她的先生。中文叫姨丈，英文可簡稱 uncle，想說清楚關係時可以再多描述一層。"
+    }
   },
   {
     "id": "vo18",
@@ -1365,7 +1609,12 @@
     },
     "examFocus": "lend＋人＋物表示把某物借給某人，borrow＋物＋from＋人表示向某人借入。",
     "commonMistake": "中文的「借」能指兩個方向，要先看主詞是借出還是借入的一方。",
-    "extension": "向同學借用文具時，可以用 give it back 說明何時會還給對方。"
+    "extension": "向同學借用文具時，可以用 give it back 說明何時會還給對方。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "在民宿想借轉接插頭時，可以問 Can I borrow an adapter? 如果店員說 We can lend you one，轉接插頭接下來會從誰手上到誰手上？",
+      "hint": "先分清楚兩句裡的 I 和 we 各是誰。旅客想把插頭借來用，店員手上可以提供插頭，把物品移動的方向畫出來就清楚了。"
+    }
   },
   {
     "id": "vo19",
@@ -1389,7 +1638,11 @@
     },
     "examFocus": "every night 等頻率線索有助於辨認規律行為。",
     "commonMistake": "常做的事未必是嗜好，要看它是否出於個人的休閒興趣。",
-    "extension": "用 habit tracker 記錄行動時，可以在每天刷完牙後打勾。"
+    "extension": "用 habit tracker 記錄行動時，可以在每天刷完牙後打勾。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "和筆友聊生活時，可以說 I have a habit of checking my bag before bed，意思是自己習慣睡前檢查書包。對方也能照這個方式分享自己的小習慣。"
+    }
   },
   {
     "id": "vo20",
@@ -1413,7 +1666,12 @@
     },
     "examFocus": "由附近設施推知生活情況，right next to 強調位置緊鄰。",
     "commonMistake": "選形容詞時要想前文的設施能帶來什麼，別只挑語法上可填的詞。",
-    "extension": "租屋廣告上的 within walking distance 表示步行可到達。"
+    "extension": "租屋廣告上的 within walking distance 表示步行可到達。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "比較住宿地點時，有一間旅館離車站很近，另一間靠近主辦單位。兩位旅客的行程不同，為什麼可能會把不同旅館說成 convenient？",
+      "hint": "先想他們每天會去哪裡、怎麼去。天天搭火車的人可能偏好靠車站的旅館，活動場地走路就到則能省下另一位旅客的交通時間。"
+    }
   },
   {
     "id": "vo21",
@@ -1437,7 +1695,11 @@
     },
     "examFocus": "用 so 前後的因果關係，判斷說話者需要負責什麼。",
     "commonMistake": "片語要整組理解，不能只把 take 翻成「拿」。",
-    "extension": "babysit 特指代為照看小孩，例如父母外出時幫忙照看一晚。"
+    "extension": "babysit 特指代為照看小孩，例如父母外出時幫忙照看一晚。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "旅行前請鄰居照顧盆栽，可以問 Can you take care of my plants? 再用一張小紙條寫明哪盆要澆水，哪盆要留在窗邊。"
+    }
   },
   {
     "id": "vo22",
@@ -1461,7 +1723,12 @@
     },
     "examFocus": "so … that … 可帶出結果，hardly 表示幾乎不。",
     "commonMistake": "hardly 自帶否定意思，別把它當成 hard 的「努力地」。",
-    "extension": "在吵雜場所聽不清楚時，可說 Could you repeat that? 請對方重說。"
+    "extension": "在吵雜場所聽不清楚時，可說 Could you repeat that? 請對方重說。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "群組有人回覆 I can hardly read the map。地圖上可能出了什麼問題？如果只能重傳一張圖，你會怎麼改，讓對方容易看懂？",
+      "hint": "hardly 透露對方幾乎看不清楚。可以先檢查字是不是太小、照片有沒有模糊，再放大要走的路線，重傳一張清楚的圖。"
+    }
   },
   {
     "id": "vo23",
@@ -1485,7 +1752,11 @@
     },
     "examFocus": "on sale 加上貨幣符號和 only，顯示句子在談售價。",
     "commonMistake": "別看到衣服就猜尺寸或顏色，先確認數字的單位。",
-    "extension": "商品標示 20% off 表示打八折，例如原價 500 元折後是 400 元。"
+    "extension": "商品標示 20% off 表示打八折，例如原價 500 元折後是 400 元。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "買水果遇到英文價牌時，先看金額旁的單位。Per bag 是每袋的價格，per piece 是每個的價格，挑好數量才算得出自己要付多少。"
+    }
   },
   {
     "id": "vo24",
@@ -1509,7 +1780,12 @@
     },
     "examFocus": "but 和 still 常一起提示結果與預期相反。",
     "commonMistake": "fail a test 是考試沒過，別和 miss a test 的錯過考試混用。",
-    "extension": "若學校提供補考，通知可能寫 retake the test，意思是再考一次。"
+    "extension": "若學校提供補考，通知可能寫 retake the test，意思是再考一次。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "社團報告寫 The door failed to open，後面卻提到大家聽見馬達轉動。要判斷門有沒有成功打開，你會看哪個結果？",
+      "hint": "馬達有聲音，只表示它可能啟動了。回頭看 open 說的是門有沒有打開，才知道報告裡的 failed 指哪一步沒有成功。"
+    }
   },
   {
     "id": "vo25",
@@ -1533,7 +1809,11 @@
     },
     "examFocus": "experience 表示一段具體經歷時可數，可以加 a。",
     "commonMistake": "experience 也能泛指累積的經驗，別把兩種用法混在一起。",
-    "extension": "履歷的 work experience 欄可列實際做過的工作，例如在農場負責餵食。"
+    "extension": "履歷的 work experience 欄可列實際做過的工作，例如在農場負責餵食。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "和國外同學聊校慶時，可以用 It was a new experience for me 介紹第一次當主持人的經歷，再補一句自己負責了哪一段。"
+    }
   },
   {
     "id": "vo26",
@@ -1557,7 +1837,11 @@
     },
     "examFocus": "描寫個性的字彙題，常透過人物的行為提供線索。",
     "commonMistake": "patient 在 be very patient 中是形容詞，別誤讀成「病人」。",
-    "extension": "教家人操作手機時，可先示範一次，再讓對方按自己的速度操作。"
+    "extension": "教家人操作手機時，可先示範一次，再讓對方按自己的速度操作。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "陪外國同學找教室時，如果他一時看不懂地圖，可以說 Take your time，讓對方知道你願意等他看完，再一起確認方向。"
+    }
   },
   {
     "id": "gr14",
@@ -1581,7 +1865,11 @@
     },
     "examFocus": "現在簡單式可表示習慣，第三人稱單數的肯定句要變化動詞。",
     "commonMistake": "usually 夾在主詞和動詞之間，別因此漏加動詞字尾。",
-    "extension": "描述作息的例外時，可用 on weekends 交代週末是否改喝茶。"
+    "extension": "描述作息的例外時，可用 on weekends 交代週末是否改喝茶。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "寫英文寵物照顧筆記時，可用 Our cat sleeps on the sofa 描述貓平常睡在哪，讓幫忙照顧的人知道牠習慣待的地方。"
+    }
   },
   {
     "id": "gr15",
@@ -1605,7 +1893,12 @@
     },
     "examFocus": "mine、yours 等所有代名詞可獨立使用，代替所有格加名詞。",
     "commonMistake": "mine 已包含「我的鉛筆」的意思，別在後面再加 pencil。",
-    "extension": "教室裡撿到筆時，可問 Is this yours? 確認是不是對方的。"
+    "extension": "教室裡撿到筆時，可問 Is this yours? 確認是不是對方的。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "團購帆布袋剛分好，你以為自己拿到星星款，說 Mine has a star。同學指著另一袋回 Yours has a moon。他說的是分給誰的袋子？",
+      "hint": "同學說話時，yours 指向他正在說話的對象，也就是你。如果圖案跟你記得的不一樣，可以請他再指一次是哪一袋。"
+    }
   },
   {
     "id": "gr16",
@@ -1629,7 +1922,12 @@
     },
     "examFocus": "be going to＋原形動詞可表示根據眼前線索作出的預測。",
     "commonMistake": "空格後已有 rain，應選能接原形動詞的結構。",
-    "extension": "看到公車開進站，也能根據眼前跡象預測車子即將停下來。"
+    "extension": "看到公車開進站，也能根據眼前跡象預測車子即將停下來。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "紙杯一路滑向桌沿，你說 It's going to fall。朋友聽了趕快伸手去接。你們從什麼線索判斷紙杯就快要掉下去了？",
+      "hint": "注意紙杯的位置和滑動方向。杯子越滑越靠近桌沿，再往外就可能沒東西撐住，所以你看到它滑過去就先開口提醒。"
+    }
   },
   {
     "id": "gr17",
@@ -1653,7 +1951,11 @@
     },
     "examFocus": "否定祈使句用 Don't＋原形動詞，描述狀態可用 be＋形容詞。",
     "commonMistake": "叫了對方的名字仍是直接提醒，別把句子看成第三人稱陳述句。",
-    "extension": "安全提醒可用 Don't touch the glass，請參觀者別碰玻璃。"
+    "extension": "安全提醒可用 Don't touch the glass，請參觀者別碰玻璃。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "導覽員提醒 Don't be afraid to ask questions，意思是有問題可以放心開口。如果剛才沒聽清楚集合時間，就可以趁這時再問一次。"
+    }
   },
   {
     "id": "gr18",
@@ -1677,7 +1979,12 @@
     },
     "examFocus": "過去短暫事件發生時，背景動作若正在進行，可用過去進行式。",
     "commonMistake": "句中有兩個過去動作時，要分辨哪一個仍在進行。",
-    "extension": "寫故事可先描述大家正在吃飯，再引出突然停電的情節。"
+    "extension": "寫故事可先描述大家正在吃飯，再引出突然停電的情節。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "有人說 We were watching the game when a dog ran onto the field。狗跑進場時，大家早就在看球了，還是那一刻才開始？",
+      "hint": "were watching 描寫狗出現時大家正在做的事。先畫一條線表示看球的那段時間，再在線的中間標出狗跑進球場的那一刻。"
+    }
   },
   {
     "id": "gr19",
@@ -1701,7 +2008,11 @@
     },
     "examFocus": "選關係代名詞時，要辨認先行詞和子句裡缺少的成分。",
     "commonMistake": "yesterday 只交代時間，made 真正缺的是被做出來的東西。",
-    "extension": "口語可省略當受詞的關係代名詞，例如 the cake Mom made。"
+    "extension": "口語可省略當受詞的關係代名詞，例如 the cake Mom made。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "整理要轉送的衣物時，可以拿起提袋說 This is the bag that I bought online，讓幫忙的家人知道要用的是網路買來的那個袋子。"
+    }
   },
   {
     "id": "gr20",
@@ -1725,7 +2036,12 @@
     },
     "examFocus": "It is＋形容詞＋for＋人＋to V，可說明做某事對某人的難易。",
     "commonMistake": "別把中文的「對」一律譯成 to，要看完整句型。",
-    "extension": "稱讚他人出手相助時，可用 kind of you 把重點放在對方的善意。"
+    "extension": "稱讚他人出手相助時，可用 kind of you 把重點放在對方的善意。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "朋友說 It's hard for me to hear in this room。房間有點吵，你手邊又沒有麥克風。你能怎麼調整，讓對方更容易聽清楚？",
+      "hint": "for me 讓你知道遇到困難的是正在說話的朋友。看看四周哪裡比較安靜，或走近一些再說，兩種做法都能回應他提到的困難。"
+    }
   },
   {
     "id": "gr21",
@@ -1749,7 +2065,12 @@
     },
     "examFocus": "too＋形容詞＋to V 表示程度過高，因而無法做到某事。",
     "commonMistake": "too 在這裡表示「過於」，別誤解成句尾常見的「也」。",
-    "extension": "若要表達年紀已達到某個條件，可用 old enough to，例如已能自己搭車。"
+    "extension": "若要表達年紀已達到某個條件，可用 old enough to，例如已能自己搭車。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "店員說包裹 too wide to fit in the locker。如果櫃子不能換，你會先量包裹的哪個尺寸？量完之後，可以怎麼決定下一步？",
+      "hint": "wide 提醒你要量的是寬度，接著可和櫃口的寬度比較。若包裹換個方向仍放不進去，可以問店員能不能重新包裝。"
+    }
   },
   {
     "id": "gr22",
@@ -1773,7 +2094,12 @@
     },
     "examFocus": "一般確認用的附加問句沿用前句的助動詞，並把肯定和否定互換。",
     "commonMistake": "別看到 swim 就套用 do，句中已有 can。",
-    "extension": "聊天時可用附加問句確認記憶，例如問對方是不是搬去臺南了。"
+    "extension": "聊天時可用附加問句確認記憶，例如問對方是不是搬去臺南了。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "朋友看著手上的票問 The show doesn't start until seven, does it? 他在確認哪個時間？你會看票面上的哪一項資訊來回答？",
+      "hint": "把七點和票上的演出開始時間對照。票上也可能有提早開放入場的時間，看清楚兩個標示，就能回覆他說得對不對。"
+    }
   },
   {
     "id": "gr23",
@@ -1797,7 +2123,11 @@
     },
     "examFocus": "主動的使役句採 make＋受詞＋原形動詞。",
     "commonMistake": "made 已標示過去時間，受詞後的動詞仍用原形。",
-    "extension": "使役句改成被動時會補回 to，例如 I was made to wait."
+    "extension": "使役句改成被動時會補回 to，例如 I was made to wait.",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "影評寫 This movie made me laugh，表示那部片讓觀眾笑了。想推薦給朋友時，也可以接著說哪一幕最有趣，讓對方知道你喜歡的地方。"
+    }
   },
   {
     "id": "gr24",
@@ -1821,7 +2151,11 @@
     },
     "examFocus": "人＋spend＋時間或金錢＋on＋事物，可表達時間或費用的投入。",
     "commonMistake": "別把中文的「花」一律譯成同一個字，要同時看主詞和後面的接法。",
-    "extension": "記錄讀書時間也能用 spend 加 V-ing，例如花二十分鐘複習單字。"
+    "extension": "記錄讀書時間也能用 spend 加 V-ing，例如花二十分鐘複習單字。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "一起買表演道具時，可以在記帳本寫 We spent $20 on paint，讓組員看到這筆錢花在顏料上。記錄跨國購物時，把幣別也寫清楚。"
+    }
   },
   {
     "id": "gr25",
@@ -1845,7 +2179,12 @@
     },
     "examFocus": "V-ing 片語可作主詞，表示一項活動。",
     "commonMistake": "別受 songs 的複數影響，is 的主詞是整個聽歌活動。",
-    "extension": "練聽力時，可聽完一句歌詞先暫停，寫下聽到的字，再和原詞比對。"
+    "extension": "練聽力時，可聽完一句歌詞先暫停，寫下聽到的字，再和原詞比對。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "心得寫著 Riding a bike is a fun way to see the town。句首的 Riding a bike 指的是腳踏車本身，還是用它來做的事？",
+      "hint": "這句在介紹遊覽小鎮的方式。把 Riding 和後面的 a bike 一起讀，就會知道作者在說騎腳踏車遊覽這項活動。"
+    }
   },
   {
     "id": "gr26",
@@ -1869,7 +2208,12 @@
     },
     "examFocus": "附和否定句時，可用否定句加 either，或用 neither 開頭倒裝。",
     "commonMistake": "don't 已經帶否定意思，在這種句尾結構應接 either。",
-    "extension": "either 也可以用在提供兩種選擇時，例如約時間時說兩天都可以。"
+    "extension": "either 也可以用在提供兩種選擇時，例如約時間時說兩天都可以。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "朋友說 I didn't get a seat，另一人回 I didn't either。要幫這兩位找位子，你需要找一個座位還是兩個？",
+      "hint": "第一位朋友說自己沒有座位，另一人用 didn't 加上 either，表示他也遇到一樣的情況。兩個人都還需要座位。"
+    }
   },
   {
     "id": "cl13",
@@ -1895,7 +2239,11 @@
     },
     "examFocus": "will 後接原形動詞，will not be able to 表示屆時無法做某事。",
     "commonMistake": "別只因看到 not 就選任何助動詞，還要看時間與後面是原形 be。",
-    "extension": "通知上寫 by 7:30 表示最晚七點半到，規劃通勤時可預留等車時間。"
+    "extension": "通知上寫 by 7:30 表示最晚七點半到，規劃通勤時可預留等車時間。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "展覽行前信寫 You won't be able to enter with a large bag。這是在講你到場後可能遇到的限制，出門前可以先讀信裡有沒有寄物資訊。"
+    }
   },
   {
     "id": "cl14",
@@ -1921,7 +2269,11 @@
     },
     "examFocus": "星期、日期和特定日子通常搭配 on。",
     "commonMistake": "by 說的是期限，別把它當作標示事情發生在哪一天的 on。",
-    "extension": "若校園公告寫 until Friday，還可查附註確認週五當天是否已恢復開放。"
+    "extension": "若校園公告寫 until Friday，還可查附註確認週五當天是否已恢復開放。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "接到筆友的邀請，對方說 Let's meet on May 6。可以把五月六日寫進行事曆，再回訊息確認幾點見面和在哪個入口等。"
+    }
   },
   {
     "id": "cl15",
@@ -1947,7 +2299,12 @@
     },
     "examFocus": "each＋單數名詞逐一指稱成員，指班級這類群體單位可搭配 its。",
     "commonMistake": "不要在表示「它的」的 its 中加撇號，加了便成為縮寫。",
-    "extension": "分組簡報可用 our own slide 表示每組有自己負責的投影片。"
+    "extension": "分組簡報可用 our own slide 表示每組有自己負責的投影片。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "借自行車時，店員說 Each bike has its own lock。你要幫三台車找鎖。按照這句說法，這些鎖可以怎麼配給三台車？",
+      "hint": "Each bike 提醒你要一台一台看，its own lock 指每台車各有一把鎖。可以請店員指出鎖的編號，再找對應的車。"
+    }
   },
   {
     "id": "cl16",
@@ -1973,7 +2330,12 @@
     },
     "examFocus": "where 可引導修飾地點的關係子句，語意相當於適當的介系詞加 which。",
     "commonMistake": "別只因先行詞是物就選 which，還要檢查子句缺的是受詞還是地點。",
-    "extension": "寫校園導覽時，可用 where students eat 描述學生平常用餐的地方。"
+    "extension": "寫校園導覽時，可用 where students eat 描述學生平常用餐的地方。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "朋友在機場傳訊 I'm at the shop where we bought snacks。機場裡有好幾家商店，你們之前只在一家買過點心。你會怎麼找他？",
+      "hint": "用 where 後面的事情來辨認是哪一家店。想想當時走過哪些地方、在哪家店結帳，或翻一下收據確認店名。"
+    }
   },
   {
     "id": "cl17",
@@ -1999,7 +2361,11 @@
     },
     "examFocus": "answer the phone 是「接電話」的固定搭配，要用上下文辨認誰接聽。",
     "commonMistake": "answer 不只用於回答問題，受詞是 the phone 時指接聽。",
-    "extension": "電話暫時無人接時，可以留一段 voicemail，簡短說明來電原因。"
+    "extension": "電話暫時無人接時，可以留一段 voicemail，簡短說明來電原因。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "分組練習時，搭檔說 I'll answer the phone，表示電話響了他會接。如果要說回文字訊息，可以用 reply to a message。"
+    }
   },
   {
     "id": "cl18",
@@ -2025,7 +2391,12 @@
     },
     "examFocus": "What＋a/an＋形容詞＋單數可數名詞可構成感嘆句。",
     "commonMistake": "冠詞要聽字首的音，別只看 honest 的第一個字母。",
-    "extension": "看課表上的 an hour 時也適用同一個原則，hour 的 h 不發音。"
+    "extension": "看課表上的 an hour 時也適用同一個原則，hour 的 h 不發音。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "看到朋友換了一把特別的傘，你想用 What a 或 What an 稱讚。當後面接 unusual umbrella 時，哪個開頭唸起來合適？",
+      "hint": "先出聲唸 unusual，會發現它一開始就是母音。順著這個聲音，前面用 an，整句就能說 What an unusual umbrella!"
+    }
   },
   {
     "id": "cl19",
@@ -2051,7 +2422,11 @@
     },
     "examFocus": "敘事時要以整段的時間為依據，留意過去式可能和原形同拼法。",
     "commonMistake": "別把 the next morning 自動當作從現在算起的明天，這裡是故事中的隔天。",
-    "extension": "朗讀故事時，過去式 read 唸起來和 red 一樣，可以藉此練習辨音。"
+    "extension": "朗讀故事時，過去式 read 唸起來和 red 一樣，可以藉此練習辨音。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "交換生在組員留言區寫 I read your notes last night。從 last night 能知道他昨晚已經看過筆記，下次分組見面可以直接和他聊筆記內容。"
+    }
   },
   {
     "id": "cl20",
@@ -2077,7 +2452,11 @@
     },
     "examFocus": "feel proud of 可表示為某個人或某件事感到自豪。",
     "commonMistake": "臉紅可能只是不好意思，不能單靠這個反應判斷人物的整體心情。",
-    "extension": "鼓勵朋友時，可用 proud of you 肯定他付出的努力，例如持續練習一個月。"
+    "extension": "鼓勵朋友時，可用 proud of you 肯定他付出的努力，例如持續練習一個月。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "社團做完英文導覽短片，有人說 I'm proud of our team。這句可以用在回看共同完成的作品時，再補一句大家一起想辦法解決了什麼問題。"
+    }
   },
   {
     "id": "cl21",
@@ -2103,7 +2482,11 @@
     },
     "examFocus": "for 加一餐可表示準備給哪一餐吃。",
     "commonMistake": "別把 fifty of them 的 of 延伸到 dinner，of them 只交代從哪些東西中計數。",
-    "extension": "帶食物去聚餐時，可用 for the potluck 說明這道菜是要帶去分享的。"
+    "extension": "帶食物去聚餐時，可用 for the potluck 說明這道菜是要帶去分享的。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "園遊會前搬物資，看到箱子上寫 These cups are for the drink stand，就知道杯子是留給飲料攤用的，可以把整箱搬到那一攤。"
+    }
   },
   {
     "id": "cl22",
@@ -2129,7 +2512,12 @@
     },
     "examFocus": "表示未來可能結果時，if 子句可用現在式，主要子句可用 will＋原形動詞。",
     "commonMistake": "別因為結果在未來，就把條件子句也一律改用 will。",
-    "extension": "寫做菜提醒時，可先說明可能發生的狀況，再交代後果，例如火太大可能使表面焦掉。"
+    "extension": "寫做菜提醒時，可先說明可能發生的狀況，再交代後果，例如火太大可能使表面焦掉。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "朋友說 If you leave now, you'll catch the last bus。假如你想先去買飲料再出發，他這句話能保證你買完飲料後仍搭得到車嗎？",
+      "hint": "先找出對方給的時間條件。句子說的是現在出發的結果，如果你多停一站，就要另外估算路程，再和末班車的時間對照。"
+    }
   },
   {
     "id": "cl23",
@@ -2155,7 +2543,11 @@
     },
     "examFocus": "look like＋名詞表示外觀像某人或某物。",
     "commonMistake": "like 在 look like 裡表示「像」，別按「喜歡」翻譯。",
-    "extension": "描述雙胞胎外形相似時，可以說 They look alike，句尾無須再列比較對象。"
+    "extension": "描述雙胞胎外形相似時，可以說 They look alike，句尾無須再列比較對象。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "約見面時，朋友說入口旁的招牌 looks like a giant umbrella。走到附近可以抬頭找形狀像大雨傘的招牌，當作辨認入口的線索。"
+    }
   },
   {
     "id": "cl24",
@@ -2181,7 +2573,12 @@
     },
     "examFocus": "It's＋所有格＋turn＋to V 表示輪到某人做某事。",
     "commonMistake": "看到前句提到過去教過的事，也別把 turn 後的動詞改成過去式。",
-    "extension": "玩桌遊時，可用 take turns 說明玩家輪流行動，例如每人依序抽一張牌。"
+    "extension": "玩桌遊時，可用 take turns 說明玩家輪流行動，例如每人依序抽一張牌。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "國際交流視訊中，主持人說 It's Mia's turn to ask a question。你也想到一個問題，這時應該先做什麼，才不會讓兩人的聲音撞在一起？",
+      "hint": "Mia's 指現在輪到米雅，後半句也說明她要提問。你可以先記下自己的問題，等她講完，再向主持人示意想發言。"
+    }
   },
   {
     "id": "re13",
@@ -2207,7 +2604,11 @@
     },
     "examFocus": "比較圖表價格前，先按欄位找出題目指定的品項範圍。",
     "commonMistake": "不要只選整張菜單的最低數字，題目問的是麵類。",
-    "extension": "比較兩份水餃時，可把價格除以顆數，換算成每顆多少錢。"
+    "extension": "比較兩份水餃時，可把價格除以顆數，換算成每顆多少錢。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "在國外買充電線時，價目表可能把各種接頭分欄。先找到能接上自己裝置的那一欄，再比那幾條線的售價，會比較容易選到能用的便宜款。"
+    }
   },
   {
     "id": "re14",
@@ -2233,7 +2634,11 @@
     },
     "examFocus": "閱讀店家公告時，要同時核對每天的營業時段和公休日。",
     "commonMistake": "中午落在平常的營業時段內，仍要看題目指定的是不是公休日。",
-    "extension": "打算接近打烊時用餐，可先查 last order，確認最後點餐時間。"
+    "extension": "打算接近打烊時用餐，可先查 last order，確認最後點餐時間。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "查展館開放時間時，如果一般時段旁另有 Holiday hours，就要點開假日那一欄，對照出遊日期再決定幾點出門。"
+    }
   },
   {
     "id": "re15",
@@ -2259,7 +2664,12 @@
     },
     "examFocus": "先核對促銷適用的日期和搭配品項，再從原價總額扣掉折扣。",
     "commonMistake": "看到 20 元優惠，要確認是整組折 20 元，不能每樣各扣一次。",
-    "extension": "限時優惠常附時段，例如午餐組合只在下午兩點前供應。"
+    "extension": "限時優惠常附時段，例如午餐組合只在下午兩點前供應。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "假設文具店的英文標牌寫 Buy two notebooks, get $10 off。你手上拿的是一本筆記本和一枝筆，這兩件合在一起能折十元嗎？",
+      "hint": "標牌要求買的是兩本筆記本。結帳前可以把手上的品項和標牌對一遍，筆沒有算進指定品項，所以這一組還不符合條件。"
+    }
   },
   {
     "id": "re16",
@@ -2285,7 +2695,12 @@
     },
     "examFocus": "找人物採取的行動時，讀決定改變之後的具體敘述。",
     "commonMistake": "別把故事開頭遇到的困難當成她的解決方式。",
-    "extension": "寫運動日誌可記錄每次跑了多久，例如從五分鐘增加到八分鐘。"
+    "extension": "寫運動日誌可記錄每次跑了多久，例如從五分鐘增加到八分鐘。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "社團訪談裡，有人說 We wanted more people to see our work，接著提到把作品擺到走廊。哪個細節能交代他們實際做的事？",
+      "hint": "第一句說他們希望更多人看見作品，後面才說他們做了什麼。要交代具體行動，可以寫他們把作品擺到走廊。"
+    }
   },
   {
     "id": "re17",
@@ -2311,7 +2726,12 @@
     },
     "examFocus": "判斷人物結尾的情緒時，找出最後一幕的表情、話語和想法。",
     "commonMistake": "題目問故事結尾，要留意選項是不是搬用了故事前段的情緒。",
-    "extension": "寫故事時可用微笑或放鬆肩膀呈現情緒，讓讀者從動作推知人物感受。"
+    "extension": "寫故事時可用微笑或放鬆肩膀呈現情緒，讓讀者從動作推知人物感受。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "朋友報告前一直問大家聽不聽得清楚，下台後第一句是 I'm glad it's over。看到這句話，你會猜他下台時是什麼心情？",
+      "hint": "glad 表示他對事情已經結束感到高興。把這句話和上台前反覆確認的情況放在一起，可以推測他現在鬆了一口氣。"
+    }
   },
   {
     "id": "re18",
@@ -2337,7 +2757,12 @@
     },
     "examFocus": "寓意題要串起人物的困境、行動和最後的收穫。",
     "commonMistake": "不要把比賽這個情節直接當成主旨，結尾對進步的評價才點出故事重點。",
-    "extension": "練樂器時也可拿自己的前後錄音比較，聽出節奏是否比上次更穩。"
+    "extension": "練樂器時也可拿自己的前後錄音比較，聽出節奏是否比上次更穩。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "一則英文短篇裡，兩人排練時一直搶同一句台詞，後來用紙卡標出誰要先說，終於順利說完。你會怎麼向沒讀過的同學說明這篇故事想表達什麼？",
+      "hint": "回頭看看哪個做法改變了結果。紙卡讓兩人知道自己何時開口，所以可以把重點放在先說清楚分工，合作就會比較順利。"
+    }
   },
   {
     "id": "re19",
@@ -2363,7 +2788,11 @@
     },
     "examFocus": "可用 the most common way 詢問人數最多的一類，再比較表格各列人數。",
     "commonMistake": "別把 the most common way（人數最多的方式）和 most students（過半數學生）混為一談；本題走路只占 30%，但仍是最多的一類。",
-    "extension": "讀表格時，人數最多的一類未必過半，可用百分比看出實際占比。"
+    "extension": "讀表格時，人數最多的一類未必過半，可用百分比看出實際占比。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "英文投票結果寫 most popular option，指的是票數最高的選項。如果最高票有兩個，可以看公告怎麼標示並列第一。"
+    }
   },
   {
     "id": "re20",
@@ -2389,7 +2818,12 @@
     },
     "examFocus": "算整體中的比例時，以該類人數除以調查總人數。",
     "commonMistake": "別把 100 當成百分比，也別只把選項提到的兩類相加當成總人數。",
-    "extension": "看到 one in four 也可換算成 25%，方便和圖表上的百分比對照。"
+    "extension": "看到 one in four 也可換算成 25%，方便和圖表上的百分比對照。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "假設社團的問卷摘要寫 one in three of those who replied，後面提到想辦夜間導覽。你可以把這個比例直接說成全校學生的想法嗎？",
+      "hint": "先看 of 後面圈定的範圍，這裡只算有回覆問卷的人。想把比例推到全校，還需要知道哪些人填了問卷、能不能代表其他學生。"
+    }
   },
   {
     "id": "re21",
@@ -2415,7 +2849,12 @@
     },
     "examFocus": "比較選項中的兩組方式時，要把題目指定的各類人數先加總。",
     "commonMistake": "別只挑各組的最高值比較，也不要把 Other 加進題目沒指定的組別。",
-    "extension": "規劃校門口動線時，可按步行和單車的人數估算入口空間。"
+    "extension": "規劃校門口動線時，可按步行和單車的人數估算入口空間。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "園遊會的銷售表把冷飲分成茶和果汁，熱飲分成可可和牛奶，並列出各品項賣出的杯數。要知道冷飲和熱飲哪一類賣得多，可以怎麼算？",
+      "hint": "先把同一類的兩個品項放在一起。茶加果汁算冷飲，可可加牛奶算熱飲，最後比較兩組相加的杯數，就能回答整類的差別。"
+    }
   },
   {
     "id": "re22",
@@ -2441,7 +2880,11 @@
     },
     "examFocus": "判斷求助信的核心問題時，可結合具體事件與寫信人的感受。",
     "commonMistake": "分班是背景，別直接推定她討厭自己的班級或新同學。",
-    "extension": "若想維持跨班友誼，可以先約一個雙方都有空的午餐時間。"
+    "extension": "若想維持跨班友誼，可以先約一個雙方都有空的午餐時間。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "傳訊息求助時，只說「我好煩」，對方很難幫忙。先說發生什麼事，例如換班後常一個人吃午餐，再說自己覺得寂寞，對方就能抓到問題所在。"
+    }
   },
   {
     "id": "re23",
@@ -2467,7 +2910,12 @@
     },
     "examFocus": "推論人物可能說什麼時，要比對原文提出的做法和語氣。",
     "commonMistake": "別把從 I 開始的句子都當成表達感受，還要看內容是否坦誠。",
-    "extension": "想改善相處時，也可提出具體邀約，例如問對方週五要不要一起午餐。"
+    "extension": "想改善相處時，也可提出具體邀約，例如問對方週五要不要一起午餐。",
+    "lifeKnowledge": {
+      "type": "think",
+      "text": "英文社團手冊建議，意見不同時先說自己的顧慮。組員想在戶外排練，你擔心下雨。你會怎麼用一句話開口，並讓他知道你在擔心什麼？",
+      "hint": "可以從 I'm worried about the rain 說起，把焦點放在天氣怎麼影響排練。說完顧慮後，兩人就有機會一起想個備用地點。"
+    }
   },
   {
     "id": "re24",
@@ -2493,6 +2941,10 @@
     },
     "examFocus": "推測字義時應參考整句和前文，room 可指抽象的空間或餘地。",
     "commonMistake": "看到 room 別直接翻成房間，尤其當主詞是友誼之類的抽象概念。",
-    "extension": "團隊說 room for improvement 時，意思是仍有改進空間，例如把分工說得更清楚。"
+    "extension": "團隊說 room for improvement 時，意思是仍有改進空間，例如把分工說得更清楚。",
+    "lifeKnowledge": {
+      "type": "life",
+      "text": "班上討論海報，有人說 There's room for one more idea。就算白板已經寫滿，你仍可以口頭說一個點子，因為這句是在說討論還能接納新提議。"
+    }
   }
 ]
