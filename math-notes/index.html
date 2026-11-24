@@ -31,11 +31,11 @@ summary.pressed{background:var(--hover-strong)}
 /* 本頁無半透明材質，減少透明度設定不需要另行降級。 */
 .detail-layout{background:var(--layer-3)}details[open] .item-button{background:var(--item-open-bg);color:var(--accent-text)}.use{background:transparent;padding:0}@media(min-width:800px){.detail-layout{flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:20px}.use{flex:none;padding:0;width:auto}}.nowrap{white-space:nowrap}
 [hidden]{display:none!important}
-.formula-tabs{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));box-shadow:inset 0 -1px 0 #94b5d9;margin-bottom:24px}
-.formula-tabs button{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;appearance:none;border:0;background:none;padding:0;font:inherit;font-size:1rem;font-weight:500;color:#4e7197;height:48px;min-height:44px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;line-height:1}
-.formula-tabs button svg{flex:0 0 auto;color:#4e7197}
-.formula-tabs button[aria-pressed="true"]{font-weight:600;color:#234d77;background:#c7def7}
-.formula-tabs button[aria-pressed="true"] svg{color:#234d77}
+.formula-tabs{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:#c7def7;border-radius:8px;overflow:hidden;margin-bottom:24px}
+.formula-tabs button{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;appearance:none;border:0;background:none;padding:0;font:inherit;font-size:1rem;font-weight:500;color:#234d77;height:48px;min-height:44px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;line-height:1}
+.formula-tabs button svg{flex:0 0 auto;color:#234d77}
+.formula-tabs button[aria-pressed="true"]{font-weight:600;color:#11304f;background:#94b5d9}
+.formula-tabs button[aria-pressed="true"] svg{color:#11304f}
 .formula-tabs .formula-tab-label{display:inline-block;pointer-events:none}
 .formula-tabs .formula-tab-label::after{content:attr(data-label);font-weight:600;visibility:hidden;height:0;display:block}
 .formula-tab-indicator{position:absolute;left:0;bottom:0;height:3px;background:#4e7197;border-radius:999px;pointer-events:none;z-index:1}
