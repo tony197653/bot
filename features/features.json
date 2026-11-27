@@ -1,13 +1,15 @@
 {
   "_說明": "功能庫資料檔。格式說明請看同資料夾的 README.md。改完存檔即可，不必動 index.html。",
-  "updated": "2026-11-24",
+  "updated": "2026-11-27",
   "source": "技能 feature-index（含 references/ 比較表）",
   "notes": [
     {
-      "title": "付款尚未確認",
+      "title": "付款注意",
       "items": [
         "GitHub Pages 沒有後端，任何 secret key（Stripe secret key、綠界 HashKey／HashIV、PayPal client secret）都不能放前端，只能用金流商代管的收款連結／付款按鈕。",
-        "藍新、LINE Pay 能否免後端使用：未確認。Stripe 台灣公司能否直接開戶：未確認。"
+        "藍新金流可用後台「快速收款連結」（EPG），免 API 介接，適合靜態頁只放連結；個人可註冊。個人會員交易額度 20 萬，期間（每月或 30 日）官方費率頁未寫明，未核對。",
+        "LINE Pay 線上付款不能免後端（須商家伺服器呼叫 API）；商店 QR Code 官方註明不支援網路商店。",
+        "台灣公司不能以台灣為營業地直接開 Stripe 帳戶，因此沒有官方台灣商家手續費。已在支援地區開戶的商家仍可向台灣買家收款。"
       ]
     },
     {
@@ -19,7 +21,8 @@
         "Firebase Cloud Storage 自 2026-02-03 起 Spark 免費方案不能用（要綁卡升級 Blaze）。",
         "Cusdis 已 archived；utterances、Staticman、y-webrtc、Lunr.js 超過一年沒更新。",
         "ApexCharts 改雙授權，年營收／預算 200 萬美元以上的組織不能用免費版。",
-        "Decap CMS 放 GitHub Pages 要另架 OAuth 代理，改用 Sveltia CMS 可免。"
+        "Decap CMS 放 GitHub Pages 要另架 OAuth 代理，改用 Sveltia CMS 可免。",
+        "Lemon Squeezy 已停止新註冊，將於 2027-03-31 停止處理付款。"
       ]
     },
     {
@@ -130,6 +133,11 @@
         "note": "台灣信用卡／ATM／超商，個人可申請、免寫程式"
       },
       "alternatives": [
+        {
+          "name": "藍新 NewebPay 快速收款連結（EPG）",
+          "url": "https://www.newebpay.com/website/Page/content/service_paymenttools",
+          "note": "台灣信用卡等，免 API 介接，後台產出網址／QR；個人可申請。交易額度期間未核對。"
+        },
         {
           "name": "PayPal 付款連結／Buy Button",
           "url": "https://github.com/paypal/paypal-js",
@@ -372,7 +380,7 @@
         {
           "name": "MapLibre GL JS＋MapTiler",
           "url": "https://github.com/maplibre/maplibre-gl-js",
-          "note": "向量地圖，免費版限非商用"
+          "note": "向量地圖，免費方案限非商用，每月 5,000 map sessions／1,000 search／2,000 3D sessions，超過暫停到下月"
         }
       ]
     },
@@ -396,7 +404,7 @@
     {
       "name": "AI 問答",
       "status": "已驗證",
-      "skill": "",
+      "skill": "ai",
       "primary": {
         "name": "Cloudflare Workers AI 文字模型（Worker binding）",
         "url": "https://developers.cloudflare.com/workers-ai/platform/pricing/",
