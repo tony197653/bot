@@ -27,7 +27,7 @@ test('host, standing guest, or later streets get no first-hand hint', () => {
 
 test('mp-app wires the helper into the guest between-hands bar', () => {
   const src = readFileSync(join(root, 'js/ui/mp-app.js'), 'utf8');
-  assert.match(src, /pickListedOpenTables\(rows\)/);
+  assert.match(src, /refreshOpenTables\(\);\n\s+void sweepLobbyTables/);
   assert.match(src, /guestWaitFirstHandHint/);
   assert.match(src, /等房主按『開始第一手』|waitHint/);
 });
