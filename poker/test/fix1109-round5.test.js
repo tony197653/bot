@@ -6,6 +6,7 @@ import { renderMpLobby, renderShareRoom } from '../js/ui/lobby.js';
 import { createSingleTable } from '../js/net/room.js';
 import { openPersonalStats } from '../js/ui/personal-stats.js';
 import { startPresence } from '../js/net/presence.js';
+import { pickListedOpenTables } from '../js/net/room.js';
 const app = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
 const section = (a, b) => app.slice(app.indexOf(a), app.indexOf(b, app.indexOf(a)));
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -43,13 +44,15 @@ test('大廳頭像同步顯示本人 ps-sheet；讀取未返回及後續快照�
     },
     $: () => root, stopOpenTables: null, openTables: [{ id: 'r' }],
     listenOpenTables: (_fb, cb) => { snapshot = cb; return () => {}; },
+    pickListedOpenTables,
     lobbyExitSuppressMine: false, isRoomOpenStatus: () => true,
     lobbySweepRows: [], sweepLobbyTables: async () => {}, isLobbyRoomSuppressed: () => false,
     photoOf: () => undefined,
     patchOpenTables: r => { assert.equal(r.nodes.find(n => n.act === 'avatar'), avatar); return true; },
     paint: () => assert.fail('一般快照不應重建大廳'), console,
   });
-  vm.runInContext(section('function openOwnStats()', 'function bindPersonalStatsEntry()')
+  vm.runInContext(section('function refreshOpenTables()', '\nfunction ')
+    + section('function openOwnStats()', 'function bindPersonalStatsEntry()')
     + section('function ensureOpenTablesListen()', '\nasync function enterOpenTable('), ctx);
   const wiring = /onAvatar:\s*(\w+)/.exec(app)[1];
   renderMpLobby(root, { user: { uid: 'me', displayName: '本人' }, onAvatar: ctx[wiring] });

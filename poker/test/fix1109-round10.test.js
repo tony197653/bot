@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { settleClosedRoomBinding } from '../js/net/ledger.js';
+import { pickListedOpenTables } from '../js/net/room.js';
 
 const app = readFileSync(new URL('../js/ui/mp-app.js', import.meta.url), 'utf8');
 const section = (start, end) => app.slice(app.indexOf(start), app.indexOf(end, app.indexOf(start)));
@@ -16,7 +17,8 @@ test('清單進桌同步回饋；過期關桌走開桌流程，新鮮牌桌維�
     const ctx = vm.createContext({
       getFirebase: () => ({}), getUser: () => ({ uid: 'visitor' }), openJoinBusy: false,
       toast: () => calls.push('toast'), $: () => ({ querySelector: () => row }), CSS: { escape: s => s },
-      openTables: [{ id: 'old' }], screen: 'lobby', playerDoc: null,
+      openTables: [{ id: 'old' }], lobbySweepRows: [{ id: 'old', status: 'lobby' }], pickListedOpenTables,
+      screen: 'lobby', playerDoc: null,
       silentlySettleClosedBinding: async () => {}, getPlayer: async () => null,
       maybeAutoCloseSingleTable: async (_fb, rid, uid) => {
         assert.equal(rid, 'old'); assert.equal(uid, 'visitor'); calls.push('check'); return pending;
@@ -31,7 +33,7 @@ test('清單進桌同步回饋；過期關桌走開桌流程，新鮮牌桌維�
       enterRoom: async () => { calls.push('enter'); },
       friendlyError: e => { throw e; }, paint: () => {},
     });
-    vm.runInContext(section('async function enterOpenTable(', 'function lobbyBindKey('), ctx);
+    vm.runInContext(section('function refreshOpenTables()', '\nfunction ') + section('async function enterOpenTable(', 'function lobbyBindKey('), ctx);
     const entering = ctx.enterOpenTable('old');
     assert.deepEqual(calls, ['toast', 'busy']);
     await new Promise(resolve => setImmediate(resolve));

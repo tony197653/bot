@@ -69,6 +69,7 @@ test('HD1113：完整交易一次退回所有玩家籌碼、下注及帳本，�
 });
 
 import vm from 'node:vm';
+import { guestWaitFirstHandHint } from '../js/ui/table-hints.js';
 import {readFileSync} from 'node:fs';
 const appSource=readFileSync(new URL('../js/ui/mp-app.js',import.meta.url),'utf8');
 const extract=(start,end)=>appSource.slice(appSource.indexOf(start),appSource.indexOf(end,appSource.indexOf(start)));
@@ -83,7 +84,7 @@ function bannerElement(textContent = '') {
 test('HD1113：實際動作列停用且隱藏倒數；既有 banner 顯示等待文案',()=>{
   const btns={innerHTML:'bet'},hint={textContent:'20 秒'},banner=bannerElement();let locked=0;
   const c=vm.createContext({hostPaused:true,hostReturned:false,room:{seatUids:['p'],hostUid:'h',pub:{phase:'flop',actor:0}},
-    screen:'table',getUser:()=>({uid:'p'}),DISCONNECT_COPY,
+    screen:'table',getUser:()=>({uid:'p'}),DISCONNECT_COPY,guestWaitFirstHandHint,
     $:s=>s==='#btns'?btns:s==='#turnHint'?hint:s==='#mpBanner'?banner:{},lockMpRaisePanel:()=>locked++});
   vm.runInContext(extract('function renderActBar()', 'function clearMpRaiseHold()'),c);
   vm.runInContext(extract('function tickTurnHint()', 'function consumeRoomSound'),c);
@@ -126,7 +127,7 @@ test('HD1113：暫停顯示等待文字，房主回來或收桌清除暫停後�
     const c=vm.createContext({hostPaused:true,addonButtonsHtml:()=>"",wireAddonButtons:()=>{},hostReturned:false,hostReturnedTimer:7,
       room:{status:'playing',hostUid:'h',seatUids:['p'],config:{bb:20},pub:{phase:'flop',actor:0}},
       getUser:()=>({uid:'p'}),hostBeatMs:Date.now(),hostRoomUpdatedMs:null,
-      disconnectState,hostAliveMs,DISCONNECT_COPY,hostSitPending:false,
+      disconnectState,hostAliveMs,DISCONNECT_COPY,hostSitPending:false,guestWaitFirstHandHint,
       clearTimeout(){},setTimeout(){},paintTableChrome(){},tickTurnHint(){},lockMpRaisePanel(){},
       $:s=>s==='#btns'?btns:s==='#act'?act:null});
     vm.runInContext(extract('function renderActBar()', 'function clearMpRaiseHold()'),c);

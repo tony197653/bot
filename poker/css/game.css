@@ -422,7 +422,8 @@ input:focus-visible,.mp-float input:focus-visible,.mp-digit:focus-visible,.mp-af
   flex:1;height:46px;border-radius:12px;font-size:16px;font-weight:700;
   background:var(--btn);color:var(--btnink);border:1px solid rgba(255,255,255,.08);
 }
-.show-btns .primary{
+.show-btns .primary,
+.btns .primary{
   background:linear-gradient(var(--accent),var(--accent2));color:var(--accentink);border:none;
 }
 .show-cd{font-size:12px;color:var(--mute);text-align:center;margin-bottom:4px}
@@ -1183,7 +1184,7 @@ body.mp-buyin-open #act{visibility:hidden}
 #mpAddonQueueRow{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;font-size:14px}
 #mpAddonQueueRow button{min-width:44px;min-height:44px;white-space:nowrap}
 .btns #mpCall{white-space:nowrap}
-.btns #mpStart{font-size:14px;white-space:nowrap;flex:2 1 0}
+.btns #mpStart{white-space:nowrap;flex:2 1 0}
 #mpToast.mp-toast-warning{color:var(--warn);border:1px solid var(--warn)}
 @media(min-width:1000px){
   .app{grid-template-rows:calc(var(--top-h) + var(--safe-top)) minmax(0,1fr) auto}

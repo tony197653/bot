@@ -44,7 +44,9 @@ import {
   isRoomOpenStatus,
   noteLobbyRoomClosed,
   deleteLobbyListing,
+  pickListedOpenTables,
 } from '../net/room.js';
+import { guestWaitFirstHandHint } from './table-hints.js';
 import {
   ensurePlayerGrant,
   buyinAmount,
@@ -925,6 +927,10 @@ let lobbyExitSuppressMine = false;
 /** @type {any[]} */
 let openTables = [];
 let lobbySweepRows = [];
+/** 大廳只顯示一桌，但永遠從完整列表重選，殘留（已收桌）列表不能擋住真桌。 */
+function refreshOpenTables() {
+  openTables = pickListedOpenTables(lobbySweepRows);
+}
 let lobbySweepInflight = false;
 /** @type {(() => void)|null} */
 let stopOpenTables = null;
@@ -1548,6 +1554,7 @@ function paint() {
                 : 'lobby',
           }
         : null;
+    refreshOpenTables();
     renderMpLobby(root, {
       user: authState.user,
       photoOf,
@@ -1555,7 +1562,7 @@ function paint() {
       bankFresh: playerFresh,
       myTable,
       openTables: openTables.filter(
-        (t) => t.id !== myTable?.roomId && !isLobbyRoomSuppressed(t.id) && isRoomOpenStatus(t.status),
+        (t) => t.id !== myTable?.roomId,
       ),
       joinDigits,
       joinError,
@@ -1747,7 +1754,9 @@ async function sweepLobbyTables() {
       if (screen !== 'lobby' || getUser()?.uid !== user.uid) break;
       if (row.id === playerDoc?.tableRoomId) continue;
       await sweepStaleTable(fb, row, user.uid, Date.now(), () => {
-        if (screen === 'lobby') paint();
+        if (screen !== 'lobby') return;
+        refreshOpenTables();
+        paint();
       });
     }
   } finally {
@@ -1764,13 +1773,13 @@ function ensureOpenTablesListen() {
     (rows) => {
       const hadTable = openTables.length > 0;
       lobbySweepRows = rows;
-      openTables = rows.slice(0, 1);
+      refreshOpenTables();
       void sweepLobbyTables();
       if (screen !== 'lobby') return;
       // 一般快照只更新清單，保留手機 pointerdown 到 click 之間的頭像節點。
       const root = $('#mpRoot');
       const mine = lobbyExitSuppressMine ? null : playerDoc?.tableRoomId || playerDoc?.hostRoomId;
-      const listed = openTables.filter(t => t.id !== mine && !isLobbyRoomSuppressed(t.id) && isRoomOpenStatus(t.status));
+      const listed = openTables.filter(t => t.id !== mine);
       if (hadTable === (openTables.length > 0) && root && patchOpenTables(root, listed, photoOf)) return;
       // 單桌出現／消失時，開桌入口也必須同步更新。
       paint();
@@ -1797,7 +1806,8 @@ async function enterOpenTable(roomId) {
     await silentlySettleClosedBinding();
     playerDoc = await getPlayer(fb, user.uid);
     if (await maybeAutoCloseSingleTable(fb, roomId, user.uid)) {
-      openTables = openTables.filter((t) => t.id !== roomId);
+      lobbySweepRows = lobbySweepRows.filter((t) => t.id !== roomId);
+      refreshOpenTables();
       // Release the join guard in finally before create's lookup may join a new table.
       return onCreateTable();
     }
@@ -1811,7 +1821,8 @@ async function enterOpenTable(roomId) {
         } catch {
           /* ignore */
         }
-        openTables = openTables.filter((t) => t.id !== roomId);
+        lobbySweepRows = lobbySweepRows.filter((t) => t.id !== roomId);
+        refreshOpenTables();
       }
       toast(
         res.ended
@@ -2885,6 +2896,19 @@ function renderActBar() {
       ${addonButtonsHtml(true)}<button data-sfx="tap" type="button" class="ghost" id="mpLeave">離座</button>`;
     wireAddonButtons();
     $('#mpStart')?.addEventListener('click', startHandFromButton);
+    $('#mpLeave')?.addEventListener('click', () => requestLeave());
+    return;
+  }
+
+  const waitHint = guestWaitFirstHandHint({
+    isHost,
+    mySeat,
+    phase: pub.phase,
+    handNo: pub.handNo,
+  });
+  if (between && waitHint) {
+    btns.innerHTML = `<div class="mp-spec">${waitHint}</div>${addonButtonsHtml(true)}<button data-sfx="tap" type="button" class="ghost" id="mpLeave">離座</button>`;
+    wireAddonButtons();
     $('#mpLeave')?.addEventListener('click', () => requestLeave());
     return;
   }
