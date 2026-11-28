@@ -193,6 +193,13 @@ export function sortLobbyListings(rows) {
   });
 }
 
+/** Drop closed/suppressed leftovers first, then keep the oldest open table. */
+export function pickListedOpenTables(rows) {
+  return sortLobbyListings(rows).filter(
+    (t) => !isLobbyRoomSuppressed(t.id) && isRoomOpenStatus(t.status),
+  ).slice(0, 1);
+}
+
 /** 以既有大廳查詢找最早開桌；不將本機快取當作建立許可。 */
 export async function findOpenTable(fb, uid) {
   const { db, fs } = fb;

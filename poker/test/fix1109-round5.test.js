@@ -43,6 +43,7 @@ test('大廳頭像同步顯示本人 ps-sheet；讀取未返回及後續快照�
     },
     $: () => root, stopOpenTables: null, openTables: [{ id: 'r' }],
     listenOpenTables: (_fb, cb) => { snapshot = cb; return () => {}; },
+    pickListedOpenTables: rows => rows.slice(0, 1),
     lobbyExitSuppressMine: false, isRoomOpenStatus: () => true,
     lobbySweepRows: [], sweepLobbyTables: async () => {}, isLobbyRoomSuppressed: () => false,
     photoOf: () => undefined,
