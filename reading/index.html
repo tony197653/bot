@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#eef4fb">
+<meta name="description" content="國中英文閱讀測驗入口。">
+<title>國中閱讀測驗</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="國中閱讀測驗">
+<meta property="og:description" content="選一篇開始練習。">
+<meta property="og:url" content="https://tony197653.github.io/bot/reading/">
+<meta property="og:image" content="https://tony197653.github.io/bot/reading/apple-touch-icon.png">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=20261128">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=20261128">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=20261128">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&amp;display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #eef4fb;
+  --paper: #d5e4f5;
+  --ink: #111111;
+  --muted: #111111;
+  --line: #768597;
+  --line-soft: #d5e1ef;
+  --dot-off: #7c91a9;
+  --r: 12px;
+  --shadow: 0 1px 2px rgba(43,60,77,.05), 0 4px 16px rgba(43,60,77,.05);
+  --shadow-up: 0 2px 4px rgba(43,60,77,.06), 0 14px 32px rgba(43,60,77,.10);
+  --ease: cubic-bezier(.2,.7,.2,1);
+  -webkit-text-size-adjust: 100%;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",sans-serif;
+}
+main {
+  padding:
+    max(48px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(112px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
+  margin-inline: auto;
+}
+h1 { margin: 0; font-size: 1.75rem; font-weight: 700; line-height: 1.3; letter-spacing: .02em; }
+.subtitle { margin: 8px 0 0; color: var(--muted); font-size: 1.0625rem; font-weight: 400; line-height: 1.75; letter-spacing: .02em; }
+.subjects { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; margin: 32px 0 0; padding: 0; list-style: none; }
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  min-height: 72px;
+  height: auto;
+  padding: 16px 20px;
+  border: 2px solid var(--frame);
+  border-radius: var(--r);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+.c1 {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease);
+}
+h2 { margin: 0; color: var(--ink); font-size: 1.375rem; font-weight: 600; line-height: 1.2; letter-spacing: .04em; }
+h2 a { color: inherit; text-decoration: none; outline: none; }
+h2 a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r); }
+.card:has(a:focus-visible) { outline: 2px solid var(--c); outline-offset: 3px; }
+.count { color: var(--muted); font-size: .875rem; font-weight: 500; line-height: 1.5; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.disabled { background: transparent; border-color: var(--frame); box-shadow: none; cursor: default; }
+.disabled h2 { opacity: .45; }
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: .875rem; font-weight: 500; line-height: 1; letter-spacing: .04em; white-space: nowrap; }
+.l2 { padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: #f5faff; color: var(--ink); }
+.l2 i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dot-off); }
+@media (hover:hover) and (pointer:fine) {
+  .c1:hover { transform: translateY(-4px); border-color: var(--c); box-shadow: var(--shadow-up); }
+}
+.c1.pressed { transform: scale(.97); transition: transform .12s ease-out, box-shadow .22s var(--ease), border-color .22s var(--ease); }
+@media (min-width:800px) {
+  main {
+    padding:
+      max(96px, env(safe-area-inset-top))
+      max(32px, env(safe-area-inset-right))
+      max(64px, env(safe-area-inset-bottom))
+      max(32px, env(safe-area-inset-left));
+  }
+  h1 { font-size: 2.5rem; }
+  .subjects { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin-top: 48px; }
+  .card { height: 200px; min-height: 200px; padding: 16px; justify-content: space-between; gap: 0; }
+  h2 { font-size: 2rem; }
+}
+@media (min-width:1120px) {
+  main { max-width: 1120px; padding: 120px 0 64px; }
+  .subjects { gap: 24px; }
+  .card { height: 240px; min-height: 240px; padding: 24px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .c1, .c1:hover, .c1.pressed { transform: none; transition: border-color .22s var(--ease); box-shadow: var(--shadow); }
+}
+@media (prefers-contrast:more) {
+  .card { border-color: var(--ink); }
+}
+/* 已檢查減少透明：本頁沒有半透明材質，不需降級。 */
+</style>
+</head>
+<body>
+<main>
+  <h1>國中閱讀測驗</h1>
+  <p class="subtitle">選一篇開始練習。</p>
+  <ul class="subjects" aria-label="閱讀測驗">
+    <li class="card c1" style="--c:#4e7197;--frame:#4e7197">
+      <h2><a href="https://tony197653.github.io/bot/jensen-letter-quiz/" aria-label="黃仁勳致員工信（英），公開信全文 10 題，答完即看解說。">黃仁勳致員工信（英）</a></h2>
+      <span class="count">公開信全文 10 題，答完即看解說。</span>
+    </li>
+    <li class="card c1" style="--c:#4e7197;--frame:#4e7197">
+      <h2><a href="https://tony197653.github.io/bot/starship-reading-quiz/" aria-label="Starship 太空新聞（英），太空新聞改寫短文 10 題，答完即看解說。">Starship 太空新聞（英）</a></h2>
+      <span class="count">太空新聞改寫短文 10 題，答完即看解說。</span>
+    </li>
+    <li class="card c1" style="--c:#4e7197;--frame:#4e7197">
+      <h2><a href="https://tony197653.github.io/bot/world-leaders-quiz/" aria-label="深圳三方會談（英），新聞改寫短文 10 題，答完即看解說。">深圳三方會談（英）</a></h2>
+      <span class="count">新聞改寫短文 10 題，答完即看解說。</span>
+    </li>
+    <li class="card c1" style="--c:#355b3b;--frame:#3e6b45;--paper:#d6ebd0;--ink:#1a331e;--muted:#1a331e">
+      <h2><a href="../liyun-reading-quiz/" aria-label="禮運大同（國），選文 10 題，答完即看解說。">禮運大同（國）</a></h2>
+      <span class="count">選文 10 題，答完即看解說。</span>
+    </li>
+  </ul>
+</main>
+<script>
+document.querySelectorAll('.c1').forEach(card => {
+  card.addEventListener('pointerdown', event => {
+    if (!event.isPrimary || event.button !== 0) return;
+    if (card.hasPointerCapture(event.pointerId)) card.releasePointerCapture(event.pointerId);
+    card.classList.add('pressed');
+  });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(type => {
+    card.addEventListener(type, () => card.classList.remove('pressed'));
+  });
+});
+</script>
+</body>
+</html>
