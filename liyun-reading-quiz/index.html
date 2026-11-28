@@ -226,7 +226,7 @@ function validate(data){
  return data;
 }
 
-home();fetch('./questions.json').then(response=>{if(!response.ok)throw Error('load');return response.json();}).then(data=>{const questions=questionsFrom(data);bank=validate(questions.map(q=>({...q,group:q.groupId})));VOCABULARY=resolveVocab(data,bank);loaded=true;prepared=[...bank];home();}).catch(error);
+home();fetch('./questions.json').then(response=>{if(!response.ok)throw Error('load');return response.json();}).then(data=>{const questions=questionsFrom(data);bank=validate(questions.map(q=>({...q,group:q.groupId})));VOCABULARY=normalizeVocab(bank[0]&&bank[0].vocab);if(!VOCABULARY.length)VOCABULARY=resolveVocab(data,bank);loaded=true;prepared=[...bank];home();}).catch(error);
 </script>
 </body>
 </html>
